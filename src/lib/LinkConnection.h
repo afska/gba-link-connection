@@ -88,10 +88,6 @@ class LinkConnection {
   BaudRate baudRate = BaudRate::BAUD_RATE_0;
   bool isWaiting = false;
 
-  u8 getCurrentPlayerId() {
-    return (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
-  }
-
   bool isBitHigh(u8 bit) { return (REG_SIOCNT & (1 << bit)) != 0; }
   void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
   void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
