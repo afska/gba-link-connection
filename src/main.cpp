@@ -30,7 +30,6 @@ int main() {
     auto linkState = linkConnection->tick(dataToBeSent);
 
     // (4) Process results
-    tte_erase_screen();
     std::string output = "";
     if (linkState.isConnected()) {
       output += "Players: " + std::to_string(linkState.playerCount) + "\n";
@@ -51,6 +50,7 @@ int main() {
 }
 
 void log(std::string text) {
+  tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
 }
