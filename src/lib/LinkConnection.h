@@ -32,17 +32,16 @@
 // - Bit 0xF will be ignored: it'll be used as a heartbeat
 
 void ISR_serial();
-inline u16 withHeartBit(u16 data, bool heartBit) {
-  return (data & ~(1 << LINK_HEART_BIT)) | (heartBit << LINK_HEART_BIT);
-}
+u16 _withHeartBit(u16 data, bool heartBit);
+bool _isBitHigh(u16 data, u8 bit);
 
 struct LinkState {
-  u8 playerCount = 0;
-  u8 currentPlayerId = 0;
+  u8 playerCount;
+  u8 currentPlayerId;
   u16 data[4];
   u8 _heartBits[4];
-  u32 _tick = 0;
-  u32 _lastIRQTick = 0;
+  u32 _tick;
+  u32 _lastIRQTick;
 
   bool isConnected() { return playerCount > 1; }
   bool hasData(u8 playerId) { return data[playerId] != LINK_NO_DATA; }
@@ -75,23 +74,25 @@ class LinkConnection {
   struct LinkState _linkState;
 
   explicit LinkConnection(BaudRate baudRate = BAUD_RATE_3) {
+    _linkState._reset();
     REG_RCNT = 0;
     REG_SIOCNT = (u8)baudRate;
-    this->setBitHigh(LINK_BIT_MULTIPLAYER);
-    this->setBitHigh(LINK_BIT_IRQ);
+    setBitHigh(LINK_BIT_MULTIPLAYER);
+    setBitHigh(LINK_BIT_IRQ);
   }
 
   LinkState tick(u16 data) {
     bool shouldForceReset = !isBitHigh(LINK_BIT_READY) ||
                             isBitHigh(LINK_BIT_ERROR) ||
                             _linkState._isOutOfSync();
+
     if (shouldForceReset) {
       resetCommunicationCircuit();
       _linkState._reset();
       return _linkState;
     }
 
-    REG_SIOMLT_SEND = withHeartBit(data, heartBit);
+    REG_SIOMLT_SEND = _withHeartBit(data, heartBit);
     _linkState._tick++;
     heartBit = !heartBit;
 
@@ -109,9 +110,8 @@ class LinkConnection {
     REG_RCNT = 0;
   }
 
-  bool isBitHigh(u8 bit) { return (REG_SIOCNT & (1 << bit)) != 0; }
+  bool isBitHigh(u8 bit) { return _isBitHigh(REG_SIOCNT, bit); }
   void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkConnection* linkConnection;
@@ -124,13 +124,13 @@ inline void ISR_serial() {
   for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
     auto data = REG_SIOMULTI[i];
     u8 oldHeartBit = linkConnection->_linkState._heartBits[i];
-    u8 newHeartBit = (data & (1 << LINK_HEART_BIT)) != 0;
+    u8 newHeartBit = _isBitHigh(data, LINK_HEART_BIT);
     bool isConnectionAlive =
         data != LINK_NO_DATA &&
         (oldHeartBit == LINK_HEART_BIT_UNKNOWN || oldHeartBit != newHeartBit);
 
     linkConnection->_linkState.data[i] =
-        isConnectionAlive ? withHeartBit(data, 0) : LINK_NO_DATA;
+        isConnectionAlive ? _withHeartBit(data, 0) : LINK_NO_DATA;
     linkConnection->_linkState._heartBits[i] =
         isConnectionAlive ? newHeartBit : LINK_HEART_BIT_UNKNOWN;
 
@@ -139,6 +139,14 @@ inline void ISR_serial() {
   }
 
   linkConnection->_linkState._sync();
+}
+
+inline bool _isBitHigh(u16 data, u8 bit) {
+  return (data >> bit) & 1;
+}
+
+inline u16 _withHeartBit(u16 data, bool heartBit) {
+  return (data & ~(1 << LINK_HEART_BIT)) | (heartBit << LINK_HEART_BIT);
 }
 
 #endif  // LINK_CONNECTION_H
