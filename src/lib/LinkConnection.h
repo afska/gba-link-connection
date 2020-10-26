@@ -53,15 +53,11 @@ class LinkConnection {
   };
   struct LinkState _linkState;
 
-  LinkConnection() {
+  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_0) {
     REG_RCNT = 0;
     REG_SIOCNT = (u8)baudRate;
     this->setBitHigh(LINK_BIT_MULTIPLAYER);
     this->setBitHigh(LINK_BIT_IRQ);
-  }
-
-  LinkConnection(BaudRate baudRate) : LinkConnection() {
-    this->baudRate = baudRate;
   }
 
   LinkState tick(u16 data) {
@@ -87,7 +83,6 @@ class LinkConnection {
   }
 
  private:
-  BaudRate baudRate = BaudRate::BAUD_RATE_0;
   bool isWaiting = false;
 
   bool isBitHigh(u8 bit) { return (REG_SIOCNT & (1 << bit)) != 0; }
