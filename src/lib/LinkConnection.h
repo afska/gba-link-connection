@@ -15,6 +15,7 @@
 #define LINK_BIT_IRQ 14
 
 // A Link Cable connection for Multi-player mode.
+
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkConnection* linkConnection = new LinkConnection();
@@ -23,6 +24,9 @@
 // - 3) Add to your update loop:
 //       auto linkState = linkConnection->tick(data);
 // - 4) Use `linkState` to process updates
+
+// `data` restrictions:
+// - 0xFFFF means 'disconnected', so don't use it
 
 void ISR_serial();
 
@@ -53,7 +57,7 @@ class LinkConnection {
   };
   struct LinkState _linkState;
 
-  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_0) {
+  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_3) {
     REG_RCNT = 0;
     REG_SIOCNT = (u8)baudRate;
     this->setBitHigh(LINK_BIT_MULTIPLAYER);
@@ -68,23 +72,13 @@ class LinkConnection {
       return _linkState;
     }
 
-    if (!isBitHigh(LINK_BIT_SLAVE)) {
-      if (isWaiting) {
-        if (!isBitHigh(LINK_BIT_START))
-          isWaiting = false;
-        return _linkState;
-      }
-
+    if (!isBitHigh(LINK_BIT_SLAVE))
       setBitHigh(LINK_BIT_START);
-      isWaiting = true;
-    }
 
     return _linkState;
   }
 
  private:
-  bool isWaiting = false;
-
   bool isBitHigh(u8 bit) { return (REG_SIOCNT & (1 << bit)) != 0; }
   void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
   void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
@@ -96,14 +90,12 @@ inline void ISR_serial() {
   linkConnection->_linkState.playerCount = 0;
   linkConnection->_linkState.currentPlayerId =
       (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
-  linkConnection->_linkState.data[0] = REG_SIOMULTI0;
-  linkConnection->_linkState.data[1] = REG_SIOMULTI1;
-  linkConnection->_linkState.data[2] = REG_SIOMULTI2;
-  linkConnection->_linkState.data[3] = REG_SIOMULTI3;
 
-  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
+  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
+    linkConnection->_linkState.data[i] = REG_SIOMULTI[i];
     if (linkConnection->_linkState.hasData(i))
       linkConnection->_linkState.playerCount++;
+  }
 }
 
 #endif  // LINK_CONNECTION_H
