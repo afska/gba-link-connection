@@ -17,10 +17,12 @@
 // A Link Cable connection for Multi-player mode.
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
-//    LinkConnection* linkConnection = new LinkConnection();
+//       LinkConnection* linkConnection = new LinkConnection();
 // - 2) Add the interrupt service routine:
-//    irq_add(II_SERIAL, ISR_serial);
-// - 3) Run `linkConnection->tick(data)` in your update loop
+//       irq_add(II_SERIAL, ISR_serial);
+// - 3) Add to your update loop:
+//       auto linkState = linkConnection->tick(data);
+// - 4) Use `linkState` to process updates
 
 void ISR_serial();
 
@@ -107,8 +109,6 @@ inline void ISR_serial() {
   for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
     if (linkConnection->_linkState.hasData(i))
       linkConnection->_linkState.playerCount++;
-
-  REG_IF = IRQ_SERIAL;
 }
 
 #endif  // LINK_CONNECTION_H
