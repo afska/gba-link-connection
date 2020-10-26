@@ -38,9 +38,9 @@ int main() {
         output += "Player " + std::to_string(i) + ": " +
                   std::to_string(linkState.data[i]) + "\n";
 
-      output += "Self pID: " + std::to_string(linkState.currentPlayerId) + "\n";
+      output += "Self pID: " + std::to_string(linkState.currentPlayerId);
     } else
-      output += std::string("Waiting...") + "\n";
+      output += std::string("Waiting...");
     log(output);
 
     VBlankIntrWait();
