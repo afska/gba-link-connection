@@ -1,5 +1,8 @@
-build/
+# Directories
+build
+.vscode
+
+# Files
 *.elf
 *.gba
 *.sav
-.vscode/
