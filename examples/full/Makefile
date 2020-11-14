@@ -1,20 +1,14 @@
-#
-# Template tonc makefile
-#
-# Yoinked mostly from DKP's template
-#
-
 # === SETUP ===========================================================
 
 # --- No implicit rules ---
 .SUFFIXES:
 
 # --- Paths ---
-export TONCLIB := ${DEVKITPRO}/libtonc
+export TONCLIB := $(DEVKITPRO)/libtonc
 
 # === TONC RULES ======================================================
 #
-# Yes, this is almost, but not quite, completely like to 
+# Yes, this is almost, but not quite, completely like to
 # DKP's base_rules and gba_rules
 #
 
@@ -53,7 +47,7 @@ export OBJCOPY	:=	$(PREFIX)objcopy
 
 %.elf :
 	@echo Linking cartridge
-	$(LD) -specs=gba.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@	
+	$(LD) -specs=gba.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
 	$(NM) -Sn $@ > $(basename $(notdir $@)).map
 
 #----------------------------------------------------------------------
@@ -69,7 +63,7 @@ export OBJCOPY	:=	$(PREFIX)objcopy
 %.iwram.o : %.iwram.cpp
 	@echo $(notdir $<)
 	$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) $(IARCH) -c $< -o $@
-	
+
 #----------------------------------------------------------------------
 %.iwram.o : %.iwram.c
 	@echo $(notdir $<)
@@ -112,11 +106,6 @@ define bin2o
 endef
 # =====================================================================
 
-# --- Main path ---
-
-export PATH	:=	$(DEVKITARM)/bin:$(PATH)
-
-
 # === PROJECT DETAILS =================================================
 # PROJ		: Base project name
 # TITLE		: Title for ROM header (12 characters)
@@ -131,25 +120,27 @@ export PATH	:=	$(DEVKITARM)/bin:$(PATH)
 export PROJ	?= $(notdir $(CURDIR))
 TITLE		:= $(PROJ)
 
-LIBS		:= -ltonc
+LIBS		:= -ltonc -lgba-sprite-engine
 
 BUILD		:= build
-SRCDIRS		:= src
-DATADIRS	:= data
+SRCDIRS		:= src \
+						 src/scenes \
+						 src/utils
+
+DATADIRS	:=
 INCDIRS		:= src
-LIBDIRS		:= $(TONCLIB)
+LIBDIRS		:= $(TONCLIB) $(BASE_DIR)/lib/libgba-sprite-engine
 
 # --- switches ---
 
 bMB		:= 0	# Multiboot build
-bTEMPS	:= 0	# Save gcc temporaries (.i and .s files)
+bTEMPS	:= 0	# Save gcc temporaries (.i and .S files)
 bDEBUG2	:= 0	# Generate debug info (bDEBUG2? Not a full DEBUG flag. Yet)
-
 
 # === BUILD FLAGS =====================================================
 # This is probably where you can stop editing
-# NOTE: I've noticed that -fgcse and -ftree-loop-optimize sometimes muck 
-#	up things (gcse seems fond of building masks inside a loop instead of 
+# NOTE: I've noticed that -fgcse and -ftree-loop-optimize sometimes muck
+#	up things (gcse seems fond of building masks inside a loop instead of
 #	outside them for example). Removing them sometimes helps
 
 # --- Architecture ---
@@ -160,7 +151,7 @@ IARCH   := -mthumb-interwork -marm -mlong-calls
 
 # --- Main flags ---
 
-CFLAGS		:= -mcpu=arm7tdmi -mtune=arm7tdmi -O2
+CFLAGS		:= -mcpu=arm7tdmi -mtune=arm7tdmi -Ofast
 CFLAGS		+= -Wall
 CFLAGS		+= $(INCLUDE)
 CFLAGS		+= -ffast-math -fno-strict-aliasing
@@ -198,12 +189,28 @@ else
 	ASFLAGS		+= -DNDEBUG
 endif
 
+# --- Custom vars ? ---
+
+GAMETITLE=test-multi-link
+GAMEMAKER=AGB
+GAMECODE=AZCE # Megaman Zero (SRAM - 64kb)
+ENV ?= development
+
+ifeq ($(ENV), debug)
+	CXXFLAGS += -DENV_DEBUG=true -DENV_DEVELOPMENT=true
+else ifeq ($(ENV), development)
+	CXXFLAGS += -DENV_DEVELOPMENT=true
+else
+
+endif
+
+# CXXFLAGS += -DCUSTOM_VAR_DEFINE
 
 # === BUILD PROC ======================================================
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-# Still in main dir: 
+# Still in main dir:
 # * Define/export some extra variables
 # * Invoke this file again from the build dir
 # PONDER: what happens if BUILD == "" ?
@@ -219,7 +226,7 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.s)))
+SFILES		:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.S)))
 BINFILES	:=	$(foreach dir, $(DATADIRS), $(notdir $(wildcard $(dir)/*.*)))
 
 # --- Set linker depending on C++ file existence ---
@@ -232,13 +239,13 @@ endif
 # --- Define object file list ---
 export OFILES	:=	$(addsuffix .o, $(BINFILES))					\
 					$(CFILES:.c=.o) $(CPPFILES:.cpp=.o)				\
-					$(SFILES:.s=.o)
+					$(SFILES:.S=.o)
 
 # --- Create include and library search paths ---
 export INCLUDE	:=	$(foreach dir,$(INCDIRS),-I$(CURDIR)/$(dir))	\
 					$(foreach dir,$(LIBDIRS),-I$(dir)/include)		\
 					-I$(CURDIR)/$(BUILD)
- 
+
 export LIBPATHS	:=	-L$(CURDIR) $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 # --- Create BUILD if necessary, and run this makefile from there ---
@@ -254,10 +261,9 @@ clean:
 	@echo clean ...
 	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).gba $(TARGET).sav
 
-
 else		# If we're here, we should be in the BUILD dir
 
-DEPENDS	:=	$(OFILES:.o=.d)
+DEPENDS	:= $(OFILES:.o=.d)
 
 # --- Main targets ----
 
@@ -267,18 +273,25 @@ $(OUTPUT).elf	:	$(OFILES)
 
 -include $(DEPENDS)
 
-
 endif		# End BUILD switch
 
 # --- More targets ----------------------------------------------------
 
-.PHONY: clean rebuild start
+.PHONY: clean rebuild start check-env
 
-rebuild: clean $(BUILD)
+check-env:
+ifndef BASE_DIR
+	$(warning Please export a BASE_DIR environment variable pointing to this directory.)
+	$(warning Example:)
+	$(warning export BASE_DIR="D:\work\gba\projects\gba-link-connection\examples\full")
+	$(error "Aborting")
+endif
 
-start:
+rebuild: check-env clean $(BUILD)
+
+start: check-env
 	start "$(TARGET).gba"
 
-restart: rebuild start
+restart: check-env rebuild start
 
 # EOF
