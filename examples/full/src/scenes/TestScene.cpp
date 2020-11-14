@@ -65,7 +65,7 @@ void TestScene::tick(u16 keys) {
     SCENE_wait(9000);
   }
 
-  // get data
+  // determine which value should be sent
   u16 value = LINK_NO_DATA;
   if (!initialized && linkConnection->linkState->currentPlayerId == 1) {
     initialized = true;

@@ -1,7 +1,7 @@
+#include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
 
 #include "../lib/LinkConnection.h"
-#include "../lib/libgba-sprite-engine/include/libgba-sprite-engine/gba_engine.h"
 #include "scenes/TestScene.h"
 #include "utils/SceneUtils.h"
 
@@ -21,17 +21,17 @@ int main() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
+    // enable and disable
     if ((keys & KEY_DOWN) && linkConnection->isActive()) {
       linkConnection->deactivate();
       DEBULOG("! stopped");
     }
-    // enable and disable
     if ((keys & KEY_START) && !linkConnection->isActive()) {
       linkConnection->activate();
       DEBULOG("! started");
     }
 
-    // log player count at important REG_SIOCNT bits
+    // log player id/count and important flags
     TextStream::instance().setText(
         "P" + asStr(linkConnection->linkState->currentPlayerId) + "/" +
             asStr(linkConnection->linkState->playerCount) + "-R" +
