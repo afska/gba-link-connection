@@ -74,10 +74,10 @@ void printTutorial() {
   DEBULOG("START: turn on connection");
   DEBULOG("(on connection, p1 sends 999)");
   DEBULOG("");
-  DEBULOG("A: send 555 once per frame");
-  DEBULOG("B: send counter once");
-  DEBULOG("L: send 1, then 2");
-  DEBULOG("R: send 43981, then 257");
+  DEBULOG("A: send counter (once)");
+  DEBULOG("B: send counter (cont)");
+  DEBULOG("L: send 257, then 43981 (once)");
+  DEBULOG("R: send 257, then 43981 (cont)");
   DEBULOG("SELECT: force lag (9k lines)");
   DEBULOG("DOWN: turn off connection");
   DEBULOG("");

@@ -73,26 +73,15 @@ void TestScene::tick(u16 keys) {
     initialized = true;
     value = 999;
   }
-  if (aHandler->getIsPressed())
-    value = 555;
-  if (bHandler->hasBeenPressedNow()) {
+  if (aHandler->getIsPressed() || bHandler->hasBeenPressedNow()) {
     counter++;
     value = counter;
   }
 
-  if (linkState->isConnected() && linkState->currentPlayerId == 0)
-    linkConnection->send(10000);
-
-  while (linkState->isConnected() && !linkState->_IRQFlag)
-    ;
-
   // send data
-  if (lHandler->hasBeenPressedNow()) {
-    send(1);
-    send(2);
-  } else if (rHandler->getIsPressed()) {
-    send(43981);
+  if (rHandler->getIsPressed() || lHandler->hasBeenPressedNow()) {
     send(257);
+    send(43981);
   } else if (value != LINK_NO_DATA)
     send(value);
 
