@@ -80,8 +80,10 @@ void TestScene::tick(u16 keys) {
 
   // send data
   if (rHandler->getIsPressed() || lHandler->hasBeenPressedNow()) {
-    send(257);
-    send(43981);
+    counter++;
+    send(counter);
+    counter++;
+    send(counter);
   } else if (value != LINK_NO_DATA)
     send(value);
 

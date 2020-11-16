@@ -17,6 +17,7 @@ void init() {
   irq_init(NULL);
 
   // (2) Add the interrupt service routines
+  irq_add(II_TIMER3, LINK_ISR_TIMER);
   irq_add(II_VBLANK, LINK_ISR_VBLANK);
   irq_add(II_SERIAL, LINK_ISR_SERIAL);
 }

@@ -24,7 +24,9 @@ Name | Type | Default | Description
 `startNow` | **bool** | `true` | Automatically starts serial communication. Otherwise, you'll need to call `linkConnection->activate()`.
 `baudRate` | **BaudRate** | `BaudRate::BAUD_RATE_3` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of frames without an `II_SERIAL` IRQ to reset the connection.
-`bufferSize` | **u32** | `60` | Number of messages that the queues will be able to store.
+`bufferSize` | **u32** | `10` | Number of messages that the queues will be able to store.
+`timerId` | **u8** (0~3) | `3` | GBA Timer to use.
+`frequency` | **u16** | `25` | Number of 1024cycles/61.04μs ticks between messages *(25 = 1,526ms)*.
 
 ## Makefile actions
 

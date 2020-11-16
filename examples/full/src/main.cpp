@@ -57,10 +57,9 @@ inline void ISR_reset() {
 inline void setUpInterrupts() {
   irq_init(NULL);
 
-  // VBlank
+  // LinkConnection
   irq_add(II_VBLANK, LINK_ISR_VBLANK);
-
-  // Link connection
+  irq_add(II_TIMER3, LINK_ISR_TIMER);
   irq_add(II_SERIAL, LINK_ISR_SERIAL);
 
   // A+B+START+SELECT
@@ -74,10 +73,10 @@ void printTutorial() {
   DEBULOG("START: turn on connection");
   DEBULOG("(on connection, p1 sends 999)");
   DEBULOG("");
-  DEBULOG("A: send counter (once)");
-  DEBULOG("B: send counter (cont)");
-  DEBULOG("L: send 257, then 43981 (once)");
-  DEBULOG("R: send 257, then 43981 (cont)");
+  DEBULOG("A: send counter++ (once)");
+  DEBULOG("B: send counter++ (cont)");
+  DEBULOG("L: send counter++ twice (once)");
+  DEBULOG("R: send counter++ twice (cont)");
   DEBULOG("SELECT: force lag (9k lines)");
   DEBULOG("DOWN: turn off connection");
   DEBULOG("");
