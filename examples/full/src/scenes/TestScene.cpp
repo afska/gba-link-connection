@@ -42,6 +42,8 @@ void TestScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
+  frameCounter++;
+
   // check keys
   aHandler->setIsPressed(keys & KEY_A);
   bHandler->setIsPressed(keys & KEY_B);
@@ -78,6 +80,9 @@ void TestScene::tick(u16 keys) {
     value = counter;
   }
 
+  if (linkState->isConnected() && linkState->currentPlayerId == 0)
+    linkConnection->send(10000);
+
   // send data
   if (lHandler->hasBeenPressedNow()) {
     send(1);
@@ -93,7 +98,8 @@ void TestScene::tick(u16 keys) {
     for (u32 i = 0; i < linkState->playerCount; i++)
       while (linkState->hasMessage(i)) {
         u16 message = linkState->readMessage(i);
-        if (i != linkState->currentPlayerId)
-          DEBULOG("<-p" + asStr(i) + ": " + asStr(message));
+        if (i != linkState->currentPlayerId && message != 10000)
+          DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
+                  asStr(frameCounter) + ")");
       }
 }
