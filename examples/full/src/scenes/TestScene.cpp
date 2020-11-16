@@ -83,11 +83,14 @@ void TestScene::tick(u16 keys) {
   if (linkState->isConnected() && linkState->currentPlayerId == 0)
     linkConnection->send(10000);
 
+  while (linkState->isConnected() && !linkState->_IRQFlag)
+    ;
+
   // send data
   if (lHandler->hasBeenPressedNow()) {
     send(1);
     send(2);
-  } else if (rHandler->hasBeenPressedNow()) {
+  } else if (rHandler->getIsPressed()) {
     send(43981);
     send(257);
   } else if (value != LINK_NO_DATA)
