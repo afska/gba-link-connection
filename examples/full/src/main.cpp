@@ -60,6 +60,7 @@ inline void setUpInterrupts() {
   // LinkConnection
   irq_add(II_VBLANK, LINK_ISR_VBLANK);
   irq_add(II_TIMER3, LINK_ISR_TIMER);
+  irq_add(II_TIMER2, NULL);
   irq_add(II_SERIAL, LINK_ISR_SERIAL);
 
   // A+B+START+SELECT

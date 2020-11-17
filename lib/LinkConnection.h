@@ -1,12 +1,15 @@
 #ifndef LINK_CONNECTION_H
 #define LINK_CONNECTION_H
 
+#include <tonc_bios.h>
 #include <tonc_core.h>
 #include <tonc_memdef.h>
 #include <tonc_memmap.h>
 
 #include <memory>
 #include <queue>
+
+#include "utils/SceneUtils.h"  // TODO: REMOVE
 
 #define LINK_MAX_PLAYERS 4
 #define LINK_DISCONNECTED 0xFFFF
@@ -50,6 +53,8 @@ void LINK_ISR_TIMER();
 void LINK_ISR_SERIAL();
 u16 LINK_QUEUE_POP(std::queue<u16>& q);
 void LINK_QUEUE_CLEAR(std::queue<u16>& q);
+const u16 LINK_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
+                                  IRQ_TIMER3};
 
 struct LinkState {
   u8 playerCount;
@@ -123,50 +128,63 @@ class LinkConnection {
     push(linkState->_outgoingMessages, data);
   }
 
+  bool isReady() { return isBitHigh(LINK_BIT_READY); }
   bool hasError() { return isBitHigh(LINK_BIT_ERROR); }
 
   void _onVBlank() {
-    if (!isEnabled || resetIfNeeded())
+    if (!isEnabled)
       return;
 
-    if (!linkState->_IRQFlag) {
+    if (!linkState->_IRQFlag)
       linkState->_IRQTimeout++;
-
-      if (linkState->_IRQTimeout >= timeout)
-        reset();
-    }
 
     linkState->_IRQFlag = false;
   }
 
   void _onTimer() {
-    if (!isEnabled || resetIfNeeded())
+    if (!isEnabled || !isReady())
       return;
 
+    if (linkState->_IRQTimeout > timeout) {
+      reset();
+      return;
+    }
+
+    stopTimer();
     sendPendingData();
+    startTimer();
   }
 
   void _onSerial() {
-    if (!isEnabled || resetIfNeeded(false))
+    if (!isEnabled)
+      return;
+
+    waitCycles(1000);  // TODO: PARAMETERIZE
+    if (resetIfNeeded())
       return;
 
     linkState->_IRQFlag = true;
     linkState->_IRQTimeout = 0;
 
-    linkState->playerCount = 0;
-    linkState->currentPlayerId =
-        (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
-
+    u8 newPlayerCount = 0;
     for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
       u16 data = REG_SIOMULTI[i];
 
       if (data != LINK_DISCONNECTED) {
         if (data != LINK_NO_DATA)
           push(linkState->_incomingMessages[i], data);
-        linkState->playerCount++;
+        newPlayerCount++;
       } else
         LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
     }
+
+    if (linkState->playerCount == 2 && newPlayerCount == 1) {
+      DEBULOG("hey, rompió: " + asStr(REG_SIOMULTI[0]) + "-" +
+              asStr(REG_SIOMULTI[1]));
+    }
+    linkState->playerCount = newPlayerCount;
+    linkState->currentPlayerId =
+        (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
   }
 
  private:
@@ -184,12 +202,16 @@ class LinkConnection {
   void transfer(u16 data) {
     REG_SIOMLT_SEND = data;
 
+    waitCycles(1000);  // PARAMETERIZE
+
     if (isMaster())
       setBitHigh(LINK_BIT_START);
   }
 
-  bool resetIfNeeded(bool checkErrors = false) {
-    if (checkErrors && hasError()) {
+  bool resetIfNeeded() {
+    if (hasError()) {
+      DEBULOG("resetting: " + asStr(isReady()) + "-" + asStr(hasError()) + "-" +
+              asStr(linkState->_IRQTimeout));
       reset();
       return true;
     }
@@ -214,15 +236,14 @@ class LinkConnection {
   }
 
   void stop() {
-    REG_TM[timerId].cnt = REG_TM[timerId].cnt & (~TM_ENABLE);
+    stopTimer();
 
     LINK_SET_LOW(REG_RCNT, LINK_BIT_GENERAL_PURPOSE_LOW);
     LINK_SET_HIGH(REG_RCNT, LINK_BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void start() {
-    REG_TM[timerId].start = -frequency;
-    REG_TM[timerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
+    startTimer();
 
     LINK_SET_LOW(REG_RCNT, LINK_BIT_GENERAL_PURPOSE_HIGH);
     REG_SIOCNT = baudRate;
@@ -231,11 +252,26 @@ class LinkConnection {
     setBitHigh(LINK_BIT_IRQ);
   }
 
+  void stopTimer() { REG_TM[timerId].cnt = REG_TM[timerId].cnt & (~TM_ENABLE); }
+
+  void startTimer() {
+    REG_TM[timerId].start = -frequency;
+    REG_TM[timerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
+  }
+
   void push(std::queue<u16>& q, u16 value) {
     if (q.size() >= bufferSize)
       LINK_QUEUE_POP(q);
 
     q.push(value);
+  }
+
+  void waitCycles(u16 amount) {
+    // TODO: Parameterize
+    REG_TM[2].start = -amount;
+    REG_TM[2].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1;
+    IntrWait(1, LINK_TIMER_IRQ_IDS[2]);
+    REG_TM[2].cnt = 0;
   }
 
   bool isMaster() { return !isBitHigh(LINK_BIT_SLAVE); }
