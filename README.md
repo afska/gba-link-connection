@@ -25,8 +25,9 @@ Name | Type | Default | Description
 `baudRate` | **BaudRate** | `BaudRate::BAUD_RATE_3` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of frames without an `II_SERIAL` IRQ to reset the connection.
 `bufferSize` | **u32** | `10` | Number of messages that the queues will be able to store.
-`timerId` | **u8** (0~3) | `3` | GBA Timer to use.
-`frequency` | **u16** | `25` | Number of 1024cycles/61.04μs ticks between messages *(25 = 1,526ms)*.
+`sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
+`waitTimerId` | **u8** *(0~3)* | `2` | GBA Timer to use for waiting.
+`frequency` | **u16** | `25` | Number of 1024cycles/61.04μs ticks between messages *(25 = 1,526ms)*. It's the interval of Timer #`sendTimerId`.
 
 ## Makefile actions
 

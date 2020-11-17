@@ -9,15 +9,17 @@
 #include <memory>
 #include <queue>
 
-#include "utils/SceneUtils.h"  // TODO: REMOVE
+#include "utils/SceneUtils.h"  // TODO: REMOVE and remove DEBULOGs
 
 #define LINK_MAX_PLAYERS 4
 #define LINK_DISCONNECTED 0xFFFF
 #define LINK_NO_DATA 0x0
 #define LINK_DEFAULT_TIMEOUT 3
 #define LINK_DEFAULT_BUFFER_SIZE 10
-#define LINK_DEFAULT_TIMER_ID 3
-#define LINK_DEFAULT_FREQUENCY 25
+#define LINK_DEFAULT_SEND_TIMER_ID 3
+#define LINK_DEFAULT_WAIT_TIMER_ID 2
+#define LINK_DEFAULT_FREQUENCY 100
+#define LINK_TRANSFER_WAIT_CYCLES 1000
 #define LINK_BASE_FREQUENCY TM_FREQ_1024
 #define LINK_BIT_SLAVE 2
 #define LINK_BIT_READY 3
@@ -36,10 +38,11 @@
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkConnection* linkConnection = new LinkConnection();
-// - 2) Add the interrupt service routines:
+// - 2) Add the required interrupt service routines:
 //       irq_add(II_VBLANK, LINK_ISR_VBLANK);
-//       irq_add(II_TIMER3, LINK_ISR_TIMER);
 //       irq_add(II_SERIAL, LINK_ISR_SERIAL);
+//       irq_add(II_TIMER3, LINK_ISR_TIMER);
+//       irq_add(II_TIMER2, NULL);
 // - 3) Send/read messages by using:
 //       linkConnection->send(...);
 //       linkConnection->linkState
@@ -94,12 +97,14 @@ class LinkConnection {
                           BaudRate baudRate = BAUD_RATE_3,
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
                           u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
-                          u8 timerId = LINK_DEFAULT_TIMER_ID,
+                          u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID,
+                          u8 waitTimerId = LINK_DEFAULT_WAIT_TIMER_ID,
                           u32 frequency = LINK_DEFAULT_FREQUENCY) {
     this->baudRate = baudRate;
     this->timeout = timeout;
     this->bufferSize = bufferSize;
-    this->timerId = timerId;
+    this->sendTimerId = sendTimerId;
+    this->waitTimerId = waitTimerId;
     this->frequency = frequency;
 
     if (startNow)
@@ -128,9 +133,6 @@ class LinkConnection {
     push(linkState->_outgoingMessages, data);
   }
 
-  bool isReady() { return isBitHigh(LINK_BIT_READY); }
-  bool hasError() { return isBitHigh(LINK_BIT_ERROR); }
-
   void _onVBlank() {
     if (!isEnabled)
       return;
@@ -142,24 +144,27 @@ class LinkConnection {
   }
 
   void _onTimer() {
-    if (!isEnabled || !isReady())
-      return;
-
-    if (linkState->_IRQTimeout > timeout) {
-      reset();
+    if (!isEnabled || !isReady()) {
+      if (!isReady()) {
+        DEBULOG("not ready");
+        // reset();  // TODO: MOVE TO resetIfNeeded()
+      }
       return;
     }
 
-    stopTimer();
-    sendPendingData();
-    startTimer();
+    if (didTimeout()) {
+      DEBULOG("timeout!");
+      reset();
+      return;
+    }
+    if (isMaster() && !isBitHigh(LINK_BIT_START))
+      sendPendingData();
   }
 
   void _onSerial() {
     if (!isEnabled)
       return;
-
-    waitCycles(1000);  // TODO: PARAMETERIZE
+    wait();
     if (resetIfNeeded())
       return;
 
@@ -179,21 +184,30 @@ class LinkConnection {
     }
 
     if (linkState->playerCount == 2 && newPlayerCount == 1) {
-      DEBULOG("hey, rompió: " + asStr(REG_SIOMULTI[0]) + "-" +
-              asStr(REG_SIOMULTI[1]));
+      DEBULOG("broken: " + asStr(REG_SIOMULTI[0]) + "-" +
+              asStr(REG_SIOMULTI[1]));  // TODO: REMOVE
     }
     linkState->playerCount = newPlayerCount;
     linkState->currentPlayerId =
         (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
+
+    if (!isMaster())
+      sendPendingData();
   }
 
  private:
   BaudRate baudRate;
   u32 timeout;
   u32 bufferSize;
-  u8 timerId;
+  u8 sendTimerId;
+  u8 waitTimerId;
   u32 frequency;
   bool isEnabled = false;
+
+  bool isReady() { return isBitHigh(LINK_BIT_READY); }
+  bool hasError() { return isBitHigh(LINK_BIT_ERROR); }
+  bool isMaster() { return !isBitHigh(LINK_BIT_SLAVE); }
+  bool didTimeout() { return linkState->_IRQTimeout >= timeout; }
 
   void sendPendingData() {
     transfer(LINK_QUEUE_POP(linkState->_outgoingMessages));
@@ -202,16 +216,15 @@ class LinkConnection {
   void transfer(u16 data) {
     REG_SIOMLT_SEND = data;
 
-    waitCycles(1000);  // PARAMETERIZE
-
-    if (isMaster())
+    if (isMaster()) {
+      wait();
       setBitHigh(LINK_BIT_START);
+    }
   }
 
   bool resetIfNeeded() {
-    if (hasError()) {
-      DEBULOG("resetting: " + asStr(isReady()) + "-" + asStr(hasError()) + "-" +
-              asStr(linkState->_IRQTimeout));
+    if (!isReady() || hasError()) {
+      DEBULOG("resetting: " + asStr(isReady()) + "-" + asStr(hasError()));
       reset();
       return true;
     }
@@ -252,11 +265,13 @@ class LinkConnection {
     setBitHigh(LINK_BIT_IRQ);
   }
 
-  void stopTimer() { REG_TM[timerId].cnt = REG_TM[timerId].cnt & (~TM_ENABLE); }
+  void stopTimer() {
+    REG_TM[sendTimerId].cnt = REG_TM[sendTimerId].cnt & (~TM_ENABLE);
+  }
 
   void startTimer() {
-    REG_TM[timerId].start = -frequency;
-    REG_TM[timerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
+    REG_TM[sendTimerId].start = -frequency;
+    REG_TM[sendTimerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
   }
 
   void push(std::queue<u16>& q, u16 value) {
@@ -266,15 +281,13 @@ class LinkConnection {
     q.push(value);
   }
 
-  void waitCycles(u16 amount) {
-    // TODO: Parameterize
-    REG_TM[2].start = -amount;
-    REG_TM[2].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1;
-    IntrWait(1, LINK_TIMER_IRQ_IDS[2]);
-    REG_TM[2].cnt = 0;
+  void wait() {
+    REG_TM[waitTimerId].start = -LINK_TRANSFER_WAIT_CYCLES;
+    REG_TM[waitTimerId].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1;
+    IntrWait(1, LINK_TIMER_IRQ_IDS[waitTimerId]);
+    REG_TM[waitTimerId].cnt = 0;
   }
 
-  bool isMaster() { return !isBitHigh(LINK_BIT_SLAVE); }
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { LINK_SET_HIGH(REG_SIOCNT, bit); }
   void setBitLow(u8 bit) { LINK_SET_LOW(REG_SIOCNT, bit); }
