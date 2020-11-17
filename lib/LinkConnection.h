@@ -9,16 +9,14 @@
 #include <memory>
 #include <queue>
 
-#include "utils/SceneUtils.h"  // TODO: REMOVE and remove DEBULOGs
-
 #define LINK_MAX_PLAYERS 4
 #define LINK_DISCONNECTED 0xFFFF
 #define LINK_NO_DATA 0x0
 #define LINK_DEFAULT_TIMEOUT 3
 #define LINK_DEFAULT_BUFFER_SIZE 10
+#define LINK_DEFAULT_SPEED 100
 #define LINK_DEFAULT_SEND_TIMER_ID 3
 #define LINK_DEFAULT_WAIT_TIMER_ID 2
-#define LINK_DEFAULT_FREQUENCY 100
 #define LINK_TRANSFER_WAIT_CYCLES 1000
 #define LINK_BASE_FREQUENCY TM_FREQ_1024
 #define LINK_BIT_SLAVE 2
@@ -97,15 +95,15 @@ class LinkConnection {
                           BaudRate baudRate = BAUD_RATE_3,
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
                           u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
+                          u16 speed = LINK_DEFAULT_SPEED,
                           u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID,
-                          u8 waitTimerId = LINK_DEFAULT_WAIT_TIMER_ID,
-                          u32 frequency = LINK_DEFAULT_FREQUENCY) {
+                          u8 waitTimerId = LINK_DEFAULT_WAIT_TIMER_ID) {
     this->baudRate = baudRate;
     this->timeout = timeout;
     this->bufferSize = bufferSize;
     this->sendTimerId = sendTimerId;
     this->waitTimerId = waitTimerId;
-    this->frequency = frequency;
+    this->speed = speed;
 
     if (startNow)
       activate();
@@ -144,27 +142,24 @@ class LinkConnection {
   }
 
   void _onTimer() {
-    if (!isEnabled || !isReady()) {
-      if (!isReady()) {
-        DEBULOG("not ready");
-        // reset();  // TODO: MOVE TO resetIfNeeded()
-      }
+    if (!isEnabled || !isReady())
       return;
-    }
 
     if (didTimeout()) {
-      DEBULOG("timeout!");
       reset();
       return;
     }
-    if (isMaster() && !isBitHigh(LINK_BIT_START))
+
+    if (isMaster() && !isSending())
       sendPendingData();
   }
 
   void _onSerial() {
     if (!isEnabled)
       return;
+
     wait();
+
     if (resetIfNeeded())
       return;
 
@@ -183,10 +178,6 @@ class LinkConnection {
         LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
     }
 
-    if (linkState->playerCount == 2 && newPlayerCount == 1) {
-      DEBULOG("broken: " + asStr(REG_SIOMULTI[0]) + "-" +
-              asStr(REG_SIOMULTI[1]));  // TODO: REMOVE
-    }
     linkState->playerCount = newPlayerCount;
     linkState->currentPlayerId =
         (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
@@ -201,12 +192,13 @@ class LinkConnection {
   u32 bufferSize;
   u8 sendTimerId;
   u8 waitTimerId;
-  u32 frequency;
+  u32 speed;
   bool isEnabled = false;
 
   bool isReady() { return isBitHigh(LINK_BIT_READY); }
   bool hasError() { return isBitHigh(LINK_BIT_ERROR); }
   bool isMaster() { return !isBitHigh(LINK_BIT_SLAVE); }
+  bool isSending() { return isBitHigh(LINK_BIT_START); }
   bool didTimeout() { return linkState->_IRQTimeout >= timeout; }
 
   void sendPendingData() {
@@ -224,7 +216,6 @@ class LinkConnection {
 
   bool resetIfNeeded() {
     if (!isReady() || hasError()) {
-      DEBULOG("resetting: " + asStr(isReady()) + "-" + asStr(hasError()));
       reset();
       return true;
     }
@@ -270,7 +261,7 @@ class LinkConnection {
   }
 
   void startTimer() {
-    REG_TM[sendTimerId].start = -frequency;
+    REG_TM[sendTimerId].start = -speed;
     REG_TM[sendTimerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
   }
 

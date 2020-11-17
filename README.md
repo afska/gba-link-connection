@@ -13,7 +13,7 @@ All the complexity is abstracted in a single header file that exposes an easy-to
 - Include [LinkConnection.h](lib/LinkConnection.h) in your game code, and read its comment with instructions.
 - Check out the [examples](examples) folder
 	* Builds are available in *Releases*.
-	* They can be tested on real GBAs or with emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
+	* They can be tested on real GBAs or with emulators (*NO$GBA* or *VBA-M*).
 
 ## Constructor options
 
@@ -25,9 +25,9 @@ Name | Type | Default | Description
 `baudRate` | **BaudRate** | `BaudRate::BAUD_RATE_3` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of frames without an `II_SERIAL` IRQ to reset the connection.
 `bufferSize` | **u32** | `10` | Number of messages that the queues will be able to store.
+`speed` | **u16** | `100` | Number of 1024cycles (61.04μs) ticks between messages *(100 = 6,104ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 `waitTimerId` | **u8** *(0~3)* | `2` | GBA Timer to use for waiting.
-`frequency` | **u16** | `25` | Number of 1024cycles/61.04μs ticks between messages *(25 = 1,526ms)*. It's the interval of Timer #`sendTimerId`.
 
 ## Makefile actions
 
