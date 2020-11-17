@@ -23,6 +23,7 @@ class TestScene : public Scene {
   u32 counter = 0;
   bool isConnected = false;
   bool initialized = false;
+  u32 frameCounter = 0;
 
   void log(std::string text);
 };

@@ -42,6 +42,8 @@ void TestScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
+  frameCounter++;
+
   // check keys
   aHandler->setIsPressed(keys & KEY_A);
   bHandler->setIsPressed(keys & KEY_B);
@@ -67,24 +69,21 @@ void TestScene::tick(u16 keys) {
 
   // determine which value should be sent
   u16 value = LINK_NO_DATA;
-  if (!initialized && linkConnection->linkState->currentPlayerId == 1) {
+  if (!initialized && linkState->currentPlayerId == 1) {
     initialized = true;
     value = 999;
   }
-  if (aHandler->getIsPressed())
-    value = 555;
-  if (bHandler->hasBeenPressedNow()) {
+  if (aHandler->getIsPressed() || bHandler->hasBeenPressedNow()) {
     counter++;
     value = counter;
   }
 
   // send data
-  if (lHandler->hasBeenPressedNow()) {
-    send(1);
-    send(2);
-  } else if (rHandler->hasBeenPressedNow()) {
-    send(43981);
-    send(257);
+  if (rHandler->getIsPressed() || lHandler->hasBeenPressedNow()) {
+    counter++;
+    send(counter);
+    counter++;
+    send(counter);
   } else if (value != LINK_NO_DATA)
     send(value);
 
@@ -93,7 +92,8 @@ void TestScene::tick(u16 keys) {
     for (u32 i = 0; i < linkState->playerCount; i++)
       while (linkState->hasMessage(i)) {
         u16 message = linkState->readMessage(i);
-        if (i != linkState->currentPlayerId)
-          DEBULOG("<-p" + asStr(i) + ": " + asStr(message));
+        if (i != linkState->currentPlayerId && message != 10000)
+          DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
+                  asStr(frameCounter) + ")");
       }
 }

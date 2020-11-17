@@ -9,7 +9,7 @@ void setUpInterrupts();
 void printTutorial();
 static std::shared_ptr<GBAEngine> engine{new GBAEngine()};
 static std::unique_ptr<TestScene> testScene{new TestScene(engine)};
-LinkConnection* linkConnection = new LinkConnection(false);
+LinkConnection* linkConnection = new LinkConnection();
 
 int main() {
   setUpInterrupts();
@@ -57,11 +57,11 @@ inline void ISR_reset() {
 inline void setUpInterrupts() {
   irq_init(NULL);
 
-  // VBlank
+  // LinkConnection
   irq_add(II_VBLANK, LINK_ISR_VBLANK);
-
-  // Link connection
   irq_add(II_SERIAL, LINK_ISR_SERIAL);
+  irq_add(II_TIMER3, LINK_ISR_TIMER);
+  irq_add(II_TIMER2, NULL);
 
   // A+B+START+SELECT
   REG_KEYCNT = 0b1100000000001111;
@@ -74,10 +74,10 @@ void printTutorial() {
   DEBULOG("START: turn on connection");
   DEBULOG("(on connection, p1 sends 999)");
   DEBULOG("");
-  DEBULOG("A: send 555 once per frame");
-  DEBULOG("B: send counter once");
-  DEBULOG("L: send 1, then 2");
-  DEBULOG("R: send 43981, then 257");
+  DEBULOG("A: send counter++ (once)");
+  DEBULOG("B: send counter++ (cont)");
+  DEBULOG("L: send counter++ twice (once)");
+  DEBULOG("R: send counter++ twice (cont)");
   DEBULOG("SELECT: force lag (9k lines)");
   DEBULOG("DOWN: turn off connection");
   DEBULOG("");

@@ -19,6 +19,11 @@ void init() {
   // (2) Add the interrupt service routines
   irq_add(II_VBLANK, LINK_ISR_VBLANK);
   irq_add(II_SERIAL, LINK_ISR_SERIAL);
+  irq_add(II_TIMER3, LINK_ISR_TIMER);
+  irq_add(II_TIMER2, NULL);
+
+  // (3) Initialize the library
+  linkConnection->activate();
 }
 
 int main() {
@@ -27,9 +32,9 @@ int main() {
   u16 data[LINK_MAX_PLAYERS];
 
   while (1) {
-    // (3) Send/read messages messages
+    // (4) Send/read messages messages
     u16 keys = ~REG_KEYS & KEY_ANY;
-    u16 message = (keys << 1) | 1;
+    u16 message = keys + 1;
     linkConnection->send(message);
     auto linkState = linkConnection->linkState.get();
 
@@ -39,7 +44,7 @@ int main() {
 
       for (u32 i = 0; i < linkState->playerCount; i++) {
         while (linkState->hasMessage(i))
-          data[i] = linkState->readMessage(i) >> 1;
+          data[i] = linkState->readMessage(i) - 1;
 
         output += "Player " + std::to_string(i) + ": " +
                   std::to_string(data[i]) + "\n";
