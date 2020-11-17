@@ -37,11 +37,14 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkConnection* linkConnection = new LinkConnection();
 // - 2) Add the required interrupt service routines:
+//       irq_init(NULL);
 //       irq_add(II_VBLANK, LINK_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_ISR_SERIAL);
 //       irq_add(II_TIMER3, LINK_ISR_TIMER);
 //       irq_add(II_TIMER2, NULL);
-// - 3) Send/read messages by using:
+// - 3) Initialize the library with:
+//       linkConnection->activate();
+// - 4) Send/read messages by using:
 //       linkConnection->send(...);
 //       linkConnection->linkState
 
@@ -91,8 +94,7 @@ class LinkConnection {
   };
   std::unique_ptr<struct LinkState> linkState{new LinkState()};
 
-  explicit LinkConnection(bool startNow = true,
-                          BaudRate baudRate = BAUD_RATE_3,
+  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_3,
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
                           u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
                           u16 speed = LINK_DEFAULT_SPEED,
@@ -105,10 +107,7 @@ class LinkConnection {
     this->waitTimerId = waitTimerId;
     this->speed = speed;
 
-    if (startNow)
-      activate();
-    else
-      stop();
+    stop();
   }
 
   bool isActive() { return isEnabled; }

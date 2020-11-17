@@ -9,7 +9,7 @@ void setUpInterrupts();
 void printTutorial();
 static std::shared_ptr<GBAEngine> engine{new GBAEngine()};
 static std::unique_ptr<TestScene> testScene{new TestScene(engine)};
-LinkConnection* linkConnection = new LinkConnection(false);
+LinkConnection* linkConnection = new LinkConnection();
 
 int main() {
   setUpInterrupts();

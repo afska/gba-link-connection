@@ -21,7 +21,6 @@ All the complexity is abstracted in a single header file that exposes an easy-to
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`startNow` | **bool** | `true` | Automatically starts serial communication. Otherwise, you'll need to call `linkConnection->activate()`.
 `baudRate` | **BaudRate** | `BaudRate::BAUD_RATE_3` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of frames without an `II_SERIAL` IRQ to reset the connection.
 `bufferSize` | **u32** | `10` | Number of messages that the queues will be able to store.
