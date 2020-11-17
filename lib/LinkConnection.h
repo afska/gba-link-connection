@@ -13,6 +13,7 @@
 #define LINK_DISCONNECTED 0xFFFF
 #define LINK_NO_DATA 0x0
 #define LINK_DEFAULT_TIMEOUT 3
+#define LINK_DEFAULT_REMOTE_TIMEOUT 5
 #define LINK_DEFAULT_BUFFER_SIZE 10
 #define LINK_DEFAULT_SPEED 100
 #define LINK_DEFAULT_SEND_TIMER_ID 3
@@ -65,6 +66,7 @@ struct LinkState {
   u8 currentPlayerId;
   std::queue<u16> _incomingMessages[LINK_MAX_PLAYERS];
   std::queue<u16> _outgoingMessages;
+  int _timeouts[LINK_MAX_PLAYERS];
   bool _IRQFlag;
   u32 _IRQTimeout;
 
@@ -96,16 +98,18 @@ class LinkConnection {
 
   explicit LinkConnection(BaudRate baudRate = BAUD_RATE_3,
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
+                          u32 remoteTimeout = LINK_DEFAULT_REMOTE_TIMEOUT,
                           u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
                           u16 speed = LINK_DEFAULT_SPEED,
                           u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID,
                           u8 waitTimerId = LINK_DEFAULT_WAIT_TIMER_ID) {
     this->baudRate = baudRate;
     this->timeout = timeout;
+    this->remoteTimeout = remoteTimeout;
     this->bufferSize = bufferSize;
+    this->speed = speed;
     this->sendTimerId = sendTimerId;
     this->waitTimerId = waitTimerId;
-    this->speed = speed;
 
     stop();
   }
@@ -141,7 +145,7 @@ class LinkConnection {
   }
 
   void _onTimer() {
-    if (!isEnabled || !isReady())
+    if (!isEnabled)
       return;
 
     if (didTimeout()) {
@@ -149,7 +153,7 @@ class LinkConnection {
       return;
     }
 
-    if (isMaster() && !isSending())
+    if (isMaster() && isReady() && !isSending())
       sendPendingData();
   }
 
@@ -173,8 +177,16 @@ class LinkConnection {
         if (data != LINK_NO_DATA)
           push(linkState->_incomingMessages[i], data);
         newPlayerCount++;
-      } else
-        LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
+        linkState->_timeouts[i] = 0;
+      } else if (linkState->_timeouts[i] > 0) {
+        linkState->_timeouts[i]++;
+
+        if (linkState->_timeouts[i] >= (int)remoteTimeout) {
+          LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
+          linkState->_timeouts[i] = -1;
+        } else
+          newPlayerCount++;
+      }
     }
 
     linkState->playerCount = newPlayerCount;
@@ -188,10 +200,11 @@ class LinkConnection {
  private:
   BaudRate baudRate;
   u32 timeout;
+  u32 remoteTimeout;
   u32 bufferSize;
+  u32 speed;
   u8 sendTimerId;
   u8 waitTimerId;
-  u32 speed;
   bool isEnabled = false;
 
   bool isReady() { return isBitHigh(LINK_BIT_READY); }
@@ -231,8 +244,10 @@ class LinkConnection {
   void resetState() {
     linkState->playerCount = 0;
     linkState->currentPlayerId = 0;
-    for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
+    for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
       LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
+      linkState->_timeouts[i] = -1;
+    }
     LINK_QUEUE_CLEAR(linkState->_outgoingMessages);
     linkState->_IRQFlag = false;
     linkState->_IRQTimeout = 0;
