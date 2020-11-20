@@ -13,7 +13,7 @@ All the complexity is abstracted in a single header file that exposes an easy-to
 - Include [LinkConnection.h](lib/LinkConnection.h) in your game code, and read its comment with instructions.
 - Check out the [examples](examples) folder
 	* Builds are available in *Releases*.
-	* They can be tested on real GBAs or with emulators (*NO$GBA* or *VBA-M*).
+	* They can be tested on real GBAs or with emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
 
 ## Constructor options
 
