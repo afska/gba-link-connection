@@ -15,7 +15,7 @@
 #define LINK_DEFAULT_TIMEOUT 3
 #define LINK_DEFAULT_REMOTE_TIMEOUT 5
 #define LINK_DEFAULT_BUFFER_SIZE 10
-#define LINK_DEFAULT_SPEED 100
+#define LINK_DEFAULT_INTERVAL 100
 #define LINK_DEFAULT_SEND_TIMER_ID 3
 #define LINK_DEFAULT_WAIT_TIMER_ID 2
 #define LINK_TRANSFER_WAIT_CYCLES 1000
@@ -100,14 +100,14 @@ class LinkConnection {
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
                           u32 remoteTimeout = LINK_DEFAULT_REMOTE_TIMEOUT,
                           u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
-                          u16 speed = LINK_DEFAULT_SPEED,
+                          u16 interval = LINK_DEFAULT_INTERVAL,
                           u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID,
                           u8 waitTimerId = LINK_DEFAULT_WAIT_TIMER_ID) {
     this->baudRate = baudRate;
     this->timeout = timeout;
     this->remoteTimeout = remoteTimeout;
     this->bufferSize = bufferSize;
-    this->speed = speed;
+    this->interval = interval;
     this->sendTimerId = sendTimerId;
     this->waitTimerId = waitTimerId;
 
@@ -202,7 +202,7 @@ class LinkConnection {
   u32 timeout;
   u32 remoteTimeout;
   u32 bufferSize;
-  u32 speed;
+  u32 interval;
   u8 sendTimerId;
   u8 waitTimerId;
   bool isEnabled = false;
@@ -275,7 +275,7 @@ class LinkConnection {
   }
 
   void startTimer() {
-    REG_TM[sendTimerId].start = -speed;
+    REG_TM[sendTimerId].start = -interval;
     REG_TM[sendTimerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
   }
 

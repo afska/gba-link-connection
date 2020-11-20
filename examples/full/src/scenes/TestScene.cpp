@@ -92,7 +92,7 @@ void TestScene::tick(u16 keys) {
     for (u32 i = 0; i < linkState->playerCount; i++)
       while (linkState->hasMessage(i)) {
         u16 message = linkState->readMessage(i);
-        if (i != linkState->currentPlayerId && message != 10000)
+        if (i != linkState->currentPlayerId)
           DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
                   asStr(frameCounter) + ")");
       }
