@@ -20,6 +20,7 @@
 #define LINK_DEFAULT_WAIT_TIMER_ID 2
 #define LINK_TRANSFER_WAIT_CYCLES 1000
 #define LINK_BASE_FREQUENCY TM_FREQ_1024
+#define LINK_REMOTE_TIMEOUT_OFFLINE -1
 #define LINK_BIT_SLAVE 2
 #define LINK_BIT_READY 3
 #define LINK_BITS_PLAYER_ID 4
@@ -178,12 +179,12 @@ class LinkConnection {
           push(linkState->_incomingMessages[i], data);
         newPlayerCount++;
         linkState->_timeouts[i] = 0;
-      } else if (linkState->_timeouts[i] > 0) {
+      } else if (linkState->_timeouts[i] > LINK_REMOTE_TIMEOUT_OFFLINE) {
         linkState->_timeouts[i]++;
 
         if (linkState->_timeouts[i] >= (int)remoteTimeout) {
           LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
-          linkState->_timeouts[i] = -1;
+          linkState->_timeouts[i] = LINK_REMOTE_TIMEOUT_OFFLINE;
         } else
           newPlayerCount++;
       }
@@ -246,7 +247,7 @@ class LinkConnection {
     linkState->currentPlayerId = 0;
     for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
       LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
-      linkState->_timeouts[i] = -1;
+      linkState->_timeouts[i] = LINK_REMOTE_TIMEOUT_OFFLINE;
     }
     LINK_QUEUE_CLEAR(linkState->_outgoingMessages);
     linkState->_IRQFlag = false;
