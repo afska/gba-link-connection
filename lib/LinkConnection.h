@@ -70,6 +70,7 @@ struct LinkState {
   int _timeouts[LINK_MAX_PLAYERS];
   bool _IRQFlag;
   u32 _IRQTimeout;
+  bool _isLocked = false;
 
   bool isConnected() {
     return playerCount > 1 && currentPlayerId < playerCount;
@@ -79,11 +80,17 @@ struct LinkState {
     if (playerId >= playerCount)
       return false;
 
-    return !_incomingMessages[playerId].empty();
+    _isLocked = true;
+    bool hasMessage = !_incomingMessages[playerId].empty();
+    _isLocked = false;
+    return hasMessage;
   }
 
   u16 readMessage(u8 playerId) {
-    return LINK_QUEUE_POP(_incomingMessages[playerId]);
+    _isLocked = true;
+    u16 message = LINK_QUEUE_POP(_incomingMessages[playerId]);
+    _isLocked = false;
+    return message;
   }
 };
 
@@ -118,8 +125,8 @@ class LinkConnection {
   bool isActive() { return isEnabled; }
 
   void activate() {
-    isEnabled = true;
     reset();
+    isEnabled = true;
   }
 
   void deactivate() {
@@ -132,11 +139,13 @@ class LinkConnection {
     if (data == LINK_DISCONNECTED || data == LINK_NO_DATA)
       return;
 
+    linkState->_isLocked = true;
     push(linkState->_outgoingMessages, data);
+    linkState->_isLocked = false;
   }
 
   void _onVBlank() {
-    if (!isEnabled)
+    if (!isEnabled || linkState->_isLocked)
       return;
 
     if (!linkState->_IRQFlag)
@@ -146,7 +155,7 @@ class LinkConnection {
   }
 
   void _onTimer() {
-    if (!isEnabled)
+    if (!isEnabled || linkState->_isLocked)
       return;
 
     if (didTimeout()) {
@@ -159,7 +168,7 @@ class LinkConnection {
   }
 
   void _onSerial() {
-    if (!isEnabled)
+    if (!isEnabled || linkState->_isLocked)
       return;
 
     wait();
