@@ -1,7 +1,6 @@
 #ifndef LINK_CONNECTION_H
 #define LINK_CONNECTION_H
 
-#include <tonc_bios.h>
 #include <tonc_core.h>
 #include <tonc_memdef.h>
 #include <tonc_memmap.h>
@@ -14,11 +13,9 @@
 #define LINK_NO_DATA 0x0
 #define LINK_DEFAULT_TIMEOUT 3
 #define LINK_DEFAULT_REMOTE_TIMEOUT 5
-#define LINK_DEFAULT_BUFFER_SIZE 10
-#define LINK_DEFAULT_INTERVAL 100
+#define LINK_DEFAULT_BUFFER_SIZE 30
+#define LINK_DEFAULT_INTERVAL 50
 #define LINK_DEFAULT_SEND_TIMER_ID 3
-#define LINK_DEFAULT_WAIT_TIMER_ID 2
-#define LINK_TRANSFER_WAIT_CYCLES 1000
 #define LINK_BASE_FREQUENCY TM_FREQ_1024
 #define LINK_REMOTE_TIMEOUT_OFFLINE -1
 #define LINK_BIT_SLAVE 2
@@ -43,7 +40,6 @@
 //       irq_add(II_VBLANK, LINK_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_ISR_SERIAL);
 //       irq_add(II_TIMER3, LINK_ISR_TIMER);
-//       irq_add(II_TIMER2, NULL);
 // - 3) Initialize the library with:
 //       linkConnection->activate();
 // - 4) Send/read messages by using:
@@ -104,20 +100,18 @@ class LinkConnection {
   };
   std::unique_ptr<struct LinkState> linkState{new LinkState()};
 
-  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_3,
+  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_1,
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
                           u32 remoteTimeout = LINK_DEFAULT_REMOTE_TIMEOUT,
                           u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
                           u16 interval = LINK_DEFAULT_INTERVAL,
-                          u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID,
-                          u8 waitTimerId = LINK_DEFAULT_WAIT_TIMER_ID) {
+                          u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID) {
     this->baudRate = baudRate;
     this->timeout = timeout;
     this->remoteTimeout = remoteTimeout;
     this->bufferSize = bufferSize;
     this->interval = interval;
     this->sendTimerId = sendTimerId;
-    this->waitTimerId = waitTimerId;
 
     stop();
   }
@@ -171,8 +165,6 @@ class LinkConnection {
     if (!isEnabled || linkState->_isLocked)
       return;
 
-    wait();
-
     if (resetIfNeeded())
       return;
 
@@ -184,7 +176,7 @@ class LinkConnection {
       u16 data = REG_SIOMULTI[i];
 
       if (data != LINK_DISCONNECTED) {
-        if (data != LINK_NO_DATA)
+        if (data != LINK_NO_DATA && i != linkState->currentPlayerId)
           push(linkState->_incomingMessages[i], data);
         newPlayerCount++;
         linkState->_timeouts[i] = 0;
@@ -214,7 +206,6 @@ class LinkConnection {
   u32 bufferSize;
   u32 interval;
   u8 sendTimerId;
-  u8 waitTimerId;
   bool isEnabled = false;
 
   bool isReady() { return isBitHigh(LINK_BIT_READY); }
@@ -230,10 +221,8 @@ class LinkConnection {
   void transfer(u16 data) {
     REG_SIOMLT_SEND = data;
 
-    if (isMaster()) {
-      wait();
+    if (isMaster())
       setBitHigh(LINK_BIT_START);
-    }
   }
 
   bool resetIfNeeded() {
@@ -294,13 +283,6 @@ class LinkConnection {
       LINK_QUEUE_POP(q);
 
     q.push(value);
-  }
-
-  void wait() {
-    REG_TM[waitTimerId].start = -LINK_TRANSFER_WAIT_CYCLES;
-    REG_TM[waitTimerId].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1;
-    IntrWait(1, LINK_TIMER_IRQ_IDS[waitTimerId]);
-    REG_TM[waitTimerId].cnt = 0;
   }
 
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }

@@ -20,7 +20,6 @@ void init() {
   irq_add(II_VBLANK, LINK_ISR_VBLANK);
   irq_add(II_SERIAL, LINK_ISR_SERIAL);
   irq_add(II_TIMER3, LINK_ISR_TIMER);
-  irq_add(II_TIMER2, NULL);
 
   // (3) Initialize the library
   linkConnection->activate();
@@ -30,6 +29,8 @@ int main() {
   init();
 
   u16 data[LINK_MAX_PLAYERS];
+  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
+    data[i] = 0;
 
   while (1) {
     // (4) Send/read messages messages
