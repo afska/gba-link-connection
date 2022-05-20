@@ -38,8 +38,6 @@ Name | Type | Default | Description
 
 ## Documentation
 
-![image](https://user-images.githubusercontent.com/1631752/97110827-10695a00-16ba-11eb-999a-3262ad6b24d2.png)
-
 ```
 Multi-Player mode can be used to communicate between up to 4 units.
 

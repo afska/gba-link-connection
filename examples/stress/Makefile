@@ -136,7 +136,7 @@ LIBS		:= -ltonc -lugba
 BUILD		:= build
 SRCDIRS		:= src
 DATADIRS	:= data
-INCDIRS		:= src
+INCDIRS		:= src lib
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba
 
 # --- switches ---

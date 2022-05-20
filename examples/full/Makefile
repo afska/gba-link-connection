@@ -120,7 +120,7 @@ endef
 export PROJ	?= $(notdir $(CURDIR))
 TITLE		:= $(PROJ)
 
-LIBS		:= -ltonc -lgba-sprite-engine
+LIBS		:= -ltonc -lugba -lgba-sprite-engine
 
 BUILD		:= build
 SRCDIRS		:= src \
@@ -129,7 +129,7 @@ SRCDIRS		:= src \
 
 DATADIRS	:=
 INCDIRS		:= src
-LIBDIRS		:= $(TONCLIB) $(BASE_DIR)/lib/libgba-sprite-engine
+LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine
 
 # --- switches ---
 
@@ -277,21 +277,13 @@ endif		# End BUILD switch
 
 # --- More targets ----------------------------------------------------
 
-.PHONY: clean rebuild start check-env
+.PHONY: clean rebuild start
 
-check-env:
-ifndef BASE_DIR
-	$(warning Please export a BASE_DIR environment variable pointing to this directory.)
-	$(warning Example:)
-	$(warning export BASE_DIR="D:\work\gba\projects\gba-link-connection\examples\full")
-	$(error "Aborting")
-endif
+rebuild: clean $(BUILD)
 
-rebuild: check-env clean $(BUILD)
-
-start: check-env
+start:
 	start "$(TARGET).gba"
 
-restart: check-env rebuild start
+restart: rebuild start
 
 # EOF

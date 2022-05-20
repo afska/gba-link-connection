@@ -2,7 +2,7 @@
 
 #include <libgba-sprite-engine/background/text_stream.h>
 
-#include "../lib/LinkConnection.h"
+#include "../../_lib/LinkConnection.h"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 

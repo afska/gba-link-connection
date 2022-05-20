@@ -30,12 +30,13 @@
 #define LINK_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
+// --------------------------------------------------------------------------
 // A Link Cable connection for Multi-player mode.
-
+// --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkConnection* linkConnection = new LinkConnection();
-// - 2) Add the required interrupt service routines:
+// - 2) Add the required interrupt service routines: (*)
 //       irq_init(NULL);
 //       irq_add(II_VBLANK, LINK_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_ISR_SERIAL);
@@ -45,10 +46,15 @@
 // - 4) Send/read messages by using:
 //       linkConnection->send(...);
 //       linkConnection->linkState
-
+// --------------------------------------------------------------------------
+// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//     That can cause packet loss. You might want to use libugba's instead.
+//     (see examples)
+// --------------------------------------------------------------------------
 // `data` restrictions:
 // 0xFFFF and 0x0 are reserved values, so don't use them
 // (they mean 'disconnected' and 'no data' respectively)
+// --------------------------------------------------------------------------
 
 void LINK_ISR_VBLANK();
 void LINK_ISR_TIMER();

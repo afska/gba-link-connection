@@ -2,19 +2,21 @@
 #include <string>
 #include "interrupt.h"
 
-// (0) Include the header
 #include "../../_lib/LinkConnection.h"
+
+// STRESS:
+// This test sends consecutive values in a two-player setup.
+// When a GBA receives something not equal to previousValue + 1, it hangs.
+// It should work indefinitely (with no packet loss).
 
 void log(std::string text);
 
-// (1) Create a LinkConnection instance
 LinkConnection* linkConnection = new LinkConnection();
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 
-  // (2) Add the interrupt service routines
   interrupt_init();
   interrupt_set_handler(INTR_VBLANK, LINK_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
@@ -23,43 +25,51 @@ void init() {
   interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
-  // (3) Initialize the library
   linkConnection->activate();
 }
 
 int main() {
   init();
 
-  u16 data[LINK_MAX_PLAYERS];
-  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
-    data[i] = 0;
+  u16 counter = 0;
+  u16 remoteCounter = 0;
+  bool error = false;
 
   while (true) {
-    // (4) Send/read messages messages
-    u16 keys = ~REG_KEYS & KEY_ANY;
-    u16 message = keys + 1;
-    linkConnection->send(message);
     auto linkState = linkConnection->linkState.get();
 
     std::string output = "";
     if (linkState->isConnected()) {
       output += "Players: " + std::to_string(linkState->playerCount) + "\n";
 
-      for (u32 i = 0; i < linkState->playerCount; i++) {
-        while (linkState->hasMessage(i)) {
-          data[i] = linkState->readMessage(i) - 1;
-        }
-
-        output += "Player " + std::to_string(i) + ": " +
-                  std::to_string(data[i]) + "\n";
+      if (linkState->playerCount == 2) {
+        linkConnection->send(counter + 1);
+        counter++;
       }
 
-      output += "_sent: " + std::to_string(message) + "\n";
-      output += "_self pID: " + std::to_string(linkState->currentPlayerId);
+      while (linkState->hasMessage(!linkState->currentPlayerId)) {
+        u16 msg = linkState->readMessage(!linkState->currentPlayerId) - 1;
+        if (msg == remoteCounter) {
+          remoteCounter++;
+        } else {
+          error = true;
+          output += "ERROR!\nExpected " + std::to_string(remoteCounter) +
+                    " but got " + std::to_string(msg) + "\n";
+        }
+      }
+
+      output += "(" + std::to_string(counter) + ", " +
+                std::to_string(remoteCounter) + ")\n";
     } else {
       output += std::string("Waiting...");
     }
+
     log(output);
+
+    if (error) {
+      while (true)
+        ;
+    }
 
     VBlankIntrWait();
   }
