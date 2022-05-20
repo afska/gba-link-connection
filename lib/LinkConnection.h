@@ -2,10 +2,6 @@
 #define LINK_CONNECTION_H
 
 #include <tonc_core.h>
-#include <tonc_memdef.h>
-#include <tonc_memmap.h>
-
-#include <memory>
 #include <queue>
 
 #define LINK_MAX_PLAYERS 4
@@ -30,12 +26,13 @@
 #define LINK_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
+// --------------------------------------------------------------------------
 // A Link Cable connection for Multi-player mode.
-
+// --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkConnection* linkConnection = new LinkConnection();
-// - 2) Add the required interrupt service routines:
+// - 2) Add the required interrupt service routines: (*)
 //       irq_init(NULL);
 //       irq_add(II_VBLANK, LINK_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_ISR_SERIAL);
@@ -43,12 +40,22 @@
 // - 3) Initialize the library with:
 //       linkConnection->activate();
 // - 4) Send/read messages by using:
-//       linkConnection->send(...);
-//       linkConnection->linkState
-
+//       u8 playerCount = linkConnection->playerCount();
+//       u8 currentPlayerId = linkConnection->currentPlayerId();
+//       linkConnection->send(123);
+//       if (linkConnection->canRead(!currentPlayerId)
+//         linkConnection->read(!currentPlayerId);
+// - 5) Mark the current state copy (front buffer) as consumed:
+//       linkConnection->consume();
+// --------------------------------------------------------------------------
+// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//     That can cause packet loss. You might want to use libugba's instead.
+//     (see examples)
+// --------------------------------------------------------------------------
 // `data` restrictions:
 // 0xFFFF and 0x0 are reserved values, so don't use them
 // (they mean 'disconnected' and 'no data' respectively)
+// --------------------------------------------------------------------------
 
 void LINK_ISR_VBLANK();
 void LINK_ISR_TIMER();
@@ -58,36 +65,20 @@ void LINK_QUEUE_CLEAR(std::queue<u16>& q);
 const u16 LINK_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                   IRQ_TIMER3};
 
-struct LinkState {
+struct LinkPublicState {
+  std::queue<u16> incomingMessages[LINK_MAX_PLAYERS];
   u8 playerCount;
   u8 currentPlayerId;
-  std::queue<u16> _incomingMessages[LINK_MAX_PLAYERS];
-  std::queue<u16> _outgoingMessages;
-  int _timeouts[LINK_MAX_PLAYERS];
-  bool _IRQFlag;
-  u32 _IRQTimeout;
-  bool _isLocked = false;
+  bool isReady = false;
+  bool isConsumed = false;
+};
 
-  bool isConnected() {
-    return playerCount > 1 && currentPlayerId < playerCount;
-  }
-
-  bool hasMessage(u8 playerId) {
-    if (playerId >= playerCount)
-      return false;
-
-    _isLocked = true;
-    bool hasMessage = !_incomingMessages[playerId].empty();
-    _isLocked = false;
-    return hasMessage;
-  }
-
-  u16 readMessage(u8 playerId) {
-    _isLocked = true;
-    u16 message = LINK_QUEUE_POP(_incomingMessages[playerId]);
-    _isLocked = false;
-    return message;
-  }
+struct LinkInternalState {
+  std::queue<u16> outgoingMessages;
+  int timeouts[LINK_MAX_PLAYERS];
+  bool IRQFlag;
+  u32 IRQTimeout;
+  bool isAddingMessage = false;
 };
 
 class LinkConnection {
@@ -98,8 +89,6 @@ class LinkConnection {
     BAUD_RATE_2,  // 57600 bps
     BAUD_RATE_3   // 115200 bps
   };
-  std::unique_ptr<struct LinkState> linkState{new LinkState()};
-
   explicit LinkConnection(BaudRate baudRate = BAUD_RATE_1,
                           u32 timeout = LINK_DEFAULT_TIMEOUT,
                           u32 remoteTimeout = LINK_DEFAULT_REMOTE_TIMEOUT,
@@ -129,77 +118,113 @@ class LinkConnection {
     stop();
   }
 
+  bool isConnected() {
+    return $state.playerCount > 1 &&
+           $state.currentPlayerId < $state.playerCount;
+  }
+
+  u8 playerCount() { return $state.playerCount; }
+  u8 currentPlayerId() { return $state.currentPlayerId; }
+
+  bool canRead(u8 playerId) {
+    if (!$state.isReady)
+      return false;
+
+    return !$state.incomingMessages[playerId].empty();
+  }
+
+  u16 read(u8 playerId) {
+    if (!$state.isReady)
+      return LINK_NO_DATA;
+
+    return LINK_QUEUE_POP($state.incomingMessages[playerId]);
+  }
+
+  void consume() { $state.isConsumed = true; }
+
   void send(u16 data) {
     if (data == LINK_DISCONNECTED || data == LINK_NO_DATA)
       return;
 
-    linkState->_isLocked = true;
-    push(linkState->_outgoingMessages, data);
-    linkState->_isLocked = false;
+    _state.isAddingMessage = true;
+    push(_state.outgoingMessages, data);
+    _state.isAddingMessage = false;
   }
 
   void _onVBlank() {
-    if (!isEnabled || linkState->_isLocked)
+    if (!isEnabled)
       return;
 
-    if (!linkState->_IRQFlag)
-      linkState->_IRQTimeout++;
+    if (!_state.IRQFlag)
+      _state.IRQTimeout++;
 
-    linkState->_IRQFlag = false;
+    _state.IRQFlag = false;
+
+    copyState();
   }
 
   void _onTimer() {
-    if (!isEnabled || linkState->_isLocked)
+    if (!isEnabled)
       return;
 
     if (didTimeout()) {
       reset();
+      copyState();
       return;
     }
 
     if (isMaster() && isReady() && !isSending())
       sendPendingData();
+
+    copyState();
   }
 
   void _onSerial() {
-    if (!isEnabled || linkState->_isLocked)
+    if (!isEnabled)
       return;
 
-    if (resetIfNeeded())
+    if (resetIfNeeded()) {
+      copyState();
       return;
+    }
 
-    linkState->_IRQFlag = true;
-    linkState->_IRQTimeout = 0;
+    _state.IRQFlag = true;
+    _state.IRQTimeout = 0;
 
     u8 newPlayerCount = 0;
     for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
       u16 data = REG_SIOMULTI[i];
 
       if (data != LINK_DISCONNECTED) {
-        if (data != LINK_NO_DATA && i != linkState->currentPlayerId)
-          push(linkState->_incomingMessages[i], data);
+        if (data != LINK_NO_DATA && i != state.currentPlayerId)
+          push(state.incomingMessages[i], data);
         newPlayerCount++;
-        linkState->_timeouts[i] = 0;
-      } else if (linkState->_timeouts[i] > LINK_REMOTE_TIMEOUT_OFFLINE) {
-        linkState->_timeouts[i]++;
+        _state.timeouts[i] = 0;
+      } else if (_state.timeouts[i] > LINK_REMOTE_TIMEOUT_OFFLINE) {
+        _state.timeouts[i]++;
 
-        if (linkState->_timeouts[i] >= (int)remoteTimeout) {
-          LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
-          linkState->_timeouts[i] = LINK_REMOTE_TIMEOUT_OFFLINE;
+        if (_state.timeouts[i] >= (int)remoteTimeout) {
+          LINK_QUEUE_CLEAR(state.incomingMessages[i]);
+          _state.timeouts[i] = LINK_REMOTE_TIMEOUT_OFFLINE;
         } else
           newPlayerCount++;
       }
     }
 
-    linkState->playerCount = newPlayerCount;
-    linkState->currentPlayerId =
+    state.playerCount = newPlayerCount;
+    state.currentPlayerId =
         (REG_SIOCNT & (0b11 << LINK_BITS_PLAYER_ID)) >> LINK_BITS_PLAYER_ID;
 
     if (!isMaster())
       sendPendingData();
+
+    copyState();
   }
 
  private:
+  LinkPublicState state;     // (updated state / back buffer)
+  LinkPublicState $state;    // (visible state / front buffer)
+  LinkInternalState _state;  // (internal state)
   BaudRate baudRate;
   u32 timeout;
   u32 remoteTimeout;
@@ -212,10 +237,13 @@ class LinkConnection {
   bool hasError() { return isBitHigh(LINK_BIT_ERROR); }
   bool isMaster() { return !isBitHigh(LINK_BIT_SLAVE); }
   bool isSending() { return isBitHigh(LINK_BIT_START); }
-  bool didTimeout() { return linkState->_IRQTimeout >= timeout; }
+  bool didTimeout() { return _state.IRQTimeout >= timeout; }
 
   void sendPendingData() {
-    transfer(LINK_QUEUE_POP(linkState->_outgoingMessages));
+    if (_state.isAddingMessage)
+      return;
+
+    transfer(LINK_QUEUE_POP(_state.outgoingMessages));
   }
 
   void transfer(u16 data) {
@@ -241,15 +269,15 @@ class LinkConnection {
   }
 
   void resetState() {
-    linkState->playerCount = 0;
-    linkState->currentPlayerId = 0;
+    state.playerCount = 0;
+    state.currentPlayerId = 0;
     for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
-      LINK_QUEUE_CLEAR(linkState->_incomingMessages[i]);
-      linkState->_timeouts[i] = LINK_REMOTE_TIMEOUT_OFFLINE;
+      LINK_QUEUE_CLEAR(state.incomingMessages[i]);
+      _state.timeouts[i] = LINK_REMOTE_TIMEOUT_OFFLINE;
     }
-    LINK_QUEUE_CLEAR(linkState->_outgoingMessages);
-    linkState->_IRQFlag = false;
-    linkState->_IRQTimeout = 0;
+    LINK_QUEUE_CLEAR(_state.outgoingMessages);
+    _state.IRQFlag = false;
+    _state.IRQTimeout = 0;
   }
 
   void stop() {
@@ -276,6 +304,18 @@ class LinkConnection {
   void startTimer() {
     REG_TM[sendTimerId].start = -interval;
     REG_TM[sendTimerId].cnt = TM_ENABLE | TM_IRQ | LINK_BASE_FREQUENCY;
+  }
+
+  void copyState() {
+    if ($state.isReady && !$state.isConsumed)
+      return;
+
+    state.isReady = true;
+    state.isConsumed = false;
+    $state = state;
+
+    for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
+      LINK_QUEUE_CLEAR(state.incomingMessages[i]);
   }
 
   void push(std::queue<u16>& q, u16 value) {

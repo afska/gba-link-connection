@@ -1,9 +1,12 @@
 #include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
-
-#include "../lib/LinkConnection.h"
+#include "../../_lib/LinkConnection.h"
+#include "../../_lib/interrupt.h"
 #include "scenes/TestScene.h"
 #include "utils/SceneUtils.h"
+
+// FULL:
+// This test has a menu and lets the user send data in different ways.
 
 void setUpInterrupts();
 void printTutorial();
@@ -33,13 +36,12 @@ int main() {
 
     // log player id/count and important flags
     TextStream::instance().setText(
-        "P" + asStr(linkConnection->linkState->currentPlayerId) + "/" +
-            asStr(linkConnection->linkState->playerCount) + "-R" +
+        "P" + asStr(linkConnection->currentPlayerId()) + "/" +
+            asStr(linkConnection->playerCount()) + "-R" +
             asStr(isBitHigh(REG_SIOCNT, LINK_BIT_READY)) + "-S" +
             asStr(isBitHigh(REG_SIOCNT, LINK_BIT_START)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_ERROR)) + "-I" +
-            asStr(linkConnection->linkState->_IRQFlag),
-        0, 11);
+            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_ERROR)),
+        0, 14);
 
     engine->update();
 
@@ -55,17 +57,19 @@ inline void ISR_reset() {
 }
 
 inline void setUpInterrupts() {
-  irq_init(NULL);
+  interrupt_init();
 
   // LinkConnection
-  irq_add(II_VBLANK, LINK_ISR_VBLANK);
-  irq_add(II_SERIAL, LINK_ISR_SERIAL);
-  irq_add(II_TIMER3, LINK_ISR_TIMER);
-  irq_add(II_TIMER2, NULL);
+  interrupt_set_handler(INTR_VBLANK, LINK_ISR_VBLANK);
+  interrupt_enable(INTR_VBLANK);
+  interrupt_set_handler(INTR_SERIAL, LINK_ISR_SERIAL);
+  interrupt_enable(INTR_SERIAL);
+  interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
+  interrupt_enable(INTR_TIMER3);
 
   // A+B+START+SELECT
   REG_KEYCNT = 0b1100000000001111;
-  irq_add(II_KEYPAD, ISR_reset);
+  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
 }
 
 void printTutorial() {
