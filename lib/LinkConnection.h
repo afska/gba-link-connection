@@ -40,11 +40,14 @@
 // - 3) Initialize the library with:
 //       linkConnection->activate();
 // - 4) Send/read messages by using:
+//       bool isConnected = linkConnection->isConnected();
 //       u8 playerCount = linkConnection->playerCount();
 //       u8 currentPlayerId = linkConnection->currentPlayerId();
-//       linkConnection->send(123);
-//       if (linkConnection->canRead(!currentPlayerId)
-//         linkConnection->read(!currentPlayerId);
+//       linkConnection->send(0x1234);
+//       if (isConnected && linkConnection->canRead(!currentPlayerId)) {
+//         u16 message = linkConnection->read(!currentPlayerId);
+//         // ...
+//       }
 // - 5) Mark the current state copy (front buffer) as consumed:
 //       linkConnection->consume();
 // --------------------------------------------------------------------------
