@@ -1,8 +1,7 @@
 #include <tonc.h>
 #include <string>
-#include "interrupt.h"
-
 #include "../../_lib/LinkConnection.h"
+#include "../../_lib/interrupt.h"
 
 // STRESS:
 // This test sends consecutive values in a two-player setup.
@@ -31,7 +30,7 @@ void init() {
 int main() {
   init();
 
-  u16 counter = 0;
+  u16 localCounter = 0;
   u16 remoteCounter = 0;
   bool error = false;
 
@@ -43,8 +42,8 @@ int main() {
       output += "Players: " + std::to_string(linkState->playerCount) + "\n";
 
       if (linkState->playerCount == 2) {
-        linkConnection->send(counter + 1);
-        counter++;
+        linkConnection->send(localCounter + 1);
+        localCounter++;
       }
 
       while (linkState->hasMessage(!linkState->currentPlayerId)) {
@@ -58,7 +57,7 @@ int main() {
         }
       }
 
-      output += "(" + std::to_string(counter) + ", " +
+      output += "(" + std::to_string(localCounter) + ", " +
                 std::to_string(remoteCounter) + ")\n";
     } else {
       output += std::string("Waiting...");

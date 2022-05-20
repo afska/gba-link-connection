@@ -1,6 +1,6 @@
 #include <tonc.h>
 #include <string>
-#include "interrupt.h"
+#include "../../_lib/interrupt.h"
 
 // (0) Include the header
 #include "../../_lib/LinkConnection.h"

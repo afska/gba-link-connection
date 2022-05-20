@@ -123,7 +123,7 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba -lgba-sprite-engine
 
 BUILD		:= build
-SRCDIRS		:= src \
+SRCDIRS		:= src ../_lib \
 						 src/scenes \
 						 src/utils
 
