@@ -52,13 +52,13 @@ void TestScene::tick(u16 keys) {
   selectHandler->setIsPressed(keys & KEY_SELECT);
 
   // log events
-  auto linkState = linkConnection->linkState.get();
-  if (!isConnected && linkState->isConnected()) {
+  if (!isConnected && linkConnection->isConnected()) {
     isConnected = true;
     initialized = false;
-    DEBULOG("! connected (" + asStr(linkState->playerCount) + " players)");
+    DEBULOG("! connected (" + asStr(linkConnection->playerCount()) +
+            " players)");
   }
-  if (isConnected && !linkState->isConnected()) {
+  if (isConnected && !linkConnection->isConnected()) {
     isConnected = false;
     DEBULOG("! disconnected");
   }
@@ -69,7 +69,7 @@ void TestScene::tick(u16 keys) {
 
   // determine which value should be sent
   u16 value = LINK_NO_DATA;
-  if (!initialized && linkState->currentPlayerId == 1) {
+  if (!initialized && linkConnection->currentPlayerId() == 1) {
     initialized = true;
     value = 999;
   }
@@ -84,16 +84,22 @@ void TestScene::tick(u16 keys) {
     send(counter);
     counter++;
     send(counter);
-  } else if (value != LINK_NO_DATA)
+  } else if (value != LINK_NO_DATA) {
     send(value);
+  }
 
   // process received data
-  if (linkState->isConnected())
-    for (u32 i = 0; i < linkState->playerCount; i++)
-      while (linkState->hasMessage(i)) {
-        u16 message = linkState->readMessage(i);
-        if (i != linkState->currentPlayerId)
+  if (linkConnection->isConnected()) {
+    for (u32 i = 0; i < linkConnection->playerCount(); i++) {
+      while (linkConnection->canRead(i)) {
+        u16 message = linkConnection->read(i);
+        if (i != linkConnection->currentPlayerId())
           DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
                   asStr(frameCounter) + ")");
       }
+    }
+  }
+
+  // mark link buffer as consumed
+  linkConnection->consume();
 }

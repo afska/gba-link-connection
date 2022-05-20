@@ -36,13 +36,12 @@ int main() {
 
     // log player id/count and important flags
     TextStream::instance().setText(
-        "P" + asStr(linkConnection->linkState->currentPlayerId) + "/" +
-            asStr(linkConnection->linkState->playerCount) + "-R" +
+        "P" + asStr(linkConnection->currentPlayerId()) + "/" +
+            asStr(linkConnection->playerCount()) + "-R" +
             asStr(isBitHigh(REG_SIOCNT, LINK_BIT_READY)) + "-S" +
             asStr(isBitHigh(REG_SIOCNT, LINK_BIT_START)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_ERROR)) + "-I" +
-            asStr(linkConnection->linkState->_IRQFlag),
-        0, 11);
+            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_ERROR)),
+        0, 14);
 
     engine->update();
 

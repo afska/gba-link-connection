@@ -35,25 +35,27 @@ int main() {
   bool error = false;
 
   while (true) {
-    auto linkState = linkConnection->linkState.get();
-
     std::string output = "";
-    if (linkState->isConnected()) {
-      output += "Players: " + std::to_string(linkState->playerCount) + "\n";
+    if (linkConnection->isConnected()) {
+      auto playerCount = linkConnection->playerCount();
+      auto currentPlayerId = linkConnection->currentPlayerId();
+      auto remotePlayerId = !currentPlayerId;
 
-      if (linkState->playerCount == 2) {
+      output += "Players: " + std::to_string(playerCount) + "\n";
+
+      if (playerCount == 2) {
         linkConnection->send(localCounter + 1);
         localCounter++;
       }
 
-      while (linkState->hasMessage(!linkState->currentPlayerId)) {
-        u16 msg = linkState->readMessage(!linkState->currentPlayerId) - 1;
-        if (msg == remoteCounter) {
+      while (linkConnection->canRead(remotePlayerId)) {
+        u16 message = linkConnection->read(remotePlayerId) - 1;
+        if (message == remoteCounter) {
           remoteCounter++;
         } else {
           error = true;
           output += "ERROR!\nExpected " + std::to_string(remoteCounter) +
-                    " but got " + std::to_string(msg) + "\n";
+                    " but got " + std::to_string(message) + "\n";
         }
       }
 
@@ -61,6 +63,9 @@ int main() {
                 std::to_string(remoteCounter) + ")\n";
     } else {
       output += std::string("Waiting...");
+      localCounter = 0;
+      remoteCounter = 0;
+      error = false;
     }
 
     log(output);
@@ -69,6 +74,8 @@ int main() {
       while (true)
         ;
     }
+
+    linkConnection->consume();
 
     VBlankIntrWait();
   }

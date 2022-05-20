@@ -31,35 +31,41 @@ int main() {
   init();
 
   u16 data[LINK_MAX_PLAYERS];
-  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++)
+  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
     data[i] = 0;
+  }
 
   while (true) {
     // (4) Send/read messages messages
     u16 keys = ~REG_KEYS & KEY_ANY;
-    u16 message = keys + 1;
+    u16 message = keys + 1;  // (avoid sending 0)
     linkConnection->send(message);
-    auto linkState = linkConnection->linkState.get();
 
     std::string output = "";
-    if (linkState->isConnected()) {
-      output += "Players: " + std::to_string(linkState->playerCount) + "\n";
+    if (linkConnection->isConnected()) {
+      u8 playerCount = linkConnection->playerCount();
+      u8 currentPlayerId = linkConnection->currentPlayerId();
 
-      for (u32 i = 0; i < linkState->playerCount; i++) {
-        while (linkState->hasMessage(i)) {
-          data[i] = linkState->readMessage(i) - 1;
+      output += "Players: " + std::to_string(playerCount) + "\n";
+
+      output += "(";
+      for (u32 i = 0; i < playerCount; i++) {
+        while (linkConnection->canRead(i)) {
+          data[i] = linkConnection->read(i) - 1;
         }
 
-        output += "Player " + std::to_string(i) + ": " +
-                  std::to_string(data[i]) + "\n";
+        output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
       }
-
+      output += "\n";
       output += "_sent: " + std::to_string(message) + "\n";
-      output += "_self pID: " + std::to_string(linkState->currentPlayerId);
+      output += "_pID: " + std::to_string(currentPlayerId);
     } else {
       output += std::string("Waiting...");
     }
     log(output);
+
+    // (5) Mark the current state copy (front buffer) as consumed
+    linkConnection->consume();
 
     VBlankIntrWait();
   }
