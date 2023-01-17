@@ -38,8 +38,8 @@ int main() {
   while (true) {
     // (4) Send/read messages messages
     u16 keys = ~REG_KEYS & KEY_ANY;
-    u16 message = keys + 1;  // (avoid sending 0)
-    linkCable->send(message);
+    u16 message = keys;
+    linkCable->send(message + 1);  // (avoid using 0)
 
     std::string output = "";
     if (linkCable->isConnected()) {
@@ -51,13 +51,13 @@ int main() {
       output += "(";
       for (u32 i = 0; i < playerCount; i++) {
         while (linkCable->canRead(i)) {
-          data[i] = linkCable->read(i) - 1;
+          data[i] = linkCable->read(i) - 1;  // (avoid using 0)
         }
 
         output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
       }
       output += "\n";
-      output += "_sent: " + std::to_string(message) + "\n";
+      output += "_keys: " + std::to_string(message) + "\n";
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {
       output += std::string("Waiting...");
