@@ -1,6 +1,6 @@
 #include <tonc.h>
 #include <string>
-#include "../../_lib/LinkConnection.h"
+#include "../../_lib/LinkCable.h"
 #include "../../_lib/interrupt.h"
 
 // STRESS:
@@ -10,7 +10,7 @@
 
 void log(std::string text);
 
-LinkConnection* linkConnection = new LinkConnection();
+LinkCable* linkCable = new LinkCable();
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -24,7 +24,7 @@ void init() {
   interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
-  linkConnection->activate();
+  linkCable->activate();
 }
 
 int main() {
@@ -36,20 +36,20 @@ int main() {
 
   while (true) {
     std::string output = "";
-    if (linkConnection->isConnected()) {
-      auto playerCount = linkConnection->playerCount();
-      auto currentPlayerId = linkConnection->currentPlayerId();
+    if (linkCable->isConnected()) {
+      auto playerCount = linkCable->playerCount();
+      auto currentPlayerId = linkCable->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
       output += "Players: " + std::to_string(playerCount) + "\n";
 
       if (playerCount == 2) {
-        linkConnection->send(localCounter + 1);
+        linkCable->send(localCounter + 1);
         localCounter++;
       }
 
-      while (linkConnection->canRead(remotePlayerId)) {
-        u16 message = linkConnection->read(remotePlayerId) - 1;
+      while (linkCable->canRead(remotePlayerId)) {
+        u16 message = linkCable->read(remotePlayerId) - 1;
         if (message == remoteCounter) {
           remoteCounter++;
         } else {
@@ -75,7 +75,7 @@ int main() {
         ;
     }
 
-    linkConnection->consume();
+    linkCable->consume();
 
     VBlankIntrWait();
   }

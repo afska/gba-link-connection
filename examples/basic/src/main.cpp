@@ -3,12 +3,12 @@
 #include "../../_lib/interrupt.h"
 
 // (0) Include the header
-#include "../../_lib/LinkConnection.h"
+#include "../../_lib/LinkCable.h"
 
 void log(std::string text);
 
-// (1) Create a LinkConnection instance
-LinkConnection* linkConnection = new LinkConnection();
+// (1) Create a LinkCable instance
+LinkCable* linkCable = new LinkCable();
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -24,7 +24,7 @@ void init() {
   interrupt_enable(INTR_TIMER3);
 
   // (3) Initialize the library
-  linkConnection->activate();
+  linkCable->activate();
 }
 
 int main() {
@@ -39,19 +39,19 @@ int main() {
     // (4) Send/read messages messages
     u16 keys = ~REG_KEYS & KEY_ANY;
     u16 message = keys + 1;  // (avoid sending 0)
-    linkConnection->send(message);
+    linkCable->send(message);
 
     std::string output = "";
-    if (linkConnection->isConnected()) {
-      u8 playerCount = linkConnection->playerCount();
-      u8 currentPlayerId = linkConnection->currentPlayerId();
+    if (linkCable->isConnected()) {
+      u8 playerCount = linkCable->playerCount();
+      u8 currentPlayerId = linkCable->currentPlayerId();
 
       output += "Players: " + std::to_string(playerCount) + "\n";
 
       output += "(";
       for (u32 i = 0; i < playerCount; i++) {
-        while (linkConnection->canRead(i)) {
-          data[i] = linkConnection->read(i) - 1;
+        while (linkCable->canRead(i)) {
+          data[i] = linkCable->read(i) - 1;
         }
 
         output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
@@ -65,7 +65,7 @@ int main() {
     log(output);
 
     // (5) Mark the current state copy (front buffer) as consumed
-    linkConnection->consume();
+    linkCable->consume();
 
     VBlankIntrWait();
   }

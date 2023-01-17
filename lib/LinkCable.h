@@ -1,5 +1,39 @@
-#ifndef LINK_CONNECTION_H
-#define LINK_CONNECTION_H
+#ifndef LINK_CABLE_H
+#define LINK_CABLE_H
+
+// --------------------------------------------------------------------------
+// A Link Cable connection for Multi-player mode.
+// --------------------------------------------------------------------------
+// Usage:
+// - 1) Include this header in your main.cpp file and add:
+//       LinkCable* linkCable = new LinkCable();
+// - 2) Add the required interrupt service routines: (*)
+//       irq_init(NULL);
+//       irq_add(II_VBLANK, LINK_ISR_VBLANK);
+//       irq_add(II_SERIAL, LINK_ISR_SERIAL);
+//       irq_add(II_TIMER3, LINK_ISR_TIMER);
+// - 3) Initialize the library with:
+//       linkCable->activate();
+// - 4) Send/read messages by using:
+//       bool isConnected = linkCable->isConnected();
+//       u8 playerCount = linkCable->playerCount();
+//       u8 currentPlayerId = linkCable->currentPlayerId();
+//       linkCable->send(0x1234);
+//       if (isConnected && linkCable->canRead(!currentPlayerId)) {
+//         u16 message = linkCable->read(!currentPlayerId);
+//         // ...
+//       }
+// - 5) Mark the current state copy (front buffer) as consumed:
+//       linkCable->consume();
+// --------------------------------------------------------------------------
+// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//     That can cause packet loss. You might want to use libugba's instead.
+//     (see examples)
+// --------------------------------------------------------------------------
+// `data` restrictions:
+// 0xFFFF and 0x0 are reserved values, so don't use them
+// (they mean 'disconnected' and 'no data' respectively)
+// --------------------------------------------------------------------------
 
 #include <tonc_core.h>
 #include <queue>
@@ -26,40 +60,6 @@
 #define LINK_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
-// --------------------------------------------------------------------------
-// A Link Cable connection for Multi-player mode.
-// --------------------------------------------------------------------------
-// Usage:
-// - 1) Include this header in your main.cpp file and add:
-//       LinkConnection* linkConnection = new LinkConnection();
-// - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_ISR_SERIAL);
-//       irq_add(II_TIMER3, LINK_ISR_TIMER);
-// - 3) Initialize the library with:
-//       linkConnection->activate();
-// - 4) Send/read messages by using:
-//       bool isConnected = linkConnection->isConnected();
-//       u8 playerCount = linkConnection->playerCount();
-//       u8 currentPlayerId = linkConnection->currentPlayerId();
-//       linkConnection->send(0x1234);
-//       if (isConnected && linkConnection->canRead(!currentPlayerId)) {
-//         u16 message = linkConnection->read(!currentPlayerId);
-//         // ...
-//       }
-// - 5) Mark the current state copy (front buffer) as consumed:
-//       linkConnection->consume();
-// --------------------------------------------------------------------------
-// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
-//     That can cause packet loss. You might want to use libugba's instead.
-//     (see examples)
-// --------------------------------------------------------------------------
-// `data` restrictions:
-// 0xFFFF and 0x0 are reserved values, so don't use them
-// (they mean 'disconnected' and 'no data' respectively)
-// --------------------------------------------------------------------------
-
 void LINK_ISR_VBLANK();
 void LINK_ISR_TIMER();
 void LINK_ISR_SERIAL();
@@ -84,7 +84,7 @@ struct LinkInternalState {
   bool isAddingMessage = false;
 };
 
-class LinkConnection {
+class LinkCable {
  public:
   enum BaudRate {
     BAUD_RATE_0,  // 9600 bps
@@ -92,12 +92,12 @@ class LinkConnection {
     BAUD_RATE_2,  // 57600 bps
     BAUD_RATE_3   // 115200 bps
   };
-  explicit LinkConnection(BaudRate baudRate = BAUD_RATE_1,
-                          u32 timeout = LINK_DEFAULT_TIMEOUT,
-                          u32 remoteTimeout = LINK_DEFAULT_REMOTE_TIMEOUT,
-                          u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
-                          u16 interval = LINK_DEFAULT_INTERVAL,
-                          u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID) {
+  explicit LinkCable(BaudRate baudRate = BAUD_RATE_1,
+                     u32 timeout = LINK_DEFAULT_TIMEOUT,
+                     u32 remoteTimeout = LINK_DEFAULT_REMOTE_TIMEOUT,
+                     u32 bufferSize = LINK_DEFAULT_BUFFER_SIZE,
+                     u16 interval = LINK_DEFAULT_INTERVAL,
+                     u8 sendTimerId = LINK_DEFAULT_SEND_TIMER_ID) {
     this->baudRate = baudRate;
     this->timeout = timeout;
     this->remoteTimeout = remoteTimeout;
@@ -333,18 +333,18 @@ class LinkConnection {
   void setBitLow(u8 bit) { LINK_SET_LOW(REG_SIOCNT, bit); }
 };
 
-extern LinkConnection* linkConnection;
+extern LinkCable* linkCable;
 
 inline void LINK_ISR_VBLANK() {
-  linkConnection->_onVBlank();
+  linkCable->_onVBlank();
 }
 
 inline void LINK_ISR_TIMER() {
-  linkConnection->_onTimer();
+  linkCable->_onTimer();
 }
 
 inline void LINK_ISR_SERIAL() {
-  linkConnection->_onSerial();
+  linkCable->_onSerial();
 }
 
 inline u16 LINK_QUEUE_POP(std::queue<u16>& q) {
@@ -361,4 +361,4 @@ inline void LINK_QUEUE_CLEAR(std::queue<u16>& q) {
     LINK_QUEUE_POP(q);
 }
 
-#endif  // LINK_CONNECTION_H
+#endif  // LINK_CABLE_H
