@@ -33,6 +33,7 @@
     LINK_GPIO_SET_LOW(REG, BIT);
 #define LINK_GPIO_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_GPIO_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
+#define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
 #define LINK_GPIO_SI_INTERRUPT_BIT 8
 
 enum LinkPin { SI, SO, SD, SC };
@@ -53,6 +54,10 @@ class LinkGPIO {
 
     LINK_GPIO_SET(REG_RCNT, LINK_PIN_DIRECTION_BITS[pin],
                   direction == LinkDirection::OUTPUT);
+  }
+
+  LinkDirection getMode(LinkPin pin) {
+    return LinkDirection(LINK_GPIO_GET(REG_RCNT, LINK_PIN_DIRECTION_BITS[pin]));
   }
 
   bool readPin(LinkPin pin) {
