@@ -64,8 +64,8 @@ class LinkGPIO {
     return (REG_RCNT & (1 << LINK_PIN_DATA_BITS[pin])) != 0;
   }
 
-  void writePin(LinkPin pin, bool data) {
-    LINK_GPIO_SET(REG_RCNT, LINK_PIN_DATA_BITS[pin], data);
+  void writePin(LinkPin pin, bool isHigh) {
+    LINK_GPIO_SET(REG_RCNT, LINK_PIN_DATA_BITS[pin], isHigh);
   }
 
   void setSIInterrupts(bool isEnabled) {

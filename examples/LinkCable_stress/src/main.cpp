@@ -4,7 +4,7 @@
 #include "../../_lib/interrupt.h"
 
 // STRESS:
-// This test sends consecutive values in a two-player setup.
+// This example sends consecutive values in a two-player setup.
 // When a GBA receives something not equal to previousValue + 1, it hangs.
 // It should work indefinitely (with no packet loss).
 

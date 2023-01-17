@@ -35,15 +35,15 @@ int main() {
     // Modes
     output += "SI: INPUT\n";
     output +=
-        std::string("SO : ") +
+        std::string("SO: ") +
         (linkGPIO->getMode(LinkPin::SO) == LinkDirection::OUTPUT ? "OUTPUT\n"
                                                                  : "INPUT\n");
     output +=
-        std::string("SD : ") +
+        std::string("SD: ") +
         (linkGPIO->getMode(LinkPin::SD) == LinkDirection::OUTPUT ? "OUTPUT\n"
                                                                  : "INPUT\n");
     output +=
-        std::string("SC : ") +
+        std::string("SC: ") +
         (linkGPIO->getMode(LinkPin::SC) == LinkDirection::OUTPUT ? "OUTPUT\n"
                                                                  : "INPUT\n");
 

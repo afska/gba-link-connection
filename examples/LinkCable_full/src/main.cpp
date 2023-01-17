@@ -6,7 +6,7 @@
 #include "utils/SceneUtils.h"
 
 // FULL:
-// This test has a menu and lets the user send data in different ways.
+// This example has a menu and lets the user send data in different ways.
 
 void setUpInterrupts();
 void printTutorial();
