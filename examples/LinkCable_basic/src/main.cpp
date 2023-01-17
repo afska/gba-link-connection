@@ -39,10 +39,9 @@ int main() {
   }
 
   while (true) {
-    // (4) Send/read messages messages
+    // (4) Send/read messages
     u16 keys = ~REG_KEYS & KEY_ANY;
-    u16 message = keys;
-    linkCable->send(message + 1);  // (avoid using 0)
+    linkCable->send(keys + 1);  // (avoid using 0)
 
     std::string output = "";
     if (linkCable->isConnected()) {
@@ -60,7 +59,7 @@ int main() {
         output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
       }
       output += "\n";
-      output += "_keys: " + std::to_string(message) + "\n";
+      output += "_keys: " + std::to_string(keys) + "\n";
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {
       output += std::string("Waiting...");

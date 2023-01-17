@@ -65,6 +65,9 @@ int main() {
             ? "< SC: " + std::to_string(linkGPIO->readPin(LinkPin::SC)) + "\n"
             : "> SC: " + std::to_string(sendSCHigh) + "\n";
 
+    // Print
+    log(output);
+
     // Set modes
     if (setSOOutput)
       linkGPIO->setMode(LinkPin::SO, LinkDirection::OUTPUT);
@@ -86,9 +89,6 @@ int main() {
       linkGPIO->writePin(LinkPin::SD, sendSDHigh);
     if (linkGPIO->getMode(LinkPin::SC) == LinkDirection::OUTPUT)
       linkGPIO->writePin(LinkPin::SC, sendSCHigh);
-
-    // Print
-    log(output);
 
     while (REG_VCOUNT >= 160)
       ;  // wait till VDraw
