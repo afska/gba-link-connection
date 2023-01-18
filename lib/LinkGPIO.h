@@ -25,8 +25,9 @@
 
 #include <tonc_core.h>
 
-#define LINK_GPIO_MODE 15
+#define LINK_GPIO_MODE_GENERAL_PURPOSE (1 << 15)
 #define LINK_GPIO_BIT_SI_INTERRUPT 8
+#define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
 #define LINK_GPIO_SET(REG, BIT, DATA) \
   if (DATA)                           \
     LINK_GPIO_SET_HIGH(REG, BIT);     \
@@ -34,7 +35,6 @@
     LINK_GPIO_SET_LOW(REG, BIT);
 #define LINK_GPIO_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_GPIO_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
-#define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
 
 const u8 LINK_GPIO_DATA_BITS[] = {2, 3, 1, 0};
 const u8 LINK_GPIO_DIRECTION_BITS[] = {6, 7, 5, 4};
@@ -45,7 +45,7 @@ class LinkGPIO {
   enum Direction { INPUT, OUTPUT };
 
   void reset() {
-    REG_RCNT = 1 << LINK_GPIO_MODE;
+    REG_RCNT = LINK_GPIO_MODE_GENERAL_PURPOSE;
     REG_SIOCNT = 0;
   }
 

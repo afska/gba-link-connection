@@ -78,3 +78,9 @@ Name | Return type | Description
 `readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
+
+# LinkSPI
+
+// TODO: WRITE
+
+![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)

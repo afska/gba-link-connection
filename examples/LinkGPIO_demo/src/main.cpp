@@ -1,18 +1,21 @@
 #include <tonc.h>
 #include <string>
 
+// (0) Include the header
 #include "../../_lib/LinkGPIO.h"
 
 void log(std::string text);
 std::string mode(std::string name, LinkGPIO::Pin pin);
 std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh);
 
+// (1) Create a LinkGPIO instance
 LinkGPIO* linkGPIO = new LinkGPIO();
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 
+  // (2) Initialize the library
   linkGPIO->reset();
 }
 
