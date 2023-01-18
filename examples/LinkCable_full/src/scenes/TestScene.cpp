@@ -67,7 +67,7 @@ void TestScene::tick(u16 keys) {
   }
 
   // determine which value should be sent
-  u16 value = LINK_NO_DATA;
+  u16 value = LINK_CABLE_NO_DATA;
   if (!initialized && linkCable->currentPlayerId() == 1) {
     initialized = true;
     value = 999;
@@ -83,7 +83,7 @@ void TestScene::tick(u16 keys) {
     send(counter);
     counter++;
     send(counter);
-  } else if (value != LINK_NO_DATA) {
+  } else if (value != LINK_CABLE_NO_DATA) {
     send(value);
   }
 

@@ -74,7 +74,7 @@ Name | Return type | Description
 --- | --- | ---
 `reset()` | - | Resets communication mode to General Purpose. **Required to initialize the library!**
 `setMode(pin, direction)` | - | Configures a `pin` to use a `direction` (input or output).
-`getMode(pin)` | **LinkPin** | Returns the direction set at `pin`.
+`getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
 `readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.

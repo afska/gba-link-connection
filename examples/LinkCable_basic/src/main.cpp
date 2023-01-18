@@ -19,11 +19,11 @@ void init() {
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, LINK_ISR_VBLANK);
+  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_ISR_SERIAL);
+  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
   interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
+  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
   // (3) Initialize the library
@@ -33,8 +33,8 @@ void init() {
 int main() {
   init();
 
-  u16 data[LINK_MAX_PLAYERS];
-  for (u32 i = 0; i < LINK_MAX_PLAYERS; i++) {
+  u16 data[LINK_CABLE_MAX_PLAYERS];
+  for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
     data[i] = 0;
   }
 

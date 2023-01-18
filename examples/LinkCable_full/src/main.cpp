@@ -38,9 +38,9 @@ int main() {
     TextStream::instance().setText(
         "P" + asStr(linkCable->currentPlayerId()) + "/" +
             asStr(linkCable->playerCount()) + "-R" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_READY)) + "-S" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_START)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_ERROR)),
+            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_READY)) + "-S" +
+            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_START)) + "-E" +
+            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_ERROR)),
         0, 14);
 
     engine->update();
@@ -60,11 +60,11 @@ inline void setUpInterrupts() {
   interrupt_init();
 
   // LinkCable
-  interrupt_set_handler(INTR_VBLANK, LINK_ISR_VBLANK);
+  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_ISR_SERIAL);
+  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
   interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
+  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
   // A+B+START+SELECT

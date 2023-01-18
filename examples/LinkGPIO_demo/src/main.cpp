@@ -4,6 +4,8 @@
 #include "../../_lib/LinkGPIO.h"
 
 void log(std::string text);
+std::string mode(std::string name, LinkGPIO::Pin pin);
+std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh);
 
 LinkGPIO* linkGPIO = new LinkGPIO();
 
@@ -33,62 +35,44 @@ int main() {
     bool sendSCHigh = keys & KEY_A;
 
     // Modes
-    output += "SI: INPUT\n";
-    output +=
-        std::string("SO: ") +
-        (linkGPIO->getMode(LinkPin::SO) == LinkDirection::OUTPUT ? "OUTPUT\n"
-                                                                 : "INPUT\n");
-    output +=
-        std::string("SD: ") +
-        (linkGPIO->getMode(LinkPin::SD) == LinkDirection::OUTPUT ? "OUTPUT\n"
-                                                                 : "INPUT\n");
-    output +=
-        std::string("SC: ") +
-        (linkGPIO->getMode(LinkPin::SC) == LinkDirection::OUTPUT ? "OUTPUT\n"
-                                                                 : "INPUT\n");
+    output += mode("SI", LinkGPIO::Pin::SI);
+    output += mode("SO", LinkGPIO::Pin::SO);
+    output += mode("SD", LinkGPIO::Pin::SD);
+    output += mode("SC", LinkGPIO::Pin::SC);
 
     // Separator
     output += "\n---\n\n";
 
     // Values
-    output += "< SI: " + std::to_string(linkGPIO->readPin(LinkPin::SI)) + "\n";
-    output +=
-        linkGPIO->getMode(LinkPin::SO) == LinkDirection::INPUT
-            ? "< SO: " + std::to_string(linkGPIO->readPin(LinkPin::SO)) + "\n"
-            : "> SO: " + std::to_string(sendSOHigh) + "\n";
-    output +=
-        linkGPIO->getMode(LinkPin::SD) == LinkDirection::INPUT
-            ? "< SD: " + std::to_string(linkGPIO->readPin(LinkPin::SD)) + "\n"
-            : "> SD: " + std::to_string(sendSDHigh) + "\n";
-    output +=
-        linkGPIO->getMode(LinkPin::SC) == LinkDirection::INPUT
-            ? "< SC: " + std::to_string(linkGPIO->readPin(LinkPin::SC)) + "\n"
-            : "> SC: " + std::to_string(sendSCHigh) + "\n";
+    output += value("SI", LinkGPIO::Pin::SI, false);
+    output += value("SO", LinkGPIO::Pin::SO, sendSOHigh);
+    output += value("SD", LinkGPIO::Pin::SD, sendSDHigh);
+    output += value("SC", LinkGPIO::Pin::SC, sendSCHigh);
 
     // Print
     log(output);
 
     // Set modes
     if (setSOOutput)
-      linkGPIO->setMode(LinkPin::SO, LinkDirection::OUTPUT);
+      linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
     if (setSDOutput)
-      linkGPIO->setMode(LinkPin::SD, LinkDirection::OUTPUT);
+      linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     if (setSCOutput)
-      linkGPIO->setMode(LinkPin::SC, LinkDirection::OUTPUT);
+      linkGPIO->setMode(LinkGPIO::Pin::SC, LinkGPIO::Direction::OUTPUT);
     if (setSOInput)
-      linkGPIO->setMode(LinkPin::SO, LinkDirection::INPUT);
+      linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::INPUT);
     if (setSDInput)
-      linkGPIO->setMode(LinkPin::SD, LinkDirection::INPUT);
+      linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::INPUT);
     if (setSCInput)
-      linkGPIO->setMode(LinkPin::SC, LinkDirection::INPUT);
+      linkGPIO->setMode(LinkGPIO::Pin::SC, LinkGPIO::Direction::INPUT);
 
     // Set values
-    if (linkGPIO->getMode(LinkPin::SO) == LinkDirection::OUTPUT)
-      linkGPIO->writePin(LinkPin::SO, sendSOHigh);
-    if (linkGPIO->getMode(LinkPin::SD) == LinkDirection::OUTPUT)
-      linkGPIO->writePin(LinkPin::SD, sendSDHigh);
-    if (linkGPIO->getMode(LinkPin::SC) == LinkDirection::OUTPUT)
-      linkGPIO->writePin(LinkPin::SC, sendSCHigh);
+    if (linkGPIO->getMode(LinkGPIO::Pin::SO) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SO, sendSOHigh);
+    if (linkGPIO->getMode(LinkGPIO::Pin::SD) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SD, sendSDHigh);
+    if (linkGPIO->getMode(LinkGPIO::Pin::SC) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SC, sendSCHigh);
 
     while (REG_VCOUNT >= 160)
       ;  // wait till VDraw
@@ -103,4 +87,18 @@ void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
+}
+
+std::string mode(std::string name, LinkGPIO::Pin pin) {
+  return name + ": " +
+         (linkGPIO->getMode(pin) == LinkGPIO::Direction::OUTPUT ? "OUTPUT\n"
+                                                                : "INPUT\n");
+}
+
+std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh) {
+  auto title = name + ": ";
+
+  return linkGPIO->getMode(pin) == LinkGPIO::Direction::INPUT
+             ? "< " + title + std::to_string(linkGPIO->readPin(pin)) + "\n"
+             : "> " + title + std::to_string(isHigh) + "\n";
 }

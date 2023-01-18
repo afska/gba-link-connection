@@ -17,11 +17,11 @@ void init() {
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, LINK_ISR_VBLANK);
+  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_ISR_SERIAL);
+  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
   interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
+  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
   linkCable->activate();

@@ -10,11 +10,11 @@
 // - 2) Initialize the library with:
 //       linkGPIO->reset();
 // - 3) Write pins by using:
-//       linkGPIO->setMode(LinkPin::SD, LinkDirection::OUTPUT);
-//       linkGPIO->writePin(LinkPIN::SD, true);
+//       linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
+//       linkGPIO->writePin(LinkGPIO::Pin::SD, true);
 // - 4) Read pins by using:
-//       linkGPIO->setMode(LinkPin::SC, LinkDirection::INPUT);
-//       bool isHigh = linkGPIO->readPin(LinkPin::SC);
+//       linkGPIO->setMode(LinkGPIO::Pin::SC, LinkGPIO::Direction::INPUT);
+//       bool isHigh = linkGPIO->readPin(LinkGPIO::Pin::SC);
 // - 5) Subscribe to SI falling:
 //       linkGPIO->setSIInterrupts(true);
 //       // (when SI changes from high to low, an IRQ will be generated)
@@ -26,6 +26,7 @@
 #include <tonc_core.h>
 
 #define LINK_GPIO_MODE 15
+#define LINK_GPIO_BIT_SI_INTERRUPT 8
 #define LINK_GPIO_SET(REG, BIT, DATA) \
   if (DATA)                           \
     LINK_GPIO_SET_HIGH(REG, BIT);     \
@@ -34,42 +35,42 @@
 #define LINK_GPIO_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_GPIO_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 #define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
-#define LINK_GPIO_SI_INTERRUPT_BIT 8
 
-enum LinkPin { SI, SO, SD, SC };
-enum LinkDirection { INPUT, OUTPUT };
-const u8 LINK_PIN_DATA_BITS[] = {2, 3, 1, 0};
-const u8 LINK_PIN_DIRECTION_BITS[] = {6, 7, 5, 4};
+const u8 LINK_GPIO_DATA_BITS[] = {2, 3, 1, 0};
+const u8 LINK_GPIO_DIRECTION_BITS[] = {6, 7, 5, 4};
 
 class LinkGPIO {
  public:
+  enum Pin { SI, SO, SD, SC };
+  enum Direction { INPUT, OUTPUT };
+
   void reset() {
     REG_RCNT = 1 << LINK_GPIO_MODE;
     REG_SIOCNT = 0;
   }
 
-  void setMode(LinkPin pin, LinkDirection direction) {
-    if (pin == LinkPin::SI && LinkDirection::OUTPUT)
+  void setMode(Pin pin, Direction direction) {
+    if (pin == Pin::SI && Direction::OUTPUT)
       return;  // (disabled for safety reasons)
 
-    LINK_GPIO_SET(REG_RCNT, LINK_PIN_DIRECTION_BITS[pin],
-                  direction == LinkDirection::OUTPUT);
+    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_DIRECTION_BITS[pin],
+                  direction == Direction::OUTPUT);
   }
 
-  LinkDirection getMode(LinkPin pin) {
-    return LinkDirection(LINK_GPIO_GET(REG_RCNT, LINK_PIN_DIRECTION_BITS[pin]));
+  Direction getMode(Pin pin) {
+    return Direction(LINK_GPIO_GET(REG_RCNT, LINK_GPIO_DIRECTION_BITS[pin]));
   }
 
-  bool readPin(LinkPin pin) {
-    return (REG_RCNT & (1 << LINK_PIN_DATA_BITS[pin])) != 0;
+  bool readPin(Pin pin) {
+    return (REG_RCNT & (1 << LINK_GPIO_DATA_BITS[pin])) != 0;
   }
 
-  void writePin(LinkPin pin, bool isHigh) {
-    LINK_GPIO_SET(REG_RCNT, LINK_PIN_DATA_BITS[pin], isHigh);
+  void writePin(Pin pin, bool isHigh) {
+    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_DATA_BITS[pin], isHigh);
   }
 
   void setSIInterrupts(bool isEnabled) {
-    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_SI_INTERRUPT_BIT, isEnabled);
+    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_BIT_SI_INTERRUPT, isEnabled);
   }
 };
 
