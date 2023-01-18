@@ -105,8 +105,6 @@ class LinkCable {
     this->bufferSize = bufferSize;
     this->interval = interval;
     this->sendTimerId = sendTimerId;
-
-    stop();
   }
 
   bool isActive() { return isEnabled; }
