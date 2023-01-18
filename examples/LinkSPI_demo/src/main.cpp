@@ -4,8 +4,6 @@
 // (0) Include the header
 #include "../../_lib/LinkSPI.h"
 
-#define PLAYERS 2
-
 void log(std::string text);
 
 LinkSPI* linkSPI = NULL;
@@ -32,15 +30,17 @@ int main() {
           "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[!] to test this demo...\n      "
           "...use a GBC Link Cable!";
 
-      // (1) Create a LinkSPI instance
-      if (keys & KEY_START) {
-        linkSPI = new LinkSPI(LinkSPI::Mode::MASTER_256KBPS);
+      if ((keys & KEY_START) | (keys & KEY_SELECT)) {
+        // (1) Create a LinkSPI instance
+        if (keys & KEY_START)
+          linkSPI = new LinkSPI(LinkSPI::Mode::MASTER_256KBPS);
+        if (keys & KEY_SELECT)
+          linkSPI = new LinkSPI(LinkSPI::Mode::SLAVE);
+
+        // (2) Initialize the library
         linkSPI->activate();
       }
-      if (keys & KEY_SELECT) {
-        linkSPI = new LinkSPI(LinkSPI::Mode::SLAVE);
-        linkSPI->activate();
-      }
+
     } else {
       // Title
       auto modeName =
@@ -50,7 +50,7 @@ int main() {
       if (firstTransfer)
         log(output + "Waiting...");
 
-      // Transfer
+      // (3) Exchange 32-bit data with the other end
       u32 remoteKeys = linkSPI->transfer(keys, []() {
         u16 keys = ~REG_KEYS & KEY_ANY;
         return (keys & KEY_L) && (keys & KEY_R);

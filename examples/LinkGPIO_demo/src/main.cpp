@@ -23,6 +23,7 @@ int main() {
   init();
 
   while (true) {
+    // (3) Use the pins
     std::string output = "";
 
     // Commands
