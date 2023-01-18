@@ -8,10 +8,12 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkSPI* linkSPI = new LinkSPI(LinkSPI::Mode::MASTER_256KBPS);
 //       // (use LinkSPI::Mode::SLAVE on the other end)
-// - 2) Exchange 32-bit data with the other end:
+// - 2) Initialize the library with:
+//       linkSPI->activate();
+// - 3) Exchange 32-bit data with the other end:
 //       u32 data = linkGPIO->transfer(0x1234);
 //       // (this blocks the console indefinitely)
-// - 3) Exchange data with a cancellation callback:
+// - 4) Exchange data with a cancellation callback:
 //       u32 data = linkGPIO->transfer(0x1234, []() {
 //         u16 keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
@@ -76,7 +78,7 @@ class LinkSPI {
 
   template <typename F>
   u32 transfer(u32 data, F cancel) {
-    if (!isEnabled || isMaster())
+    if (isEnabled && isMaster())
       activate();
 
     setData(data);

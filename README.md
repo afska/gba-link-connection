@@ -32,7 +32,7 @@ The library uses message queues to send/receive data and transmits when it's pos
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/99154109-1d131980-268c-11eb-86b1-7a728f639e5e.png)
 
-## Constructor options
+## Constructor
 
 `new LinkCable(...)` accepts these **optional** parameters:
 
@@ -55,7 +55,7 @@ Name | Return type | Description
 `isConnected()` | **bool** | Returns `true` if there are at least 2 connected players.
 `playerCount()` | **u8** *(0~4)* | Returns the number of connected players.
 `currentPlayerId()` | **u8** *(0~3)* | Returns the current player id.
-`canRead(playerId)` | **bool** | Returns true if there are pending messages from player #`playerId`.
+`canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`.
 `read(playerId)` | **u16** | Returns one message from player #`playerId`.
 `consume()` | - | Marks the current data as processed, enabling the library to fetch more.
 `send(data)` | - | Sends `data` to all connected players.
@@ -79,8 +79,29 @@ Name | Return type | Description
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
-# LinkSPI
+# 🔗 LinkSPI
 
-// TODO: WRITE
+*(aka Normal Mode)*
+
+This is, essentially, SPI mode 3. In this implementation packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
+
+## Constructor
+
+`new LinkSPI(...)` requires these parameters:
+
+Name | Type | Description
+--- | --- | ---
+`mode` | **LinkSPI::Mode** | One of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`.
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | - | Activates the library.
+`deactivate()` | - | Deactivates the library.
+`transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
+`transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`getMode()` | **LinkSPI::Mode** | Returns the current mode.

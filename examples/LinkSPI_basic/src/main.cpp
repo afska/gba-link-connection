@@ -18,26 +18,36 @@ void init() {
 int main() {
   init();
 
+  bool firstTransfer = false;
+
   while (true) {
     std::string output = "";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (linkSPI == NULL) {
+      firstTransfer = true;
       output += "START: Set as Master\n";
-      output += "SELECT: Set as Slave";
+      output += "SELECT: Set as Slave\n";
+      output +=
+          "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[!] to test this demo...\n      "
+          "...use a GBC Link Cable!";
 
       // (1) Create a LinkSPI instance
-      if (keys & KEY_START)
+      if (keys & KEY_START) {
         linkSPI = new LinkSPI(LinkSPI::Mode::MASTER_256KBPS);
-      if (keys & KEY_SELECT)
+        linkSPI->activate();
+      }
+      if (keys & KEY_SELECT) {
         linkSPI = new LinkSPI(LinkSPI::Mode::SLAVE);
+        linkSPI->activate();
+      }
     } else {
       // Title
       auto modeName =
           linkSPI->getMode() == LinkSPI::Mode::SLAVE ? "Slave" : "Master";
       output += std::string("[") + modeName + "]\n";
       output += "(stop: L+R)\n\n";
-      if (!linkSPI->isActive())
+      if (firstTransfer)
         log(output + "Waiting...");
 
       // Transfer
@@ -47,6 +57,7 @@ int main() {
       });
       output += "local:  " + std::to_string(keys) + "\n";
       output += "remote: " + std::to_string(remoteKeys) + "\n";
+      firstTransfer = false;
 
       // Cancel
       if ((keys & KEY_L) && (keys & KEY_R)) {
