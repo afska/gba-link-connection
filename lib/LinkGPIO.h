@@ -20,12 +20,13 @@
 //       // (when SI changes from high to low, an IRQ will be generated)
 // --------------------------------------------------------------------------
 // `setMode` restrictions:
-// always set the SI terminal to an input!
+// - always set the SI terminal to an input!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
 
-#define LINK_GPIO_MODE_GENERAL_PURPOSE (1 << 15)
+#define LINK_GPIO_RCNT_GENERAL_PURPOSE (1 << 15)
+#define LINK_GPIO_SIOCNT_GENERAL_PURPOSE 0
 #define LINK_GPIO_BIT_SI_INTERRUPT 8
 #define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
 #define LINK_GPIO_SET(REG, BIT, DATA) \
@@ -45,8 +46,8 @@ class LinkGPIO {
   enum Direction { INPUT, OUTPUT };
 
   void reset() {
-    REG_RCNT = LINK_GPIO_MODE_GENERAL_PURPOSE;
-    REG_SIOCNT = 0;
+    REG_RCNT = LINK_GPIO_RCNT_GENERAL_PURPOSE;
+    REG_SIOCNT = LINK_GPIO_SIOCNT_GENERAL_PURPOSE;
   }
 
   void setMode(Pin pin, Direction direction) {

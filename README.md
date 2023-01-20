@@ -2,7 +2,7 @@
 
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is providing multiplayer support to homebrew games.
 
-- 👾 [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Player mode** (up to 4 players) using a GBA Link Cable!
+- 👾 [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
 - 💻 [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
 - 🔌 [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - 🔗 [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
@@ -24,7 +24,7 @@ make [ clean | build | start | rebuild | restart ]
 
 # 👾 LinkCable
 
-*(aka Multi-Player Mode)*
+*(aka Multi-Play Mode)*
 
 This is the Link Port mode that games use for multiplayer.
 
@@ -59,6 +59,21 @@ Name | Return type | Description
 `read(playerId)` | **u16** | Returns one message from player #`playerId`.
 `consume()` | - | Marks the current data as processed, enabling the library to fetch more.
 `send(data)` | - | Sends `data` to all connected players.
+
+# 💻 LinkCableMultiboot
+
+*(aka Multiboot through Multi-Play mode)*
+
+This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
+
+![photo](https://user-images.githubusercontent.com/1631752/213667130-fafcbdb1-767f-4f74-98cb-d7e36c4d7e4e.jpg)
+
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`.
 
 # 🔌 LinkGPIO
 

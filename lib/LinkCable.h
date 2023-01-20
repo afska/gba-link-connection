@@ -2,7 +2,7 @@
 #define LINK_CABLE_H
 
 // --------------------------------------------------------------------------
-// A Link Cable connection for Multi-Player mode.
+// A Link Cable connection for Multi-Play mode.
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -31,8 +31,8 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 // `data` restrictions:
-// 0xFFFF and 0x0 are reserved values, so don't use them!
-// (they mean 'disconnected' and 'no data' respectively)
+// - 0xFFFF and 0x0 are reserved values, so don't use them!
+//   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>

@@ -26,8 +26,11 @@
 
 #include <tonc_core.h>
 
-#define LINK_SPI_MODE_SPI 0
-#define LINK_SPI_MODE_GENERAL_PURPOSE (1 << 15)
+#define LINK_SPI_CANCELED 0xffffffff
+#define LINK_SPI_RCNT_NORMAL 0
+#define LINK_SPI_SIOCNT_NORMAL 0
+#define LINK_SPI_RCNT_GENERAL_PURPOSE (1 << 15)
+#define LINK_SPI_SIOCNT_GENERAL_PURPOSE 0
 #define LINK_SPI_BIT_CLOCK 0
 #define LINK_SPI_BIT_CLOCK_SPEED 1
 #define LINK_SPI_BIT_SI 2
@@ -86,13 +89,13 @@ class LinkSPI {
 
     while (isMaster() && !isSlaveReady())
       if (cancel())
-        return 0;
+        return LINK_SPI_CANCELED;
 
     startTransfer();
 
     while (!isReady())
       if (cancel())
-        return 0;
+        return LINK_SPI_CANCELED;
 
     disableTransfer();
     return getData();
@@ -105,13 +108,13 @@ class LinkSPI {
   bool isEnabled = false;
 
   void setNormalMode() {
-    REG_RCNT = LINK_SPI_MODE_SPI;
-    REG_SIOCNT = 0;
+    REG_RCNT = LINK_SPI_RCNT_NORMAL;
+    REG_SIOCNT = LINK_SPI_SIOCNT_NORMAL;
   }
 
   void setGeneralPurposeMode() {
-    REG_RCNT = LINK_SPI_MODE_GENERAL_PURPOSE;
-    REG_SIOCNT = 0;
+    REG_RCNT = LINK_SPI_RCNT_GENERAL_PURPOSE;
+    REG_SIOCNT = LINK_SPI_SIOCNT_GENERAL_PURPOSE;
   }
 
   void setData(u32 data) { REG_SIODATA32 = data; }
