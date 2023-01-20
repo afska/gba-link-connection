@@ -145,6 +145,7 @@ class LinkCableMultiboot {
     }
 
     if (multiBootParameters.client_bit == 0) {
+      setGeneralPurposeMode();
       wait(LINK_CABLE_MULTIBOOT_WAIT_BEFORE_RETRY);
       return NEEDS_RETRY;
     }
