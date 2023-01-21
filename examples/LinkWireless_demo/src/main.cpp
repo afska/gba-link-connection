@@ -22,12 +22,21 @@ void init() {
 int main() {
   init();
 
+  bool activating = false;
+
   while (true) {
     // std::string output = "";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    if ((keys & KEY_START) && !linkWireless->isActive())
+    if ((keys & KEY_START) && !activating) {
+      log("Trying...");
+      activating = true;
       linkWireless->activate();
+    }
+
+    if (activating && !(keys & KEY_START)) {
+      activating = false;
+    }
 
     // output += "Testing...";
 

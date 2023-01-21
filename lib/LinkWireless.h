@@ -29,8 +29,9 @@
 #include "LinkGPIO.h"
 #include "LinkSPI.h"
 
-#define LINK_WIRELESS_PING_WAIT (160 + 68)
-#define LINE_WIRELESS_LOGIN_STEPS 9
+#define LINK_WIRELESS_PING_WAIT 50
+#define LINK_WIRELESS_TIMEOUT 100
+#define LINK_WIRELESS_LOGIN_STEPS 9
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
@@ -101,7 +102,7 @@ class LinkWireless {
 
     debug("-1 ok");
 
-    for (u32 i = 0; i < LINE_WIRELESS_LOGIN_STEPS; i++) {
+    for (u32 i = 0; i < LINK_WIRELESS_LOGIN_STEPS; i++) {
       if (!exchangeLoginPacket(LINK_WIRELESS_LOGIN_PARTS[i],
                                LINK_WIRELESS_LOGIN_PARTS[i], memory)) {
         debug("ERROR AT " + std::to_string(i));
@@ -147,6 +148,20 @@ class LinkWireless {
         vCount = REG_VCOUNT;
       }
     };
+  }
+
+  u32 transfer(u32 data) {
+    u32 lines = 0;
+    u32 vCount = REG_VCOUNT;
+
+    return linkSPI->transfer(data, [&lines, &vCount]() {
+      if (REG_VCOUNT != vCount) {
+        lines++;
+        vCount = REG_VCOUNT;
+      }
+
+      return lines > LINK_WIRELESS_TIMEOUT;
+    });
   }
 
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }

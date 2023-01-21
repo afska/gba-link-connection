@@ -115,7 +115,7 @@ Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
-`activate(mode, waitMode)` | - | Like `activate(mode)`, but allows enabling `waitMode` (*).
+`activate(mode, true)` | - | Like `activate(mode)`, but enables `waitMode` (*).
 `deactivate()` | - | Deactivates the library.
 `transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
 `transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
