@@ -2,12 +2,14 @@
 
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is providing multiplayer support to homebrew games.
 
-- 👾 [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
-- 💻 [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
-- 🔌 [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
-- 🔗 [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
-- 📻 [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
-- 📡 [LinkWirelessMultiboot.h](lib/LinkWirelessMultiboot.h): Send Multiboot software to other GBAs **over the air**!
+- [👾](#-LinkCable) [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
+- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
+- [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
+- [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
+- [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
+- [📡](#-LinkWirelessMultiboot) [LinkWirelessMultiboot.h](lib/LinkWirelessMultiboot.h): Send Multiboot software to other GBAs **over the air**!
+
+*(click on the emojis for documentation)*
 
 ## Usage
 
