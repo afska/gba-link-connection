@@ -102,20 +102,12 @@ This is, essentially, SPI mode 3. In this implementation packets are set to 32-b
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
-## Constructor
-
-`new LinkSPI(...)` requires these parameters:
-
-Name | Type | Description
---- | --- | ---
-`mode` | **LinkSPI::Mode** | One of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`.
-
 ## Methods
 
 Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
-`activate()` | - | Activates the library.
+`activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
 `deactivate()` | - | Deactivates the library.
 `transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
 `transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.

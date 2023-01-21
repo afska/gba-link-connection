@@ -11,6 +11,9 @@ LinkWireless* linkWireless = NULL;
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+
+  // (2) Initialize the library
+  linkWireless->activate();
 }
 
 int main() {

@@ -6,10 +6,10 @@
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
-//       LinkSPI* linkSPI = new LinkSPI(LinkSPI::Mode::MASTER_256KBPS);
-//       // (use LinkSPI::Mode::SLAVE on the other end)
+//       LinkSPI* linkSPI = new LinkSPI();
 // - 2) Initialize the library with:
-//       linkSPI->activate();
+//       linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+//       // (use LinkSPI::Mode::SLAVE on the other end)
 // - 3) Exchange 32-bit data with the other end:
 //       u32 data = linkGPIO->transfer(0x1234);
 //       // (this blocks the console indefinitely)
@@ -45,11 +45,10 @@ class LinkSPI {
  public:
   enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
 
-  explicit LinkSPI(Mode mode) { this->mode = mode; }
-
   bool isActive() { return isEnabled; }
 
-  void activate() {
+  void activate(Mode mode) {
+    this->mode = mode;
     setNormalMode();
     set32BitPackets();
 
@@ -82,7 +81,7 @@ class LinkSPI {
   template <typename F>
   u32 transfer(u32 data, F cancel) {
     if (isEnabled && isMaster())
-      activate();
+      activate(mode);
 
     setData(data);
     enableTransfer();
@@ -104,7 +103,7 @@ class LinkSPI {
   Mode getMode() { return mode; }
 
  private:
-  Mode mode;
+  Mode mode = Mode::SLAVE;
   bool isEnabled = false;
 
   void setNormalMode() {

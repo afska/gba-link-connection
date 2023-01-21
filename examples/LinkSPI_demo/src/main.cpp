@@ -6,7 +6,8 @@
 
 void log(std::string text);
 
-LinkSPI* linkSPI = NULL;
+// (1) Create a LinkSPI instance
+LinkSPI* linkSPI = new LinkSPI();
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -22,7 +23,7 @@ int main() {
     std::string output = "";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    if (linkSPI == NULL) {
+    if (!linkSPI->isActive()) {
       firstTransfer = true;
       output += "START: Set as Master\n";
       output += "SELECT: Set as Slave\n";
@@ -31,16 +32,10 @@ int main() {
           "...use a GBC Link Cable!";
 
       if ((keys & KEY_START) | (keys & KEY_SELECT)) {
-        // (1) Create a LinkSPI instance
-        if (keys & KEY_START)
-          linkSPI = new LinkSPI(LinkSPI::Mode::MASTER_256KBPS);
-        if (keys & KEY_SELECT)
-          linkSPI = new LinkSPI(LinkSPI::Mode::SLAVE);
-
         // (2) Initialize the library
-        linkSPI->activate();
+        linkSPI->activate((keys & KEY_START) ? LinkSPI::Mode::MASTER_256KBPS
+                                             : LinkSPI::Mode::SLAVE);
       }
-
     } else {
       // Title
       auto modeName =
@@ -60,10 +55,8 @@ int main() {
       firstTransfer = false;
 
       // Cancel
-      if ((keys & KEY_L) && (keys & KEY_R)) {
+      if ((keys & KEY_L) && (keys & KEY_R))
         linkSPI->deactivate();
-        linkSPI = NULL;
-      }
     }
 
     // Print
