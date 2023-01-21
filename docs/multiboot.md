@@ -1,5 +1,8 @@
 <html>
 <div class="s-prose js-post-body" itemprop="text">
+
+<p>From: <a href="https://retrocomputing.stackexchange.com/questions/14317/what-is-the-protocol-for-bootstrapping-a-game-boy-advance-over-a-link-cable">https://retrocomputing.stackexchange.com/questions/14317/what-is-the-protocol-for-bootstrapping-a-game-boy-advance-over-a-link-cable</a></p>
+
 <p>According to the documentation for the no$ emulators (<a href="https://www.problemkaputt.de/gbatek.htm" rel="nofollow noreferrer">https://www.problemkaputt.de/gbatek.htm</a>), the core of the GBA's multiboot functionality revolves a BIOS syscall, <code>SWI 0x25</code>. The GBA's boot firmware will naturally look for and start communicating on any connection mode it supports (be it the normal serial mode, MultiPlay mode, or JOYBUS mode) - after the host GBA establishes a communcation session and sends handshake and header data, this syscall will send the multiboot payload to each connected GBA, verify with a CRC checksum, and begin execution.</p>
 <h2>Payload Structure</h2>
 <p>The multiboot payload resides at <code>0x02000000</code> on the client GBA, which is the location corresponding to 256KB of external work RAM. The first 192 bytes are the same as a cartridge payload (entry point, Nintendo logo, game title, etc.), followed by these entries specific to multiboot payloads:</p>

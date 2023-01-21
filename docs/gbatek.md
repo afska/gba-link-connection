@@ -1,3 +1,5 @@
+From: http://problemkaputt.de/gbatek.htm
+
 # GBA Communication Ports
 
 The GBAs Serial Port may be used in various different communication modes. Normal mode may exchange data between two GBAs (or to transfer data from master GBA to several slave GBAs in one-way direction).  
