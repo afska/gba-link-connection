@@ -62,6 +62,8 @@ Name | Return type | Description
 `consume()` | - | Marks the current data as processed, enabling the library to fetch more.
 `send(data)` | - | Sends `data` to all connected players.
 
+⚠️ `0xFFFF` and `0x0` are reserved values, so don't use them!
+
 # 💻 LinkCableMultiboot
 
 *(aka Multiboot through Multi-Play mode)*
@@ -70,12 +72,13 @@ This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM
 
 ![photo](https://user-images.githubusercontent.com/1631752/213667130-fafcbdb1-767f-4f74-98cb-d7e36c4d7e4e.jpg)
 
-
 ## Methods
 
 Name | Return type | Description
 --- | --- | ---
 `sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`.
+
+⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
 # 🔌 LinkGPIO
 
@@ -96,6 +99,8 @@ Name | Return type | Description
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
+⚠️ always set the SI terminal to an input!
+
 # 🔗 LinkSPI
 
 *(aka Normal Mode)*
@@ -110,7 +115,17 @@ Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
+`activate(mode, waitMode)` | - | Like `activate(mode)`, but allows enabling `waitMode` (*).
 `deactivate()` | - | Deactivates the library.
 `transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
 `transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `getMode()` | **LinkSPI::Mode** | Returns the current mode.
+`isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
+
+> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
+> 
+> `waitMode` is disabled by default.
+
+⚠️ when using Normal Mode between two GBAs, use a GBC Link Cable!
+
+⚠️ only use the 2Mbps mode with custom hardware (very short wires)!

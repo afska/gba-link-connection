@@ -34,7 +34,8 @@ int main() {
       if ((keys & KEY_START) | (keys & KEY_SELECT)) {
         // (2) Initialize the library
         linkSPI->activate((keys & KEY_START) ? LinkSPI::Mode::MASTER_256KBPS
-                                             : LinkSPI::Mode::SLAVE);
+                                             : LinkSPI::Mode::SLAVE,
+                          true);  // see `waitMode` in README.md
       }
     } else {
       // Title

@@ -47,8 +47,10 @@ class LinkSPI {
 
   bool isActive() { return isEnabled; }
 
-  void activate(Mode mode) {
+  void activate(Mode mode, bool waitMode = false) {
     this->mode = mode;
+    this->waitMode = waitMode;
+
     setNormalMode();
     set32BitPackets();
 
@@ -86,7 +88,7 @@ class LinkSPI {
     setData(data);
     enableTransfer();
 
-    while (isMaster() && !isSlaveReady())
+    while (isMaster() && waitMode && !isSlaveReady())
       if (cancel())
         return LINK_SPI_CANCELED;
 
@@ -101,9 +103,11 @@ class LinkSPI {
   }
 
   Mode getMode() { return mode; }
+  bool isWaitModeActive() { return waitMode; }
 
  private:
   Mode mode = Mode::SLAVE;
+  bool waitMode = false;
   bool isEnabled = false;
 
   void setNormalMode() {
