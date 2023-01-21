@@ -38,13 +38,15 @@
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
 #define LINK_WIRELESS_DATA_REQUEST 0x80000000
 #define LINK_WIRELESS_COMMAND_HELLO 0x10
+#define LINK_WIRELESS_COMMAND_BROADCAST 0x16
+#define LINK_WIRELESS_COMMAND_BROADCAST_READ 0x1d
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
 
 class LinkWireless {
  public:
-  std::function<void(std::string)> debug;
+  std::function<void(std::string)> debug;  // TODO: REMOVE
 
   bool isActive() { return isEnabled; }
 
@@ -62,6 +64,17 @@ class LinkWireless {
   void deactivate() {
     isEnabled = false;
     stop();
+  }
+
+  bool broadcast(std::vector<u32> data) {
+    // TODO: CHECK 6 ELEMENTS
+    return sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, data).success;
+  }
+
+  bool read(std::vector<u32>& data) {
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ);
+    data = result.responses;
+    return result.success;
   }
 
   ~LinkWireless() {
