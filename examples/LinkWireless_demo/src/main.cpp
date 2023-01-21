@@ -6,27 +6,33 @@
 
 void log(std::string text);
 
-LinkWireless* linkWireless = NULL;
+// (1) Create a LinkWireless instance
+LinkWireless* linkWireless = new LinkWireless();
 
 void init() {
+  linkWireless->debug = [](std::string text) { log(text); };  // TODO: REMOVE
+
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 
   // (2) Initialize the library
-  linkWireless->activate();
+  // linkWireless->activate(); // TODO: RECOVER
 }
 
 int main() {
   init();
 
   while (true) {
-    std::string output = "";
-    // u16 keys = ~REG_KEYS & KEY_ANY;
+    // std::string output = "";
+    u16 keys = ~REG_KEYS & KEY_ANY;
 
-    output += "Testing...";
+    if ((keys & KEY_START) && !linkWireless->isActive())
+      linkWireless->activate();
 
-    // Print
-    log(output);
+    // output += "Testing...";
+
+    // // Print
+    // log(output);
 
     while (REG_VCOUNT >= 160)
       ;  // wait till VDraw

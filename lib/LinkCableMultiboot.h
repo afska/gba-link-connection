@@ -71,7 +71,6 @@ class LinkCableMultiboot {
     FAILURE_DURING_HANDSHAKE,
     FAILURE_DURING_TRANSFER
   };
-  enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
 
   template <typename F>
   Result sendRom(const void* rom, u32 romSize, F cancel) {
@@ -116,6 +115,8 @@ class LinkCableMultiboot {
   }
 
  private:
+  enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
+
   template <typename F>
   PartialResult detectClients(MultiBootParam& multiBootParameters, F cancel) {
     setMultiplayerMode();
