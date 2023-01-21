@@ -31,11 +31,12 @@
 #include "LinkSPI.h"
 
 #define LINK_WIRELESS_PING_WAIT 50
+#define LINK_WIRELESS_TRANSFER_WAIT 1
 #define LINK_WIRELESS_TIMEOUT 100
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
-#define LINK_WIRELESS_RESPONSE_ACK_LENGTH 0x80
-#define LINK_WIRELESS_RESPONSE_NEED_DATA 0x80000000
+#define LINK_WIRELESS_RESPONSE_ACK 0x80
+#define LINK_WIRELESS_DATA_REQUEST 0x80000000
 #define LINK_WIRELESS_COMMAND_HELLO 0x10
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
@@ -74,6 +75,11 @@ class LinkWireless {
     u16 previousAdapterData = 0xffff;
   };
 
+  struct CommandResult {
+    bool success = false;
+    std::vector<u32> responses = std::vector<u32>{};
+  };
+
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   bool isEnabled = false;
@@ -90,7 +96,7 @@ class LinkWireless {
     if (!login())
       return false;
 
-    if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO))
+    if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
       return false;
 
     return true;
@@ -137,31 +143,35 @@ class LinkWireless {
     return true;
   }
 
-  bool sendCommand(u8 type, std::vector<u32> params = std::vector<u32>{}) {
+  CommandResult sendCommand(u8 type,
+                            std::vector<u32> params = std::vector<u32>{}) {
+    CommandResult result;
     u16 length = params.size();
     u32 command = buildCommand(type, length);
 
-    if (transfer(command) != LINK_WIRELESS_RESPONSE_NEED_DATA)
-      return false;
+    if (transfer(command) != LINK_WIRELESS_DATA_REQUEST)
+      return result;
 
     for (auto& param : params) {
-      if (transfer(param) != LINK_WIRELESS_RESPONSE_NEED_DATA)
-        return false;
+      if (transfer(param) != LINK_WIRELESS_DATA_REQUEST)
+        return result;
     }
 
-    u32 response = transfer(LINK_WIRELESS_RESPONSE_NEED_DATA);
+    u32 response = transfer(LINK_WIRELESS_DATA_REQUEST);
     u16 header = msB32(response);
     u16 data = lsB32(response);
-    // u8 responses = msB16(data);
-    u8 ackLength = lsB16(data);
+    u8 responses = msB16(data);
+    u8 ack = lsB16(data);
     if (header != LINK_WIRELESS_COMMAND_HEADER)
-      return false;
-    if (ackLength != length + LINK_WIRELESS_RESPONSE_ACK_LENGTH)
-      return false;
+      return result;
+    if (ack != type + LINK_WIRELESS_RESPONSE_ACK)
+      return result;
 
-    // TODO: RECEIVE RESPONSES
+    for (u32 i = 0; i < responses; i++)
+      result.responses.push_back(transfer(LINK_WIRELESS_DATA_REQUEST));
 
-    return true;
+    result.success = true;
+    return result;
   }
 
   u32 buildCommand(u8 type, u8 length = 0) {
@@ -169,6 +179,8 @@ class LinkWireless {
   }
 
   u32 transfer(u32 data) {
+    wait(LINK_WIRELESS_TRANSFER_WAIT);
+
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
 
