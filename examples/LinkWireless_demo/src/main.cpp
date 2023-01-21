@@ -31,7 +31,10 @@ int main() {
     if ((keys & KEY_START) && !activating) {
       log("Trying...");
       activating = true;
-      linkWireless->activate();
+      if (linkWireless->activate())
+        log("Activated! :)");
+      else
+        log("Activation failed! :(");
     }
 
     if (activating && !(keys & KEY_START)) {

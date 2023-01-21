@@ -32,6 +32,10 @@
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TIMEOUT 100
 #define LINK_WIRELESS_LOGIN_STEPS 9
+#define LINK_WIRELESS_COMMAND_HEADER 0x9966
+#define LINK_WIRELESS_RESPONSE_ACK 0x80
+#define LINK_WIRELESS_RESPONSE_NEED_DATA 0x80000000
+#define LINK_WIRELESS_COMMAND_HELLO 0x10
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
@@ -42,9 +46,15 @@ class LinkWireless {
 
   bool isActive() { return isEnabled; }
 
-  void activate() {
-    reset();
+  // TODO: Add to docs
+  bool activate() {
+    if (!reset()) {
+      deactivate();
+      return false;
+    }
+
     isEnabled = true;
+    return true;
   }
 
   void deactivate() {
@@ -67,17 +77,20 @@ class LinkWireless {
   LinkGPIO* linkGPIO = new LinkGPIO();
   bool isEnabled = false;
 
-  void reset() {
+  bool reset() {
     stop();
-    start();
+    return start();
   }
 
-  void start() {
+  bool start() {
     pingAdapter();
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
-    login();
+    if (!login())
+      return false;
 
-    // TODO: IMPLEMENT
+    // TODO: INITIALIZATION
+
+    return true;
   }
 
   void stop() { linkSPI->deactivate(); }
@@ -90,36 +103,19 @@ class LinkWireless {
     linkGPIO->writePin(LinkGPIO::SD, false);
   }
 
-  void login() {
+  bool login() {
     LoginMemory memory;
 
-    debug("Sending...");
-
-    if (!exchangeLoginPacket(LINK_WIRELESS_LOGIN_PARTS[0], 0, memory)) {
-      debug("ERROR at -1");
-      return;
-    }
-
-    debug("-1 ok");
+    if (!exchangeLoginPacket(LINK_WIRELESS_LOGIN_PARTS[0], 0, memory))
+      return false;
 
     for (u32 i = 0; i < LINK_WIRELESS_LOGIN_STEPS; i++) {
       if (!exchangeLoginPacket(LINK_WIRELESS_LOGIN_PARTS[i],
-                               LINK_WIRELESS_LOGIN_PARTS[i], memory)) {
-        debug("ERROR AT " + std::to_string(i));
-        return;
-      } else {
-        debug(std::to_string(i) + " ok");
-      }
+                               LINK_WIRELESS_LOGIN_PARTS[i], memory))
+        return false;
     }
 
-    debug("login ok!");
-
-    // GBA:
-    //      UPPER - inverse of the Adapter's UPPER (data)
-    //      LOWER - data
-    // ADAPTER:
-    //      UPPER - data
-    //      LOWER - inverse of GBA's LOWER (data)
+    return true;
   }
 
   bool exchangeLoginPacket(u16 data,
@@ -138,16 +134,8 @@ class LinkWireless {
     return true;
   }
 
-  void wait(u32 verticalLines) {
-    u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
-
-    while (lines < verticalLines) {
-      if (REG_VCOUNT != vCount) {
-        lines++;
-        vCount = REG_VCOUNT;
-      }
-    };
+  u32 buildCommand(u8 type, u8 length = 0) {
+    return buildU32(LINK_WIRELESS_COMMAND_HEADER, buildU16(length, type));
   }
 
   u32 transfer(u32 data) {
@@ -164,7 +152,20 @@ class LinkWireless {
     });
   }
 
+  void wait(u32 verticalLines) {
+    u32 lines = 0;
+    u32 vCount = REG_VCOUNT;
+
+    while (lines < verticalLines) {
+      if (REG_VCOUNT != vCount) {
+        lines++;
+        vCount = REG_VCOUNT;
+      }
+    };
+  }
+
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
+  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
   u16 msB(u32 value) { return value >> 16; }
   u16 lsB(u32 value) { return value & 0xffff; }
 };
