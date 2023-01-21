@@ -26,6 +26,7 @@
 #include <tonc_core.h>
 #include <functional>  // TODO: REMOVE
 #include <string>      // TODO: REMOVE
+#include <vector>
 #include "LinkGPIO.h"
 #include "LinkSPI.h"
 
@@ -33,7 +34,7 @@
 #define LINK_WIRELESS_TIMEOUT 100
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
-#define LINK_WIRELESS_RESPONSE_ACK 0x80
+#define LINK_WIRELESS_RESPONSE_ACK_LENGTH 0x80
 #define LINK_WIRELESS_RESPONSE_NEED_DATA 0x80000000
 #define LINK_WIRELESS_COMMAND_HELLO 0x10
 
@@ -85,10 +86,12 @@ class LinkWireless {
   bool start() {
     pingAdapter();
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+
     if (!login())
       return false;
 
-    // TODO: INITIALIZATION
+    if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO))
+      return false;
 
     return true;
   }
@@ -124,12 +127,39 @@ class LinkWireless {
     u32 packet = buildU32(~memory.previousAdapterData, data);
     u32 response = linkSPI->transfer(packet);
 
-    if (msB(response) != expectedResponse ||
-        lsB(response) != (u16)~memory.previousGBAData)
+    if (msB32(response) != expectedResponse ||
+        lsB32(response) != (u16)~memory.previousGBAData)
       return false;
 
     memory.previousGBAData = data;
     memory.previousAdapterData = expectedResponse;
+
+    return true;
+  }
+
+  bool sendCommand(u8 type, std::vector<u32> params = std::vector<u32>{}) {
+    u16 length = params.size();
+    u32 command = buildCommand(type, length);
+
+    if (transfer(command) != LINK_WIRELESS_RESPONSE_NEED_DATA)
+      return false;
+
+    for (auto& param : params) {
+      if (transfer(param) != LINK_WIRELESS_RESPONSE_NEED_DATA)
+        return false;
+    }
+
+    u32 response = transfer(LINK_WIRELESS_RESPONSE_NEED_DATA);
+    u16 header = msB32(response);
+    u16 data = lsB32(response);
+    // u8 responses = msB16(data);
+    u8 ackLength = lsB16(data);
+    if (header != LINK_WIRELESS_COMMAND_HEADER)
+      return false;
+    if (ackLength != length + LINK_WIRELESS_RESPONSE_ACK_LENGTH)
+      return false;
+
+    // TODO: RECEIVE RESPONSES
 
     return true;
   }
@@ -166,8 +196,10 @@ class LinkWireless {
 
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
   u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  u16 msB(u32 value) { return value >> 16; }
-  u16 lsB(u32 value) { return value & 0xffff; }
+  u16 msB32(u32 value) { return value >> 16; }
+  u16 lsB32(u32 value) { return value & 0xffff; }
+  u8 msB16(u16 value) { return value >> 8; }
+  u8 lsB16(u16 value) { return value & 0xff; }
 };
 
 extern LinkWireless* linkWireless;
