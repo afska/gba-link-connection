@@ -10,7 +10,6 @@
 
 class TestScene : public Scene {
  public:
-  u16 data = 0;
   TestScene(std::shared_ptr<GBAEngine> engine);
 
   std::vector<Background*> backgrounds() override;
@@ -24,8 +23,6 @@ class TestScene : public Scene {
   bool isConnected = false;
   bool initialized = false;
   u32 frameCounter = 0;
-
-  void log(std::string text);
 };
 
 #endif  // TEST_SCENE_H

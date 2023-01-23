@@ -37,9 +37,8 @@ int main() {
 
   // Each player's input
   u16 data[LINK_CABLE_MAX_PLAYERS];
-  for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
+  for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
     data[i] = 0;
-  }
 
   bool isSenderMode = true;
   LinkCableMultiboot::Result result = LinkCableMultiboot::Result::CANCELED;
@@ -108,9 +107,8 @@ int main() {
 
       output += "(";
       for (u32 i = 0; i < playerCount; i++) {
-        while (linkCable->canRead(i)) {
+        while (linkCable->canRead(i))
           data[i] = linkCable->read(i) - 1;
-        }
 
         output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
       }
