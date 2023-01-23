@@ -38,8 +38,10 @@
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
 #define LINK_WIRELESS_DATA_REQUEST 0x80000000
 #define LINK_WIRELESS_COMMAND_HELLO 0x10
+#define LINK_WIRELESS_COMMAND_SETUP 0x17
 #define LINK_WIRELESS_COMMAND_BROADCAST 0x16
-#define LINK_WIRELESS_COMMAND_BROADCAST_READ 0x1d
+#define LINK_WIRELESS_COMMAND_START_HOST 0x19
+#define LINK_WIRELESS_COMMAND_IS_CONNECT_ATTEMPT 0x1a
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
@@ -66,16 +68,38 @@ class LinkWireless {
     stop();
   }
 
-  bool broadcast(std::vector<u32> data) {
+  bool host(std::vector<u32> data) {
     // TODO: CHECK 6 ELEMENTS
-    return sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, data).success;
+    return sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, data).success &&
+           sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
   }
 
-  bool read(std::vector<u32>& data) {
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ);
+  u16 getNewConnectionId() {
+    auto response = sendCommand(0x1a);
+    if (!response.success)
+      return 0;
+
+    return response.responses.size() > 0 ? (u16)response.responses[0] : 1;
+  }
+
+  bool getBroadcasts(std::vector<u32>& data) {
+    // if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST,
+    //                  std::vector<u32>{0x0c020002, 0x00005ce1, 0x00000000,
+    //                                   0x09000040, 0xc1cfc8cd, 0x00ffccbb})
+    //          .success)
+    //   return false;
+
+    debug("a ver...");
+    auto result = sendCommand(0x1d);
     data = result.responses;
     return result.success;
   }
+
+  // bool read(std::vector<u32>& data) {
+  //   auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ);
+  //   data = result.responses;
+  //   return result.success;
+  // }
 
   ~LinkWireless() {
     delete linkSPI;
@@ -112,6 +136,11 @@ class LinkWireless {
     if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
       return false;
 
+    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, std::vector<u32>{0x003c0420})
+             .success)
+      return false;  // TODO: UNHARDCODE SETUP
+
+    linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);  // TODO: TRY
     return true;
   }
 
@@ -175,10 +204,18 @@ class LinkWireless {
     u16 data = lsB32(response);
     u8 responses = msB16(data);
     u8 ack = lsB16(data);
-    if (header != LINK_WIRELESS_COMMAND_HEADER)
+    if (header != LINK_WIRELESS_COMMAND_HEADER) {
+      debug("HEADER FAILED! " + std::to_string(response));
+      while (true)
+        ;
       return result;
-    if (ack != type + LINK_WIRELESS_RESPONSE_ACK)
+    }
+    if (ack != type + LINK_WIRELESS_RESPONSE_ACK) {
+      debug("ACK FAILED! " + std::to_string(response));
+      while (true)
+        ;
       return result;
+    }
 
     for (u32 i = 0; i < responses; i++)
       result.responses.push_back(transfer(LINK_WIRELESS_DATA_REQUEST));
