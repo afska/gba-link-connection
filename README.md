@@ -105,7 +105,7 @@ Name | Return type | Description
 
 *(aka Normal Mode)*
 
-This is, essentially, SPI mode 3. In this implementation packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
+This is GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
@@ -122,7 +122,7 @@ Name | Return type | Description
 `getMode()` | **LinkSPI::Mode** | Returns the current mode.
 `isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
 
-> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
+> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
 > 
 > `waitMode` is disabled by default.
 
