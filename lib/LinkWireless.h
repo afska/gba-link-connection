@@ -89,8 +89,11 @@ class LinkWireless {
     //          .success)
     //   return false;
 
-    debug("a ver...");
-    auto result = sendCommand(0x1d);
+    auto res = sendCommand(0x1c);
+    if (!res.success)
+      return false;
+
+    auto result = sendCommand(0x1e);
     data = result.responses;
     return result.success;
   }
