@@ -50,16 +50,42 @@ int main() {
                                               0xc1cfc8cd, 0x00ffccbb})) {
         log("Hosting ok. Listening...");
         u16 newId = 0;
-        u32 tryId = 0;
         do {
           newId = linkWireless->getNewConnectionId();
-          tryId++;
-          log("Hosting ok. " + std::to_string(newId) + " Listening... " +
-              std::to_string(tryId));
+          log("Hosting ok. " + std::to_string(newId) + " Listening... ");
         } while (newId == 0 || newId == 1);
-        log("CONNECTED!" + std::to_string(newId));
-        while (true)
-          ;
+        log("CONNECTED! " + std::to_string(newId));
+
+        u32 i = 50;
+        bool sending = false;
+
+        // TODO: DEDUP
+        while (true) {
+          keys = ~REG_KEYS & KEY_ANY;
+
+          if (!sending && (keys & KEY_A)) {
+            sending = true;
+            linkWireless->sendData(std::vector<u32>{i});
+            i++;
+          }
+
+          if (sending && !(keys & KEY_A))
+            sending = false;
+
+          std::vector<u32> receivedData = std::vector<u32>{};
+          if (!linkWireless->receiveData(receivedData)) {
+            log("ERROR RECEIVING!");
+            while (true)
+              ;
+          }
+          if (receivedData.size() > 0)
+            log("RECEIVED: " + std::to_string(receivedData[0]));
+
+          while (REG_VCOUNT >= 160)
+            ;  // wait till VDraw
+          while (REG_VCOUNT < 160)
+            ;  // wait till VBlank
+        }
       } else {
         log("Hosting error");
         while (true)
@@ -75,53 +101,78 @@ int main() {
       connecting = true;
       std::vector<u32> data;
       if (linkWireless->getBroadcasts(data)) {
-        std::string data = "Search!\n";
-        for (auto& dat : data)
-          data += std::to_string(dat) + "\n";
-        log(data);
+        std::string str =
+            "Press select to conn " + std::to_string(data.size()) + "\n";
+        for (u32& dat : data)
+          str += std::to_string(dat) + "\n";
+        log(str);
+
+        if (data.size() > 0) {
+          do {
+            keys = ~REG_KEYS & KEY_ANY;
+          } while (!(keys & KEY_SELECT));
+
+          if (!linkWireless->connect((u16)data[0])) {
+            log("CONNECT FAILED!");
+            while (true)
+              ;
+          }
+
+          u16 idid = 0;
+          do {
+            idid = linkWireless->isFinishedConnect();
+          } while (idid <= 1);
+
+          log("HAVE ID! PRESS SEL! " + std::to_string(idid));
+
+          do {
+            keys = ~REG_KEYS & KEY_ANY;
+          } while (!(keys & KEY_SELECT));
+
+          u16 asd = linkWireless->finishConnection();
+          if (asd == 0) {
+            log("FINISH CONNECT FAILED!");
+            while (true)
+              ;
+          }
+
+          u32 i = 50;
+          bool sending = false;
+          log("CONNECTED! " + std::to_string(asd));
+          // TODO: DEDUP
+          while (true) {
+            keys = ~REG_KEYS & KEY_ANY;
+
+            if (!sending && (keys & KEY_A)) {
+              sending = true;
+              linkWireless->sendData(std::vector<u32>{i});
+              i++;
+            }
+
+            if (sending && !(keys & KEY_A))
+              sending = false;
+
+            std::vector<u32> receivedData = std::vector<u32>{};
+            if (!linkWireless->receiveData(receivedData)) {
+              log("ERROR RECEIVING!");
+              while (true)
+                ;
+            }
+            if (receivedData.size() > 0)
+              log("RECEIVED: " + std::to_string(receivedData[0]));
+
+            while (REG_VCOUNT >= 160)
+              ;  // wait till VDraw
+            while (REG_VCOUNT < 160)
+              ;  // wait till VBlank
+          }
+        }
       } else
         log("Search failed :(");
     }
 
     if (connecting && !(keys & KEY_R))
       connecting = false;
-
-    // if ((keys & KEY_A) && !sending) {
-    //   log("Sending...");
-    //   sending = true;
-    //   if (linkWireless->broadcast(std::vector<u32>{80, 105, 111, 108, 97})) {
-    //     log("Sent! :)");
-    //     if (linkWireless->startHost())
-    //       log("Host started!");
-    //     else
-    //       log("Host failed -.-");
-    //   } else
-    //     log("Broadcast failed :(");
-    // }
-
-    // if (sending && !(keys & KEY_A))
-    //   sending = false;
-
-    // if ((keys & KEY_B) && !reading) {
-    //   log("Reading...");
-    //   reading = true;
-    //   std::vector<u32> data;
-    //   if (linkWireless->read(data)) {
-    //     std::string data = "Read!\n";
-    //     for (auto& dat : data)
-    //       data += std::to_string(dat) + "\n";
-    //     log(data);
-    //   } else
-    //     log("Read failed :(");
-    // }
-
-    // if (reading && !(keys & KEY_B))
-    //   reading = false;
-
-    // output += "Testing...";
-
-    // // Print
-    // log(output);
 
     while (REG_VCOUNT >= 160)
       ;  // wait till VDraw
