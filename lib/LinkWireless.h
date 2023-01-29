@@ -30,10 +30,9 @@
 #include "LinkGPIO.h"
 #include "LinkSPI.h"
 
-// TODO: AVOID response.responses, use result
-
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
+#define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_TIMEOUT 100
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_BROADCAST_SIZE 6
@@ -59,6 +58,14 @@ const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
 
 class LinkWireless {
  public:
+  struct ClientIdResponse {
+    bool success = false;
+    u16 clientId = 0;
+  };
+  struct ClientIdResponses {
+    bool success = false;
+    std::vector<u32> clientIds = std::vector<u32>{0};  // TODO: IMPROVE
+  };
   std::function<void(std::string)> debug;  // TODO: REMOVE
 
   bool isActive() { return isEnabled; }
@@ -87,13 +94,18 @@ class LinkWireless {
            sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
   }
 
-  u16 getNewConnectionId() {
-    auto response = sendCommand(0x1a);
-    if (!response.success)
-      return 0;  // TODO: PROPER RETURN TYPE
+  ClientIdResponses acceptConnection() {
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_IS_CONNECT_ATTEMPT);
 
-    return response.responses.size() > 0 ? (u16)response.responses[0]
-                                         : 1;  // TODO: FIGURE OUT MULTIPLE IDS
+    ClientIdResponses response;
+    if (!result.success)
+      return response;
+    response.success = true;
+    if (result.responses.size() == 0)
+      return response;
+    response.clientIds = result.responses;
+
+    return response;
   }
 
   bool connect(u16 remoteId) {
@@ -102,26 +114,35 @@ class LinkWireless {
         .success;
   }
 
-  u16 isFinishedConnect() {
-    auto response = sendCommand(LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
-    if (!response.success || response.responses.size() == 0)
-      return 0;  // TODO: PROPER RETURN TYPE
+  ClientIdResponse checkConnection() {
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
 
-    if (msB32(response.responses[0]) > 0)
-      return 1;
+    ClientIdResponse response;
+    if (!result.success)
+      return response;
+    response.success = true;
+    if (result.responses.size() == 0 || msB32(result.responses[0]) > 0)
+      return response;
+    response.clientId = (u16)result.responses[0];
 
-    return (u16)response.responses[0];
+    return response;
   }
 
-  u16 finishConnection() {
-    auto response = sendCommand(LINK_WIRELESS_COMMAND_FINISH_CONNECTION);
-    if (!response.success || response.responses.size() == 0)
-      return 0;  // TODO: PROPER RETURN TYPE
+  ClientIdResponse finishConnection() {
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_FINISH_CONNECTION);
 
-    return (u16)response.responses[0];
+    ClientIdResponse response;
+    if (!result.success)
+      return response;
+    response.success = true;
+    if (result.responses.size() == 0)
+      return response;
+    response.clientId = (u16)result.responses[0];
+
+    return response;
   }
 
-  // TODO: 0 IS NOT A VALID VALUE
+  // TODO: CHECK RANGES
   bool sendData(std::vector<u32> data) {
     return sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, data).success;
   }
@@ -142,18 +163,12 @@ class LinkWireless {
     if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success)
       return false;
 
-    wait(228 * 60);  // TODO: NEEDED INDEED!
+    wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT);
 
     auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END);
     data = result.responses;
     return result.success;
   }
-
-  // bool read(std::vector<u32>& data) {
-  //   auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ);
-  //   data = result.responses;
-  //   return result.success;
-  // }
 
   ~LinkWireless() {
     delete linkSPI;
