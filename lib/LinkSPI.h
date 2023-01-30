@@ -7,17 +7,28 @@
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkSPI* linkSPI = new LinkSPI();
-// - 2) Initialize the library with:
+// - 2) (Optional) Add the required interrupt service routines:
+//       irq_init(NULL);
+//       irq_add(II_SERIAL, LINK_SPI_ISR_SERIAL);
+//       // (this is only required for `transferAsync`)
+// - 3) Initialize the library with:
 //       linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 //       // (use LinkSPI::Mode::SLAVE on the other end)
-// - 3) Exchange 32-bit data with the other end:
-//       u32 data = linkGPIO->transfer(0x1234);
+// - 4) Exchange 32-bit data with the other end:
+//       u32 data = linkSPI->transfer(0x1234);
 //       // (this blocks the console indefinitely)
-// - 4) Exchange data with a cancellation callback:
-//       u32 data = linkGPIO->transfer(0x1234, []() {
+// - 5) Exchange data with a cancellation callback:
+//       u32 data = linkSPI->transfer(0x1234, []() {
 //         u16 keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
+// - 6) Exchange data asynchronously:
+//       linkSPI->transferAsync(0x1234);
+//       // ...
+//       if (linkSPI->getAsyncState() == LinkSPI::AsyncState::READY) {
+//         u32 data = linkSPI->getAsyncData();
+//         // ...
+//       }
 // --------------------------------------------------------------------------
 // considerations:
 // - when using Normal Mode between two GBAs, use a GBC Link Cable!
@@ -27,7 +38,7 @@
 
 #include <tonc_core.h>
 
-#define LINK_SPI_CANCELED 0xffffffff
+#define LINK_SPI_NO_DATA 0xffffffff
 #define LINK_SPI_SIOCNT_NORMAL 0
 #define LINK_SPI_BIT_CLOCK 0
 #define LINK_SPI_BIT_CLOCK_SPEED 1
@@ -44,15 +55,19 @@
 class LinkSPI {
  public:
   enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
+  enum AsyncState { IDLE, WAITING, READY };
 
   bool isActive() { return isEnabled; }
 
-  void activate(Mode mode, bool waitMode = false) {
+  void activate(Mode mode) {
     this->mode = mode;
-    this->waitMode = waitMode;
+    this->waitMode = false;
+    this->asyncState = IDLE;
+    this->asyncData = 0;
 
     setNormalMode();
     set32BitPackets();
+    setInterruptsOff();
     disableTransfer();
 
     if (mode == SLAVE)
@@ -74,6 +89,11 @@ class LinkSPI {
     stopTransfer();
     disableTransfer();
     setGeneralPurposeMode();
+
+    mode = SLAVE;
+    waitMode = false;
+    asyncState = IDLE;
+    asyncData = 0;
   }
 
   u32 transfer(u32 data) {
@@ -81,35 +101,84 @@ class LinkSPI {
   }
 
   template <typename F>
-  u32 transfer(u32 data, F cancel) {
+  u32 transfer(u32 data, F cancel, bool async = false) {
+    if (asyncState != IDLE)
+      return LINK_SPI_NO_DATA;
+
     setData(data);
+
+    if (async) {
+      asyncState = WAITING;
+      setInterruptsOn();
+    } else {
+      setInterruptsOff();
+    }
+
     enableTransfer();
 
     while (isMaster() && waitMode && !isSlaveReady())
       if (cancel()) {
         disableTransfer();
-        return LINK_SPI_CANCELED;
+        setInterruptsOff();
+        asyncState = IDLE;
+        return LINK_SPI_NO_DATA;
       }
 
     startTransfer();
+
+    if (async)
+      return LINK_SPI_NO_DATA;
 
     while (!isReady())
       if (cancel()) {
         stopTransfer();
         disableTransfer();
-        return LINK_SPI_CANCELED;
+        return LINK_SPI_NO_DATA;
       }
 
     disableTransfer();
     return getData();
   }
 
+  void transferAsync(u32 data) {
+    transfer(
+        data, []() { return false; }, true);
+  }
+
+  template <typename F>
+  void transferAsync(u32 data, F cancel) {
+    transfer(data, cancel, true);
+  }
+
+  u32 getAsyncData() {
+    if (asyncState != READY)
+      return LINK_SPI_NO_DATA;
+
+    u32 data = asyncData;
+    asyncState = IDLE;
+    return data;
+  }
+
   Mode getMode() { return mode; }
+  void setWaitModeActive(bool isActive) { waitMode = isActive; }
   bool isWaitModeActive() { return waitMode; }
+  AsyncState getAsyncState() { return asyncState; }
+
+  void _onSerial() {
+    if (!isEnabled || asyncState != WAITING)
+      return;
+
+    disableTransfer();
+    setInterruptsOff();
+    asyncState = READY;
+    asyncData = getData();
+  }
 
  private:
   Mode mode = Mode::SLAVE;
   bool waitMode = false;
+  AsyncState asyncState = IDLE;
+  u32 asyncData = 0;
   bool isEnabled = false;
 
   void setNormalMode() {
@@ -137,6 +206,8 @@ class LinkSPI {
   void setSlaveMode() { setBitLow(LINK_SPI_BIT_CLOCK); }
   void set256KbpsSpeed() { setBitLow(LINK_SPI_BIT_CLOCK_SPEED); }
   void set2MbpsSpeed() { setBitHigh(LINK_SPI_BIT_CLOCK_SPEED); }
+  void setInterruptsOn() { setBitHigh(LINK_SPI_BIT_IRQ); }
+  void setInterruptsOff() { setBitLow(LINK_SPI_BIT_IRQ); }
 
   bool isMaster() { return mode != SLAVE; }
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
@@ -145,5 +216,9 @@ class LinkSPI {
 };
 
 extern LinkSPI* linkSPI;
+
+inline void LINK_SPI_ISR_SERIAL() {
+  linkSPI->_onSerial();
+}
 
 #endif  // LINK_SPI_H

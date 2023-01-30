@@ -115,11 +115,14 @@ Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
-`activate(mode, true)` | - | Like `activate(mode)`, but enables `waitMode` (*).
 `deactivate()` | - | Deactivates the library.
 `transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
 `transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
-`getMode()` | **LinkSPI::Mode** | Returns the current mode.
+`transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState` and `getAsyncData`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
+`getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
+`getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
+`setWaitModeActive(isActive)` | - | Enables or disables `waitMode` (*).
 `isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
 
 > (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
@@ -130,4 +133,4 @@ Name | Return type | Description
 
 ⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
 
-⚠️ don't send 0xFFFFFFFF, it's reserved for errors!
+⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
