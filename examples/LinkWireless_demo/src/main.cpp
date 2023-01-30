@@ -33,7 +33,8 @@ int main() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    log("START = Activate\nL = Host\nR = Connect");
+    log("START = Activate\nL = Host\nR = Connect\n\n>press DOWN after every "
+        "action");
 
     // START = Activate
     if ((keys & KEY_START) && !activating) {
