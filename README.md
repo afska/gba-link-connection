@@ -129,3 +129,5 @@ Name | Return type | Description
 ⚠️ when using Normal Mode between two GBAs, use a GBC Link Cable!
 
 ⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
+
+⚠️ don't send 0xFFFFFFFF, it's reserved for errors!

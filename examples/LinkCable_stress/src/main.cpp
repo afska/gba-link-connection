@@ -62,22 +62,21 @@ int main() {
       output += "(" + std::to_string(localCounter) + ", " +
                 std::to_string(remoteCounter) + ")\n";
     } else {
-      output += std::string("Waiting...");
+      output += "Waiting...";
       localCounter = 0;
       remoteCounter = 0;
       error = false;
     }
 
+    linkCable->consume();
+
+    VBlankIntrWait();
     log(output);
 
     if (error) {
       while (true)
         ;
     }
-
-    linkCable->consume();
-
-    VBlankIntrWait();
   }
 
   return 0;

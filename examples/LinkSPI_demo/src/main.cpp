@@ -12,6 +12,9 @@ LinkSPI* linkSPI = new LinkSPI();
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+
+  irq_init(NULL);
+  irq_add(II_VBLANK, NULL);
 }
 
 int main() {
@@ -27,8 +30,9 @@ int main() {
       firstTransfer = true;
       output += "START: Set as Master\n";
       output += "SELECT: Set as Slave\n";
+      output += "\n(stop: L+R)\n";
       output +=
-          "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[!] to test this demo...\n      "
+          "\n\n\n\n\n\n\n\n\n\n\n\n\n\n[!] to test this demo...\n      "
           "...use a GBC Link Cable!";
 
       if ((keys & KEY_START) | (keys & KEY_SELECT)) {
@@ -40,9 +44,8 @@ int main() {
     } else {
       // Title
       auto modeName =
-          linkSPI->getMode() == LinkSPI::Mode::SLAVE ? "Slave" : "Master";
-      output += std::string("[") + modeName + "]\n";
-      output += "(stop: L+R)\n\n";
+          linkSPI->getMode() == LinkSPI::Mode::SLAVE ? "[slave]" : "[master]";
+      output += std::string(modeName) + "\n";
       if (firstTransfer)
         log(output + "Waiting...");
 
@@ -51,8 +54,8 @@ int main() {
         u16 keys = ~REG_KEYS & KEY_ANY;
         return (keys & KEY_L) && (keys & KEY_R);
       });
-      output += "local:  " + std::to_string(keys) + "\n";
-      output += "remote: " + std::to_string(remoteKeys) + "\n";
+      output += "> " + std::to_string(keys) + "\n";
+      output += "< " + std::to_string(remoteKeys) + "\n";
       firstTransfer = false;
 
       // Cancel
@@ -61,12 +64,8 @@ int main() {
     }
 
     // Print
+    VBlankIntrWait();
     log(output);
-
-    while (REG_VCOUNT >= 160)
-      ;  // wait till VDraw
-    while (REG_VCOUNT < 160)
-      ;  // wait till VBlank
   }
 
   return 0;

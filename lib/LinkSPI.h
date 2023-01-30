@@ -22,15 +22,13 @@
 // considerations:
 // - when using Normal Mode between two GBAs, use a GBC Link Cable!
 // - only use the 2Mbps mode with custom hardware (very short wires)!
+// - don't send 0xFFFFFFFF, it's reserved for errors!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
 
 #define LINK_SPI_CANCELED 0xffffffff
-#define LINK_SPI_RCNT_NORMAL 0
 #define LINK_SPI_SIOCNT_NORMAL 0
-#define LINK_SPI_RCNT_GENERAL_PURPOSE (1 << 15)
-#define LINK_SPI_SIOCNT_GENERAL_PURPOSE 0
 #define LINK_SPI_BIT_CLOCK 0
 #define LINK_SPI_BIT_CLOCK_SPEED 1
 #define LINK_SPI_BIT_SI 2
@@ -38,6 +36,8 @@
 #define LINK_SPI_BIT_START 7
 #define LINK_SPI_BIT_LENGTH 12
 #define LINK_SPI_BIT_IRQ 14
+#define LINK_SPI_BIT_GENERAL_PURPOSE_LOW 14
+#define LINK_SPI_BIT_GENERAL_PURPOSE_HIGH 15
 #define LINK_SPI_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_SPI_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
@@ -53,6 +53,7 @@ class LinkSPI {
 
     setNormalMode();
     set32BitPackets();
+    disableTransfer();
 
     if (mode == SLAVE)
       setSlaveMode();
@@ -65,7 +66,6 @@ class LinkSPI {
         set2MbpsSpeed();
     }
 
-    disableTransfer();
     isEnabled = true;
   }
 
@@ -82,21 +82,23 @@ class LinkSPI {
 
   template <typename F>
   u32 transfer(u32 data, F cancel) {
-    if (isEnabled && isMaster())
-      activate(mode);
-
     setData(data);
     enableTransfer();
 
     while (isMaster() && waitMode && !isSlaveReady())
-      if (cancel())
+      if (cancel()) {
+        disableTransfer();
         return LINK_SPI_CANCELED;
+      }
 
     startTransfer();
 
     while (!isReady())
-      if (cancel())
+      if (cancel()) {
+        stopTransfer();
+        disableTransfer();
         return LINK_SPI_CANCELED;
+      }
 
     disableTransfer();
     return getData();
@@ -111,13 +113,13 @@ class LinkSPI {
   bool isEnabled = false;
 
   void setNormalMode() {
-    REG_RCNT = LINK_SPI_RCNT_NORMAL;
+    LINK_SPI_SET_LOW(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
     REG_SIOCNT = LINK_SPI_SIOCNT_NORMAL;
   }
 
   void setGeneralPurposeMode() {
-    REG_RCNT = LINK_SPI_RCNT_GENERAL_PURPOSE;
-    REG_SIOCNT = LINK_SPI_SIOCNT_GENERAL_PURPOSE;
+    LINK_SPI_SET_LOW(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_LOW);
+    LINK_SPI_SET_HIGH(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void setData(u32 data) { REG_SIODATA32 = data; }

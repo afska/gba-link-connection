@@ -15,6 +15,9 @@ void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 
+  irq_init(NULL);
+  irq_add(II_VBLANK, NULL);
+
   // (2) Initialize the library
   linkGPIO->reset();
 }
@@ -53,9 +56,6 @@ int main() {
     output += value("SD", LinkGPIO::Pin::SD, sendSDHigh);
     output += value("SC", LinkGPIO::Pin::SC, sendSCHigh);
 
-    // Print
-    log(output);
-
     // Set modes
     if (setSOOutput)
       linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
@@ -78,10 +78,9 @@ int main() {
     if (linkGPIO->getMode(LinkGPIO::Pin::SC) == LinkGPIO::Direction::OUTPUT)
       linkGPIO->writePin(LinkGPIO::Pin::SC, sendSCHigh);
 
-    while (REG_VCOUNT >= 160)
-      ;  // wait till VDraw
-    while (REG_VCOUNT < 160)
-      ;  // wait till VBlank
+    // Print
+    VBlankIntrWait();
+    log(output);
   }
 
   return 0;

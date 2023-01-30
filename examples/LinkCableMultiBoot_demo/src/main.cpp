@@ -118,11 +118,11 @@ int main() {
     } else {
       output += std::string("Waiting... ");
     }
-    log(output);
 
     linkCable->consume();
 
     VBlankIntrWait();
+    log(output);
   }
 
   return 0;

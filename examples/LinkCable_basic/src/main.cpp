@@ -62,12 +62,12 @@ int main() {
     } else {
       output += std::string("Waiting...");
     }
-    log(output);
 
     // (5) Mark the current state copy (front buffer) as consumed
     linkCable->consume();
 
     VBlankIntrWait();
+    log(output);
   }
 
   return 0;
