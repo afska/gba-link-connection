@@ -99,7 +99,7 @@ Name | Return type | Description
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
-⚠️ always set the SI terminal to an input!
+⚠️ always set the `SI` terminal to an input!
 
 # 🔗 LinkSPI
 

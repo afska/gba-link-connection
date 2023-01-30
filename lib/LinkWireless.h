@@ -147,7 +147,85 @@ class LinkWireless {
     return sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, data).success;
   }
 
+  bool sendDataWait(std::vector<u32> data) {
+    // TODO: IT WORKS RANDOMLY
+    // TODO: TEST THIS ON BOTH SIDES
+
+    if (!sendCommand(0x25, data).success)  // TODO: SEND DATA WAIT
+      return false;
+
+    linkSPI->setSlaveMode2();
+
+    u32 command = linkSPI->transfer(LINK_WIRELESS_DATA_REQUEST);
+    while (!linkSPI->_isSIHigh())
+      ;
+
+    if (msB32(command) != LINK_WIRELESS_COMMAND_HEADER) {
+      debug("NO HEADER: " + std::to_string(command));
+      while (true)
+        ;
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      return false;
+    }
+    if (lsB32(command) == 0x0027) {  // or 27 = inversion end
+      command = linkSPI->transfer(0x996600a7);
+      debug(">> RECEIVED: " + std::to_string(command));
+      while (!linkSPI->_isSIHigh())
+        ;
+      if (command != LINK_WIRELESS_DATA_REQUEST) {
+        debug("NO DATA REQUEST (END): " + std::to_string(command));
+        while (true)
+          ;
+        linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+        return false;
+      }
+
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+
+      wait(LINK_WIRELESS_TRANSFER_WAIT);
+      return true;
+    }
+
+    if (lsB32(command) == 0x0128) {
+      linkSPI->transfer(LINK_WIRELESS_DATA_REQUEST);
+      while (!linkSPI->_isSIHigh())
+        ;
+    }
+
+    if (lsB32(command) != 0x0128 &&
+        lsB32(command) != 0x0028) {                // TODO: WAIT END RESPONSE
+      debug("NO 28: " + std::to_string(command));  // TODO: OR 29 = disconnected
+      while (true)
+        ;
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      return false;
+    }
+
+    // TODO: WAIT END ACK
+    command = linkSPI->transfer(0x996600a8);
+    while (!linkSPI->_isSIHigh())
+      ;
+    linkSPI->_setSOLow();
+
+    // // TODO: WAIT END ACK
+    if (command != LINK_WIRELESS_DATA_REQUEST) {
+      debug("NO WAIT: " + std::to_string(command));
+      while (true)
+        ;
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      return false;
+    }
+
+    linkSPI->setMasterMode2();
+    linkSPI->set2MbpsSpeed2();
+
+    return true;
+  }
+
   bool receiveData(std::vector<u32>& data) {
+    if (!sendCommand(0x11).success)  // TODO: SIGNAL LEVEL
+      return false;
+
     auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
     data = result.responses;
     return result.success;

@@ -10,7 +10,7 @@ void connect();
 void messageLoop(bool acceptNewClients);
 void log(std::string text);
 void waitFor(u16 key);
-void vBlankWait();
+void vBlankWait();  // TODO: VBlankIntrWait();
 void hang();
 
 // (1) Create a LinkWireless instance
@@ -168,39 +168,40 @@ void connect() {
 }
 
 void messageLoop(bool acceptNewClients) {
-  u32 i = 50;
+  u32 i = acceptNewClients ? 50 : 15;
   bool sending = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    if (!sending && (keys & KEY_A)) {
+    if (!sending) {
       sending = true;
-      linkWireless->sendData(std::vector<u32>{1, i});
+      bool result = linkWireless->sendDataWait(std::vector<u32>{1, i});
+      log("Send result: " + std::to_string(result));
       i++;
-    }
-    if (sending && !(keys & KEY_A))
-      sending = false;
 
-    if (acceptNewClients) {
-      auto newConnection = linkWireless->acceptConnection();
-      if (!newConnection.success) {
-        log("Accept failed :(");
+      std::vector<u32> receivedData = std::vector<u32>{};
+      if (!linkWireless->receiveData(receivedData)) {
+        log("Receive failed :(");
         hang();
         return;
       }
-      if (newConnection.clientIds.size() > 1)
-        log("New connection: " + std::to_string(newConnection.clientIds[1]));
+      if (receivedData.size() > 1)
+        log("<<< " + std::to_string(receivedData[1]));
     }
+    if (sending)
+      sending = false;
 
-    std::vector<u32> receivedData = std::vector<u32>{};
-    if (!linkWireless->receiveData(receivedData)) {
-      log("Receive failed :(");
-      hang();
-      return;
-    }
-    if (receivedData.size() > 1)
-      log("<<< " + std::to_string(receivedData[1]));
+    // if (acceptNewClients) {
+    //   auto newConnection = linkWireless->acceptConnection();
+    //   if (!newConnection.success) {
+    //     log("Accept failed :(");
+    //     hang();
+    //     return;
+    //   }
+    //   if (newConnection.clientIds.size() > 1)
+    //     log("New connection: " + std::to_string(newConnection.clientIds[1]));
+    // }
 
     vBlankWait();
   }
