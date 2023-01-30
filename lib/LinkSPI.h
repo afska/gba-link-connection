@@ -174,6 +174,10 @@ class LinkSPI {
     asyncData = getData();
   }
 
+  void _setSOHigh() { setBitHigh(LINK_SPI_BIT_SO); }
+  void _setSOLow() { setBitLow(LINK_SPI_BIT_SO); }
+  bool _isSIHigh() { return isBitHigh(LINK_SPI_BIT_SI); }
+
  private:
   Mode mode = Mode::SLAVE;
   bool waitMode = false;
@@ -194,12 +198,12 @@ class LinkSPI {
   void setData(u32 data) { REG_SIODATA32 = data; }
   u32 getData() { return REG_SIODATA32; }
 
-  void enableTransfer() { setBitLow(LINK_SPI_BIT_SO); }
-  void disableTransfer() { setBitHigh(LINK_SPI_BIT_SO); }
+  void enableTransfer() { _setSOLow(); }
+  void disableTransfer() { _setSOHigh(); }
   void startTransfer() { setBitHigh(LINK_SPI_BIT_START); }
   void stopTransfer() { setBitLow(LINK_SPI_BIT_START); }
   bool isReady() { return !isBitHigh(LINK_SPI_BIT_START); }
-  bool isSlaveReady() { return !isBitHigh(LINK_SPI_BIT_SI); }
+  bool isSlaveReady() { return !_isSIHigh(); }
 
   void set32BitPackets() { setBitHigh(LINK_SPI_BIT_LENGTH); }
   void setMasterMode() { setBitHigh(LINK_SPI_BIT_CLOCK); }

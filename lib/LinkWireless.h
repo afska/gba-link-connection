@@ -202,6 +202,8 @@ class LinkWireless {
     if (!login())
       return false;
 
+    wait(LINK_WIRELESS_TRANSFER_WAIT);
+
     if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
       return false;
 
@@ -243,7 +245,7 @@ class LinkWireless {
                            u16 expectedResponse,
                            LoginMemory& memory) {
     u32 packet = buildU32(~memory.previousAdapterData, data);
-    u32 response = linkSPI->transfer(packet);
+    u32 response = transfer(packet, false);
 
     if (msB32(response) != expectedResponse ||
         lsB32(response) != (u16)~memory.previousGBAData)
@@ -300,20 +302,39 @@ class LinkWireless {
     return buildU32(LINK_WIRELESS_COMMAND_HEADER, buildU16(length, type));
   }
 
-  u32 transfer(u32 data) {
-    wait(LINK_WIRELESS_TRANSFER_WAIT);
+  u32 transfer(u32 data, bool customAck = true) {
+    if (!customAck)
+      wait(LINK_WIRELESS_TRANSFER_WAIT);
 
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
+    u32 receivedData = linkSPI->transfer(
+        data, [this, &lines, &vCount]() { return timeout(lines, vCount); });
 
-    return linkSPI->transfer(data, [&lines, &vCount]() {
-      if (REG_VCOUNT != vCount) {
-        lines++;
-        vCount = REG_VCOUNT;
-      }
+    lines = 0;
+    vCount = REG_VCOUNT;
+    if (customAck) {
+      linkSPI->_setSOLow();
+      while (!linkSPI->_isSIHigh())
+        if (timeout(lines, vCount))
+          return LINK_SPI_NO_DATA;
+      linkSPI->_setSOHigh();
+      while (linkSPI->_isSIHigh())
+        if (timeout(lines, vCount))
+          return LINK_SPI_NO_DATA;
+      linkSPI->_setSOLow();
+    }
 
-      return lines > LINK_WIRELESS_TIMEOUT;
-    });
+    return receivedData;
+  }
+
+  bool timeout(u32& lines, u32& vCount) {
+    if (REG_VCOUNT != vCount) {
+      lines++;
+      vCount = REG_VCOUNT;
+    }
+
+    return lines > LINK_WIRELESS_TIMEOUT;
   }
 
   void wait(u32 verticalLines) {
