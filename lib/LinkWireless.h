@@ -309,7 +309,8 @@ class LinkWireless {
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
     u32 receivedData = linkSPI->transfer(
-        data, [this, &lines, &vCount]() { return timeout(lines, vCount); });
+        data, [this, &lines, &vCount]() { return timeout(lines, vCount); },
+        false, customAck);
 
     lines = 0;
     vCount = REG_VCOUNT;

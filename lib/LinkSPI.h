@@ -101,7 +101,7 @@ class LinkSPI {
   }
 
   template <typename F>
-  u32 transfer(u32 data, F cancel, bool async = false) {
+  u32 transfer(u32 data, F cancel, bool async = false, bool customAck = false) {
     if (asyncState != IDLE)
       return LINK_SPI_NO_DATA;
 
@@ -136,7 +136,9 @@ class LinkSPI {
         return LINK_SPI_NO_DATA;
       }
 
-    disableTransfer();
+    if (!customAck)
+      disableTransfer();
+
     return getData();
   }
 
