@@ -12,6 +12,14 @@ void log(std::string text);
 void waitFor(u16 key);
 void hang();
 
+template <typename T>
+std::vector<T> slice(std::vector<T> const& v, int x, int y) {
+  auto first = v.begin() + x;
+  auto last = v.begin() + y + 1;
+  std::vector<T> vector(first, last);
+  return vector;
+}
+
 // (1) Create a LinkWireless instance
 LinkWireless* linkWireless = new LinkWireless();
 
@@ -165,29 +173,36 @@ void connect() {
 }
 
 void messageLoop() {
-  u32 i = linkWireless->getPlayerId() * 10;
+  std::vector<u32> counters;
+  for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+    counters.push_back(0);
+
+  u32 counter = linkWireless->getPlayerId() * 10;
+  bool isHost = linkWireless->getState() == LinkWireless::State::SERVING;
   bool sending = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     std::string activePlayers =
-        linkWireless->getState() == LinkWireless::State::SERVING
-            ? "\n\n" + std::to_string(linkWireless->getPlayerCount()) +
-                  " players"
-            : "";
+        isHost ? "\n\n" + std::to_string(linkWireless->getPlayerCount()) +
+                     " players"
+               : "";
 
     // (5) Send data
-    if (!sending && (keys & KEY_A)) {
+    if (!sending && (isHost || ((keys & KEY_A)))) {
       sending = true;
-      if (!linkWireless->sendData(std::vector<u32>{i})) {
+      if (!linkWireless->sendData(
+              isHost
+                  ? slice(counters, 0, linkWireless->getPlayerCount() - 1)
+                  : std::vector<u32>{linkWireless->getPlayerId(), counter})) {
         log("Send failed :(");
         hang();
         return;
       }
-      i++;
+      counter++;
     }
-    if (sending && !(keys & KEY_A))
+    if (sending && (isHost || (!(keys & KEY_A))))
       sending = false;
 
     // (6) Receive data
@@ -199,8 +214,19 @@ void messageLoop() {
     }
     if (receivedData.size() > 0) {
       std::string str = "Total: " + std::to_string(receivedData.size()) + "\n";
-      for (u32& number : receivedData)
+
+      u32 i = 0;
+      u32 playerId = 0;
+      for (u32& number : receivedData) {
+        if (i % 2 == 0)
+          playerId = number;
+        else
+          counters[playerId] = number;
+
         str += std::to_string(number) + "\n";
+        i++;
+      }
+
       log(str + activePlayers);
     }
 
