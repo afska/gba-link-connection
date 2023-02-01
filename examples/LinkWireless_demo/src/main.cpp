@@ -5,36 +5,39 @@
 #include "../../_lib/LinkWireless.h"
 
 void activate();
-void host();
+void serve();
 void connect();
-void messageLoop(bool acceptNewClients);
+void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
-void vBlankWait();  // TODO: VBlankIntrWait();
 void hang();
 
 // (1) Create a LinkWireless instance
 LinkWireless* linkWireless = new LinkWireless();
 
 void init() {
-  linkWireless->debug = [](std::string text) { log(text); };  // TODO: REMOVE
-
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+
+  irq_init(NULL);
+  irq_add(II_VBLANK, NULL);
+
+  // (2) Initialize the library
+  linkWireless->activate();
 }
 
 int main() {
   init();
 
   bool activating = false;
-  bool hosting = false;
+  bool serving = false;
   bool connecting = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    log("START = Activate\nL = Host\nR = Connect\n\n>press DOWN after every "
-        "action");
+    log("START = Activate\nL = Serve\nR = Connect\n\n (DOWN = ok)\n (SELECT = "
+        "cancel)");
 
     // START = Activate
     if ((keys & KEY_START) && !activating) {
@@ -44,13 +47,13 @@ int main() {
     if (activating && !(keys & KEY_START))
       activating = false;
 
-    // L = Host
-    if ((keys & KEY_L) && !hosting) {
-      hosting = true;
-      host();
+    // L = Serve
+    if ((keys & KEY_L) && !serving) {
+      serving = true;
+      serve();
     }
-    if (hosting && !(keys & KEY_L))
-      hosting = false;
+    if (serving && !(keys & KEY_L))
+      serving = false;
 
     // R = Connect
     if (!connecting && (keys & KEY_R)) {
@@ -60,7 +63,7 @@ int main() {
     if (connecting && !(keys & KEY_R))
       connecting = false;
 
-    vBlankWait();
+    VBlankIntrWait();
   }
 
   return 0;
@@ -77,114 +80,111 @@ void activate() {
   hang();
 }
 
-void host() {
-  log("Hosting...");
+void serve() {
+  log("Serving...");
 
-  if (!linkWireless->broadcast(std::vector<u32>{0x43498202, 0x4c432045,
-                                                0x45424d49, 0x8a000052,
-                                                0x544e494e, 0x4f444e45})) {
-    log("Hosting failed :(");
+  // (3) Start a server
+  if (!linkWireless->serve()) {
+    log("Serve failed :(");
     hang();
     return;
   }
 
   log("Listening...");
 
-  LinkWireless::ClientIdResponses response;
   do {
-    response = linkWireless->acceptConnection();
-    if (!response.success) {
+    u16 keys = ~REG_KEYS & KEY_ANY;
+    if (keys & KEY_SELECT) {
+      log("Canceled");
+      linkWireless->disconnect();
+      hang();
+      return;
+    }
+
+    if (!linkWireless->acceptConnections()) {
       log("Accept failed :(");
       hang();
       return;
     }
-  } while (response.clientIds[0] == 0);
+  } while (linkWireless->getPlayerCount() <= 1);
 
-  log("Connected! " + std::to_string(response.clientIds[0]));
+  log("Connection accepted!");
 
-  messageLoop(true);
+  messageLoop();
 }
 
 void connect() {
   log("Searching...");
 
-  std::vector<u32> broadcastData;
-  if (!linkWireless->getBroadcasts(broadcastData)) {
+  // (4) Connect to a server
+  std::vector<u16> serverIds;
+  if (!linkWireless->getServerIds(serverIds)) {
     log("Search failed :(");
     hang();
     return;
   }
 
-  std::string str = "Press SELECT to connect\n";
-  for (u32& number : broadcastData)
-    str += std::to_string(number) + "\n";
-  log(str);
-
-  if (broadcastData.size() == 0) {
+  if (serverIds.size() == 0) {
     log("Nothing found :(");
     hang();
     return;
+  } else {
+    std::string str = "Press START to connect\n(first ID will be used)\n\n";
+    for (u16& number : serverIds)
+      str += std::to_string(number) + "\n";
+    log(str);
   }
 
-  waitFor(KEY_SELECT);
+  waitFor(KEY_START);
 
-  if (!linkWireless->connect((u16)broadcastData[0])) {
+  if (!linkWireless->connect(serverIds[0])) {
     log("Connect failed :(");
     hang();
     return;
   }
 
-  LinkWireless::ClientIdResponse response1;
-  do {
-    response1 = linkWireless->checkConnection();
-    if (!response1.success) {
-      log("Check connection failed :(");
+  while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
+    u16 keys = ~REG_KEYS & KEY_ANY;
+    if (keys & KEY_SELECT) {
+      log("Canceled");
+      linkWireless->disconnect();
       hang();
       return;
     }
 
-    log("Checking: " + std::to_string(response1.clientId));
-  } while (response1.clientId == 0);
-
-  log("Assigned id (press SELECT):\n" + std::to_string(response1.clientId));
-
-  waitFor(KEY_SELECT);
-
-  auto response2 = linkWireless->finishConnection();
-  if (!response2.success) {
-    log("Finish connection failed :(");
-    hang();
-    return;
-  }
-  if (response2.clientId != response1.clientId) {
-    log("Assigned IDs don't match :(");
-    hang();
-    return;
+    if (!linkWireless->keepConnecting()) {
+      log("Finish connection failed :(");
+      hang();
+      return;
+    }
   }
 
-  log("Connected! " + std::to_string(response2.clientId));
+  log("Connected! " + std::to_string(linkWireless->getPlayerId()));
 
-  messageLoop(false);
+  messageLoop();
 }
 
-void messageLoop(bool acceptNewClients) {
-  u32 i = acceptNewClients ? 50 : 15;
+void messageLoop() {
+  u32 i = linkWireless->getPlayerId() * 10;
   bool sending = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
+    // (5) Send data
     if (!sending && (keys & KEY_A)) {
       sending = true;
-      bool result = linkWireless->sendData(
-          acceptNewClients ? std::vector<u32>{0xf, i, 12345678}
-                           : std::vector<u32>{0x900, i, 13579513});
-      log("Send result: " + std::to_string(result));
+      if (!linkWireless->sendData(std::vector<u32>{i})) {
+        log("Send failed :(");
+        hang();
+        return;
+      }
       i++;
     }
     if (sending && !(keys & KEY_A))
       sending = false;
 
+    // (6) Receive data
     std::vector<u32> receivedData = std::vector<u32>{};
     if (!linkWireless->receiveData(receivedData)) {
       log("Receive failed :(");
@@ -198,32 +198,25 @@ void messageLoop(bool acceptNewClients) {
       log(str);
     }
 
-    if (acceptNewClients) {
-      auto newConnection = linkWireless->acceptConnection();
-      if (!newConnection.success) {
+    if (linkWireless->getState() == LinkWireless::State::SERVING) {
+      if (!linkWireless->acceptConnections()) {
         log("Accept failed :(");
         hang();
         return;
       }
-      if (newConnection.clientIds.size() > 1) {
-        std::string str = "New connection: " +
-                          std::to_string(newConnection.clientIds.size()) + "\n";
-        for (u32& number : newConnection.clientIds)
-          str += std::to_string(number) + "\n";
-        log(str);
-      }
     }
 
-    if ((keys & KEY_START)) {
+    // (7) Disconnect
+    if ((keys & KEY_SELECT)) {
       if (!linkWireless->disconnect()) {
-        log("Accept failed :(");
+        log("Disconnect failed :(");
         hang();
         return;
       }
       return;
     }
 
-    vBlankWait();
+    VBlankIntrWait();
   }
 }
 
@@ -238,13 +231,6 @@ void waitFor(u16 key) {
   do {
     keys = ~REG_KEYS & KEY_ANY;
   } while (!(keys & key));
-}
-
-void vBlankWait() {
-  while (REG_VCOUNT >= 160)
-    ;  // wait till VDraw
-  while (REG_VCOUNT < 160)
-    ;  // wait till VBlank
 }
 
 void hang() {

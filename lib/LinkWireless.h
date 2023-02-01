@@ -2,30 +2,40 @@
 #define LINK_WIRELESS_H
 
 // --------------------------------------------------------------------------
-// // TODO: COMPLETE An SPI handler for the Link Port (Normal Mode, 32bits).
+// A high level driver for the GBA Wireless Adapter.
 // --------------------------------------------------------------------------
-// // TODO: Usage:
+// Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkWireless* linkWireless = new LinkWireless();
 // - 2) Initialize the library with:
 //       linkWireless->activate();
-// - 3) Exchange 32-bit data with the other end:
-//       _________
-//       // (this blocks the console indefinitely)
-// - 4) Exchange data with a cancellation callback:
-//       u32 data = linkGPIO->transfer(0x1234, []() {
-//         u16 keys = ~REG_KEYS & KEY_ANY;
-//         return keys & KEY_START;
-//       });
-// --------------------------------------------------------------------------
-// considerations:
-// - when using Normal Mode between two GBAs, use a GBC Link Cable!
-// - only use the 2Mbps mode with custom hardware (very short wires)!
+// - 3) Start a server:
+//       linkWireless->serve();
+//       // `getState()` should return SERVING now...
+//       // `getPlayerId()` should return 0
+//       // `getPlayerCount()` should reflect the number of active consoles
+//       // call `acceptConnections()` periodically
+// - 4) Connect to a server:
+//       std::vector<u16> serverIds;
+//       linkWireless->getServerIds(serverIds);
+//       linkWireless->connect(serverIds[0]);
+//       while (linkWireless->getState() == LinkWireless::State::CONNECTING)
+//         linkWireless->keepConnecting();
+//       // `getState()` should return CONNECTED now...
+//       // `getPlayerId()` should return 1, 2, 3, or 4 (the host is 0)
+// - 5) Send data:
+//       linkConnection->sendData(std::vector<u32>{1, 2, 3});
+// - 6) Receive data:
+//       std::vector<u32> data;
+//       linkConnection->receiveData(data);
+//       if (data.size() > 0) {
+//         // ...
+//       }
+// - 7) Disconnect:
+//       linkWireless->disconnect();
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
-#include <functional>  // TODO: REMOVE
-#include <string>      // TODO: REMOVE
 #include <vector>
 #include "LinkGPIO.h"
 #include "LinkSPI.h"
@@ -34,17 +44,22 @@
 #define LINK_WIRELESS_TRANSFER_WAIT 15
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_TIMEOUT 100
+#define LINK_WIRELESS_MAX_PLAYERS 5
+#define LINK_WIRELESS_MAX_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_LOGIN_STEPS 9
-#define LINK_WIRELESS_BROADCAST_SIZE 6
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
 #define LINK_WIRELESS_DATA_REQUEST 0x80000000
 #define LINK_WIRELESS_SETUP_MAGIC 0x003c0420
+#define LINK_WIRELESS_STILL_CONNECTING 0x01000000
+#define LINK_WIRELESS_BROADCAST_LENGTH 6
+#define LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH \
+  (1 + LINK_WIRELESS_BROADCAST_LENGTH)
 #define LINK_WIRELESS_COMMAND_HELLO 0x10
 #define LINK_WIRELESS_COMMAND_SETUP 0x17
 #define LINK_WIRELESS_COMMAND_BROADCAST 0x16
 #define LINK_WIRELESS_COMMAND_START_HOST 0x19
-#define LINK_WIRELESS_COMMAND_IS_CONNECT_ATTEMPT 0x1a
+#define LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_END 0x1e
 #define LINK_WIRELESS_COMMAND_CONNECT 0x1f
@@ -54,32 +69,24 @@
 #define LINK_WIRELESS_COMMAND_RECEIVE_DATA 0x26
 #define LINK_WIRELESS_COMMAND_DISCONNECT 0x30
 
+#define LINK_WIRELESS_RESET_IF_NEEDED \
+  if (state == NEEDS_RESET)           \
+    reset();
+
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
 
 class LinkWireless {
  public:
-  struct ClientIdResponse {
-    bool success = false;
-    u16 clientId = 0;
-  };
-  struct ClientIdResponses {
-    bool success = false;
-    std::vector<u32> clientIds = std::vector<u32>{0};  // TODO: IMPROVE
-  };
-  std::function<void(std::string)> debug;  // TODO: REMOVE
+  enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
 
   bool isActive() { return isEnabled; }
 
-  // TODO: Add to docs (bool)
   bool activate() {
-    if (!reset()) {
-      deactivate();
-      return false;
-    }
+    bool success = reset();
 
     isEnabled = true;
-    return true;
+    return success;
   }
 
   void deactivate() {
@@ -87,92 +94,207 @@ class LinkWireless {
     stop();
   }
 
-  bool broadcast(std::vector<u32> data) {
-    if (data.size() != LINK_WIRELESS_BROADCAST_SIZE)
+  bool serve() {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != AUTHENTICATED)
       return false;
 
-    return sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, data).success &&
-           sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
+    auto broadcast = std::vector<u32>{1, 2, 3, 4, 5, 6};
+    bool success =
+        sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, broadcast).success &&
+        sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
+
+    if (!success) {
+      reset();
+      return false;
+    }
+
+    state = SERVING;
+
+    return true;
   }
 
-  ClientIdResponses acceptConnection() {
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_IS_CONNECT_ATTEMPT);
+  bool acceptConnections() {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING)
+      return false;
 
-    ClientIdResponses response;
-    if (!result.success)
-      return response;
-    response.success = true;
-    if (result.responses.size() == 0)
-      return response;
-    response.clientIds = result.responses;
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
 
-    return response;
+    if (!result.success) {
+      reset();
+      return false;
+    }
+
+    playerCount = 1 + result.responses.size();
+
+    return true;
   }
 
-  bool connect(u16 remoteId) {
-    return sendCommand(LINK_WIRELESS_COMMAND_CONNECT,
-                       std::vector<u32>{remoteId})
-        .success;
+  bool connect(u16 serverId) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != AUTHENTICATED)
+      return false;
+
+    bool success =
+        sendCommand(LINK_WIRELESS_COMMAND_CONNECT, std::vector<u32>{serverId})
+            .success;
+
+    if (!success) {
+      reset();
+      return false;
+    }
+
+    state = CONNECTING;
+
+    return true;
   }
 
-  ClientIdResponse checkConnection() {
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
+  bool keepConnecting() {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != CONNECTING)
+      return false;
 
-    ClientIdResponse response;
-    if (!result.success)
-      return response;
-    response.success = true;
-    if (result.responses.size() == 0 || msB32(result.responses[0]) > 0)
-      return response;
-    response.clientId = (u16)result.responses[0];
+    auto result1 = sendCommand(LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
+    if (!result1.success || result1.responses.size() == 0) {
+      reset();
+      return false;
+    }
 
-    return response;
+    if (result1.responses[0] == LINK_WIRELESS_STILL_CONNECTING)
+      return true;
+
+    u8 assignedPlayerId = 1 + (u8)msB32(result1.responses[0]);
+    u16 assignedClientId = (u16)result1.responses[0];
+
+    if (assignedPlayerId >= LINK_WIRELESS_MAX_PLAYERS) {
+      reset();
+      return false;
+    }
+
+    auto result2 = sendCommand(LINK_WIRELESS_COMMAND_FINISH_CONNECTION);
+    if (!result2.success || result2.responses.size() == 0 ||
+        (u16)result2.responses[0] != assignedClientId) {
+      reset();
+      return false;
+    }
+
+    playerId = assignedPlayerId;
+    state = CONNECTED;
+
+    return true;
   }
-
-  ClientIdResponse finishConnection() {
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_FINISH_CONNECTION);
-
-    ClientIdResponse response;
-    if (!result.success)
-      return response;
-    response.success = true;
-    if (result.responses.size() == 0)
-      return response;
-    response.clientId = (u16)result.responses[0];
-
-    return response;
-  }
-
-  // TODO: SIGNAL LEVEL (BEFORE RECEIVE)
-  // u8 getSignalLevel() {
-  //   if (!sendCommand(0x11).success)
-  //     return 0;
-  // }
 
   bool sendData(std::vector<u32> data) {
-    return sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, data).success;
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if ((state != SERVING && state != CONNECTED) ||
+        data.size() > LINK_WIRELESS_MAX_TRANSFER_LENGTH)
+      return false;
+
+    u32 bytes = data.size() * 4;
+    auto dataWithHeader = std::vector<u32>{
+        playerId == 0 ? bytes : (1 << (3 + playerId * 5)) * bytes};
+    dataWithHeader.insert(dataWithHeader.end(), data.begin(), data.end());
+
+    bool success =
+        sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, dataWithHeader).success;
+
+    if (!success) {
+      reset();
+      return false;
+    }
+
+    return true;
   }
 
+  // TODO: CHECK MULTIPLE MESSAGES
   bool receiveData(std::vector<u32>& data) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING && state != CONNECTED)
+      return false;
+
     auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
     data = result.responses;
-    return result.success;
+
+    if (!result.success) {
+      reset();
+      return false;
+    }
+
+    if (data.size() > 0)
+      data.erase(data.begin());
+
+    return true;
   }
 
-  bool getBroadcasts(std::vector<u32>& data) {
-    if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success)
+  bool getServerIds(std::vector<u16>& serverIds) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != AUTHENTICATED)
       return false;
+
+    bool success1 =
+        sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success;
+
+    if (!success1) {
+      reset();
+      return false;
+    }
 
     wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT);
 
     auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END);
-    data = result.responses;
+    bool success2 =
+        result.success &&
+        result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
+
+    if (!success2) {
+      reset();
+      return false;
+    }
+
+    u32 totalBroadcasts =
+        result.responses.size() / LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH;
+
+    for (u32 i = 0; i < totalBroadcasts; i++) {
+      serverIds.push_back(
+          (u16)result.responses[LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH * i]);
+    }
+
+    return true;
+  }
+
+  // TODO: TEST AND UNHARDCODE
+  bool getSignalLevel(std::vector<u32>& levels) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING && state != CONNECTED)
+      return false;
+
+    auto result = sendCommand(0x11);
+    if (result.success)
+      levels = result.responses;
     return result.success;
   }
 
   bool disconnect() {
-    return sendCommand(LINK_WIRELESS_COMMAND_DISCONNECT).success;
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING && state != CONNECTED)
+      return false;
+
+    bool success = sendCommand(LINK_WIRELESS_COMMAND_DISCONNECT).success;
+
+    if (!success) {
+      reset();
+      return false;
+    }
+
+    reset();
+
+    return true;
   }
+
+  State getState() { return state; }
+  u8 getPlayerId() { return playerId; }
+  u8 getPlayerCount() { return playerCount; }
 
   ~LinkWireless() {
     delete linkSPI;
@@ -192,9 +314,16 @@ class LinkWireless {
 
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
+  State state = NEEDS_RESET;
+  u8 playerId = 0;
+  u8 playerCount = 1;
   bool isEnabled = false;
 
   bool reset() {
+    this->state = NEEDS_RESET;
+    this->playerId = 0;
+    this->playerCount = 1;
+
     stop();
     return start();
   }
@@ -211,11 +340,14 @@ class LinkWireless {
     if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
       return false;
 
-    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, std::vector<u32>{0x003C0420})
+    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP,
+                     std::vector<u32>{LINK_WIRELESS_SETUP_MAGIC})
              .success)
       return false;
 
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+    state = AUTHENTICATED;
+
     return true;
   }
 
