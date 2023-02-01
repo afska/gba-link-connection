@@ -171,6 +171,12 @@ void messageLoop() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
+    std::string activePlayers =
+        linkWireless->getState() == LinkWireless::State::SERVING
+            ? "\n\n" + std::to_string(linkWireless->getPlayerCount()) +
+                  " players"
+            : "";
+
     // (5) Send data
     if (!sending && (keys & KEY_A)) {
       sending = true;
@@ -195,7 +201,7 @@ void messageLoop() {
       std::string str = "Total: " + std::to_string(receivedData.size()) + "\n";
       for (u32& number : receivedData)
         str += std::to_string(number) + "\n";
-      log(str);
+      log(str + activePlayers);
     }
 
     if (linkWireless->getState() == LinkWireless::State::SERVING) {

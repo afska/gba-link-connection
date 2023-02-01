@@ -7,7 +7,6 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
-- [📡](#-LinkWirelessMultiboot) [LinkWirelessMultiboot.h](lib/LinkWirelessMultiboot.h): Send Multiboot software to other GBAs **over the air**!
 
 *(click on the emojis for documentation)*
 
