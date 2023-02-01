@@ -91,7 +91,6 @@ class LinkWireless {
       return false;
 
     return sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, data).success &&
-           //  sendCommand(0x13).success &&
            sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
   }
 
@@ -105,8 +104,6 @@ class LinkWireless {
     if (result.responses.size() == 0)
       return response;
     response.clientIds = result.responses;
-
-    // sendCommand(0x13);  // meh
 
     return response;
   }
@@ -145,102 +142,23 @@ class LinkWireless {
     return response;
   }
 
-  // TODO: CHECK RANGES
+  // TODO: SIGNAL LEVEL (BEFORE RECEIVE)
+  // u8 getSignalLevel() {
+  //   if (!sendCommand(0x11).success)
+  //     return 0;
+  // }
+
   bool sendData(std::vector<u32> data) {
     return sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, data).success;
   }
 
-  bool sendDataWait(std::vector<u32> data) {
-    // TODO: IT WORKS RANDOMLY
-    // TODO: TEST THIS ON BOTH SIDES
-
-    if (!sendCommand(0x25, data).success)  // TODO: SEND DATA WAIT
-      return false;
-
-    linkSPI->setSlaveMode2();
-
-    u32 command = linkSPI->transfer(LINK_WIRELESS_DATA_REQUEST);
-    while (!linkSPI->_isSIHigh())
-      ;
-
-    if (msB32(command) != LINK_WIRELESS_COMMAND_HEADER) {
-      debug("NO HEADER: " + std::to_string(command));
-      while (true)
-        ;
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
-      return false;
-    }
-    if (lsB32(command) == 0x0027) {  // or 27 = inversion end
-      command = linkSPI->transfer(0x996600a7);
-      debug(">> RECEIVED: " + std::to_string(command));
-      while (!linkSPI->_isSIHigh())
-        ;
-      if (command != LINK_WIRELESS_DATA_REQUEST) {
-        debug("NO DATA REQUEST (END): " + std::to_string(command));
-        while (true)
-          ;
-        linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
-        return false;
-      }
-
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
-
-      wait(LINK_WIRELESS_TRANSFER_WAIT);
-      return true;
-    }
-
-    if (lsB32(command) == 0x0128) {
-      linkSPI->transfer(LINK_WIRELESS_DATA_REQUEST);
-      while (!linkSPI->_isSIHigh())
-        ;
-    }
-
-    if (lsB32(command) != 0x0128 &&
-        lsB32(command) != 0x0028) {                // TODO: WAIT END RESPONSE
-      debug("NO 28: " + std::to_string(command));  // TODO: OR 29 = disconnected
-      while (true)
-        ;
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
-      return false;
-    }
-
-    // TODO: WAIT END ACK
-    command = linkSPI->transfer(0x996600a8);
-    while (!linkSPI->_isSIHigh())
-      ;
-    linkSPI->_setSOLow();
-
-    // // TODO: WAIT END ACK
-    if (command != LINK_WIRELESS_DATA_REQUEST) {
-      debug("NO WAIT: " + std::to_string(command));
-      while (true)
-        ;
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
-      return false;
-    }
-
-    linkSPI->setMasterMode2();
-    linkSPI->set2MbpsSpeed2();
-
-    return true;
-  }
-
   bool receiveData(std::vector<u32>& data) {
-    if (!sendCommand(0x11).success)  // TODO: SIGNAL LEVEL
-      return false;
-
     auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
     data = result.responses;
     return result.success;
   }
 
   bool getBroadcasts(std::vector<u32>& data) {
-    // if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST,
-    //                  std::vector<u32>{0x43490202, 0x4c432045, 0x45424d49,
-    //                                   0x8a000052, 0x544e494e, 0x4f444e45})
-    //          .success)
-    //   return false;  // TODO: NOT NEEDED?
-
     if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success)
       return false;
 
@@ -356,20 +274,11 @@ class LinkWireless {
     u16 data = lsB32(response);
     u8 responses = msB16(data);
     u8 ack = lsB16(data);
-    if (header != LINK_WIRELESS_COMMAND_HEADER) {
-      // TODO: REMOVE
-      debug("HEADER FAILED! " + std::to_string(response));
-      while (true)
-        ;
+
+    if (header != LINK_WIRELESS_COMMAND_HEADER)
       return result;
-    }
-    if (ack != type + LINK_WIRELESS_RESPONSE_ACK) {
-      // TODO: REMOVE
-      debug("ACK FAILED! " + std::to_string(response));
-      while (true)
-        ;
+    if (ack != type + LINK_WIRELESS_RESPONSE_ACK)
       return result;
-    }
 
     for (u32 i = 0; i < responses; i++)
       result.responses.push_back(transfer(LINK_WIRELESS_DATA_REQUEST));

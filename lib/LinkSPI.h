@@ -101,20 +101,23 @@ class LinkSPI {
   }
 
   template <typename F>
-  u32 transfer(u32 data, F cancel, bool async = false, bool customAck = false) {
+  u32 transfer(u32 data,
+               F cancel,
+               bool _async = false,
+               bool _customAck = false) {
     if (asyncState != IDLE)
       return LINK_SPI_NO_DATA;
 
     setData(data);
 
-    if (async) {
+    if (_async) {
       asyncState = WAITING;
       setInterruptsOn();
     } else {
       setInterruptsOff();
     }
 
-    // enableTransfer();
+    enableTransfer();
 
     while (isMaster() && waitMode && !isSlaveReady())
       if (cancel()) {
@@ -123,11 +126,10 @@ class LinkSPI {
         asyncState = IDLE;
         return LINK_SPI_NO_DATA;
       }
-    enableTransfer();  // TODO: MOVE HERE! AND TEST
 
     startTransfer();
 
-    if (async)
+    if (_async)
       return LINK_SPI_NO_DATA;
 
     while (!isReady())
@@ -137,7 +139,7 @@ class LinkSPI {
         return LINK_SPI_NO_DATA;
       }
 
-    if (!customAck)
+    if (!_customAck)
       disableTransfer();
 
     return getData();
@@ -180,11 +182,6 @@ class LinkSPI {
   void _setSOHigh() { setBitHigh(LINK_SPI_BIT_SO); }
   void _setSOLow() { setBitLow(LINK_SPI_BIT_SO); }
   bool _isSIHigh() { return isBitHigh(LINK_SPI_BIT_SI); }
-
-  // TODO: CHANGE MODE ON THE FLY
-  void setSlaveMode2() { setBitLow(LINK_SPI_BIT_CLOCK); }
-  void setMasterMode2() { setBitHigh(LINK_SPI_BIT_CLOCK); }
-  void set2MbpsSpeed2() { setBitHigh(LINK_SPI_BIT_CLOCK_SPEED); }
 
  private:
   Mode mode = Mode::SLAVE;
