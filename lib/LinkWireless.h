@@ -52,6 +52,7 @@
 #define LINK_WIRELESS_COMMAND_FINISH_CONNECTION 0x21
 #define LINK_WIRELESS_COMMAND_SEND_DATA 0x24
 #define LINK_WIRELESS_COMMAND_RECEIVE_DATA 0x26
+#define LINK_WIRELESS_COMMAND_DISCONNECT 0x30
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
@@ -86,7 +87,7 @@ class LinkWireless {
     stop();
   }
 
-  bool host(std::vector<u32> data) {
+  bool broadcast(std::vector<u32> data) {
     if (data.size() != LINK_WIRELESS_BROADCAST_SIZE)
       return false;
 
@@ -167,6 +168,10 @@ class LinkWireless {
     auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END);
     data = result.responses;
     return result.success;
+  }
+
+  bool disconnect() {
+    return sendCommand(LINK_WIRELESS_COMMAND_DISCONNECT).success;
   }
 
   ~LinkWireless() {

@@ -80,9 +80,9 @@ void activate() {
 void host() {
   log("Hosting...");
 
-  if (!linkWireless->host(std::vector<u32>{0x43498202, 0x4c432045, 0x45424d49,
-                                           0x8a000052, 0x544e494e,
-                                           0x4f444e45})) {
+  if (!linkWireless->broadcast(std::vector<u32>{0x43498202, 0x4c432045,
+                                                0x45424d49, 0x8a000052,
+                                                0x544e494e, 0x4f444e45})) {
     log("Hosting failed :(");
     hang();
     return;
@@ -174,41 +174,54 @@ void messageLoop(bool acceptNewClients) {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    if (!sending) {
+    if (!sending && (keys & KEY_A)) {
       sending = true;
       bool result = linkWireless->sendData(
-          acceptNewClients ? std::vector<u32>{0xf, 0x12345676, 0x12345677}
-                           // use bytes 1 and 2
-                           : std::vector<u32>{0x900, 0xb0cacafd, 0xb0cacafe});
-      // log("Send result: " + std::to_string(result));
+          acceptNewClients ? std::vector<u32>{0xf, i, 12345678}
+                           : std::vector<u32>{0x900, i, 13579513});
+      log("Send result: " + std::to_string(result));
       i++;
+    }
+    if (sending && !(keys & KEY_A))
+      sending = false;
 
-      std::vector<u32> receivedData = std::vector<u32>{};
-      if (!linkWireless->receiveData(receivedData)) {
-        log("Receive failed :(");
+    std::vector<u32> receivedData = std::vector<u32>{};
+    if (!linkWireless->receiveData(receivedData)) {
+      log("Receive failed :(");
+      hang();
+      return;
+    }
+    if (receivedData.size() > 0) {
+      std::string str = "Total: " + std::to_string(receivedData.size()) + "\n";
+      for (u32& number : receivedData)
+        str += std::to_string(number) + "\n";
+      log(str);
+    }
+
+    if (acceptNewClients) {
+      auto newConnection = linkWireless->acceptConnection();
+      if (!newConnection.success) {
+        log("Accept failed :(");
         hang();
         return;
       }
-      if (receivedData.size() > 1) {
-        std::string str = "Total " + std::to_string(receivedData.size()) + "\n";
-        for (u32& number : receivedData)
+      if (newConnection.clientIds.size() > 1) {
+        std::string str = "New connection: " +
+                          std::to_string(newConnection.clientIds.size()) + "\n";
+        for (u32& number : newConnection.clientIds)
           str += std::to_string(number) + "\n";
         log(str);
       }
     }
-    if (sending)
-      sending = false;
 
-    // if (acceptNewClients) {
-    //   auto newConnection = linkWireless->acceptConnection();
-    //   if (!newConnection.success) {
-    //     log("Accept failed :(");
-    //     hang();
-    //     return;
-    //   }
-    //   if (newConnection.clientIds.size() > 1)
-    //     log("New connection: " + std::to_string(newConnection.clientIds[1]));
-    // }
+    if ((keys & KEY_START)) {
+      if (!linkWireless->disconnect()) {
+        log("Accept failed :(");
+        hang();
+        return;
+      }
+      return;
+    }
 
     vBlankWait();
   }
