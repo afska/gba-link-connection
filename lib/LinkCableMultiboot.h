@@ -17,7 +17,7 @@
 //           // (when this returns true, transfer will be canceled)
 //         }
 //       );
-//       // `result` should be LinkCableMultiboot::SUCCESS
+//       // `result` should be LinkCableMultiboot::Result::SUCCESS
 // --------------------------------------------------------------------------
 // considerations:
 // - for better results, turn on the GBAs after calling the `sendRom` method!
