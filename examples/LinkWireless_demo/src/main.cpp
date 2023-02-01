@@ -177,7 +177,7 @@ void messageLoop(bool acceptNewClients) {
     if (!sending) {
       sending = true;
       bool result = linkWireless->sendDataWait(std::vector<u32>{1, i});
-      log("Send result: " + std::to_string(result));
+      // log("Send result: " + std::to_string(result));
       i++;
 
       std::vector<u32> receivedData = std::vector<u32>{};
