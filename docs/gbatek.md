@@ -1,4 +1,4 @@
-From: http://problemkaputt.de/gbatek.htm
+🌎 From: http://problemkaputt.de/gbatek.htm 🌎
 
 # GBA Communication Ports
 

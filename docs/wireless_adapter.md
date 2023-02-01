@@ -1,7 +1,7 @@
 Game Boy Advance Wireless Adapter (14 October 2022)
 -------------------------------------------------
 
-From: https://blog.kuiper.dev/gba-wireless-adapter
+🌎 From: https://blog.kuiper.dev/gba-wireless-adapter 🌎
 
 Some people may be aware that I have played around with the GBA wireless adapter, indeed I’ve made one that works over the internet but unstably. The reason that I hadn’t made this post earlier is because I wanted to make it stable before releasing the code and writing it up. Alas, I haven’t had much motivation to continue, which is a shame given I got so close.
 

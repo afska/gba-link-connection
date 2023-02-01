@@ -176,10 +176,10 @@ void messageLoop(bool acceptNewClients) {
 
     if (!sending) {
       sending = true;
-      bool result = linkWireless->sendDataWait(
-          acceptNewClients
-              ? std::vector<u32>{0x1}
-              : std::vector<u32>{0x900, 0x0c010487, 0x00001a00, 0x00000000});
+      bool result = linkWireless->sendData(
+          acceptNewClients ? std::vector<u32>{0xf, 0x12345676, 0x12345677}
+                           // use bytes 1 and 2
+                           : std::vector<u32>{0x900, 0xb0cacafd, 0xb0cacafe});
       // log("Send result: " + std::to_string(result));
       i++;
 
@@ -189,8 +189,12 @@ void messageLoop(bool acceptNewClients) {
         hang();
         return;
       }
-      if (receivedData.size() > 1)
-        log("<<< " + std::to_string(receivedData[1]));
+      if (receivedData.size() > 1) {
+        std::string str = "Total " + std::to_string(receivedData.size()) + "\n";
+        for (u32& number : receivedData)
+          str += std::to_string(number) + "\n";
+        log(str);
+      }
     }
     if (sending)
       sending = false;

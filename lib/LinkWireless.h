@@ -90,12 +90,8 @@ class LinkWireless {
     if (data.size() != LINK_WIRELESS_BROADCAST_SIZE)
       return false;
 
-    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, std::vector<u32>{0x003C0420})
-             .success)
-      return false;
-
     return sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, data).success &&
-           sendCommand(0x13).success &&
+           //  sendCommand(0x13).success &&
            sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
   }
 
@@ -110,7 +106,7 @@ class LinkWireless {
       return response;
     response.clientIds = result.responses;
 
-    sendCommand(0x13);  // meh
+    // sendCommand(0x13);  // meh
 
     return response;
   }
@@ -239,15 +235,11 @@ class LinkWireless {
   }
 
   bool getBroadcasts(std::vector<u32>& data) {
-    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, std::vector<u32>{0x003f0420})
-             .success)
-      return false;
-
-    if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST,
-                     std::vector<u32>{0x43490202, 0x4c432045, 0x45424d49,
-                                      0x8a000052, 0x544e494e, 0x4f444e45})
-             .success)
-      return false;  // TODO: NOT NEEDED?
+    // if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST,
+    //                  std::vector<u32>{0x43490202, 0x4c432045, 0x45424d49,
+    //                                   0x8a000052, 0x544e494e, 0x4f444e45})
+    //          .success)
+    //   return false;  // TODO: NOT NEEDED?
 
     if (!sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success)
       return false;
@@ -294,6 +286,10 @@ class LinkWireless {
     wait(LINK_WIRELESS_TRANSFER_WAIT);
 
     if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
+      return false;
+
+    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, std::vector<u32>{0x003C0420})
+             .success)
       return false;
 
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
