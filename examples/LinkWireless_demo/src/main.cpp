@@ -80,9 +80,9 @@ void activate() {
 void host() {
   log("Hosting...");
 
-  if (!linkWireless->host(std::vector<u32>{0x0c020002, 0x00005ce1, 0x00000000,
-                                           0x09000040, 0xc1cfc8cd,
-                                           0x00ffccbb})) {
+  if (!linkWireless->host(std::vector<u32>{0x43498202, 0x4c432045, 0x45424d49,
+                                           0x8a000052, 0x544e494e,
+                                           0x4f444e45})) {
     log("Hosting failed :(");
     hang();
     return;
@@ -176,7 +176,10 @@ void messageLoop(bool acceptNewClients) {
 
     if (!sending) {
       sending = true;
-      bool result = linkWireless->sendDataWait(std::vector<u32>{1, i});
+      bool result = linkWireless->sendDataWait(
+          acceptNewClients
+              ? std::vector<u32>{0x1}
+              : std::vector<u32>{0x900, 0x0c010487, 0x00001a00, 0x00000000});
       // log("Send result: " + std::to_string(result));
       i++;
 
