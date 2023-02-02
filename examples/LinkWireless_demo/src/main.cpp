@@ -201,15 +201,15 @@ void messageLoop() {
     }
     if (messages.size() > 0) {
       for (auto& message : messages) {
+        u32 expected = counters[message.playerId] + 1;
+
         counters[message.playerId] = message.data[0];
 
         // Check for packet loss
-        if (packetLossCheck &&
-            message.data[0] != counters[message.playerId] + 1) {
+        if (packetLossCheck && message.data[0] != expected) {
           log("Wait... p" + std::to_string(message.playerId) + "\n" +
-              "\nExpected: " + std::to_string(counters[message.playerId] + 1) +
-              "\nReceived: " + std::to_string(message.data[0]) +
-              "\n\npacket loss? :(");
+              "\nExpected: " + std::to_string(expected) + "\nReceived: " +
+              std::to_string(message.data[0]) + "\n\npacket loss? :(");
           linkWireless->disconnect();
           hang();
           return;

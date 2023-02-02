@@ -86,8 +86,10 @@ class LinkWireless {
     std::vector<u32> data = std::vector<u32>{};
   };
 
-  explicit LinkWireless(u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT) {
+  explicit LinkWireless(u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
+                        bool forwarding = true) {
     this->msgTimeout = msgTimeout;
+    this->forwarding = forwarding;
   }
 
   bool isActive() { return isEnabled; }
@@ -303,7 +305,7 @@ class LinkWireless {
         return disconnect();
     }
 
-    if (state == SERVING) {
+    if (state == SERVING && forwarding) {
       for (auto& message : messages)
         send(message.data, message.playerId);
     }
@@ -349,6 +351,7 @@ class LinkWireless {
   };
 
   u32 msgTimeout;
+  bool forwarding;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
