@@ -279,6 +279,9 @@ class LinkWireless {
       if (state == CONNECTED && playerId == 0)
         this->playerCount = playerCount;
 
+      timeouts[0] = 0;
+      timeouts[playerId] = 0;
+
       if (playerId == this->playerId) {
         i += size;
         continue;
@@ -291,8 +294,6 @@ class LinkWireless {
           message.data.push_back(words[i + 1 + j]);
         messages.push_back(message);
       }
-
-      timeouts[playerId] = 0;
 
       i += size;
     }
