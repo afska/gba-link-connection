@@ -36,8 +36,8 @@ int main() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    log("START = Activate\nL = Serve\nR = Connect\n\n (DOWN = ok)\n (SELECT = "
-        "cancel)");
+    log("START = Activate\nL = Serve\nR = Connect\n\n (DOWN = ok)\n "
+        "(SELECT = cancel)");
 
     // START = Activate
     if ((keys & KEY_START) && !activating) {
@@ -165,18 +165,19 @@ void connect() {
 }
 
 void messageLoop() {
+  // Each player starts counting from a different value:
+  // 1, 11, 21, 31, 41
   std::vector<u32> counters;
   for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
-    counters.push_back(0);
+    counters.push_back(1 + i * 10);
 
-  counters[linkWireless->getPlayerId()] = 1 + linkWireless->getPlayerId() * 10;
   bool sending = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // (5) Send data
-    if (!sending && (keys & KEY_A)) {
+    if ((keys & KEY_B) || (!sending && (keys & KEY_A))) {
       sending = true;
       counters[linkWireless->getPlayerId()]++;
       if (!linkWireless->send(
@@ -197,8 +198,19 @@ void messageLoop() {
       return;
     }
     if (messages.size() > 0) {
-      for (auto& message : messages)
+      for (auto& message : messages) {
+        if (message.data[0] != counters[message.playerId] + 1) {
+          log("Wait... p" + std::to_string(message.playerId) + "\n" +
+              "\nExpected: " + std::to_string(counters[message.playerId] + 1) +
+              "\nReceived: " + std::to_string(message.data[0]) +
+              "\n\npacket loss? :(");
+          linkWireless->disconnect();
+          hang();
+          return;
+        }
+
         counters[message.playerId] = message.data[0];
+      }
     }
 
     // Accept new connections
@@ -221,7 +233,9 @@ void messageLoop() {
     }
 
     std::string output =
-        "Players: " + std::to_string(linkWireless->getPlayerCount()) + "\n\n";
+        "Players: " + std::to_string(linkWireless->getPlayerCount()) +
+        "\n\n(press A to increment counter)\n(hold B to do it "
+        "continuously)\n\n";
     for (u32 i = 0; i < linkWireless->getPlayerCount(); i++) {
       output +=
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
