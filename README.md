@@ -133,3 +133,45 @@ Name | Return type | Description
 ⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
 
 ⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+
+# 📻 LinkWireless
+
+*(aka GBA Wireless Adapter)*
+
+This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this article](docs/wireless_adapter.md) is very helpful. I've updated the blog post to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
+
+![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
+
+## Constructor
+
+`new LinkWireless(...)` accepts these **optional** parameters:
+
+Name | Type | Default | Description
+--- | --- | --- | ---
+`msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
+`forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
+
+## Methods
+
+✔️ Most of the actions return a boolean, indicating if the action was successful. If not, the connection with the adapter is reset and the game needs to start again. All actions are synchronic.
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | **bool** | Activates the library.
+`deactivate()` | - | Deactivates the library.
+`serve()` | **bool** | Starts broadcasting a server and changes the state to `SERVING`.
+`acceptConnections()` | **bool** | Accepts new clients and updates the player count.
+`connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
+`keepConnecting()` | **bool** | When connecting, needs to be called until the state is `CONNECTED`. It assigns a player id.
+`getServerIds(serverIds)` | **bool** | Fills the `serverIds` vector with all the currently broadcasting servers.
+`send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
+`receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
+`disconnect()` | **bool** | Disconnects and resets the adapter.
+`getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+`getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
+`getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
+
+⚠️ packet loss can occur, so always send the full game state or implement retransmission on top of this!
+
+⚠️ the adapter can transfer a maximum of twenty 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when `forwarding` is on)!

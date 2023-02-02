@@ -34,6 +34,13 @@
 // - 7) Disconnect:
 //       linkWireless->disconnect();
 // --------------------------------------------------------------------------
+// considerations:
+// - packet loss can occur, so always send the full game state or implement
+// retransmission on top of this!
+// - the adapter can transfer a maximum of twenty 32-bit words at a
+// time, and messages are often concatenated together, so keep things way below
+// this limit (specially when `forwarding` is on)!
+// --------------------------------------------------------------------------
 
 #include <tonc_core.h>
 #include <vector>
@@ -143,6 +150,42 @@ class LinkWireless {
     return true;
   }
 
+  bool getServerIds(std::vector<u16>& serverIds) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != AUTHENTICATED)
+      return false;
+
+    bool success1 =
+        sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success;
+
+    if (!success1) {
+      reset();
+      return false;
+    }
+
+    wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT);
+
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END);
+    bool success2 =
+        result.success &&
+        result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
+
+    if (!success2) {
+      reset();
+      return false;
+    }
+
+    u32 totalBroadcasts =
+        result.responses.size() / LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH;
+
+    for (u32 i = 0; i < totalBroadcasts; i++) {
+      serverIds.push_back(
+          (u16)result.responses[LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH * i]);
+    }
+
+    return true;
+  }
+
   bool connect(u16 serverId) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED)
@@ -193,42 +236,6 @@ class LinkWireless {
 
     playerId = assignedPlayerId;
     state = CONNECTED;
-
-    return true;
-  }
-
-  bool getServerIds(std::vector<u16>& serverIds) {
-    LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED)
-      return false;
-
-    bool success1 =
-        sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success;
-
-    if (!success1) {
-      reset();
-      return false;
-    }
-
-    wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT);
-
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END);
-    bool success2 =
-        result.success &&
-        result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
-
-    if (!success2) {
-      reset();
-      return false;
-    }
-
-    u32 totalBroadcasts =
-        result.responses.size() / LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH;
-
-    for (u32 i = 0; i < totalBroadcasts; i++) {
-      serverIds.push_back(
-          (u16)result.responses[LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH * i]);
-    }
 
     return true;
   }
