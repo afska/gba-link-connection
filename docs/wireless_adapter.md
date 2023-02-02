@@ -260,7 +260,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
 
-⚠️ Reading broadcasts is a two-step process: First, you send `0x1c`. Then, wait until the adapter retrieves data (games usually wait 1 full second). Lastly, send a `0x1e` and it will returned what's described above.
+⚠️ Reading broadcasts is a two-step process: First, you send `0x1c`. Then, wait until the adapter retrieves data (games usually wait 1 full second). Lastly, send a `0x1e` and it will return what's described above.
 
 #### Setup - `0x17`
 
@@ -300,7 +300,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   Responds with 16 bit ID as lower 16 bits if finished, otherwise responds with `0x01000000`.
     
-⚠️ It also responds in its bits 4 and 5 a number that represents the `clientNumber` (0 to 3). Lets say our ID is `abcd`, it will respond `0x0000abcd` if we are the first client that connects to that server, `0x0001abcd` if we are the second one, `0x0010abcd` third, and `0x0011abcd` fourth. Games allow 5 simultaneous adapters at max.
+⚠️ It also responds in its bits 4 and 5 a number that represents the `clientNumber` (0 to 3). Lets say our ID is `abcd`, it will respond `0x0000abcd` if we are the first client that connects to that server, `0x0001abcd` if we are the second one, `0x0002abcd` third, and `0x0003abcd` fourth. Games allow 5 simultaneous adapters at max.
 
 #### FinishConnection - `0x21`
 
@@ -319,7 +319,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 ⚠️ Each `SendData` can send up to 90 bytes (or 22 values).
 
-⚠️ The first byte **is a header**, and it has to be correct. Otherwise, the adapter will ignore the command and won't sent any data. The header is as follows:
+⚠️ The first byte **is a header**, and it has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
 - For hosts: the number of `bytes` that comes next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   * `0x00000008`, `0xaabbccdd`, `0x12345678`.
 - For guests: `(1 << (3 + (1+clientNumber) * 5)) * bytes`. The `clientNumber` is what I described in [IsConnectAttempt](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
