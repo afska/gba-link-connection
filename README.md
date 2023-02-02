@@ -153,7 +153,7 @@ Name | Type | Default | Description
 
 ## Methods
 
-✔️ Most of the actions return a boolean, indicating if the action was successful. If not, the connection with the adapter is reset and the game needs to start again. All actions are synchronic.
+✔️ Most of the methods return a boolean, indicating if the action was successful. If not, the connection with the adapter is reset and the game needs to start again. All actions are synchronic.
 
 Name | Return type | Description
 --- | --- | ---

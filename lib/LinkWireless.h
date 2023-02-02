@@ -39,7 +39,7 @@
 // retransmission on top of this!
 // - the adapter can transfer a maximum of twenty 32-bit words at a
 // time, and messages are often concatenated together, so keep things way below
-// this limit (specially when `forwarding` is on)!
+// this limit (specially when forwarding is on)!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
