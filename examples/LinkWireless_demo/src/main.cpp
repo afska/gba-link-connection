@@ -170,8 +170,10 @@ void messageLoop() {
   std::vector<u32> counters;
   for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
     counters.push_back(1 + i * 10);
-
   bool sending = false;
+
+  bool packetLossCheck = false;
+  bool switching = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -199,7 +201,11 @@ void messageLoop() {
     }
     if (messages.size() > 0) {
       for (auto& message : messages) {
-        if (message.data[0] != counters[message.playerId] + 1) {
+        counters[message.playerId] = message.data[0];
+
+        // Check for packet loss
+        if (packetLossCheck &&
+            message.data[0] != counters[message.playerId] + 1) {
           log("Wait... p" + std::to_string(message.playerId) + "\n" +
               "\nExpected: " + std::to_string(counters[message.playerId] + 1) +
               "\nReceived: " + std::to_string(message.data[0]) +
@@ -208,8 +214,6 @@ void messageLoop() {
           hang();
           return;
         }
-
-        counters[message.playerId] = message.data[0];
       }
     }
 
@@ -232,10 +236,19 @@ void messageLoop() {
       return;
     }
 
+    // Packet loss check setting
+    if (!switching && (keys & KEY_UP)) {
+      switching = true;
+      packetLossCheck = !packetLossCheck;
+    }
+    if (switching && (!(keys & KEY_UP)))
+      switching = false;
+
     std::string output =
         "Players: " + std::to_string(linkWireless->getPlayerCount()) +
         "\n\n(press A to increment counter)\n(hold B to do it "
-        "continuously)\n\n";
+        "continuously)\n\nPacket loss check: " +
+        (packetLossCheck ? "ON" : "OFF") + "\n(switch with UP)\n\n";
     for (u32 i = 0; i < linkWireless->getPlayerCount(); i++) {
       output +=
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
