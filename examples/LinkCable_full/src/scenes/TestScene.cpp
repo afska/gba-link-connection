@@ -2,7 +2,7 @@
 
 #include <libgba-sprite-engine/background/text_stream.h>
 
-#include "../../_lib/LinkConnection.h"
+#include "../../_lib/LinkCable.h"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
@@ -21,7 +21,7 @@ static std::unique_ptr<InputHandler> selectHandler =
 
 inline void send(u16 data) {
   DEBULOG("-> " + asStr(data));
-  linkConnection->send(data);
+  linkCable->send(data);
 }
 
 std::vector<Background*> TestScene::backgrounds() {
@@ -52,13 +52,12 @@ void TestScene::tick(u16 keys) {
   selectHandler->setIsPressed(keys & KEY_SELECT);
 
   // log events
-  if (!isConnected && linkConnection->isConnected()) {
+  if (!isConnected && linkCable->isConnected()) {
     isConnected = true;
     initialized = false;
-    DEBULOG("! connected (" + asStr(linkConnection->playerCount()) +
-            " players)");
+    DEBULOG("! connected (" + asStr(linkCable->playerCount()) + " players)");
   }
-  if (isConnected && !linkConnection->isConnected()) {
+  if (isConnected && !linkCable->isConnected()) {
     isConnected = false;
     DEBULOG("! disconnected");
   }
@@ -68,8 +67,8 @@ void TestScene::tick(u16 keys) {
   }
 
   // determine which value should be sent
-  u16 value = LINK_NO_DATA;
-  if (!initialized && linkConnection->currentPlayerId() == 1) {
+  u16 value = LINK_CABLE_NO_DATA;
+  if (!initialized && linkCable->currentPlayerId() == 1) {
     initialized = true;
     value = 999;
   }
@@ -84,16 +83,16 @@ void TestScene::tick(u16 keys) {
     send(counter);
     counter++;
     send(counter);
-  } else if (value != LINK_NO_DATA) {
+  } else if (value != LINK_CABLE_NO_DATA) {
     send(value);
   }
 
   // process received data
-  if (linkConnection->isConnected()) {
-    for (u32 i = 0; i < linkConnection->playerCount(); i++) {
-      while (linkConnection->canRead(i)) {
-        u16 message = linkConnection->read(i);
-        if (i != linkConnection->currentPlayerId())
+  if (linkCable->isConnected()) {
+    for (u32 i = 0; i < linkCable->playerCount(); i++) {
+      while (linkCable->canRead(i)) {
+        u16 message = linkCable->read(i);
+        if (i != linkCable->currentPlayerId())
           DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
                   asStr(frameCounter) + ")");
       }
@@ -101,5 +100,5 @@ void TestScene::tick(u16 keys) {
   }
 
   // mark link buffer as consumed
-  linkConnection->consume();
+  linkCable->consume();
 }

@@ -1,18 +1,18 @@
 #include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
-#include "../../_lib/LinkConnection.h"
+#include "../../_lib/LinkCable.h"
 #include "../../_lib/interrupt.h"
 #include "scenes/TestScene.h"
 #include "utils/SceneUtils.h"
 
 // FULL:
-// This test has a menu and lets the user send data in different ways.
+// This example has a menu and lets the user send data in different ways.
 
 void setUpInterrupts();
 void printTutorial();
 static std::shared_ptr<GBAEngine> engine{new GBAEngine()};
 static std::unique_ptr<TestScene> testScene{new TestScene(engine)};
-LinkConnection* linkConnection = new LinkConnection();
+LinkCable* linkCable = new LinkCable();
 
 int main() {
   setUpInterrupts();
@@ -25,22 +25,22 @@ int main() {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // enable and disable
-    if ((keys & KEY_DOWN) && linkConnection->isActive()) {
-      linkConnection->deactivate();
+    if ((keys & KEY_DOWN) && linkCable->isActive()) {
+      linkCable->deactivate();
       DEBULOG("! stopped");
     }
-    if ((keys & KEY_START) && !linkConnection->isActive()) {
-      linkConnection->activate();
+    if ((keys & KEY_START) && !linkCable->isActive()) {
+      linkCable->activate();
       DEBULOG("! started");
     }
 
     // log player id/count and important flags
     TextStream::instance().setText(
-        "P" + asStr(linkConnection->currentPlayerId()) + "/" +
-            asStr(linkConnection->playerCount()) + "-R" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_READY)) + "-S" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_START)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_BIT_ERROR)),
+        "P" + asStr(linkCable->currentPlayerId()) + "/" +
+            asStr(linkCable->playerCount()) + "-R" +
+            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_READY)) + "-S" +
+            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_START)) + "-E" +
+            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_ERROR)),
         0, 14);
 
     engine->update();
@@ -59,12 +59,12 @@ inline void ISR_reset() {
 inline void setUpInterrupts() {
   interrupt_init();
 
-  // LinkConnection
-  interrupt_set_handler(INTR_VBLANK, LINK_ISR_VBLANK);
+  // LinkCable
+  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_ISR_SERIAL);
+  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
   interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_ISR_TIMER);
+  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
   // A+B+START+SELECT

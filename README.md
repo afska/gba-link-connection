@@ -1,23 +1,41 @@
 ﻿# gba-link-connection
 
-A GameBoy Advance Link Cable library to add multiplayer support to homebrew games.
+A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is providing multiplayer support to homebrew games.
+
+- [👾](#-LinkCable) [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
+- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
+- [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
+- [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
+- [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
+
+*(click on the emojis for documentation)*
+
+## Usage
+
+- Include the library you want (e.g. [LinkCable.h](lib/LinkCable.h)) in your game code, and read its comment for instructions.
+- Check out the [examples](examples) folder
+	* Builds are available in *Releases*.
+	* They can be tested on real GBAs or using emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
+
+### Makefile actions (for all examples)
+
+```bash
+make [ clean | build | start | rebuild | restart ]
+```
+
+# 👾 LinkCable
+
+*(aka Multi-Play Mode)*
+
+This is the Link Port mode that games use for multiplayer.
 
 The library uses message queues to send/receive data and transmits when it's possible. As it uses CPU interrupts, the connection is alive even if a console drops a frame or gets stucked in a long iteration loop. After such event, all nodes end up receiving all the pending messages, so a lockstep communication protocol can be used.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/99154109-1d131980-268c-11eb-86b1-7a728f639e5e.png)
 
-## Usage
+## Constructor
 
-All the complexity is abstracted in a single header file that exposes an easy-to-use interface.
-
-- Include [LinkConnection.h](lib/LinkConnection.h) in your game code, and read its comment with instructions.
-- Check out the [examples](examples) folder
-	* Builds are available in *Releases*.
-	* They can be tested on real GBAs or with emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
-
-## Constructor options
-
-`new LinkConnection(...)` accepts these **optional** parameters:
+`new LinkCable(...)` accepts these **optional** parameters:
 
 Name | Type | Default | Description
 --- | --- | --- | ---
@@ -28,116 +46,132 @@ Name | Type | Default | Description
 `interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between messages *(50 = 3,052ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 
-## Makefile actions
+## Methods
 
-- `make clean`
-- `make build`
-- `make start`
-- `make rebuild`
-- `make restart`
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | - | Activates the library.
+`deactivate()` | - | Deactivates the library.
+`isConnected()` | **bool** | Returns `true` if there are at least 2 connected players.
+`playerCount()` | **u8** *(0~4)* | Returns the number of connected players.
+`currentPlayerId()` | **u8** *(0~3)* | Returns the current player id.
+`canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`.
+`read(playerId)` | **u16** | Returns one message from player #`playerId`.
+`consume()` | - | Marks the current data as processed, enabling the library to fetch more.
+`send(data)` | - | Sends `data` to all connected players.
 
-## Documentation
+⚠️ `0xFFFF` and `0x0` are reserved values, so don't use them!
 
-```
-Multi-Player mode can be used to communicate between up to 4 units.
+# 💻 LinkCableMultiboot
 
-> 4000134h - RCNT (R) - Mode Selection, in Normal/Multiplayer/UART modes (R/W)
-  Bit   Expl.
-  0-3   Undocumented (current SC,SD,SI,SO state, as for General Purpose mode)
-  4-8   Not used     (Should be 0, bits are read/write-able though)
-  9-13  Not used     (Always 0, read only)
-  14    Not used     (Should be 0, bit is read/write-able though)
-  15    Must be zero (0) for Normal/Multiplayer/UART modes
-Note: Even though undocumented, many Nintendo games are using Bit 0 to test current SC state in multiplay mode.
+*(aka Multiboot through Multi-Play mode)*
 
-> 4000128h - SIOCNT - SIO Control, usage in MULTI-PLAYER Mode (R/W)
-  Bit   Expl.
-  0-1   Baud Rate     (0-3: 9600,38400,57600,115200 bps)
-  2     SI-Terminal   (0=Parent, 1=Child)                  (Read Only)
-  3     SD-Terminal   (0=Bad connection, 1=All GBAs Ready) (Read Only)
-  4-5   Multi-Player ID     (0=Parent, 1-3=1st-3rd child)  (Read Only)
-  6     Multi-Player Error  (0=Normal, 1=Error)            (Read Only)
-  7     Start/Busy Bit      (0=Inactive, 1=Start/Busy) (Read Only for Slaves)
-  8-11  Not used            (R/W, should be 0)
-  12    Must be "0" for Multi-Player mode
-  13    Must be "1" for Multi-Player mode
-  14    IRQ Enable          (0=Disable, 1=Want IRQ upon completion)
-  15    Not used            (Read only, always 0)
-The ID Bits are undefined until the first transfer has completed.
+This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
 
-> 400012Ah - SIOMLT_SEND - Data Send Register (R/W)
-Outgoing data (16 bit) which is to be sent to the other GBAs.
+![photo](https://user-images.githubusercontent.com/1631752/213667130-fafcbdb1-767f-4f74-98cb-d7e36c4d7e4e.jpg)
 
-> 4000120h - SIOMULTI0 - SIO Multi-Player Data 0 (Parent) (R/W)
-> 4000122h - SIOMULTI1 - SIO Multi-Player Data 1 (1st child) (R/W)
-> 4000124h - SIOMULTI2 - SIO Multi-Player Data 2 (2nd child) (R/W)
-> 4000126h - SIOMULTI3 - SIO Multi-Player Data 3 (3rd child) (R/W)
-These registers are automatically reset to FFFFh upon transfer start.
-After transfer, these registers contain incoming data (16bit each) from all remote GBAs (if any / otherwise still FFFFh), as well as the local outgoing SIOMLT_SEND data.
-Ie. after the transfer, all connected GBAs will contain the same values in their SIOMULTI0-3 registers.
+## Methods
 
-> Initialization
-- Initialize RCNT Bit 14-15 and SIOCNT Bit 12-13 to select Multi-Player mode.
-- Read SIOCNT Bit 3 to verify that all GBAs are in Multi-Player mode.
-- Read SIOCNT Bit 2 to detect whether this is the Parent/Master unit.
+Name | Return type | Description
+--- | --- | ---
+`sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`.
 
-> Recommended Transmission Procedure
-- Write outgoing data to SIODATA_SEND.
-- Master must set Start bit.
-- All units must process received data in SIOMULTI0-3 when transfer completed.
-- After the first successful transfer, ID Bits in SIOCNT are valid.
-- If more data is to be transferred, repeat procedure.
-The parent unit blindly sends data regardless of whether childs have already processed old data/supplied new data. So, parent unit might be required to insert delays between each transfer, and/or perform error checking.
-Also, slave units may signalize that they are not ready by temporarily switching into another communication mode (which does not output SD High, as Multi-Player mode does during inactivity).
+⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
-> Transfer Protocol
->> Beginning
-- The masters SI pin is always LOW.
-- When all GBAs are in Multiplayer mode (ready) SD is HIGH.
-- When master starts the transfer, it sets SC=LOW, slaves receive Busy bit.
->> Step A
-- ID Bits in master unit are set to 0.
-- Master outputs Startbit (LOW), 16bit Data, Stopbit (HIGH) through SD.
-- This data is written to SIOMULTI0 of all GBAs (including master).
-- Master forwards LOW from its SO to 1st childs SI.
-- Transfer ends if next child does not output data after certain time.
->> Step B
-- ID Bits in 1st child unit are set to 1.
-- 1st Child outputs Startbit (LOW), 16bit Data, Stopbit (HIGH) through SD.
-- This data is written to SIOMULTI1 of all GBAs (including 1st child).
-- 1st child forwards LOW from its SO to 2nd childs SI.
-- Transfer ends if next child does not output data after certain time.
->> Step C
-- ID Bits in 2nd child unit are set to 2.
-- 2nd Child outputs Startbit (LOW), 16bit Data, Stopbit (HIGH) through SD.
-- This data is written to SIOMULTI2 of all GBAs (including 2nd child).
-- 2nd child forwards LOW from its SO to 3rd childs SI.
-- Transfer ends if next child does not output data after certain time.
->> Step D
-- ID Bits in 3rd child unit are set to 3.
-- 3rd Child outputs Startbit (LOW), 16bit Data, Stopbit (HIGH) through SD.
-- This data is written to SIOMULTI3 of all GBAs (including 3rd child).
-- Transfer ends (this was the last child).
->> Transfer end
-- Master sets SC=HIGH, all GBAs set SO=HIGH.
-- The Start/Busy bits of all GBAs are automatically cleared.
-- Interrupts are requested in all GBAs (as far as enabled).
+# 🔌 LinkGPIO
 
-> Error Bit
-This bit is set when a slave did not receive SI=LOW even though SC=LOW signalized a transfer (this might happen when connecting more than 4 GBAs, or when the previous child is not connected). Also, the bit is set when a Stopbit wasn't HIGH.
-The error bit may be undefined during active transfer - read only after transfer completion (the transfer continues and completes as normal even if errors have occurred for some or all GBAs).
-Don't know: The bit is automatically reset/initialized with each transfer, or must be manually reset?
+*(aka General Purpose Mode)*
 
-> Transmission Time
-The transmission time depends on the selected Baud rate. And on the amount of Bits (16 data bits plus start/stop bits for each GBA), delays between data for each GBA, plus final timeout (if less than 4 GBAs). That is, depending on the number of connected GBAs:
-  GBAs    Bits    Delays   Timeout
-  1       18      None     Yes
-  2       36      1        Yes
-  3       54      2        Yes
-  4       72      3        None
-(The average Delay and Timeout periods are unknown?)
-Above is not counting the additional CPU time that must be spent on initiating and processing each transfer.
+This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
 
-> Fast One-Way Transmission
-Beside for the actual SIO Multiplayer mode, you can also use SIO Normal mode for fast one-way data transfer from Master unit to all Child unit(s). See chapter about SIO Normal mode for details.
-```
+![photo](https://user-images.githubusercontent.com/1631752/212867547-e0a795aa-da00-4b2c-8640-8db7ea857e19.jpg)
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`reset()` | - | Resets communication mode to General Purpose. **Required to initialize the library!**
+`setMode(pin, direction)` | - | Configures a `pin` to use a `direction` (input or output).
+`getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
+`readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
+`writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
+`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
+
+⚠️ always set the `SI` terminal to an input!
+
+# 🔗 LinkSPI
+
+*(aka Normal Mode)*
+
+This is GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
+
+![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
+`deactivate()` | - | Deactivates the library.
+`transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
+`transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState` and `getAsyncData`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
+`getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
+`getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
+`setWaitModeActive(isActive)` | - | Enables or disables `waitMode` (*).
+`isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
+
+> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
+> 
+> `waitMode` is disabled by default.
+
+⚠️ when using Normal Mode between two GBAs, use a GBC Link Cable!
+
+⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
+
+⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+
+# 📻 LinkWireless
+
+*(aka GBA Wireless Adapter)*
+
+This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this article](docs/wireless_adapter.md) is very helpful. I've updated the blog post to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
+
+![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
+
+## Constructor
+
+`new LinkWireless(...)` accepts these **optional** parameters:
+
+Name | Type | Default | Description
+--- | --- | --- | ---
+`msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
+`forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
+
+## Methods
+
+✔️ Most of the methods return a boolean, indicating if the action was successful. If not, the connection with the adapter is reset and the game needs to start again. All actions are synchronic.
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | **bool** | Activates the library.
+`deactivate()` | - | Deactivates the library.
+`serve()` | **bool** | Starts broadcasting a server and changes the state to `SERVING`.
+`acceptConnections()` | **bool** | Accepts new clients and updates the player count.
+`connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
+`keepConnecting()` | **bool** | When connecting, needs to be called until the state is `CONNECTED`. It assigns a player id.
+`getServerIds(serverIds)` | **bool** | Fills the `serverIds` vector with all the currently broadcasting servers.
+`send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
+`receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
+`disconnect()` | **bool** | Disconnects and resets the adapter.
+`getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+`getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
+`getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
+
+⚠️ packet loss can occur, so always send the full game state or implement retransmission on top of this!
+
+⚠️ the adapter can transfer a maximum of twenty 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when `forwarding` is on)!
