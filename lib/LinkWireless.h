@@ -24,11 +24,11 @@
 //       // `getState()` should return CONNECTED now...
 //       // `getPlayerId()` should return 1, 2, 3, or 4 (the host is 0)
 // - 5) Send data:
-//       linkConnection->sendData(std::vector<u32>{1, 2, 3});
+//       linkConnection->send(std::vector<u32>{1, 2, 3});
 // - 6) Receive data:
-//       std::vector<u32> data;
-//       linkConnection->receiveData(data);
-//       if (data.size() > 0) {
+//       std::vector<LinkWireless::Message> messages;
+//       linkConnection->receive(messages);
+//       if (messages.size() > 0) {
 //         // ...
 //       }
 // - 7) Disconnect:
@@ -40,10 +40,11 @@
 #include "LinkGPIO.h"
 #include "LinkSPI.h"
 
+#define LINK_WIRELESS_DEFAULT_MSG_TIMEOUT 5
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
-#define LINK_WIRELESS_TIMEOUT 100
+#define LINK_WIRELESS_CMD_TIMEOUT 100
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MAX_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_LOGIN_STEPS 9
@@ -79,6 +80,15 @@ const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
 class LinkWireless {
  public:
   enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
+
+  struct Message {
+    u8 playerId = 0;
+    std::vector<u32> data = std::vector<u32>{};
+  };
+
+  explicit LinkWireless(u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT) {
+    this->msgTimeout = msgTimeout;
+  }
 
   bool isActive() { return isEnabled; }
 
@@ -185,48 +195,6 @@ class LinkWireless {
     return true;
   }
 
-  bool sendData(std::vector<u32> data) {
-    LINK_WIRELESS_RESET_IF_NEEDED
-    if ((state != SERVING && state != CONNECTED) ||
-        data.size() > LINK_WIRELESS_MAX_TRANSFER_LENGTH)
-      return false;
-
-    u32 bytes = data.size() * 4;
-    auto dataWithHeader = std::vector<u32>{
-        playerId == 0 ? bytes : (1 << (3 + playerId * 5)) * bytes};
-    dataWithHeader.insert(dataWithHeader.end(), data.begin(), data.end());
-
-    bool success =
-        sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, dataWithHeader).success;
-
-    if (!success) {
-      reset();
-      return false;
-    }
-
-    return true;
-  }
-
-  // TODO: CHECK MULTIPLE MESSAGES
-  bool receiveData(std::vector<u32>& data) {
-    LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED)
-      return false;
-
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
-    data = result.responses;
-
-    if (!result.success) {
-      reset();
-      return false;
-    }
-
-    if (data.size() > 0)
-      data.erase(data.begin());
-
-    return true;
-  }
-
   bool getServerIds(std::vector<u16>& serverIds) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED)
@@ -263,16 +231,83 @@ class LinkWireless {
     return true;
   }
 
-  // TODO: TEST AND UNHARDCODE
-  bool getSignalLevel(std::vector<u32>& levels) {
+  bool send(std::vector<u32> data, int _author = -1) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
+        data.size() > LINK_WIRELESS_MAX_TRANSFER_LENGTH)
+      return false;
+
+    Message message;
+    message.playerId = _author < 0 ? playerId : _author;
+    message.data = data;
+
+    outgoingMessages.push_back(message);
+
+    return true;
+  }
+
+  bool receive(std::vector<Message>& messages) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != SERVING && state != CONNECTED)
       return false;
 
-    auto result = sendCommand(0x11);
-    if (result.success)
-      levels = result.responses;
-    return result.success;
+    if (!sendPendingMessages())
+      return false;
+
+    std::vector<u32> words;
+    if (!receiveData(words))
+      return false;
+
+    for (u32 i = 0; i < playerCount; i++)
+      if (i != playerId)
+        timeouts[i]++;
+
+    messages = std::vector<Message>{};
+    for (u32 i = 0; i < words.size(); i++) {
+      u32 header = words[i];
+
+      u16 subHeader = msB32(header);
+      u8 playerCount = msB16(subHeader);
+      u8 playerId = lsB16(subHeader);
+      u8 size = (u8)lsB32(header);
+
+      if (i + size >= words.size()) {
+        reset();
+        return false;
+      }
+
+      if (state == CONNECTED && playerId == 0)
+        this->playerCount = playerCount;
+
+      if (playerId == this->playerId) {
+        i += size;
+        continue;
+      }
+
+      if (size > 0) {
+        Message message;
+        message.playerId = playerId;
+        for (u32 j = 0; j < size; j++)
+          message.data.push_back(words[i + 1 + j]);
+        messages.push_back(message);
+      }
+
+      timeouts[playerId] = 0;
+
+      i += size;
+    }
+
+    for (u32 i = 0; i < playerCount; i++) {
+      if ((i == 0 || state == SERVING) && timeouts[i] > msgTimeout)
+        return disconnect();
+    }
+
+    if (state == SERVING) {
+      for (auto& message : messages)
+        send(message.data, message.playerId);
+    }
+
+    return true;
   }
 
   bool disconnect() {
@@ -312,17 +347,85 @@ class LinkWireless {
     std::vector<u32> responses = std::vector<u32>{};
   };
 
+  u32 msgTimeout;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
   u8 playerId = 0;
   u8 playerCount = 1;
+  std::vector<Message> outgoingMessages;
+  u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
   bool isEnabled = false;
+
+  bool sendPendingMessages() {
+    if (outgoingMessages.empty()) {
+      Message emptyMessage;
+      emptyMessage.playerId = playerId;
+      outgoingMessages.push_back(emptyMessage);
+    }
+
+    std::vector<u32> words;
+    for (auto& message : outgoingMessages) {
+      u32 header = buildU32(buildU16(playerCount, message.playerId),
+                            message.data.size());
+      words.push_back(header);
+      words.insert(words.end(), message.data.begin(), message.data.end());
+    }
+
+    if (!sendData(words))
+      return false;
+
+    outgoingMessages.clear();
+
+    return true;
+  }
+
+  bool sendData(std::vector<u32> data) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
+        data.size() > LINK_WIRELESS_MAX_TRANSFER_LENGTH)
+      return false;
+
+    u32 bytes = data.size() * 4;
+    u32 header = playerId == 0 ? bytes : (1 << (3 + playerId * 5)) * bytes;
+    data.insert(data.begin(), header);
+
+    bool success = sendCommand(LINK_WIRELESS_COMMAND_SEND_DATA, data).success;
+
+    if (!success) {
+      reset();
+      return false;
+    }
+
+    return true;
+  }
+
+  bool receiveData(std::vector<u32>& data) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING && state != CONNECTED)
+      return false;
+
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
+    data = result.responses;
+
+    if (!result.success) {
+      reset();
+      return false;
+    }
+
+    if (data.size() > 0)
+      data.erase(data.begin());
+
+    return true;
+  }
 
   bool reset() {
     this->state = NEEDS_RESET;
     this->playerId = 0;
     this->playerCount = 1;
+    this->outgoingMessages = std::vector<Message>{};
+    for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+      timeouts[i] = 0;
 
     stop();
     return start();
@@ -461,7 +564,7 @@ class LinkWireless {
       vCount = REG_VCOUNT;
     }
 
-    return lines > LINK_WIRELESS_TIMEOUT;
+    return lines > LINK_WIRELESS_CMD_TIMEOUT;
   }
 
   void wait(u32 verticalLines) {

@@ -12,14 +12,6 @@ void log(std::string text);
 void waitFor(u16 key);
 void hang();
 
-template <typename T>
-std::vector<T> slice(std::vector<T> const& v, int x, int y) {
-  auto first = v.begin() + x;
-  auto last = v.begin() + y + 1;
-  std::vector<T> vector(first, last);
-  return vector;
-}
-
 // (1) Create a LinkWireless instance
 LinkWireless* linkWireless = new LinkWireless();
 
@@ -177,59 +169,39 @@ void messageLoop() {
   for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
     counters.push_back(0);
 
-  u32 counter = linkWireless->getPlayerId() * 10;
-  bool isHost = linkWireless->getState() == LinkWireless::State::SERVING;
+  counters[linkWireless->getPlayerId()] = 1 + linkWireless->getPlayerId() * 10;
   bool sending = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    std::string activePlayers =
-        isHost ? "\n\n" + std::to_string(linkWireless->getPlayerCount()) +
-                     " players"
-               : "";
-
     // (5) Send data
-    if (!sending && (isHost || ((keys & KEY_A)))) {
+    if (!sending && (keys & KEY_A)) {
       sending = true;
-      if (!linkWireless->sendData(
-              isHost
-                  ? slice(counters, 0, linkWireless->getPlayerCount() - 1)
-                  : std::vector<u32>{linkWireless->getPlayerId(), counter})) {
+      counters[linkWireless->getPlayerId()]++;
+      if (!linkWireless->send(
+              std::vector<u32>{counters[linkWireless->getPlayerId()]})) {
         log("Send failed :(");
         hang();
         return;
       }
-      counter++;
     }
-    if (sending && (isHost || (!(keys & KEY_A))))
+    if (sending && (!(keys & KEY_A)))
       sending = false;
 
     // (6) Receive data
-    std::vector<u32> receivedData = std::vector<u32>{};
-    if (!linkWireless->receiveData(receivedData)) {
+    std::vector<LinkWireless::Message> messages;
+    if (!linkWireless->receive(messages)) {
       log("Receive failed :(");
       hang();
       return;
     }
-    if (receivedData.size() > 0) {
-      std::string str = "Total: " + std::to_string(receivedData.size()) + "\n";
-
-      u32 i = 0;
-      u32 playerId = 0;
-      for (u32& number : receivedData) {
-        if (i % 2 == 0)
-          playerId = number;
-        else
-          counters[playerId] = number;
-
-        str += std::to_string(number) + "\n";
-        i++;
-      }
-
-      log(str + activePlayers);
+    if (messages.size() > 0) {
+      for (auto& message : messages)
+        counters[message.playerId] = message.data[0];
     }
 
+    // Accept new connections
     if (linkWireless->getState() == LinkWireless::State::SERVING) {
       if (!linkWireless->acceptConnections()) {
         log("Accept failed :(");
@@ -248,7 +220,16 @@ void messageLoop() {
       return;
     }
 
+    std::string output =
+        "Players: " + std::to_string(linkWireless->getPlayerCount()) + "\n\n";
+    for (u32 i = 0; i < linkWireless->getPlayerCount(); i++) {
+      output +=
+          "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
+    }
+
+    // Print
     VBlankIntrWait();
+    log(output);
   }
 }
 
