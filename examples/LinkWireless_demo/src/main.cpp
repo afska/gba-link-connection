@@ -4,6 +4,8 @@
 // (0) Include the header
 #include "../../_lib/LinkWireless.h"
 
+#define TRANSFERS_PER_FRAME 4
+
 #define CHECK_ERRORS(MESSAGE)                                             \
   if ((lastError = linkWireless->getLastError())) {                       \
     log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ") [" + \
@@ -23,6 +25,8 @@ void hang();
 
 LinkWireless::Error lastError;
 LinkWireless* linkWireless = NULL;
+bool forwarding = true;
+bool retransmission = true;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -37,12 +41,12 @@ int main() {
 
 start:
   // Options
-  log("Press A to start\n\n(hold LEFT = forwarding)\n(hold UP = "
-      "retransmission)");
+  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
+      "disable forwarding\n\nhold UP on start:\n -> disable retransmission");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
-  bool forwarding = initialKeys & KEY_LEFT;
-  bool retransmission = initialKeys & KEY_UP;
+  forwarding = !(initialKeys & KEY_LEFT);
+  retransmission = !(initialKeys & KEY_UP);
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(forwarding, retransmission);
@@ -191,8 +195,8 @@ void messageLoop() {
   std::vector<u32> counters;
   for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
     counters.push_back(1 + i * 10);
-  bool sending = false;
 
+  bool sending = false;
   bool packetLossCheck = false;
   bool switching = false;
 
@@ -221,7 +225,16 @@ void messageLoop() {
 
     // (6) Receive data
     std::vector<LinkWireless::Message> messages;
-    linkWireless->receive(messages);
+    if (retransmission) {
+      // (exchanging data 4 times, just for speed purposes)
+      linkWireless->receive(messages, TRANSFERS_PER_FRAME, []() {
+        u16 keys = ~REG_KEYS & KEY_ANY;
+        return keys & KEY_SELECT;
+      });
+    } else {
+      // (exchanging data one time)
+      linkWireless->receive(messages);
+    }
     CHECK_ERRORS("Receive failed :(")
     if (messages.size() > 0) {
       for (auto& message : messages) {

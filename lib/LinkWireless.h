@@ -38,6 +38,8 @@
 // - servers can send up to 19 words of 32 bits at a time!
 // - clients can send up to 3 words of 32 bits at a time!
 // - if retransmission is on, these limits drop to 14 and 1!
+// - you can workaround these limits by doing multiple exchanges with
+// receive(messages, times)!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
@@ -47,6 +49,7 @@
 #include "LinkSPI.h"
 
 #define LINK_WIRELESS_DEFAULT_MSG_TIMEOUT 5
+#define LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT (228 * 5)
 #define LINK_WIRELESS_DEFAULT_BUFFER_SIZE 30
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
@@ -103,7 +106,8 @@ class LinkWireless {
     RECEIVE_DATA_FAILED,
     BAD_CONFIRMATION,
     BAD_MESSAGE,
-    TIMEOUT
+    TIMEOUT,
+    RETRANSMISSION_IS_OFF
   };
 
   struct Message {
@@ -113,15 +117,18 @@ class LinkWireless {
     u32 _packetId = 0;
   };
 
-  explicit LinkWireless(bool forwarding = true,
-                        bool retransmission = true,
-                        u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
-                        u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
-                        u32 bufferSize = LINK_WIRELESS_DEFAULT_BUFFER_SIZE) {
+  explicit LinkWireless(
+      bool forwarding = true,
+      bool retransmission = true,
+      u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
+      u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
+      u32 multiReceiveTimeout = LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT,
+      u32 bufferSize = LINK_WIRELESS_DEFAULT_BUFFER_SIZE) {
     this->forwarding = forwarding;
     this->retransmission = retransmission;
     this->maxPlayers = maxPlayers;
     this->msgTimeout = msgTimeout;
+    this->multiReceiveTimeout = multiReceiveTimeout;
     this->bufferSize = bufferSize;
   }
 
@@ -322,7 +329,7 @@ class LinkWireless {
     return true;
   }
 
-  bool receive(std::vector<Message>& messages) {
+  bool receive(std::vector<Message>& messages, bool _timeout = true) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != SERVING && state != CONNECTED) {
       lastError = WRONG_STATE;
@@ -344,7 +351,8 @@ class LinkWireless {
       if (i != playerId)
         timeouts[i]++;
 
-    messages = std::vector<Message>{};
+    u32 startIndex = messages.size();
+
     for (u32 i = 0; i < words.size(); i++) {
       MessageHeaderSerializer serializer;
       serializer.asInt = words[i];
@@ -410,7 +418,8 @@ class LinkWireless {
     }
 
     for (u32 i = 0; i < playerCount; i++) {
-      if ((i == 0 || state == SERVING) && timeouts[i] > msgTimeout) {
+      if ((i == 0 || state == SERVING) && _timeout &&
+          timeouts[i] > msgTimeout) {
         lastError = TIMEOUT;
         disconnect();
         return false;
@@ -418,8 +427,45 @@ class LinkWireless {
     }
 
     if (state == SERVING && forwarding && playerCount > 2) {
-      for (auto& message : messages)
+      for (u32 i = startIndex; i < messages.size(); i++) {
+        auto message = messages[i];
         send(message.data, message.playerId);
+      }
+    }
+
+    return true;
+  }
+
+  bool receive(std::vector<Message>& messages, u32 times) {
+    return receive(messages, times, []() { return false; });
+  }
+
+  template <typename F>
+  bool receive(std::vector<Message>& messages, u32 times, F cancel) {
+    if (!retransmission) {
+      lastError = RETRANSMISSION_IS_OFF;
+      return false;
+    }
+
+    u32 successfullExchanges = 0;
+
+    u32 lines = 0;
+    u32 vCount = REG_VCOUNT;
+    while (successfullExchanges < times) {
+      if (cancel())
+        return true;
+
+      if (timeout(multiReceiveTimeout, lines, vCount)) {
+        lastError = TIMEOUT;
+        disconnect();
+        return false;
+      }
+
+      if (!receive(messages, false))
+        return false;
+
+      if (didReceiveAnyBytes)
+        successfullExchanges++;
     }
 
     return true;
@@ -445,15 +491,16 @@ class LinkWireless {
   }
 
   State getState() { return state; }
+  u8 getPlayerId() { return playerId; }
+  u8 getPlayerCount() { return playerCount; }
+  bool canSend() { return outgoingMessages.size() < bufferSize; }
+  u32 getPendingCount() { return outgoingMessages.size(); }
+  bool didReceiveBytes() { return didReceiveAnyBytes; }
   Error getLastError() {
     Error error = lastError;
     lastError = NONE;
     return error;
   }
-  u8 getPlayerId() { return playerId; }
-  u8 getPlayerCount() { return playerCount; }
-  bool canSend() { return outgoingMessages.size() < bufferSize; }
-  u32 getPendingCount() { return outgoingMessages.size(); }
 
   ~LinkWireless() {
     delete linkSPI;
@@ -487,6 +534,7 @@ class LinkWireless {
   bool retransmission;
   u8 maxPlayers;
   u32 msgTimeout;
+  u32 multiReceiveTimeout;
   u32 bufferSize;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
@@ -500,6 +548,7 @@ class LinkWireless {
   u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
   u32 lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
   u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
+  bool didReceiveAnyBytes = false;
   Error lastError = NONE;
   bool isEnabled = false;
 
@@ -640,6 +689,8 @@ class LinkWireless {
       return false;
     }
 
+    this->didReceiveAnyBytes = false;
+
     auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
     data = result.responses;
 
@@ -649,8 +700,10 @@ class LinkWireless {
       return false;
     }
 
-    if (data.size() > 0)
+    if (data.size() > 0) {
       data.erase(data.begin());
+      this->didReceiveAnyBytes = true;
+    }
 
     return true;
   }
@@ -669,10 +722,11 @@ class LinkWireless {
     this->lastPacketIdFromServer = 0;
     this->lastConfirmationFromServer = 0;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
-      lastPacketIdFromClients[i] = 0;
-      lastConfirmationFromClients[i] = 0;
-      timeouts[i] = 0;
+      this->lastPacketIdFromClients[i] = 0;
+      this->lastConfirmationFromClients[i] = 0;
+      this->timeouts[i] = 0;
     }
+    this->didReceiveAnyBytes = false;
 
     stop();
     return start();
@@ -785,7 +839,7 @@ class LinkWireless {
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
     u32 receivedData = linkSPI->transfer(
-        data, [this, &lines, &vCount]() { return timeout(lines, vCount); },
+        data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); },
         false, customAck);
 
     lines = 0;
@@ -793,11 +847,11 @@ class LinkWireless {
     if (customAck) {
       linkSPI->_setSOLow();
       while (!linkSPI->_isSIHigh())
-        if (timeout(lines, vCount))
+        if (cmdTimeout(lines, vCount))
           return LINK_SPI_NO_DATA;
       linkSPI->_setSOHigh();
       while (linkSPI->_isSIHigh())
-        if (timeout(lines, vCount))
+        if (cmdTimeout(lines, vCount))
           return LINK_SPI_NO_DATA;
       linkSPI->_setSOLow();
     }
@@ -805,13 +859,17 @@ class LinkWireless {
     return receivedData;
   }
 
-  bool timeout(u32& lines, u32& vCount) {
+  bool cmdTimeout(u32& lines, u32& vCount) {
+    return timeout(LINK_WIRELESS_CMD_TIMEOUT, lines, vCount);
+  }
+
+  bool timeout(u32 limit, u32& lines, u32& vCount) {
     if (REG_VCOUNT != vCount) {
       lines++;
       vCount = REG_VCOUNT;
     }
 
-    return lines > LINK_WIRELESS_CMD_TIMEOUT;
+    return lines > limit;
   }
 
   void wait(u32 verticalLines) {
