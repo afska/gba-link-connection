@@ -185,8 +185,10 @@ void messageLoop() {
           std::vector<u32>{counters[linkWireless->getPlayerId()]});
       CHECK_ERRORS("Send failed :(")
 
-      if (!doubleSend && (keys & KEY_LEFT))
+      if (!doubleSend && (keys & KEY_LEFT)) {
+        doubleSend = true;
         goto again;
+      }
     }
     if (sending && (!(keys & KEY_A)))
       sending = false;
