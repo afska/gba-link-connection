@@ -153,7 +153,7 @@ Name | Type | Default | Description
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
 `maxPlayers` | **u8** | `5` | Maximum number of allowed players.
-`msgTimeout` | **u32** | `5` | Timeout used by `receive(...)`. It's the maximum number of *receive calls* without a message from other connected player to disconnect.
+`msgTimeout` | **u32** | `5` | Timeout used by `receive(messages)`. It's the maximum number of *receive calls* without a message from other connected player to disconnect.
 `multiReceiveTimeout` | **u32** | `1140` | An extra timeout used by `receive(messages, times)`. It's the maximum number of *vertical lines* without a message from anybody to disconnect *(228 vertical lines = 1 frame)*.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
 
@@ -173,7 +173,7 @@ Name | Return type | Description
 `getServerIds(serverIds)` | **bool** | Fills the `serverIds` vector with all the currently broadcasting servers.
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
-`receive(messages, times)` | **bool** | Perform multiple `receive(...)` calls until successfully exchanging data a number of `times`. This can only be called if `retransmission` is on.
+`receive(messages, times)` | **bool** | Performs multiple `receive(...)` calls until successfully exchanging data a number of `times`. This can only be called if `retransmission` is on.
 `receive(messages, times, cancel)` | **bool** | Like `receive(messages, times)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `disconnect()` | **bool** | Disconnects and resets the adapter.
 `getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
