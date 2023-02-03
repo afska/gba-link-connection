@@ -150,7 +150,8 @@ The library, by default, implements a lightweight protocol on top of the adapter
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`protocol` | **LinkWireless::Protocol** | `LinkWireless::Protocol::RETRANSMIT` | `LinkWireless::Protocol::BASIC`:<br>Clients only see messages sent from the server, ignoring other peers. Packet loss can occur, so games need to always send the full game state or implement retransmission on top of this.<br><br>`LinkWireless::Protocol::FORWARD`:<br>The server forwards all messages to the clients.<br><br>`LinkWireless::Protocol::RETRANSMIT`:<br>Same as `FORWARD`, but the library also handles retransmission for you, so there should be no packet loss.
+`forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
+`retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
 `maxPlayers` | **u8** | `5` | Maximum number of allowed players.
 `msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
@@ -173,10 +174,11 @@ Name | Return type | Description
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
 `disconnect()` | **bool** | Disconnects and resets the adapter.
 `getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
-`getLastError()` | **LinkWireless::Error** | If one of the other methods return `false`, you can inspect this to know the cause. After this call, the last error is cleared.
+`getLastError()` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared.
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
 `canSend()` | **bool** | Returns `false` only if the next `send(...)` call would fail due to full buffers.
 `getPendingCount()` | **u32** | Returns the number of outgoing messages ready to be sent.
 
-⚠️ the library can transfer a maximum of 14 words of 32 bits at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!
+⚠️ masters can send up to `14` words of 32 bits at a time!
+⚠️ slaves can only send `4` (or `2` if `retransmission` is on)!

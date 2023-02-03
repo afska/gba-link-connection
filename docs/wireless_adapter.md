@@ -328,6 +328,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
   * The third client should send: `0x100000`, `0xaabbccdd`
   * The fourth client should send: `0x2000000`, `0xaabbccdd`
 
+⚠️ The guest formula only seems to be true when `bytes <= 16`. I'm sure that guests can send more than 16 bytes (I've seen it!), but I have no idea how to reliably build a header that works. Hosts, on the other hand, can send any number of bytes below 90 and it will work just fine.
+
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 
 ⚠️ The command "overrides" previous data, so if one node is using `ReceiveData`, but before the receive call the other node uses two consecutive `SendData`s, the receiving end will only get the last stream.

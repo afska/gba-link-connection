@@ -22,9 +22,7 @@ void waitFor(u16 key);
 void hang();
 
 LinkWireless::Error lastError;
-
-// (1) Create a LinkWireless instance
-LinkWireless* linkWireless = new LinkWireless();
+LinkWireless* linkWireless = NULL;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -32,13 +30,24 @@ void init() {
 
   irq_init(NULL);
   irq_add(II_VBLANK, NULL);
-
-  // (2) Initialize the library
-  linkWireless->activate();
 }
 
 int main() {
   init();
+
+  // Options
+  log("Press A to start\n\n(hold LEFT = forwarding)\n(hold UP = "
+      "retransmission)");
+  waitFor(KEY_A);
+  u16 initialKeys = ~REG_KEYS & KEY_ANY;
+  bool forwarding = initialKeys & KEY_LEFT;
+  bool retransmission = initialKeys & KEY_UP;
+
+  // (1) Create a LinkWireless instance
+  linkWireless = new LinkWireless(forwarding, retransmission);
+
+  // (2) Initialize the library
+  linkWireless->activate();
 
   bool activating = false;
   bool serving = false;
@@ -47,8 +56,11 @@ int main() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    log("START = Activate\nL = Serve\nR = Connect\n\n (DOWN = ok)\n "
-        "(SELECT = cancel)");
+    log(std::string("") +
+        "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
+        "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
+        (forwarding ? "ON" : "OFF") + "\n" +
+        "-> retransmission: " + (retransmission ? "ON" : "OFF"));
 
     // START = Activate
     if ((keys & KEY_START) && !activating) {

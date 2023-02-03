@@ -34,10 +34,9 @@
 // - 7) Disconnect:
 //       linkWireless->disconnect();
 // --------------------------------------------------------------------------
-// considerations:
-// - the library can transfer a maximum of 14 words of 32 bits at a
-// time, and messages are often concatenated together, so keep things way below
-// this limit (specially when the protocol is FORWARD or RETRANSMIT)!
+// `data` restrictions:
+// - masters can send up to 14 words of 32 bits at a time!
+// - slaves can only send 4 (or 2 if retransmission is on)!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
@@ -54,8 +53,11 @@
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_CMD_TIMEOUT 100
 #define LINK_WIRELESS_MAX_PLAYERS 5
-#define LINK_WIRELESS_MAX_USER_TRANSFER_LENGTH 14
-#define LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH 20
+#define LINK_WIRELESS_MAX_USER_SERVER_TRANSFER_LENGTH 14
+#define LINK_WIRELESS_NORMAL_MAX_USER_CLIENT_TRANSFER_LENGTH 4
+#define LINK_WIRELESS_RETRANSMISSION_MAX_USER_CLIENT_TRANSFER_LENGTH 2
+#define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
+#define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
@@ -89,7 +91,6 @@ const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
 class LinkWireless {
  public:
   enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
-  enum Protocol { BASIC, FORWARD, RETRANSMIT };
   enum Error {
     NONE,
     WRONG_STATE,
@@ -112,11 +113,13 @@ class LinkWireless {
     u32 _packetId = 0;
   };
 
-  explicit LinkWireless(Protocol protocol = RETRANSMIT,
+  explicit LinkWireless(bool forwarding = true,
+                        bool retransmission = true,
                         u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
                         u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
                         u32 bufferSize = LINK_WIRELESS_DEFAULT_BUFFER_SIZE) {
-    this->protocol = protocol;
+    this->forwarding = forwarding;
+    this->retransmission = retransmission;
     this->maxPlayers = maxPlayers;
     this->msgTimeout = msgTimeout;
     this->bufferSize = bufferSize;
@@ -295,8 +298,13 @@ class LinkWireless {
       lastError = WRONG_STATE;
       return false;
     }
-    if (data.size() == 0 ||
-        data.size() > LINK_WIRELESS_MAX_USER_TRANSFER_LENGTH) {
+    u32 maxTransferLength =
+        state == SERVING
+            ? LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
+            : (retransmission
+                   ? LINK_WIRELESS_RETRANSMISSION_MAX_USER_CLIENT_TRANSFER_LENGTH
+                   : LINK_WIRELESS_NORMAL_MAX_USER_CLIENT_TRANSFER_LENGTH);
+    if (data.size() == 0 || data.size() > maxTransferLength) {
       lastError = INVALID_SEND_SIZE;
       return false;
     }
@@ -359,16 +367,14 @@ class LinkWireless {
       timeouts[remotePlayerId] = 0;
 
       if (state == SERVING) {
-        if (protocol == RETRANSMIT &&
-            packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
+        if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
             packetId <= lastPacketIdFromClients[remotePlayerId])
           goto skip;
 
         if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
           lastPacketIdFromClients[remotePlayerId] = packetId;
       } else {
-        if (protocol == RETRANSMIT &&
-            packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
+        if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
             packetId <= lastPacketIdFromServer)
           goto skip;
 
@@ -391,8 +397,7 @@ class LinkWireless {
           message.data.push_back(words[i + 1 + j]);
         message._packetId = packetId;
 
-        if (protocol == RETRANSMIT &&
-            packetId == LINK_WIRELESS_MSG_CONFIRMATION) {
+        if (retransmission && packetId == LINK_WIRELESS_MSG_CONFIRMATION) {
           if (!handleConfirmation(message)) {
             reset();
             lastError = BAD_CONFIRMATION;
@@ -414,7 +419,7 @@ class LinkWireless {
       }
     }
 
-    if (state == SERVING && (protocol == FORWARD || protocol == RETRANSMIT)) {
+    if (state == SERVING && forwarding && playerCount > 2) {
       for (auto& message : messages)
         send(message.data, message.playerId);
     }
@@ -480,7 +485,8 @@ class LinkWireless {
     u32 asInt;
   };
 
-  Protocol protocol;
+  bool forwarding;
+  bool retransmission;
   u8 maxPlayers;
   u32 msgTimeout;
   u32 bufferSize;
@@ -500,16 +506,17 @@ class LinkWireless {
   bool isEnabled = false;
 
   bool sendPendingMessages() {
-    if (outgoingMessages.empty() && protocol != RETRANSMIT) {
+    if (outgoingMessages.empty() && !retransmission) {
       Message emptyMessage;
       emptyMessage.playerId = playerId;
       emptyMessage._packetId = ++lastPacketId;
       outgoingMessages.push_back(emptyMessage);
     }
 
+    u32 maxTransferLength = getDeviceTransferLength();
     std::vector<u32> words;
 
-    if (protocol == RETRANSMIT)
+    if (retransmission)
       addConfirmations(words);
 
     for (auto& message : outgoingMessages) {
@@ -517,7 +524,7 @@ class LinkWireless {
       u32 header =
           buildMessageHeader(message.playerId, size, message._packetId);
 
-      if (words.size() + 1 + size > LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH)
+      if (words.size() + 1 + size > maxTransferLength)
         break;
 
       words.push_back(header);
@@ -527,7 +534,7 @@ class LinkWireless {
     if (!sendData(words))
       return false;
 
-    if (protocol != RETRANSMIT)
+    if (!retransmission)
       outgoingMessages.clear();
 
     return true;
@@ -608,8 +615,7 @@ class LinkWireless {
       lastError = WRONG_STATE;
       return false;
     }
-    if (data.size() == 0 ||
-        data.size() > LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH) {
+    if (data.size() == 0 || data.size() > getDeviceTransferLength()) {
       lastError = INVALID_SEND_SIZE;
       return false;
     }
@@ -649,6 +655,11 @@ class LinkWireless {
       data.erase(data.begin());
 
     return true;
+  }
+
+  u32 getDeviceTransferLength() {
+    return state == SERVING ? LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
+                            : LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
   }
 
   bool reset() {
