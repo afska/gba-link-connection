@@ -317,9 +317,7 @@ class LinkWireless {
 
     u32 startIndex = 0;
     if (protocol == RETRANSMIT && words.size() > 0) {
-      u32 confirmation = words[0];
-      bool isServerConfirmation = confirmation & LINK_WIRELESS_DATA_REQUEST;
-      confirmation &= ~LINK_WIRELESS_DATA_REQUEST;
+      bool isServerConfirmation = words[0] & LINK_WIRELESS_DATA_REQUEST;
 
       if (isServerConfirmation) {
         if (words.size() < LINK_WIRELESS_MAX_PLAYERS - 1) {
@@ -330,7 +328,8 @@ class LinkWireless {
 
         u32 min = 0xffffffff;
         for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
-          u32 clientConfirmation = words[1 + i];
+          u32 mask = i == 0 ? ~LINK_WIRELESS_DATA_REQUEST : ~0;
+          u32 clientConfirmation = words[i] & mask;
           lastConfirmationFromClients[1 + i] = clientConfirmation;
 
           if (clientConfirmation < min)
@@ -338,8 +337,8 @@ class LinkWireless {
         }
         removeConfirmedMessages(min);
       } else {
-        lastConfirmationFromServer = confirmation;
-        removeConfirmedMessages(confirmation);
+        lastConfirmationFromServer = words[0];
+        removeConfirmedMessages(lastConfirmationFromServer);
       }
 
       startIndex = isServerConfirmation ? 1 : LINK_WIRELESS_MAX_PLAYERS - 1;
@@ -500,6 +499,7 @@ class LinkWireless {
 
     // TODO: EXTRACT METHODS
     // TODO: ADD MAX PLAYERS
+    // TODO: `outgoingMessages` limit
 
     if (protocol == RETRANSMIT) {
       if (state == SERVING) {
