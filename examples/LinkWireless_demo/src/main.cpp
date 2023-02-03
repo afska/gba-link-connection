@@ -35,6 +35,7 @@ void init() {
 int main() {
   init();
 
+start:
   // Options
   log("Press A to start\n\n(hold LEFT = forwarding)\n(hold UP = "
       "retransmission)");
@@ -56,11 +57,19 @@ int main() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
+    // Menu
     log(std::string("") +
         "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
         (forwarding ? "ON" : "OFF") + "\n" +
         "-> retransmission: " + (retransmission ? "ON" : "OFF"));
+
+    // SELECT = back
+    if (keys & KEY_SELECT) {
+      linkWireless->deactivate();
+      linkWireless = NULL;
+      goto start;
+    }
 
     // START = Activate
     if ((keys & KEY_START) && !activating) {
@@ -149,7 +158,11 @@ void connect() {
     log(str);
   }
 
-  waitFor(KEY_START);
+  waitFor(KEY_START | KEY_SELECT);
+  if ((~REG_KEYS & KEY_ANY) & KEY_SELECT) {
+    linkWireless->disconnect();
+    return;
+  }
 
   linkWireless->connect(serverIds[0]);
   CHECK_ERRORS("Connect failed :(")
