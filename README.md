@@ -39,7 +39,7 @@ The library uses message queues to send/receive data and transmits when it's pos
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`baudRate` | **BaudRate** | `BaudRate::BAUD_RATE_1` | Sets a specific baud rate.
+`baudRate` | **BaudRate** | `LinkCable::BaudRate::BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
@@ -75,7 +75,7 @@ This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM
 
 Name | Return type | Description
 --- | --- | ---
-`sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`.
+`sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. Once completed, the return value should be `LinkCableMultiboot::Result::SUCCESS`.
 
 ⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
@@ -140,6 +140,8 @@ Name | Return type | Description
 
 This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this article](docs/wireless_adapter.md) is very helpful. I've updated the blog post to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
 
+The library, by default, implements a lightweight protocol on top of the adapter's message system. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
+
 ![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
 
 ## Constructor
@@ -148,12 +150,16 @@ This is a driver for an accessory that enables wireless games up to 5 players. T
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
+`retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
+`maxPlayers` | **u8** | `5` | Maximum number of allowed players.
+`msgTimeout` | **u32** | `5` | Timeout used by `receive(messages)`. It's the maximum number of *receive calls* without a message from other connected player to disconnect.
+`multiReceiveTimeout` | **u32** | `1140` | An extra timeout used by `receive(messages, times)`. It's the maximum number of *vertical lines* without a message from anybody to disconnect *(228 vertical lines = 1 frame)*.
+`bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
 
 ## Methods
 
-✔️ Most of the methods return a boolean, indicating if the action was successful. If not, the connection with the adapter is reset and the game needs to start again. All actions are synchronic.
+✔️ Most of the methods return a boolean, indicating if the action was successful. If not, you can call `getLastError()` to know the reason. Usually, unless it's a trivial error (like buffers being full), the connection with the adapter is reset and the game needs to start again. You can check the connection state with `getState()`. All actions are synchronic.
 
 Name | Return type | Description
 --- | --- | ---
@@ -167,11 +173,18 @@ Name | Return type | Description
 `getServerIds(serverIds)` | **bool** | Fills the `serverIds` vector with all the currently broadcasting servers.
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
+`receive(messages, times)` | **bool** | Performs multiple `receive(...)` calls until successfully exchanging data a number of `times`. This can only be called if `retransmission` is on.
+`receive(messages, times, cancel)` | **bool** | Like `receive(messages, times)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `disconnect()` | **bool** | Disconnects and resets the adapter.
 `getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
+`canSend()` | **bool** | Returns `false` only if the next `send(...)` call would fail due to full buffers.
+`getPendingCount()` | **u32** | Returns the number of outgoing messages ready to be sent. It will always be lower than `bufferSize`.
+`didReceiveBytes()` | **bool** | Returns whether the last `receive(...)` call gathered any bytes or not.
+`getLastError()` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared.
 
-⚠️ packet loss can occur, so always send the full game state or implement retransmission on top of this!
-
-⚠️ the adapter can transfer a maximum of twenty 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when `forwarding` is on)!
+⚠️ servers can send up to `19` words of 32 bits at a time!
+⚠️ clients can send up to `3` words of 32 bits at a time!
+⚠️ if `retransmission` is on, these limits drop to `14` and `1`!
+⚠️ you can workaround these limits by doing multiple exchanges with `receive(messages, times)`!

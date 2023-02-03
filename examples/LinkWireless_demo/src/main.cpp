@@ -4,6 +4,17 @@
 // (0) Include the header
 #include "../../_lib/LinkWireless.h"
 
+#define TRANSFERS_PER_FRAME 4
+
+#define CHECK_ERRORS(MESSAGE)                                             \
+  if ((lastError = linkWireless->getLastError())) {                       \
+    log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ") [" + \
+        std::to_string(linkWireless->getState()) + "]");                  \
+    hang();                                                               \
+    linkWireless->activate();                                             \
+    return;                                                               \
+  }
+
 void activate();
 void serve();
 void connect();
@@ -12,8 +23,10 @@ void log(std::string text);
 void waitFor(u16 key);
 void hang();
 
-// (1) Create a LinkWireless instance
-LinkWireless* linkWireless = new LinkWireless();
+LinkWireless::Error lastError;
+LinkWireless* linkWireless = NULL;
+bool forwarding = true;
+bool retransmission = true;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -21,13 +34,25 @@ void init() {
 
   irq_init(NULL);
   irq_add(II_VBLANK, NULL);
-
-  // (2) Initialize the library
-  linkWireless->activate();
 }
 
 int main() {
   init();
+
+start:
+  // Options
+  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
+      "disable forwarding\n\nhold UP on start:\n -> disable retransmission");
+  waitFor(KEY_A);
+  u16 initialKeys = ~REG_KEYS & KEY_ANY;
+  forwarding = !(initialKeys & KEY_LEFT);
+  retransmission = !(initialKeys & KEY_UP);
+
+  // (1) Create a LinkWireless instance
+  linkWireless = new LinkWireless(forwarding, retransmission);
+
+  // (2) Initialize the library
+  linkWireless->activate();
 
   bool activating = false;
   bool serving = false;
@@ -36,8 +61,19 @@ int main() {
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    log("START = Activate\nL = Serve\nR = Connect\n\n (DOWN = ok)\n "
-        "(SELECT = cancel)");
+    // Menu
+    log(std::string("") +
+        "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
+        "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
+        (forwarding ? "ON" : "OFF") + "\n" +
+        "-> retransmission: " + (retransmission ? "ON" : "OFF"));
+
+    // SELECT = back
+    if (keys & KEY_SELECT) {
+      linkWireless->deactivate();
+      linkWireless = NULL;
+      goto start;
+    }
 
     // START = Activate
     if ((keys & KEY_START) && !activating) {
@@ -84,11 +120,8 @@ void serve() {
   log("Serving...");
 
   // (3) Start a server
-  if (!linkWireless->serve()) {
-    log("Serve failed :(");
-    hang();
-    return;
-  }
+  linkWireless->serve();
+  CHECK_ERRORS("Serve failed :(")
 
   log("Listening...");
 
@@ -101,11 +134,8 @@ void serve() {
       return;
     }
 
-    if (!linkWireless->acceptConnections()) {
-      log("Accept failed :(");
-      hang();
-      return;
-    }
+    linkWireless->acceptConnections();
+    CHECK_ERRORS("Accept failed :(")
   } while (linkWireless->getPlayerCount() <= 1);
 
   log("Connection accepted!");
@@ -118,11 +148,8 @@ void connect() {
 
   // (4) Connect to a server
   std::vector<u16> serverIds;
-  if (!linkWireless->getServerIds(serverIds)) {
-    log("Search failed :(");
-    hang();
-    return;
-  }
+  linkWireless->getServerIds(serverIds);
+  CHECK_ERRORS("Search failed :(")
 
   if (serverIds.size() == 0) {
     log("Nothing found :(");
@@ -135,13 +162,14 @@ void connect() {
     log(str);
   }
 
-  waitFor(KEY_START);
-
-  if (!linkWireless->connect(serverIds[0])) {
-    log("Connect failed :(");
-    hang();
+  waitFor(KEY_START | KEY_SELECT);
+  if ((~REG_KEYS & KEY_ANY) & KEY_SELECT) {
+    linkWireless->disconnect();
     return;
   }
+
+  linkWireless->connect(serverIds[0]);
+  CHECK_ERRORS("Connect failed :(")
 
   while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -152,11 +180,8 @@ void connect() {
       return;
     }
 
-    if (!linkWireless->keepConnecting()) {
-      log("Finish connection failed :(");
-      hang();
-      return;
-    }
+    linkWireless->keepConnecting();
+    CHECK_ERRORS("Finish failed :(")
   }
 
   log("Connected! " + std::to_string(linkWireless->getPlayerId()));
@@ -170,23 +195,34 @@ void messageLoop() {
   std::vector<u32> counters;
   for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
     counters.push_back(1 + i * 10);
-  bool sending = false;
 
+  bool sending = false;
   bool packetLossCheck = false;
   bool switching = false;
+
+  u32 lostPackets = 0;
+  u32 lastLostPacketPlayerId = 0;
+  u32 lastLostPacketExpected = 0;
+  u32 lastLostPacketReceived = 0;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // (5) Send data
-    if ((keys & KEY_B) || (!sending && (keys & KEY_A))) {
+    if (linkWireless->canSend() &&
+        ((keys & KEY_B) || (!sending && (keys & KEY_A)))) {
+      bool doubleSend = false;
       sending = true;
+
+    again:
       counters[linkWireless->getPlayerId()]++;
-      if (!linkWireless->send(
-              std::vector<u32>{counters[linkWireless->getPlayerId()]})) {
-        log("Send failed :(");
-        hang();
-        return;
+      linkWireless->send(
+          std::vector<u32>{counters[linkWireless->getPlayerId()]});
+      CHECK_ERRORS("Send failed :(")
+
+      if (!doubleSend && (keys & KEY_LEFT) && linkWireless->canSend()) {
+        doubleSend = true;
+        goto again;
       }
     }
     if (sending && (!(keys & KEY_A)))
@@ -194,11 +230,17 @@ void messageLoop() {
 
     // (6) Receive data
     std::vector<LinkWireless::Message> messages;
-    if (!linkWireless->receive(messages)) {
-      log("Receive failed :(");
-      hang();
-      return;
+    if (retransmission) {
+      // (exchanging data 4 times, just for speed purposes)
+      linkWireless->receive(messages, TRANSFERS_PER_FRAME, []() {
+        u16 keys = ~REG_KEYS & KEY_ANY;
+        return keys & KEY_SELECT;
+      });
+    } else {
+      // (exchanging data one time)
+      linkWireless->receive(messages);
     }
+    CHECK_ERRORS("Receive failed :(")
     if (messages.size() > 0) {
       for (auto& message : messages) {
         u32 expected = counters[message.playerId] + 1;
@@ -207,29 +249,24 @@ void messageLoop() {
 
         // Check for packet loss
         if (packetLossCheck && message.data[0] != expected) {
-          log("Wait... p" + std::to_string(message.playerId) + "\n" +
-              "\nExpected: " + std::to_string(expected) + "\nReceived: " +
-              std::to_string(message.data[0]) + "\n\npacket loss? :(");
-          linkWireless->disconnect();
-          hang();
-          return;
+          lostPackets++;
+          lastLostPacketPlayerId = message.playerId;
+          lastLostPacketExpected = expected;
+          lastLostPacketReceived = message.data[0];
         }
       }
     }
 
     // Accept new connections
     if (linkWireless->getState() == LinkWireless::State::SERVING) {
-      if (!linkWireless->acceptConnections()) {
-        log("Accept failed :(");
-        hang();
-        return;
-      }
+      linkWireless->acceptConnections();
+      CHECK_ERRORS("Accept failed :(")
     }
 
     // (7) Disconnect
     if ((keys & KEY_SELECT)) {
       if (!linkWireless->disconnect()) {
-        log("Disconnect failed :(");
+        log("Disconn failed :(");
         hang();
         return;
       }
@@ -240,18 +277,32 @@ void messageLoop() {
     if (!switching && (keys & KEY_UP)) {
       switching = true;
       packetLossCheck = !packetLossCheck;
+      if (!packetLossCheck) {
+        lostPackets = 0;
+        lastLostPacketPlayerId = 0;
+        lastLostPacketExpected = 0;
+        lastLostPacketReceived = 0;
+      }
     }
     if (switching && (!(keys & KEY_UP)))
       switching = false;
 
     std::string output =
-        "Players: " + std::to_string(linkWireless->getPlayerCount()) +
+        "Player #" + std::to_string(linkWireless->getPlayerId()) + " (" +
+        std::to_string(linkWireless->getPlayerCount()) + " total)" +
         "\n\n(press A to increment counter)\n(hold B to do it "
-        "continuously)\n\nPacket loss check: " +
+        "continuously)\n(hold LEFT for double send)\n\nPacket loss check: " +
         (packetLossCheck ? "ON" : "OFF") + "\n(switch with UP)\n\n";
     for (u32 i = 0; i < linkWireless->getPlayerCount(); i++) {
       output +=
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
+    }
+    output += "\n_buffer: " + std::to_string(linkWireless->getPendingCount());
+    if (packetLossCheck && lostPackets > 0) {
+      output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
+      output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ") " +
+                std::to_string(lastLostPacketReceived) + " [vs " +
+                std::to_string(lastLostPacketExpected) + "]";
     }
 
     // Print
