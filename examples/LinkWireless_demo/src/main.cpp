@@ -200,6 +200,11 @@ void messageLoop() {
   bool packetLossCheck = false;
   bool switching = false;
 
+  u32 lostPackets = 0;
+  u32 lastLostPacketPlayerId = 0;
+  u32 lastLostPacketExpected = 0;
+  u32 lastLostPacketReceived = 0;
+
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
@@ -244,12 +249,10 @@ void messageLoop() {
 
         // Check for packet loss
         if (packetLossCheck && message.data[0] != expected) {
-          log("Wait... p" + std::to_string(message.playerId) + "\n" +
-              "\nExpected: " + std::to_string(expected) + "\nReceived: " +
-              std::to_string(message.data[0]) + "\n\npacket loss? :(");
-          linkWireless->disconnect();
-          hang();
-          return;
+          lostPackets++;
+          lastLostPacketPlayerId = message.playerId;
+          lastLostPacketExpected = expected;
+          lastLostPacketReceived = message.data[0];
         }
       }
     }
@@ -289,6 +292,12 @@ void messageLoop() {
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
     }
     output += "\n_buffer: " + std::to_string(linkWireless->getPendingCount());
+    if (packetLossCheck && lostPackets > 0) {
+      output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
+      output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ") " +
+                std::to_string(lastLostPacketReceived) + " [vs " +
+                std::to_string(lastLostPacketExpected) + "]";
+    }
 
     // Print
     VBlankIntrWait();
