@@ -317,8 +317,6 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   Send N 32 bit values to connected adapter.
     
-⚠️ Each `SendData` can send up to 90 bytes (or 22 values).
-
 ⚠️ The first byte **is a header**, and it has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
 - For hosts: the number of `bytes` that comes next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   * `0x00000008`, `0xaabbccdd`, `0x12345678`.
@@ -328,7 +326,10 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
   * The third client should send: `0x100000`, `0xaabbccdd`
   * The fourth client should send: `0x2000000`, `0xaabbccdd`
 
-⚠️ The guest formula only seems to be true when `bytes <= 16`. I'm sure that guests can send more than 16 bytes (I've seen it!), but I have no idea how to reliably build a header that works. Hosts, on the other hand, can send any number of bytes below 90 and it will work just fine.
+⚠️ Each `SendData` can send up to:
+- **Host:** 90 bytes (or 22 values)
+- **Guests:** 16 bytes (or 4 values)
+- *(the header doesn't count)*
 
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 

@@ -35,8 +35,9 @@
 //       linkWireless->disconnect();
 // --------------------------------------------------------------------------
 // `data` restrictions:
-// - masters can send up to 14 words of 32 bits at a time!
-// - slaves can only send 4 (or 2 if retransmission is on)!
+// - servers can send up to 19 words of 32 bits at a time!
+// - clients can send up to 3 words of 32 bits at a time!
+// - if retransmission is on, these limits drop to 14 and 1!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
@@ -53,9 +54,6 @@
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_CMD_TIMEOUT 100
 #define LINK_WIRELESS_MAX_PLAYERS 5
-#define LINK_WIRELESS_MAX_USER_SERVER_TRANSFER_LENGTH 14
-#define LINK_WIRELESS_NORMAL_MAX_USER_CLIENT_TRANSFER_LENGTH 4
-#define LINK_WIRELESS_RETRANSMISSION_MAX_USER_CLIENT_TRANSFER_LENGTH 2
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 #define LINK_WIRELESS_LOGIN_STEPS 9
@@ -87,6 +85,8 @@
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
+const u16 LINK_WIRELESS_USER_MAX_SERVER_TRANSFER_LENGTHS[] = {19, 14};
+const u32 LINK_WIRELESS_USER_MAX_CLIENT_TRANSFER_LENGTHS[] = {3, 1};
 
 class LinkWireless {
  public:
@@ -300,10 +300,8 @@ class LinkWireless {
     }
     u32 maxTransferLength =
         state == SERVING
-            ? LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
-            : (retransmission
-                   ? LINK_WIRELESS_RETRANSMISSION_MAX_USER_CLIENT_TRANSFER_LENGTH
-                   : LINK_WIRELESS_NORMAL_MAX_USER_CLIENT_TRANSFER_LENGTH);
+            ? LINK_WIRELESS_USER_MAX_SERVER_TRANSFER_LENGTHS[retransmission]
+            : LINK_WIRELESS_USER_MAX_CLIENT_TRANSFER_LENGTHS[retransmission];
     if (data.size() == 0 || data.size() > maxTransferLength) {
       lastError = INVALID_SEND_SIZE;
       return false;

@@ -180,5 +180,6 @@ Name | Return type | Description
 `canSend()` | **bool** | Returns `false` only if the next `send(...)` call would fail due to full buffers.
 `getPendingCount()` | **u32** | Returns the number of outgoing messages ready to be sent.
 
-⚠️ masters can send up to `14` words of 32 bits at a time!
-⚠️ slaves can only send `4` (or `2` if `retransmission` is on)!
+⚠️ servers can send up to `19` words of 32 bits at a time!
+⚠️ clients can send up to `3` words of 32 bits at a time!
+⚠️ if `retransmission` is on, these limits drop to `14` and `1`!
