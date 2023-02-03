@@ -475,10 +475,6 @@ class LinkWireless {
 
   bool disconnect() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED) {
-      lastError = WRONG_STATE;
-      return false;
-    }
 
     bool success = sendCommand(LINK_WIRELESS_COMMAND_DISCONNECT).success;
 
