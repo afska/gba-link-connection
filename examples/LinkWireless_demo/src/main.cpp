@@ -180,7 +180,10 @@ void messageLoop() {
 
     // (5) Send data
     if ((keys & KEY_B) || (!sending && (keys & KEY_A))) {
+      bool doubleSend = false;
       sending = true;
+
+    again:
       counters[linkWireless->getPlayerId()]++;
       if (!linkWireless->send(
               std::vector<u32>{counters[linkWireless->getPlayerId()]})) {
@@ -188,6 +191,9 @@ void messageLoop() {
         hang();
         return;
       }
+
+      if (!doubleSend && (keys & KEY_LEFT))
+        goto again;
     }
     if (sending && (!(keys & KEY_A)))
       sending = false;
@@ -247,7 +253,7 @@ void messageLoop() {
     std::string output =
         "Players: " + std::to_string(linkWireless->getPlayerCount()) +
         "\n\n(press A to increment counter)\n(hold B to do it "
-        "continuously)\n\nPacket loss check: " +
+        "continuously)\n(hold LEFT for double send)\n\nPacket loss check: " +
         (packetLossCheck ? "ON" : "OFF") + "\n(switch with UP)\n\n";
     for (u32 i = 0; i < linkWireless->getPlayerCount(); i++) {
       output +=

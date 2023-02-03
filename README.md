@@ -39,7 +39,7 @@ The library uses message queues to send/receive data and transmits when it's pos
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`baudRate` | **BaudRate** | `BaudRate::BAUD_RATE_1` | Sets a specific baud rate.
+`baudRate` | **BaudRate** | `LinkCable::BaudRate::BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
@@ -75,7 +75,7 @@ This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM
 
 Name | Return type | Description
 --- | --- | ---
-`sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`.
+`sendRom(rom, romSize, cancel)` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. Once completed, the return value should be `LinkCableMultiboot::Result::SUCCESS`.
 
 ⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
@@ -140,6 +140,8 @@ Name | Return type | Description
 
 This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this article](docs/wireless_adapter.md) is very helpful. I've updated the blog post to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
 
+The library, by default, implements a lightweight protocol on top of the adapter's message system. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
+
 ![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
 
 ## Constructor
@@ -149,7 +151,7 @@ This is a driver for an accessory that enables wireless games up to 5 players. T
 Name | Type | Default | Description
 --- | --- | --- | ---
 `msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
-`forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
+`protocol` | **LinkWireless::Protocol** | `LinkWireless::Protocol::RETRANSMIT` | `LinkWireless::Protocol::BASIC`:<br>Clients only see messages sent from the server, ignoring other peers. Packet loss can occur, so games need to always send the full game state or implement retransmission on top of this.<br><br>`LinkWireless::Protocol::FORWARD`:<br>The server forwards all messages to the clients.<br><br>`LinkWireless::Protocol::RETRANSMIT`:<br>Same as `FORWARD`, but the library also handles retransmission for you, so there should be no packet loss.
 
 ## Methods
 
@@ -172,6 +174,4 @@ Name | Return type | Description
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
 
-⚠️ packet loss can occur, so always send the full game state or implement retransmission on top of this!
-
-⚠️ the adapter can transfer a maximum of twenty 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!
+⚠️ the library can transfer a maximum of fifteen 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!

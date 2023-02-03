@@ -350,6 +350,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Responds with all the data from all adapters. No IDs are included, this is just what was sent concatenated together.
 *   Once data has been pulled out, it clears the data buffer, so calling this again can only get new data.
 
+⚠️ When the data is concatenated, only one **header** (see [SendData](#senddata---0x24)) is included at the first value of the response.
+
 #### Wait - `0x27`
 
 [![Image without alt text or caption](img/0x27.png)](img/0x27.png)
