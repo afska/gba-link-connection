@@ -39,7 +39,7 @@
 // retransmission on top of this!
 // - the adapter can transfer a maximum of twenty 32-bit words at a
 // time, and messages are often concatenated together, so keep things way below
-// this limit (specially when forwarding is on)!
+// this limit (specially when the protocol is FORWARD or RETRANSMIT)!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
@@ -87,16 +87,20 @@ const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
 class LinkWireless {
  public:
   enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
+  enum Protocol { BASIC, FORWARD, RETRANSMIT };
 
   struct Message {
     u8 playerId = 0;
     std::vector<u32> data = std::vector<u32>{};
+
+    u32 _packetId = 0;
   };
 
   explicit LinkWireless(u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
-                        bool forwarding = true) {
+                        Protocol protocol = RETRANSMIT) {
+    // TODO: UPDATE README, TALK ABOUT `protocol`
     this->msgTimeout = msgTimeout;
-    this->forwarding = forwarding;
+    this->protocol = protocol;
   }
 
   bool isActive() { return isEnabled; }
@@ -249,8 +253,11 @@ class LinkWireless {
     Message message;
     message.playerId = _author < 0 ? playerId : _author;
     message.data = data;
+    message._packetId = lastPacketId;
 
     outgoingMessages.push_back(message);
+
+    lastPacketId++;
 
     return true;
   }
@@ -273,12 +280,14 @@ class LinkWireless {
 
     messages = std::vector<Message>{};
     for (u32 i = 0; i < words.size(); i++) {
-      u32 header = words[i];
+      MessageHeaderSerializer messageHeaderSerializer;
 
-      u16 subHeader = msB32(header);
-      u8 playerCount = msB16(subHeader);
-      u8 playerId = lsB16(subHeader);
-      u8 size = (u8)lsB32(header);
+      messageHeaderSerializer.headerInt = words[i];
+      auto header = messageHeaderSerializer.headerStruct;
+
+      u8 playerCount = header.clientCount + 1;
+      u8 playerId = header.playerId;
+      u8 size = header.size;
 
       if (i + size >= words.size()) {
         reset();
@@ -312,7 +321,7 @@ class LinkWireless {
         return disconnect();
     }
 
-    if (state == SERVING && forwarding) {
+    if (state == SERVING && (protocol == FORWARD || protocol == RETRANSMIT)) {
       for (auto& message : messages)
         send(message.data, message.playerId);
     }
@@ -357,14 +366,28 @@ class LinkWireless {
     std::vector<u32> responses = std::vector<u32>{};
   };
 
+  struct MessageHeader {
+    unsigned int packetId : 21;
+    unsigned int size : 5;
+    unsigned int playerId : 4;
+    unsigned int clientCount : 2;
+  };
+
+  union MessageHeaderSerializer {
+    MessageHeader headerStruct;
+    u32 headerInt;
+  };
+
   u32 msgTimeout;
-  bool forwarding;
+  Protocol protocol;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
   u8 playerId = 0;
   u8 playerCount = 1;
   std::vector<Message> outgoingMessages;
+  u32 lastPacketId = 0;
+  u32 lastConfirmedPacketId[LINK_WIRELESS_MAX_PLAYERS];
   u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
   bool isEnabled = false;
 
@@ -377,9 +400,16 @@ class LinkWireless {
 
     std::vector<u32> words;
     for (auto& message : outgoingMessages) {
-      u32 header = buildU32(buildU16(playerCount, message.playerId),
-                            message.data.size());
-      words.push_back(header);
+      MessageHeader header;
+      MessageHeaderSerializer messageHeaderSerializer;
+
+      header.clientCount = playerCount - 1;
+      header.playerId = message.playerId;
+      header.size = message.data.size();
+      header.packetId = message._packetId;
+      messageHeaderSerializer.headerStruct = header;
+
+      words.push_back(messageHeaderSerializer.headerInt);
       words.insert(words.end(), message.data.begin(), message.data.end());
     }
 
@@ -435,8 +465,11 @@ class LinkWireless {
     this->playerId = 0;
     this->playerCount = 1;
     this->outgoingMessages = std::vector<Message>{};
-    for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+    this->lastPacketId = 0;
+    for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
+      lastConfirmedPacketId[i] = 0;
       timeouts[i] = 0;
+    }
 
     stop();
     return start();

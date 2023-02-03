@@ -174,4 +174,4 @@ Name | Return type | Description
 
 ⚠️ packet loss can occur, so always send the full game state or implement retransmission on top of this!
 
-⚠️ the adapter can transfer a maximum of twenty 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when `forwarding` is on)!
+⚠️ the adapter can transfer a maximum of twenty 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!
