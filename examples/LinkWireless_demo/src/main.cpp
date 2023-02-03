@@ -175,7 +175,8 @@ void messageLoop() {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // (5) Send data
-    if ((keys & KEY_B) || (!sending && (keys & KEY_A))) {
+    if (linkWireless->canSend() &&
+        ((keys & KEY_B) || (!sending && (keys & KEY_A)))) {
       bool doubleSend = false;
       sending = true;
 
