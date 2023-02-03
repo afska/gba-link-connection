@@ -35,7 +35,7 @@
 //       linkWireless->disconnect();
 // --------------------------------------------------------------------------
 // considerations:
-// - the library can transfer a maximum of fifteen 32-bit words at a
+// - the library can transfer a maximum of 14 words of 32 bits at a
 // time, and messages are often concatenated together, so keep things way below
 // this limit (specially when the protocol is FORWARD or RETRANSMIT)!
 // --------------------------------------------------------------------------
@@ -49,10 +49,11 @@
 #define LINK_WIRELESS_DEFAULT_MSG_TIMEOUT 5
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
+#define LINK_WIRELESS_MSG_CONFIRMATION 0
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_CMD_TIMEOUT 100
 #define LINK_WIRELESS_MAX_PLAYERS 5
-#define LINK_WIRELESS_MAX_USER_TRANSFER_LENGTH 15
+#define LINK_WIRELESS_MAX_USER_TRANSFER_LENGTH 14
 #define LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
@@ -315,45 +316,16 @@ class LinkWireless {
       return false;
     }
 
-    u32 startIndex = 0;
-    if (protocol == RETRANSMIT && words.size() > 0) {
-      bool isServerConfirmation = words[0] & LINK_WIRELESS_DATA_REQUEST;
-
-      if (isServerConfirmation) {
-        if (words.size() < LINK_WIRELESS_MAX_PLAYERS - 1) {
-          reset();
-          lastError = BAD_CONFIRMATION;
-          return false;
-        }
-
-        u32 min = 0xffffffff;
-        for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
-          u32 mask = i == 0 ? ~LINK_WIRELESS_DATA_REQUEST : ~0;
-          u32 clientConfirmation = words[i] & mask;
-          lastConfirmationFromClients[1 + i] = clientConfirmation;
-
-          if (clientConfirmation < min)
-            min = clientConfirmation;
-        }
-        removeConfirmedMessages(min);
-      } else {
-        lastConfirmationFromServer = words[0];
-        removeConfirmedMessages(lastConfirmationFromServer);
-      }
-
-      startIndex = isServerConfirmation ? 1 : LINK_WIRELESS_MAX_PLAYERS - 1;
-    }
-
     for (u32 i = 0; i < playerCount; i++)
       if (i != playerId)
         timeouts[i]++;
 
     messages = std::vector<Message>{};
-    for (u32 i = startIndex; i < words.size(); i++) {
-      MessageHeaderSerializer messageHeaderSerializer;
-      messageHeaderSerializer.headerInt = words[i];
+    for (u32 i = 0; i < words.size(); i++) {
+      MessageHeaderSerializer serializer;
+      serializer.asInt = words[i];
 
-      MessageHeader header = messageHeaderSerializer.headerStruct;
+      MessageHeader header = serializer.asStruct;
       u8 remotePlayerCount = header.clientCount + 1;
       u8 remotePlayerId = header.playerId;
       u8 size = header.size;
@@ -370,12 +342,15 @@ class LinkWireless {
 
       if (state == SERVING) {
         if (protocol == RETRANSMIT &&
+            packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
             packetId <= lastPacketIdFromClients[remotePlayerId])
           goto skip;
 
         lastPacketIdFromClients[remotePlayerId] = packetId;
       } else {
-        if (protocol == RETRANSMIT && packetId <= lastPacketIdFromServer)
+        if (protocol == RETRANSMIT &&
+            packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
+            packetId <= lastPacketIdFromServer)
           goto skip;
 
         playerCount = remotePlayerCount;
@@ -394,7 +369,18 @@ class LinkWireless {
         for (u32 j = 0; j < size; j++)
           message.data.push_back(words[i + 1 + j]);
         message._packetId = packetId;
-        messages.push_back(message);
+
+        if (protocol == RETRANSMIT &&
+            packetId == LINK_WIRELESS_MSG_CONFIRMATION) {
+          if (!handleConfirmation(message)) {
+            reset();
+            lastError = BAD_CONFIRMATION;
+            return false;
+          }
+        } else {
+          messages.push_back(message);
+        }
+
         i += size;
       }
     }
@@ -466,8 +452,8 @@ class LinkWireless {
   };
 
   union MessageHeaderSerializer {
-    MessageHeader headerStruct;
-    u32 headerInt;
+    MessageHeader asStruct;
+    u32 asInt;
   };
 
   u32 msgTimeout;
@@ -503,31 +489,24 @@ class LinkWireless {
 
     if (protocol == RETRANSMIT) {
       if (state == SERVING) {
-        for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
-          u32 serverBit = i == 0 ? LINK_WIRELESS_DATA_REQUEST : 0;
-          u32 confirmation = lastPacketIdFromClients[1 + i] | serverBit;
-          words.push_back(confirmation);
-        }
+        words.push_back(buildConfirmationHeader(0));
+        for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++)
+          words.push_back(lastPacketIdFromClients[1 + i]);
       } else {
+        words.push_back(buildConfirmationHeader(playerId));
         words.push_back(lastPacketIdFromServer);
       }
     }
 
     for (auto& message : outgoingMessages) {
-      MessageHeader header;
-      header.clientCount = playerCount - 1;
-      header.playerId = message.playerId;
-      header.size = message.data.size();
-      header.packetId = message._packetId;
+      u8 size = message.data.size();
+      u32 header =
+          buildMessageHeader(message.playerId, size, message._packetId);
 
-      MessageHeaderSerializer messageHeaderSerializer;
-      messageHeaderSerializer.headerStruct = header;
-
-      if (words.size() + 1 + header.size >
-          LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH)
+      if (words.size() + 1 + size > LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH)
         break;
 
-      words.push_back(messageHeaderSerializer.headerInt);
+      words.push_back(header);
       words.insert(words.end(), message.data.begin(), message.data.end());
     }
 
@@ -538,6 +517,55 @@ class LinkWireless {
       outgoingMessages.clear();
 
     return true;
+  }
+
+  bool handleConfirmation(Message confirmation) {
+    if (confirmation.data.size() == 0)
+      return false;
+
+    bool isServerConfirmation = confirmation.playerId == 0;
+
+    if (isServerConfirmation) {
+      if (state != CONNECTED ||
+          confirmation.data.size() != LINK_WIRELESS_MAX_PLAYERS - 1)
+        return false;
+
+      lastConfirmationFromServer = confirmation.data[playerId - 1];
+      removeConfirmedMessages(lastConfirmationFromServer);
+    } else {
+      if (state != SERVING || confirmation.data.size() != 1)
+        return false;
+
+      u32 confirmationData = confirmation.data[0];
+      lastConfirmationFromClients[confirmation.playerId] = confirmationData;
+
+      u32 min = confirmationData;
+      for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
+        u32 confirmationData = lastConfirmationFromClients[1 + i];
+        if (confirmationData < min)
+          min = confirmationData;
+      }
+      removeConfirmedMessages(min);
+    }
+
+    return true;
+  }
+
+  u32 buildConfirmationHeader(u8 playerId) {
+    return buildMessageHeader(
+        playerId, playerId == 0 ? LINK_WIRELESS_MAX_PLAYERS - 1 : 1, 0);
+  }
+
+  u32 buildMessageHeader(u8 playerId, u8 size, u32 packetId) {
+    MessageHeader header;
+    header.clientCount = playerCount - 1;
+    header.playerId = playerId;
+    header.size = size;
+    header.packetId = packetId;
+
+    MessageHeaderSerializer serializer;
+    serializer.asStruct = header;
+    return serializer.asInt;
   }
 
   void removeConfirmedMessages(u32 confirmation) {

@@ -175,4 +175,4 @@ Name | Return type | Description
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
 
-⚠️ the library can transfer a maximum of fifteen 32-bit words at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!
+⚠️ the library can transfer a maximum of 14 words of 32 bits at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!
