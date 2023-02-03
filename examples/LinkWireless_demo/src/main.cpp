@@ -152,7 +152,7 @@ void connect() {
     }
 
     linkWireless->keepConnecting();
-    CHECK_ERRORS("Finish conn failed :(")
+    CHECK_ERRORS("Finish failed :(")
   }
 
   log("Connected! " + std::to_string(linkWireless->getPlayerId()));
@@ -222,7 +222,7 @@ void messageLoop() {
     // (7) Disconnect
     if ((keys & KEY_SELECT)) {
       if (!linkWireless->disconnect()) {
-        log("Disconnect failed :(");
+        log("Disconn failed :(");
         hang();
         return;
       }
@@ -238,7 +238,8 @@ void messageLoop() {
       switching = false;
 
     std::string output =
-        "Players: " + std::to_string(linkWireless->getPlayerCount()) +
+        "Player #" + std::to_string(linkWireless->getPlayerId()) + " (" +
+        std::to_string(linkWireless->getPlayerCount()) + " total)" +
         "\n\n(press A to increment counter)\n(hold B to do it "
         "continuously)\n(hold LEFT for double send)\n\nPacket loss check: " +
         (packetLossCheck ? "ON" : "OFF") + "\n(switch with UP)\n\n";
@@ -246,6 +247,7 @@ void messageLoop() {
       output +=
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
     }
+    output += "\n_buffer: " + std::to_string(linkWireless->getPendingCount());
 
     // Print
     VBlankIntrWait();

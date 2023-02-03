@@ -449,6 +449,7 @@ class LinkWireless {
   }
   u8 getPlayerId() { return playerId; }
   u8 getPlayerCount() { return playerCount; }
+  u32 getPendingCount() { return outgoingMessages.size(); }
 
   ~LinkWireless() {
     delete linkSPI;
