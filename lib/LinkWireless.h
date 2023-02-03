@@ -49,7 +49,7 @@
 #include "LinkSPI.h"
 
 #define LINK_WIRELESS_DEFAULT_MSG_TIMEOUT 5
-#define LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT (228 * 5)
+#define LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT ((160 + 68) * 5)
 #define LINK_WIRELESS_DEFAULT_BUFFER_SIZE 30
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
@@ -336,15 +336,17 @@ class LinkWireless {
       return false;
     }
 
-    if (!sendPendingMessages()) {
-      lastError = SEND_DATA_FAILED;
-      return false;
-    }
-
     std::vector<u32> words;
     if (!receiveData(words)) {
       lastError = RECEIVE_DATA_FAILED;
       return false;
+    }
+
+    if (state == SERVING || didReceiveAnyBytes) {
+      if (!sendPendingMessages()) {
+        lastError = SEND_DATA_FAILED;
+        return false;
+      }
     }
 
     for (u32 i = 0; i < playerCount; i++)
