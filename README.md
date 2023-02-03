@@ -152,7 +152,7 @@ Name | Type | Default | Description
 --- | --- | --- | ---
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
-`maxPlayers` | **u8** | `5` | Maximum number of allowed players.
+`maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players.
 `msgTimeout` | **u32** | `5` | Timeout used by `receive(messages)`. It's the maximum number of *receive calls* without a message from other connected player to disconnect.
 `multiReceiveTimeout` | **u32** | `1140` | An extra timeout used by `receive(messages, times)`. It's the maximum number of *vertical lines* without a message from anybody to disconnect *(228 vertical lines = 1 frame)*.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
@@ -185,6 +185,9 @@ Name | Return type | Description
 `getLastError()` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared.
 
 ⚠️ servers can send up to `19` words of 32 bits at a time!
+
 ⚠️ clients can send up to `3` words of 32 bits at a time!
+
 ⚠️ if `retransmission` is on, these limits drop to `14` and `1`!
+
 ⚠️ you can workaround these limits by doing multiple exchanges with `receive(messages, times)`!

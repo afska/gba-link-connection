@@ -71,6 +71,7 @@ start:
     // SELECT = back
     if (keys & KEY_SELECT) {
       linkWireless->deactivate();
+      delete linkWireless;
       linkWireless = NULL;
       goto start;
     }

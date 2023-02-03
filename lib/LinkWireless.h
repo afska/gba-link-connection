@@ -51,9 +51,9 @@
 #define LINK_WIRELESS_DEFAULT_MSG_TIMEOUT 5
 #define LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT ((160 + 68) * 5)
 #define LINK_WIRELESS_DEFAULT_BUFFER_SIZE 30
+#define LINK_WIRELESS_MSG_CONFIRMATION 0
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
-#define LINK_WIRELESS_MSG_CONFIRMATION 0
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_CMD_TIMEOUT 100
 #define LINK_WIRELESS_MAX_PLAYERS 5
@@ -95,19 +95,19 @@ class LinkWireless {
  public:
   enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
   enum Error {
-    NONE,
-    WRONG_STATE,
-    COMMAND_FAILED,
-    WEIRD_PLAYER_ID,
-    MAX_PLAYERS_LIMIT_REACHED,
-    INVALID_SEND_SIZE,
-    BUFFER_IS_FULL,
-    SEND_DATA_FAILED,
-    RECEIVE_DATA_FAILED,
-    BAD_CONFIRMATION,
-    BAD_MESSAGE,
-    TIMEOUT,
-    RETRANSMISSION_IS_OFF
+    NONE = 0,
+    WRONG_STATE = 1,
+    COMMAND_FAILED = 2,
+    WEIRD_PLAYER_ID = 3,
+    MAX_PLAYERS_LIMIT_REACHED = 4,
+    INVALID_SEND_SIZE = 5,
+    BUFFER_IS_FULL = 6,
+    SEND_DATA_FAILED = 7,
+    RECEIVE_DATA_FAILED = 8,
+    BAD_CONFIRMATION = 9,
+    BAD_MESSAGE = 10,
+    TIMEOUT = 11,
+    RETRANSMISSION_IS_OFF = 12
   };
 
   struct Message {
@@ -442,12 +442,12 @@ class LinkWireless {
       return false;
     }
 
-    u32 successfullExchanges = 0;
+    u32 successfulExchanges = 0;
     trackTimeouts();
 
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
-    while (successfullExchanges < times) {
+    while (successfulExchanges < times) {
       if (cancel())
         return true;
 
@@ -461,7 +461,7 @@ class LinkWireless {
         return false;
 
       if (didReceiveAnyBytes)
-        successfullExchanges++;
+        successfulExchanges++;
     }
 
     if (!checkTimeouts()) {
