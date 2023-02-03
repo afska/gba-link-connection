@@ -34,7 +34,7 @@
 // - 7) Disconnect:
 //       linkWireless->disconnect();
 // --------------------------------------------------------------------------
-// `data` restrictions:
+// restrictions:
 // - servers can send up to 19 words of 32 bits at a time!
 // - clients can send up to 3 words of 32 bits at a time!
 // - if retransmission is on, these limits drop to 14 and 1!
@@ -336,17 +336,15 @@ class LinkWireless {
       return false;
     }
 
+    if (!sendPendingMessages()) {
+      lastError = SEND_DATA_FAILED;
+      return false;
+    }
+
     std::vector<u32> words;
     if (!receiveData(words)) {
       lastError = RECEIVE_DATA_FAILED;
       return false;
-    }
-
-    if (state == SERVING || didReceiveAnyBytes) {
-      if (!sendPendingMessages()) {
-        lastError = SEND_DATA_FAILED;
-        return false;
-      }
     }
 
     if (_enableTimeouts)
