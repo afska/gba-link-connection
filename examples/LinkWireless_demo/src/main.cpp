@@ -277,6 +277,12 @@ void messageLoop() {
     if (!switching && (keys & KEY_UP)) {
       switching = true;
       packetLossCheck = !packetLossCheck;
+      if (!packetLossCheck) {
+        lostPackets = 0;
+        lastLostPacketPlayerId = 0;
+        lastLostPacketExpected = 0;
+        lastLostPacketReceived = 0;
+      }
     }
     if (switching && (!(keys & KEY_UP)))
       switching = false;
