@@ -483,20 +483,11 @@ class LinkWireless {
 
     std::vector<u32> words;
 
-    // TODO: EXTRACT METHODS
     // TODO: ADD MAX PLAYERS
     // TODO: `outgoingMessages` limit
 
-    if (protocol == RETRANSMIT) {
-      if (state == SERVING) {
-        words.push_back(buildConfirmationHeader(0));
-        for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++)
-          words.push_back(lastPacketIdFromClients[1 + i]);
-      } else {
-        words.push_back(buildConfirmationHeader(playerId));
-        words.push_back(lastPacketIdFromServer);
-      }
-    }
+    if (protocol == RETRANSMIT)
+      addConfirmations(words);
 
     for (auto& message : outgoingMessages) {
       u8 size = message.data.size();
@@ -517,6 +508,17 @@ class LinkWireless {
       outgoingMessages.clear();
 
     return true;
+  }
+
+  void addConfirmations(std::vector<u32>& words) {
+    if (state == SERVING) {
+      words.push_back(buildConfirmationHeader(0));
+      for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++)
+        words.push_back(lastPacketIdFromClients[1 + i]);
+    } else {
+      words.push_back(buildConfirmationHeader(playerId));
+      words.push_back(lastPacketIdFromServer);
+    }
   }
 
   bool handleConfirmation(Message confirmation) {
@@ -551,6 +553,15 @@ class LinkWireless {
     return true;
   }
 
+  void removeConfirmedMessages(u32 confirmation) {
+    outgoingMessages.erase(
+        std::remove_if(outgoingMessages.begin(), outgoingMessages.end(),
+                       [confirmation](Message it) {
+                         return it._packetId <= confirmation;
+                       }),
+        outgoingMessages.end());
+  }
+
   u32 buildConfirmationHeader(u8 playerId) {
     return buildMessageHeader(
         playerId, playerId == 0 ? LINK_WIRELESS_MAX_PLAYERS - 1 : 1, 0);
@@ -566,15 +577,6 @@ class LinkWireless {
     MessageHeaderSerializer serializer;
     serializer.asStruct = header;
     return serializer.asInt;
-  }
-
-  void removeConfirmedMessages(u32 confirmation) {
-    outgoingMessages.erase(
-        std::remove_if(outgoingMessages.begin(), outgoingMessages.end(),
-                       [confirmation](Message it) {
-                         return it._packetId <= confirmation;
-                       }),
-        outgoingMessages.end());
   }
 
   bool sendData(std::vector<u32> data) {
