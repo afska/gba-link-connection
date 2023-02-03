@@ -4,11 +4,13 @@
 // (0) Include the header
 #include "../../_lib/LinkWireless.h"
 
-#define CHECK_ERRORS(MESSAGE)                                           \
-  if ((lastError = linkWireless->getLastError())) {                     \
-    log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ")"); \
-    hang();                                                             \
-    return;                                                             \
+#define CHECK_ERRORS(MESSAGE)                                             \
+  if ((lastError = linkWireless->getLastError())) {                       \
+    log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ") [" + \
+        std::to_string(linkWireless->getState()) + "]");                  \
+    hang();                                                               \
+    linkWireless->activate();                                             \
+    return;                                                               \
   }
 
 void activate();
