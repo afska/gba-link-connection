@@ -47,6 +47,7 @@
 #include "LinkSPI.h"
 
 #define LINK_WIRELESS_DEFAULT_MSG_TIMEOUT 5
+#define LINK_WIRELESS_DEFAULT_BUFFER_SIZE 30
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
 #define LINK_WIRELESS_MSG_CONFIRMATION 0
@@ -96,6 +97,7 @@ class LinkWireless {
     WEIRD_PLAYER_ID,
     MAX_PLAYERS_LIMIT_REACHED,
     INVALID_SEND_SIZE,
+    BUFFER_IS_FULL,
     SEND_DATA_FAILED,
     RECEIVE_DATA_FAILED,
     BAD_CONFIRMATION,
@@ -112,10 +114,12 @@ class LinkWireless {
 
   explicit LinkWireless(Protocol protocol = RETRANSMIT,
                         u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
-                        u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT) {
+                        u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
+                        u32 bufferSize = LINK_WIRELESS_DEFAULT_BUFFER_SIZE) {
     this->protocol = protocol;
     this->maxPlayers = maxPlayers;
     this->msgTimeout = msgTimeout;
+    this->bufferSize = bufferSize;
   }
 
   bool isActive() { return isEnabled; }
@@ -297,6 +301,11 @@ class LinkWireless {
       return false;
     }
 
+    if (outgoingMessages.size() >= bufferSize) {
+      lastError = BUFFER_IS_FULL;
+      return false;
+    }
+
     Message message;
     message.playerId = _author < 0 ? playerId : _author;
     message.data = data;
@@ -469,6 +478,7 @@ class LinkWireless {
   Protocol protocol;
   u8 maxPlayers;
   u32 msgTimeout;
+  u32 bufferSize;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
