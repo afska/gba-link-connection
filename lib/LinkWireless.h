@@ -364,7 +364,8 @@ class LinkWireless {
             packetId <= lastPacketIdFromClients[remotePlayerId])
           goto skip;
 
-        lastPacketIdFromClients[remotePlayerId] = packetId;
+        if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
+          lastPacketIdFromClients[remotePlayerId] = packetId;
       } else {
         if (protocol == RETRANSMIT &&
             packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
@@ -372,7 +373,9 @@ class LinkWireless {
           goto skip;
 
         playerCount = remotePlayerCount;
-        lastPacketIdFromServer = packetId;
+
+        if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
+          lastPacketIdFromServer = packetId;
       }
 
       if (remotePlayerId == playerId) {
@@ -495,7 +498,7 @@ class LinkWireless {
   bool isEnabled = false;
 
   bool sendPendingMessages() {
-    if (outgoingMessages.empty()) {
+    if (outgoingMessages.empty() && protocol != RETRANSMIT) {
       Message emptyMessage;
       emptyMessage.playerId = playerId;
       emptyMessage._packetId = ++lastPacketId;
@@ -503,8 +506,6 @@ class LinkWireless {
     }
 
     std::vector<u32> words;
-
-    // TODO: `outgoingMessages` limit
 
     if (protocol == RETRANSMIT)
       addConfirmations(words);
@@ -561,10 +562,10 @@ class LinkWireless {
       u32 confirmationData = confirmation.data[0];
       lastConfirmationFromClients[confirmation.playerId] = confirmationData;
 
-      u32 min = confirmationData;
+      u32 min = 0xffffffff;
       for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
         u32 confirmationData = lastConfirmationFromClients[1 + i];
-        if (confirmationData < min)
+        if (confirmationData > 0 && confirmationData < min)
           min = confirmationData;
       }
       removeConfirmedMessages(min);
