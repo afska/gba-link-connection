@@ -375,14 +375,16 @@ class LinkWireless {
 
       if (state == SERVING) {
         if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
-            packetId <= lastPacketIdFromClients[remotePlayerId])
+            lastPacketIdFromClients[remotePlayerId] > 0 &&
+            packetId != lastPacketIdFromClients[remotePlayerId] + 1)
           goto skip;
 
         if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
           lastPacketIdFromClients[remotePlayerId] = packetId;
       } else {
         if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
-            packetId <= lastPacketIdFromServer)
+            lastPacketIdFromServer > 0 &&
+            packetId != lastPacketIdFromServer + 1)
           goto skip;
 
         playerCount = remotePlayerCount;
