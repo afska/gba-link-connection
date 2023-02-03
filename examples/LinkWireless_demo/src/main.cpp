@@ -4,6 +4,13 @@
 // (0) Include the header
 #include "../../_lib/LinkWireless.h"
 
+#define CHECK_ERRORS(MESSAGE)                                           \
+  if ((lastError = linkWireless->getLastError())) {                     \
+    log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ")"); \
+    hang();                                                             \
+    return;                                                             \
+  }
+
 void activate();
 void serve();
 void connect();
@@ -11,6 +18,8 @@ void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
 void hang();
+
+LinkWireless::Error lastError;
 
 // (1) Create a LinkWireless instance
 LinkWireless* linkWireless = new LinkWireless();
@@ -84,11 +93,8 @@ void serve() {
   log("Serving...");
 
   // (3) Start a server
-  if (!linkWireless->serve()) {
-    log("Serve failed :(");
-    hang();
-    return;
-  }
+  linkWireless->serve();
+  CHECK_ERRORS("Serve failed :(")
 
   log("Listening...");
 
@@ -101,11 +107,8 @@ void serve() {
       return;
     }
 
-    if (!linkWireless->acceptConnections()) {
-      log("Accept failed :(");
-      hang();
-      return;
-    }
+    linkWireless->acceptConnections();
+    CHECK_ERRORS("Accept failed :(")
   } while (linkWireless->getPlayerCount() <= 1);
 
   log("Connection accepted!");
@@ -118,11 +121,8 @@ void connect() {
 
   // (4) Connect to a server
   std::vector<u16> serverIds;
-  if (!linkWireless->getServerIds(serverIds)) {
-    log("Search failed :(");
-    hang();
-    return;
-  }
+  linkWireless->getServerIds(serverIds);
+  CHECK_ERRORS("Search failed :(")
 
   if (serverIds.size() == 0) {
     log("Nothing found :(");
@@ -137,11 +137,8 @@ void connect() {
 
   waitFor(KEY_START);
 
-  if (!linkWireless->connect(serverIds[0])) {
-    log("Connect failed :(");
-    hang();
-    return;
-  }
+  linkWireless->connect(serverIds[0]);
+  CHECK_ERRORS("Connect failed :(")
 
   while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -152,11 +149,8 @@ void connect() {
       return;
     }
 
-    if (!linkWireless->keepConnecting()) {
-      log("Finish connection failed :(");
-      hang();
-      return;
-    }
+    linkWireless->keepConnecting();
+    CHECK_ERRORS("Finish conn failed :(")
   }
 
   log("Connected! " + std::to_string(linkWireless->getPlayerId()));
@@ -185,12 +179,9 @@ void messageLoop() {
 
     again:
       counters[linkWireless->getPlayerId()]++;
-      if (!linkWireless->send(
-              std::vector<u32>{counters[linkWireless->getPlayerId()]})) {
-        log("Send failed :(");
-        hang();
-        return;
-      }
+      linkWireless->send(
+          std::vector<u32>{counters[linkWireless->getPlayerId()]});
+      CHECK_ERRORS("Send failed :(")
 
       if (!doubleSend && (keys & KEY_LEFT))
         goto again;
@@ -200,11 +191,8 @@ void messageLoop() {
 
     // (6) Receive data
     std::vector<LinkWireless::Message> messages;
-    if (!linkWireless->receive(messages)) {
-      log("Receive failed :(");
-      hang();
-      return;
-    }
+    linkWireless->receive(messages);
+    CHECK_ERRORS("Receive failed :(")
     if (messages.size() > 0) {
       for (auto& message : messages) {
         u32 expected = counters[message.playerId] + 1;
@@ -225,11 +213,8 @@ void messageLoop() {
 
     // Accept new connections
     if (linkWireless->getState() == LinkWireless::State::SERVING) {
-      if (!linkWireless->acceptConnections()) {
-        log("Accept failed :(");
-        hang();
-        return;
-      }
+      linkWireless->acceptConnections();
+      CHECK_ERRORS("Accept failed :(")
     }
 
     // (7) Disconnect

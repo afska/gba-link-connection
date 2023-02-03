@@ -88,6 +88,18 @@ class LinkWireless {
  public:
   enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
   enum Protocol { BASIC, FORWARD, RETRANSMIT };
+  enum Error {
+    NONE,
+    WRONG_STATE,
+    COMMAND_FAILED,
+    WEIRD_PLAYER_ID,
+    INVALID_SEND_SIZE,
+    SEND_DATA_FAILED,
+    RECEIVE_DATA_FAILED,
+    BAD_CONFIRMATION,
+    BAD_MESSAGE,
+    TIMEOUT
+  };
 
   struct Message {
     u8 playerId = 0;
@@ -105,6 +117,7 @@ class LinkWireless {
   bool isActive() { return isEnabled; }
 
   bool activate() {
+    lastError = NONE;
     bool success = reset();
 
     isEnabled = true;
@@ -112,14 +125,17 @@ class LinkWireless {
   }
 
   void deactivate() {
+    lastError = NONE;
     isEnabled = false;
     stop();
   }
 
   bool serve() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED)
+    if (state != AUTHENTICATED) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     auto broadcast = std::vector<u32>{1, 2, 3, 4, 5, 6};
     bool success =
@@ -128,6 +144,7 @@ class LinkWireless {
 
     if (!success) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -138,13 +155,16 @@ class LinkWireless {
 
   bool acceptConnections() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING)
+    if (state != SERVING) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     auto result = sendCommand(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
 
     if (!result.success) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -155,14 +175,17 @@ class LinkWireless {
 
   bool getServerIds(std::vector<u16>& serverIds) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED)
+    if (state != AUTHENTICATED) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     bool success1 =
         sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success;
 
     if (!success1) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -175,6 +198,7 @@ class LinkWireless {
 
     if (!success2) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -191,8 +215,10 @@ class LinkWireless {
 
   bool connect(u16 serverId) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED)
+    if (state != AUTHENTICATED) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     bool success =
         sendCommand(LINK_WIRELESS_COMMAND_CONNECT, std::vector<u32>{serverId})
@@ -200,6 +226,7 @@ class LinkWireless {
 
     if (!success) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -210,12 +237,15 @@ class LinkWireless {
 
   bool keepConnecting() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != CONNECTING)
+    if (state != CONNECTING) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     auto result1 = sendCommand(LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
     if (!result1.success || result1.responses.size() == 0) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -227,6 +257,7 @@ class LinkWireless {
 
     if (assignedPlayerId >= LINK_WIRELESS_MAX_PLAYERS) {
       reset();
+      lastError = WEIRD_PLAYER_ID;
       return false;
     }
 
@@ -234,6 +265,7 @@ class LinkWireless {
     if (!result2.success || result2.responses.size() == 0 ||
         (u16)result2.responses[0] != assignedClientId) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -245,9 +277,15 @@ class LinkWireless {
 
   bool send(std::vector<u32> data, int _author = -1) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
-        data.size() > LINK_WIRELESS_MAX_USER_TRANSFER_LENGTH)
+    if (state != SERVING && state != CONNECTED) {
+      lastError = WRONG_STATE;
       return false;
+    }
+    if (data.size() == 0 ||
+        data.size() > LINK_WIRELESS_MAX_USER_TRANSFER_LENGTH) {
+      lastError = INVALID_SEND_SIZE;
+      return false;
+    }
 
     Message message;
     message.playerId = _author < 0 ? playerId : _author;
@@ -261,15 +299,21 @@ class LinkWireless {
 
   bool receive(std::vector<Message>& messages) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED)
+    if (state != SERVING && state != CONNECTED) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
-    if (!sendPendingMessages())
+    if (!sendPendingMessages()) {
+      lastError = SEND_DATA_FAILED;
       return false;
+    }
 
     std::vector<u32> words;
-    if (!receiveData(words))
+    if (!receiveData(words)) {
+      lastError = RECEIVE_DATA_FAILED;
       return false;
+    }
 
     u32 startIndex = 0;
     if (protocol == RETRANSMIT && words.size() > 0) {
@@ -280,6 +324,7 @@ class LinkWireless {
       if (isServerConfirmation) {
         if (words.size() < LINK_WIRELESS_MAX_PLAYERS - 1) {
           reset();
+          lastError = BAD_CONFIRMATION;
           return false;
         }
 
@@ -317,6 +362,7 @@ class LinkWireless {
 
       if (i + size >= words.size()) {
         reset();
+        lastError = BAD_MESSAGE;
         return false;
       }
 
@@ -355,8 +401,10 @@ class LinkWireless {
     }
 
     for (u32 i = 0; i < playerCount; i++) {
-      if ((i == 0 || state == SERVING) && timeouts[i] > msgTimeout)
+      if ((i == 0 || state == SERVING) && timeouts[i] > msgTimeout) {
+        lastError = TIMEOUT;
         return disconnect();
+      }
     }
 
     if (state == SERVING && (protocol == FORWARD || protocol == RETRANSMIT)) {
@@ -369,8 +417,10 @@ class LinkWireless {
 
   bool disconnect() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED)
+    if (state != SERVING && state != CONNECTED) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     bool success = sendCommand(LINK_WIRELESS_COMMAND_DISCONNECT).success;
 
@@ -385,6 +435,11 @@ class LinkWireless {
   }
 
   State getState() { return state; }
+  Error getLastError() {
+    Error error = lastError;
+    lastError = NONE;
+    return error;
+  }
   u8 getPlayerId() { return playerId; }
   u8 getPlayerCount() { return playerCount; }
 
@@ -430,6 +485,7 @@ class LinkWireless {
   u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
   u32 lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
   u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
+  Error lastError = NONE;
   bool isEnabled = false;
 
   bool sendPendingMessages() {
@@ -443,7 +499,6 @@ class LinkWireless {
     std::vector<u32> words;
 
     // TODO: EXTRACT METHODS
-    // TODO: ADD ERROR REASON
     // TODO: ADD MAX PLAYERS
 
     if (protocol == RETRANSMIT) {
@@ -496,9 +551,15 @@ class LinkWireless {
 
   bool sendData(std::vector<u32> data) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
-        data.size() > LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH)
+    if (state != SERVING && state != CONNECTED) {
+      lastError = WRONG_STATE;
       return false;
+    }
+    if (data.size() == 0 ||
+        data.size() > LINK_WIRELESS_MAX_DEVICE_TRANSFER_LENGTH) {
+      lastError = INVALID_SEND_SIZE;
+      return false;
+    }
 
     u32 bytes = data.size() * 4;
     u32 header = playerId == 0 ? bytes : (1 << (3 + playerId * 5)) * bytes;
@@ -508,6 +569,7 @@ class LinkWireless {
 
     if (!success) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -516,14 +578,17 @@ class LinkWireless {
 
   bool receiveData(std::vector<u32>& data) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED)
+    if (state != SERVING && state != CONNECTED) {
+      lastError = WRONG_STATE;
       return false;
+    }
 
     auto result = sendCommand(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
     data = result.responses;
 
     if (!result.success) {
       reset();
+      lastError = COMMAND_FAILED;
       return false;
     }
 

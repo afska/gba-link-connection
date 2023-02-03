@@ -171,6 +171,7 @@ Name | Return type | Description
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
 `disconnect()` | **bool** | Disconnects and resets the adapter.
 `getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+`getLastError()` | **LinkWireless::Error** | If one of the other methods return `false`, you can inspect this to know the cause. After this call, the last error is cleared.
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
 
