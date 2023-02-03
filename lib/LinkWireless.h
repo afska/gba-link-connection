@@ -329,7 +329,7 @@ class LinkWireless {
     return true;
   }
 
-  bool receive(std::vector<Message>& messages, bool _timeout = true) {
+  bool receive(std::vector<Message>& messages, bool _enableTimeouts = true) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != SERVING && state != CONNECTED) {
       lastError = WRONG_STATE;
@@ -349,9 +349,8 @@ class LinkWireless {
       }
     }
 
-    for (u32 i = 0; i < playerCount; i++)
-      if (i != playerId)
-        timeouts[i]++;
+    if (_enableTimeouts)
+      trackTimeouts();
 
     u32 startIndex = messages.size();
 
@@ -419,14 +418,8 @@ class LinkWireless {
       }
     }
 
-    for (u32 i = 0; i < playerCount; i++) {
-      if ((i == 0 || state == SERVING) && _timeout &&
-          timeouts[i] > msgTimeout) {
-        lastError = TIMEOUT;
-        disconnect();
-        return false;
-      }
-    }
+    if (_enableTimeouts && !checkTimeouts())
+      return false;
 
     if (state == SERVING && forwarding && playerCount > 2) {
       for (u32 i = startIndex; i < messages.size(); i++) {
@@ -450,6 +443,7 @@ class LinkWireless {
     }
 
     u32 successfullExchanges = 0;
+    trackTimeouts();
 
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
@@ -468,6 +462,12 @@ class LinkWireless {
 
       if (didReceiveAnyBytes)
         successfullExchanges++;
+    }
+
+    if (!checkTimeouts()) {
+      lastError = TIMEOUT;
+      disconnect();
+      return false;
     }
 
     return true;
@@ -585,6 +585,24 @@ class LinkWireless {
 
     if (!retransmission)
       outgoingMessages.clear();
+
+    return true;
+  }
+
+  void trackTimeouts() {
+    for (u32 i = 0; i < playerCount; i++)
+      if (i != playerId)
+        timeouts[i]++;
+  }
+
+  bool checkTimeouts() {
+    for (u32 i = 0; i < playerCount; i++) {
+      if ((i == 0 || state == SERVING) && timeouts[i] > msgTimeout) {
+        lastError = TIMEOUT;
+        disconnect();
+        return false;
+      }
+    }
 
     return true;
   }
@@ -867,7 +885,7 @@ class LinkWireless {
 
   bool timeout(u32 limit, u32& lines, u32& vCount) {
     if (REG_VCOUNT != vCount) {
-      lines++;
+      lines += std::max((s32)REG_VCOUNT - (s32)vCount, 0);
       vCount = REG_VCOUNT;
     }
 

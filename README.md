@@ -154,7 +154,7 @@ Name | Type | Default | Description
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
 `maxPlayers` | **u8** | `5` | Maximum number of allowed players.
 `msgTimeout` | **u32** | `5` | Timeout used by `receive(...)`. It's the maximum number of *receive calls* without a message from other connected player to disconnect.
-`multiReceiveTimeout` | **u32** | `1140` | Timeout used by `receive(messages, times)`. It's the maximum number of *vertical lines* without a message from other connected player to disconnect *(228 vertical lines = 1 frame)*.
+`multiReceiveTimeout` | **u32** | `1140` | An extra timeout used by `receive(messages, times)`. It's the maximum number of *vertical lines* without a message from anybody to disconnect *(228 vertical lines = 1 frame)*.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
 
 ## Methods
