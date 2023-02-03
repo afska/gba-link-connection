@@ -176,6 +176,7 @@ Name | Return type | Description
 `getLastError()` | **LinkWireless::Error** | If one of the other methods return `false`, you can inspect this to know the cause. After this call, the last error is cleared.
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
-`getPendingCount()` | **u32** | Returns the number of outgoing messages, ready to be sent.
+`canSend()` | **bool** | Returns `false` only if the next `send(...)` call would fail due to full buffers.
+`getPendingCount()` | **u32** | Returns the number of outgoing messages ready to be sent.
 
 ⚠️ the library can transfer a maximum of 14 words of 32 bits at a time, and messages are often concatenated together, so keep things way below this limit (specially when the protocol is `FORWARD` or `RETRANSMIT`)!
