@@ -94,6 +94,7 @@ class LinkWireless {
     WRONG_STATE,
     COMMAND_FAILED,
     WEIRD_PLAYER_ID,
+    MAX_PLAYERS_LIMIT_REACHED,
     INVALID_SEND_SIZE,
     SEND_DATA_FAILED,
     RECEIVE_DATA_FAILED,
@@ -109,10 +110,12 @@ class LinkWireless {
     u32 _packetId = 0;
   };
 
-  explicit LinkWireless(u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
-                        Protocol protocol = RETRANSMIT) {
-    this->msgTimeout = msgTimeout;
+  explicit LinkWireless(Protocol protocol = RETRANSMIT,
+                        u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
+                        u32 msgTimeout = LINK_WIRELESS_DEFAULT_MSG_TIMEOUT) {
     this->protocol = protocol;
+    this->maxPlayers = maxPlayers;
+    this->msgTimeout = msgTimeout;
   }
 
   bool isActive() { return isEnabled; }
@@ -170,6 +173,12 @@ class LinkWireless {
     }
 
     playerCount = 1 + result.responses.size();
+
+    if (playerCount > maxPlayers) {
+      disconnect();
+      lastError = MAX_PLAYERS_LIMIT_REACHED;
+      return false;
+    }
 
     return true;
   }
@@ -388,7 +397,8 @@ class LinkWireless {
     for (u32 i = 0; i < playerCount; i++) {
       if ((i == 0 || state == SERVING) && timeouts[i] > msgTimeout) {
         lastError = TIMEOUT;
-        return disconnect();
+        disconnect();
+        return false;
       }
     }
 
@@ -456,8 +466,9 @@ class LinkWireless {
     u32 asInt;
   };
 
-  u32 msgTimeout;
   Protocol protocol;
+  u8 maxPlayers;
+  u32 msgTimeout;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
@@ -483,7 +494,6 @@ class LinkWireless {
 
     std::vector<u32> words;
 
-    // TODO: ADD MAX PLAYERS
     // TODO: `outgoingMessages` limit
 
     if (protocol == RETRANSMIT)

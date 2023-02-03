@@ -150,8 +150,9 @@ The library, by default, implements a lightweight protocol on top of the adapter
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
 `protocol` | **LinkWireless::Protocol** | `LinkWireless::Protocol::RETRANSMIT` | `LinkWireless::Protocol::BASIC`:<br>Clients only see messages sent from the server, ignoring other peers. Packet loss can occur, so games need to always send the full game state or implement retransmission on top of this.<br><br>`LinkWireless::Protocol::FORWARD`:<br>The server forwards all messages to the clients.<br><br>`LinkWireless::Protocol::RETRANSMIT`:<br>Same as `FORWARD`, but the library also handles retransmission for you, so there should be no packet loss.
+`maxPlayers` | **u8** | `5` | Maximum number of allowed players.
+`msgTimeout` | **u32** | `5` | Number of *`receive(...)` calls* without a message from other connected player to disconnect.
 
 ## Methods
 
