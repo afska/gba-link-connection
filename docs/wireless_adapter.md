@@ -237,7 +237,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   The data to be broadcast out to all adapters. Examples of use include the union room, broadcasting game name and username in download play, and the username in direct multiplayer in Pokémon.
 
-⚠️ This is the command used to start a server. The send data only matters if you plan to host a Single Pak game. Here's a byte by byte explanation:
+⚠️ This is the command used to start a server. The 6 parameters are the ASCII characters of the game and user name, plus some bytes indicating whether the server should appear in the Download Play list or not. Here's a byte by byte explanation:
 
 [![Image without alt text or caption](img/broadcast.png)](img/broadcast.png)
 

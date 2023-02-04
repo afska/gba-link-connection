@@ -166,11 +166,11 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate()` | **bool** | Activates the library.
 `deactivate()` | - | Deactivates the library.
-`serve()` | **bool** | Starts broadcasting a server and changes the state to `SERVING`.
+`serve([gameName], [userName])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters) and `userName` (max `8` characters) that games will be able to read.
 `acceptConnections()` | **bool** | Accepts new clients and updates the player count.
 `connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
 `keepConnecting()` | **bool** | When connecting, needs to be called until the state is `CONNECTED`. It assigns a player id.
-`getServerIds(serverIds)` | **bool** | Fills the `serverIds` vector with all the currently broadcasting servers.
+`getServers(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers.
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
 `receive(messages, times)` | **bool** | Performs multiple `receive(...)` calls until successfully exchanging data a number of `times`. This can only be called if `retransmission` is on.

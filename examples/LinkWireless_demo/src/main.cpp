@@ -121,7 +121,7 @@ void serve() {
   log("Serving...");
 
   // (3) Start a server
-  linkWireless->serve();
+  linkWireless->serve("LinkWireless", "Demo");
   CHECK_ERRORS("Serve failed :(")
 
   log("Listening...");
@@ -148,18 +148,24 @@ void connect() {
   log("Searching...");
 
   // (4) Connect to a server
-  std::vector<u16> serverIds;
-  linkWireless->getServerIds(serverIds);
+  std::vector<LinkWireless::Server> servers;
+  linkWireless->getServers(servers);
   CHECK_ERRORS("Search failed :(")
 
-  if (serverIds.size() == 0) {
+  if (servers.size() == 0) {
     log("Nothing found :(");
     hang();
     return;
   } else {
     std::string str = "Press START to connect\n(first ID will be used)\n\n";
-    for (u16& number : serverIds)
-      str += std::to_string(number) + "\n";
+    for (auto& server : servers) {
+      str += std::to_string(server.id) + "\n";
+      if (server.gameName.length() > 0)
+        str += " -> game: " + server.gameName + "\n";
+      if (server.userName.length() > 0)
+        str += " -> user: " + server.userName + "\n";
+      str += "\n";
+    }
     log(str);
   }
 
@@ -169,7 +175,7 @@ void connect() {
     return;
   }
 
-  linkWireless->connect(serverIds[0]);
+  linkWireless->connect(servers[0].id);
   CHECK_ERRORS("Connect failed :(")
 
   while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
