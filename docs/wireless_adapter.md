@@ -277,9 +277,9 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Send length: 0, response length: 0+
     
 *   Responds with the ID of the adapter that wants to connect, or the length of the response is zero if no adapter wants to connect.
-*   Don’t know if multiple IDs can be included here[3](#i-know-more).
+*   Don’t know if multiple IDs can be included here[3](#i-know-more). ⚠️ Yes!
 
-⚠️ I would rename this command to `AcceptConnections`. When acting as a host, games frequently call this method to accept new connections. It returns a list with all the connected adapter IDs (the already connected ones, and the ones that were potentially accepted by this call).
+⚠️ I would rename this command to `AcceptConnections`. When acting as a host, games frequently call this method. Though this doesn't really **accepts** new connections (the adapter does it regardless of whether you call this command or not), it returns a list with all the connected adapter IDs, and it's important for keeping the server (and other clients) informed about who's connected.
 
 ⚠️ If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in other way.
 
