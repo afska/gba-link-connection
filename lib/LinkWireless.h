@@ -78,6 +78,7 @@
 #define LINK_WIRELESS_COMMAND_START_HOST 0x19
 #define LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
+#define LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL 0x1d
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_END 0x1e
 #define LINK_WIRELESS_COMMAND_CONNECT 0x1f
 #define LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT 0x20
@@ -254,12 +255,21 @@ class LinkWireless {
 
     wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT);
 
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END);
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL);
     bool success2 =
         result.success &&
         result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
 
     if (!success2) {
+      reset();
+      lastError = COMMAND_FAILED;
+      return false;
+    }
+
+    bool success3 =
+        sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END).success;
+
+    if (!success3) {
       reset();
       lastError = COMMAND_FAILED;
       return false;
