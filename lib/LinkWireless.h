@@ -56,6 +56,7 @@
 #define LINK_WIRELESS_TRANSFER_WAIT 15
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
 #define LINK_WIRELESS_CMD_TIMEOUT 100
+#define LINK_WIRELESS_MIN_PLAYERS 2
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
@@ -357,7 +358,7 @@ class LinkWireless {
       serializer.asInt = words[i];
 
       MessageHeader header = serializer.asStruct;
-      u8 remotePlayerCount = header.clientCount + 1;
+      u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
       u8 remotePlayerId = header.playerId;
       u8 size = header.size;
       u32 packetId = header.packetId;
@@ -662,7 +663,7 @@ class LinkWireless {
 
   u32 buildMessageHeader(u8 playerId, u8 size, u32 packetId) {
     MessageHeader header;
-    header.clientCount = playerCount - 1;
+    header.clientCount = playerCount - LINK_WIRELESS_MIN_PLAYERS;
     header.playerId = playerId;
     header.size = size;
     header.packetId = packetId;
