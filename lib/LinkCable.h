@@ -25,6 +25,7 @@
 //       }
 // - 5) Mark the current state copy (front buffer) as consumed:
 //       linkCable->consume();
+//       // (put this line at the end of your game loop)
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That can cause packet loss. You might want to use libugba's instead.
