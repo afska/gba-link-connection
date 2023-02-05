@@ -170,7 +170,8 @@ Name | Return type | Description
 `acceptConnections()` | **bool** | Accepts new clients and updates the player count.
 `connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
 `keepConnecting()` | **bool** | When connecting, needs to be called until the state is `CONNECTED`. It assigns a player id.
-`getServers(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers.
+`getServers(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers. This action takes 1 second to complete.
+`getServers(servers, onWait)` | **bool** | Like `getServers(servers)`, but accepts an `onWait` function. The library will continuously invoke it each time VBlank starts, to let the user do something while waiting (like updating the screen).
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
 `receive(messages, times)` | **bool** | Performs multiple `receive(...)` calls until successfully exchanging data a number of `times`. This can only be called if `retransmission` is on.

@@ -238,6 +238,11 @@ class LinkWireless {
   }
 
   bool getServers(std::vector<Server>& servers) {
+    return getServers(servers, []() {});
+  }
+
+  template <typename F>
+  bool getServers(std::vector<Server>& servers, F onWait) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
       lastError = WRONG_STATE;
@@ -253,7 +258,7 @@ class LinkWireless {
       return false;
     }
 
-    wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT);
+    wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT, onWait);
 
     auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL);
     bool success2 =
@@ -968,13 +973,21 @@ class LinkWireless {
   }
 
   void wait(u32 verticalLines) {
+    wait(verticalLines, []() {});
+  }
+
+  template <typename F>
+  void wait(u32 verticalLines, F onVBlank) {
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
 
     while (lines < verticalLines) {
       if (REG_VCOUNT != vCount) {
-        lines++;
+        lines += std::max((s32)REG_VCOUNT - (s32)vCount, 0);
         vCount = REG_VCOUNT;
+
+        if (REG_VCOUNT == 160)
+          onVBlank();
       }
     };
   }

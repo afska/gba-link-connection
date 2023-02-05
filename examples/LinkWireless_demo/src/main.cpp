@@ -1,4 +1,5 @@
 #include <tonc.h>
+#include <functional>
 #include <string>
 
 // (0) Include the header
@@ -129,7 +130,7 @@ void serve() {
   do {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
-      log("Canceled");
+      log("Canceled!");
       linkWireless->disconnect();
       hang();
       return;
@@ -145,11 +146,20 @@ void serve() {
 }
 
 void connect() {
-  log("Searching...");
+  u32 dotsCount, timer = 0;
+  std::function<void()> animate = [&dotsCount, &timer]() {
+    if (timer++ % 10 == 0)
+      dotsCount = 1 + (dotsCount) % 3;
+
+    std::string dots = "";
+    for (u32 i = 0; i < dotsCount; i++)
+      dots += ".";
+    log("Searching" + dots);
+  };
 
   // (4) Connect to a server
   std::vector<LinkWireless::Server> servers;
-  linkWireless->getServers(servers);
+  linkWireless->getServers(servers, animate);
   CHECK_ERRORS("Search failed :(")
 
   if (servers.size() == 0) {
@@ -181,7 +191,7 @@ void connect() {
   while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
-      log("Canceled");
+      log("Canceled!");
       linkWireless->disconnect();
       hang();
       return;
