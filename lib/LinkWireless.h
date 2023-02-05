@@ -286,7 +286,7 @@ class LinkWireless {
       recoverName(server.gameName, result.responses[start + 1], false);
       recoverName(server.gameName, result.responses[start + 2]);
       recoverName(server.gameName, result.responses[start + 3]);
-      recoverName(server.gameName, result.responses[start + 4], true);
+      recoverName(server.gameName, result.responses[start + 4]);
       recoverName(server.userName, result.responses[start + 5]);
       recoverName(server.userName, result.responses[start + 6]);
 
