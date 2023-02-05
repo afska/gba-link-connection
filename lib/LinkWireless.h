@@ -55,7 +55,7 @@
 #define LINK_WIRELESS_MSG_CONFIRMATION 0
 #define LINK_WIRELESS_PING_WAIT 50
 #define LINK_WIRELESS_TRANSFER_WAIT 15
-#define LINK_WIRELESS_BROADCAST_SEARCH_WAIT ((160 + 68) * 60)
+#define LINK_WIRELESS_BROADCAST_SEARCH_WAIT_FRAMES 60
 #define LINK_WIRELESS_CMD_TIMEOUT 100
 #define LINK_WIRELESS_MIN_PLAYERS 2
 #define LINK_WIRELESS_MAX_PLAYERS 5
@@ -91,7 +91,7 @@
   if (state == NEEDS_RESET)           \
     reset();
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v4.2.0";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v4.3.0";
 
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
@@ -100,7 +100,14 @@ const u32 LINK_WIRELESS_USER_MAX_CLIENT_TRANSFER_LENGTHS[] = {3, 1};
 
 class LinkWireless {
  public:
-  enum State { NEEDS_RESET, AUTHENTICATED, SERVING, CONNECTING, CONNECTED };
+  enum State {
+    NEEDS_RESET,
+    AUTHENTICATED,
+    SEARCHING,
+    SERVING,
+    CONNECTING,
+    CONNECTED
+  };
 
   enum Error {
     // User errors
@@ -243,14 +250,49 @@ class LinkWireless {
 
   template <typename F>
   bool getServers(std::vector<Server>& servers, F onWait) {
+    if (!getServersAsyncStart())
+      return false;
+
+    waitVBlanks(LINK_WIRELESS_BROADCAST_SEARCH_WAIT_FRAMES, onWait);
+
+    if (!getServersAsyncEnd(servers))
+      return false;
+
+    return true;
+  }
+
+  bool getServersAsyncStart() {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
       lastError = WRONG_STATE;
       return false;
     }
 
-    bool success1 =
+    bool success =
         sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_START).success;
+
+    if (!success) {
+      reset();
+      lastError = COMMAND_FAILED;
+      return false;
+    }
+
+    state = SEARCHING;
+
+    return true;
+  }
+
+  bool getServersAsyncEnd(std::vector<Server>& servers) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SEARCHING) {
+      lastError = WRONG_STATE;
+      return false;
+    }
+
+    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL);
+    bool success1 =
+        result.success &&
+        result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
 
     if (!success1) {
       reset();
@@ -258,23 +300,10 @@ class LinkWireless {
       return false;
     }
 
-    wait(LINK_WIRELESS_BROADCAST_SEARCH_WAIT, onWait);
-
-    auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL);
     bool success2 =
-        result.success &&
-        result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
-
-    if (!success2) {
-      reset();
-      lastError = COMMAND_FAILED;
-      return false;
-    }
-
-    bool success3 =
         sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_END).success;
 
-    if (!success3) {
+    if (!success2) {
       reset();
       lastError = COMMAND_FAILED;
       return false;
@@ -297,6 +326,8 @@ class LinkWireless {
 
       servers.push_back(server);
     }
+
+    state = AUTHENTICATED;
 
     return true;
   }
@@ -973,21 +1004,30 @@ class LinkWireless {
   }
 
   void wait(u32 verticalLines) {
-    wait(verticalLines, []() {});
+    u32 count = 0;
+    u32 vCount = REG_VCOUNT;
+
+    while (count < verticalLines) {
+      if (REG_VCOUNT != vCount) {
+        count += std::max((s32)REG_VCOUNT - (s32)vCount, 0);
+        vCount = REG_VCOUNT;
+      }
+    };
   }
 
   template <typename F>
-  void wait(u32 verticalLines, F onVBlank) {
-    u32 lines = 0;
+  void waitVBlanks(u32 vBlanks, F onVBlank) {
+    u32 count = 0;
     u32 vCount = REG_VCOUNT;
 
-    while (lines < verticalLines) {
+    while (count < vBlanks) {
       if (REG_VCOUNT != vCount) {
-        lines += std::max((s32)REG_VCOUNT - (s32)vCount, 0);
         vCount = REG_VCOUNT;
 
-        if (REG_VCOUNT == 160)
+        if (vCount == 160) {
           onVBlank();
+          count++;
+        }
       }
     };
   }
