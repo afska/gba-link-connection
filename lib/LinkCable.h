@@ -61,7 +61,7 @@
 #define LINK_CABLE_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_CABLE_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v4.2.0";
+static volatile char LINK_CABLE_VERSION[] = "LinkCable/v4.2.1";
 
 void LINK_CABLE_ISR_VBLANK();
 void LINK_CABLE_ISR_TIMER();

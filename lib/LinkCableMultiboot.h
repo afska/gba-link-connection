@@ -61,7 +61,7 @@
     return error(FAILURE_DURING_HANDSHAKE);
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v4.2.0";
+    "LinkCableMultiboot/v4.2.1";
 
 const u8 LINK_CABLE_MULTIBOOT_CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
 
@@ -294,12 +294,12 @@ class LinkCableMultiboot {
   }
 
   void wait(u32 verticalLines) {
-    u32 lines = 0;
+    u32 count = 0;
     u32 vCount = REG_VCOUNT;
 
-    while (lines < verticalLines) {
+    while (count < verticalLines) {
       if (REG_VCOUNT != vCount) {
-        lines++;
+        count++;
         vCount = REG_VCOUNT;
       }
     };

@@ -116,8 +116,8 @@ Name | Return type | Description
 `activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
 `deactivate()` | - | Deactivates the library.
 `transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
-`transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
-`transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState` and `getAsyncData`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
+`transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
 `getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
 `getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
 `getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
@@ -164,20 +164,22 @@ Name | Type | Default | Description
 Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
-`activate()` | **bool** | Activates the library.
+`activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`.
 `deactivate()` | - | Deactivates the library.
 `serve([gameName], [userName])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters) and `userName` (max `8` characters) that games will be able to read.
 `acceptConnections()` | **bool** | Accepts new clients and updates the player count.
+`getServers(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers. This action takes 1 second to complete.
+`getServers(servers, onWait)` | **bool** | Like `getServers(servers)`, but accepts an `onWait()` function. The library will continuously invoke it each time VBlank starts, to let the user do something while waiting (like updating the screen).
+`getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
+`getServersAsyncEnd(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
 `connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
 `keepConnecting()` | **bool** | When connecting, needs to be called until the state is `CONNECTED`. It assigns a player id.
-`getServers(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers. This action takes 1 second to complete.
-`getServers(servers, onWait)` | **bool** | Like `getServers(servers)`, but accepts an `onWait` function. The library will continuously invoke it each time VBlank starts, to let the user do something while waiting (like updating the screen).
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes. Note that this data will be sent in the next `receive(...)` call.
 `receive(messages)` | **bool** | Sends the pending data and fills the `messages` vector with incoming messages, checking for timeouts and forwarding if needed. This call doesn't block the hardware waiting for messages, it returns if there are no incoming messages.
 `receive(messages, times)` | **bool** | Performs multiple `receive(...)` calls until successfully exchanging data a number of `times`. This can only be called if `retransmission` is on.
-`receive(messages, times, cancel)` | **bool** | Like `receive(messages, times)` but accepts a `cancel` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`receive(messages, times, cancel)` | **bool** | Like `receive(messages, times)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `disconnect()` | **bool** | Disconnects and resets the adapter.
-`getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+`getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
 `getPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getPlayerCount()` | **u8** *(1~5)* | Returns the connected players.
 `canSend()` | **bool** | Returns `false` only if the next `send(...)` call would fail due to full buffers.

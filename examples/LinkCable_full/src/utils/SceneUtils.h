@@ -36,12 +36,12 @@ inline void SCENE_write(std::string text, u32 row) {
 }
 
 inline void SCENE_wait(u32 verticalLines) {
-  u32 lines = 0;
+  u32 count = 0;
   u32 vCount = REG_VCOUNT;
 
-  while (lines < verticalLines) {
+  while (count < verticalLines) {
     if (REG_VCOUNT != vCount) {
-      lines++;
+      count++;
       vCount = REG_VCOUNT;
     }
   };
