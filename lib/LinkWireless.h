@@ -88,6 +88,8 @@
 #define LINK_WIRELESS_COMMAND_DISCONNECT 0x30
 
 #define LINK_WIRELESS_RESET_IF_NEEDED \
+  if (!isEnabled)                     \
+    return false;                     \
   if (state == NEEDS_RESET)           \
     reset();
 
