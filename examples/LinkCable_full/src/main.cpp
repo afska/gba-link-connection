@@ -1,6 +1,6 @@
 #include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
-#include "../../_lib/LinkCable.h"
+#include "../../../lib/LinkCable.h"
 #include "../../_lib/interrupt.h"
 #include "scenes/TestScene.h"
 #include "utils/SceneUtils.h"
