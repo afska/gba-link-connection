@@ -249,7 +249,7 @@ void messageLoop() {
     std::vector<LinkWireless::Message> messages;
     if (retransmission) {
       // (exchanging data 4 times, just for speed purposes)
-      linkWireless->receive(messages, TRANSFERS_PER_FRAME, []() {
+      linkWireless->receiveMany(messages, TRANSFERS_PER_FRAME, []() {
         u16 keys = ~REG_KEYS & KEY_ANY;
         return keys & KEY_SELECT;
       });

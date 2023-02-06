@@ -39,7 +39,7 @@
 // - clients can send up to 3 words of 32 bits at a time!
 // - if retransmission is on, these limits drop to 14 and 1!
 // - you can workaround these limits by doing multiple exchanges with
-// receive(messages, times)!
+// receiveMany(...)!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
@@ -528,12 +528,12 @@ class LinkWireless {
     return true;
   }
 
-  bool receive(std::vector<Message>& messages, u32 times) {
-    return receive(messages, times, []() { return false; });
+  bool receiveMany(std::vector<Message>& messages, u32 times) {
+    return receiveMany(messages, times, []() { return false; });
   }
 
   template <typename F>
-  bool receive(std::vector<Message>& messages, u32 times, F cancel) {
+  bool receiveMany(std::vector<Message>& messages, u32 times, F cancel) {
     if (!retransmission) {
       lastError = RETRANSMISSION_IS_OFF;
       return false;
