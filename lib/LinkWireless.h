@@ -737,7 +737,8 @@ class LinkWireless {
         if (confirmationData > 0 && confirmationData < min)
           min = confirmationData;
       }
-      removeConfirmedMessages(min);
+      if (min < 0xffffffff)
+        removeConfirmedMessages(min);
     }
 
     return true;
