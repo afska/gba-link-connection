@@ -3,7 +3,7 @@
 #include "../../_lib/interrupt.h"
 
 // (0) Include the header
-#include "../../_lib/LinkSPI.h"
+#include "../../../lib/LinkSPI.h"
 
 void log(std::string text);
 void wait(u32 verticalLines);

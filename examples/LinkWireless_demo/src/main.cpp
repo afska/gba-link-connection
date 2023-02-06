@@ -3,7 +3,7 @@
 #include <string>
 
 // (0) Include the header
-#include "../../_lib/LinkWireless.h"
+#include "../../../lib/LinkWireless.h"
 
 #define TRANSFERS_PER_FRAME 4
 

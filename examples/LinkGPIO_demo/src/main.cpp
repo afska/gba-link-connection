@@ -2,7 +2,7 @@
 #include <string>
 
 // (0) Include the header
-#include "../../_lib/LinkGPIO.h"
+#include "../../../lib/LinkGPIO.h"
 
 void log(std::string text);
 std::string mode(std::string name, LinkGPIO::Pin pin);

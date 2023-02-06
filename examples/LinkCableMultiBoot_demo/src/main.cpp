@@ -2,9 +2,9 @@
 #include <string>
 #include "../../_lib/interrupt.h"
 
-#include "../../_lib/LinkCable.h"
+#include "../../../lib/LinkCable.h"
 // (0) Include the header
-#include "../../_lib/LinkCableMultiboot.h"
+#include "../../../lib/LinkCableMultiboot.h"
 
 void log(std::string text);
 

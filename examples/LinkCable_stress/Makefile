@@ -134,7 +134,7 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib
+SRCDIRS		:= src ../_lib ../../lib
 DATADIRS	:= data
 INCDIRS		:= src lib
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba
