@@ -157,6 +157,9 @@ class LinkUniversal {
         break;
       }
     }
+
+    if (mode == LINK_CABLE)
+      linkCable->consume();
   }
 
   bool canRead(u8 playerId) { return !incomingMessages[playerId].empty(); }
@@ -223,7 +226,6 @@ class LinkUniversal {
       if (linkCable->canRead(i))
         push(incomingMessages[i], linkCable->read(i));
     }
-    linkCable->consume();
   }
 
   void receiveWirelessMessages() {
