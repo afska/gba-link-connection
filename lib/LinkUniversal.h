@@ -43,13 +43,14 @@
 #include "LinkWireless.h"
 
 #define LINK_UNIVERSAL_MAX_PLAYERS 4
-#define LINK_UNIVERSAL_NO_DATA 0x0
 #define LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE 30
 #define LINK_UNIVERSAL_CABLE_TIMEOUT 5
 #define LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME 5
+#define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 30
-#define LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES 60
-#define LINK_UNIVERSAL_SERVE_WAIT_FRAMES (60 * 3)
+#define LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES 10
+#define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 30
+#define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
 static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v4.3.0";
 
@@ -59,7 +60,7 @@ void LINK_UNIVERSAL_ISR_SERIAL();
 
 class LinkUniversal {
  public:
-  enum Mode { LINK_CABLE, LINK_WIRELESS };
+  enum Mode { INITIALIZING, LINK_CABLE, LINK_WIRELESS };
 
   explicit LinkUniversal(u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
                          std::string gameName = "",
@@ -108,17 +109,22 @@ class LinkUniversal {
 
     u16 keys = ~REG_KEYS & KEY_ANY;
     __qran_seed += keys;
+    __qran_seed += REG_RCNT;
+    __qran_seed += REG_SIOCNT;
 
     switch (state) {
       case WAITING: {
         if (mode == LINK_CABLE) {
           // Cable, waiting...
-          if (isConnectedCable())
+          if (isConnectedCable()) {
             state = CONNECTED;
+            break;
+          }
         } else {
           // Wireless, waiting...
           if (isConnectedWireless()) {
             state = CONNECTED;
+            break;
           } else {
             if (!tryConnectWireless())
               waitCount = LINK_UNIVERSAL_SWITCH_WAIT_FRAMES;
@@ -136,7 +142,7 @@ class LinkUniversal {
           // Cable, connected...
           if (!isConnectedCable()) {
             toggleMode();
-            return;
+            break;
           }
 
           receiveCableMessages();
@@ -144,12 +150,12 @@ class LinkUniversal {
           // Wireless, connected...
           if (!isConnectedWireless()) {
             toggleMode();
-            return;
+            break;
           }
 
           if (linkWireless->getState() == LinkWireless::State::SERVING)
             if (!linkWireless->acceptConnections())
-              return;
+              break;
 
           receiveWirelessMessages();
         }
@@ -169,6 +175,9 @@ class LinkUniversal {
   }
 
   void send(u16 data) {
+    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
+      return;
+
     if (mode == LINK_CABLE)
       linkCable->send(data);
     else
@@ -215,9 +224,10 @@ class LinkUniversal {
   std::string gameName;
   u32 bufferSize;
   State state = WAITING;
-  Mode mode = LINK_CABLE;
+  Mode mode = INITIALIZING;
   u32 waitCount = 0;
   u32 subWaitCount = 0;
+  u32 serveWait = 0;
   std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
   bool isEnabled = false;
 
@@ -264,7 +274,7 @@ class LinkUniversal {
         waitCount = 0;
         subWaitCount++;
 
-        if (subWaitCount > LINK_UNIVERSAL_SERVE_WAIT_FRAMES)
+        if (subWaitCount > serveWait)
           return false;
 
         if (!linkWireless->acceptConnections())
@@ -303,7 +313,9 @@ class LinkUniversal {
         return false;
     } else {
       subWaitCount = 0;
-      u32 randomNumber = qran_range(1, 32000);
+      serveWait = LINK_UNIVERSAL_SERVE_WAIT_FRAMES +
+                  qran_range(1, LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM);
+      u32 randomNumber = qran_range(1, LINK_UNIVERSAL_MAX_ROOM_NUMBER);
       if (!linkWireless->serve(gameName, std::to_string(randomNumber)))
         return false;
     }
@@ -318,25 +330,31 @@ class LinkUniversal {
   }
 
   void reset() {
-    mode = LINK_CABLE;
-    toggleMode();
+    mode = INITIALIZING;
+    setMode(LINK_CABLE);
   }
 
   void toggleMode() {
-    linkCable->deactivate();
-    linkWireless->deactivate();
+    setMode(mode == LINK_CABLE ? LINK_WIRELESS : LINK_CABLE);
+  }
 
-    if (mode == LINK_CABLE) {
-      mode = LINK_WIRELESS;
-      linkWireless->activate();
-    } else {
-      mode = LINK_CABLE;
+  void setMode(Mode mode) {
+    if (mode == LINK_CABLE)
+      linkCable->deactivate();
+    else
+      linkWireless->deactivate();
+
+    this->mode = mode;
+
+    if (mode == LINK_CABLE)
       linkCable->activate();
-    }
+    else
+      linkWireless->activate();
 
     state = WAITING;
     waitCount = 0;
     subWaitCount = 0;
+    serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
       LINK_CABLE_QUEUE_CLEAR(incomingMessages[i]);
   }
