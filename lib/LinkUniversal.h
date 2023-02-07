@@ -48,7 +48,8 @@
 #define LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME 5
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
-#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 30
+#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 20
+#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM 10
 #define LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 30
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
@@ -135,14 +136,14 @@ class LinkUniversal {
             goto connected;
           } else {
             if (!autoDiscoverWirelessConnections())
-              waitCount = LINK_UNIVERSAL_SWITCH_WAIT_FRAMES;
+              waitCount = switchWait;
             if (isConnectedWireless())
               goto connected;
           }
         }
 
         waitCount++;
-        if (waitCount > LINK_UNIVERSAL_SWITCH_WAIT_FRAMES)
+        if (waitCount > switchWait)
           toggleMode();
 
         break;
@@ -238,6 +239,7 @@ class LinkUniversal {
   State state = INITIALIZING;
   Mode mode = LINK_CABLE;
   u32 waitCount = 0;
+  u32 switchWait = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
   std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
@@ -373,6 +375,8 @@ class LinkUniversal {
 
   void resetState() {
     waitCount = 0;
+    switchWait = LINK_UNIVERSAL_SWITCH_WAIT_FRAMES +
+                 qran_range(1, LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM);
     subWaitCount = 0;
     serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
