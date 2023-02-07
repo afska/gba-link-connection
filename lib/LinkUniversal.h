@@ -62,8 +62,8 @@ class LinkUniversal {
  public:
   enum Mode { INITIALIZING, LINK_CABLE, LINK_WIRELESS };
 
-  explicit LinkUniversal(u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
-                         std::string gameName = "",
+  explicit LinkUniversal(std::string gameName = "",
+                         u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
                          u8 timerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
     this->linkCable =
         new LinkCable(LinkCable::BAUD_RATE_1, LINK_UNIVERSAL_CABLE_TIMEOUT,
@@ -118,16 +118,18 @@ class LinkUniversal {
           // Cable, waiting...
           if (isConnectedCable()) {
             state = CONNECTED;
-            break;
+            goto connected;
           }
         } else {
           // Wireless, waiting...
           if (isConnectedWireless()) {
             state = CONNECTED;
-            break;
+            goto connected;
           } else {
             if (!tryConnectWireless())
               waitCount = LINK_UNIVERSAL_SWITCH_WAIT_FRAMES;
+            if (isConnectedWireless())
+              goto connected;
           }
         }
 
@@ -138,6 +140,7 @@ class LinkUniversal {
         break;
       }
       case CONNECTED: {
+      connected:
         if (mode == LINK_CABLE) {
           // Cable, connected...
           if (!isConnectedCable()) {
