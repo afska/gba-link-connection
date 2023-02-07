@@ -48,7 +48,7 @@
 #define LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME 5
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
-#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 20
+#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 25
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM 10
 #define LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 30
@@ -202,29 +202,9 @@ class LinkUniversal {
   u32 getWaitCount() { return waitCount; }
   u32 getSubWaitCount() { return subWaitCount; }
 
-  void _onVBlank() {
-    if (!isEnabled)
-      return;
-
-    if (mode == LINK_CABLE)
-      linkCable->_onVBlank();
-  }
-
-  void _onTimer() {
-    if (!isEnabled)
-      return;
-
-    if (mode == LINK_CABLE)
-      linkCable->_onTimer();
-  }
-
-  void _onSerial() {
-    if (!isEnabled)
-      return;
-
-    if (mode == LINK_CABLE)
-      linkCable->_onSerial();
-  }
+  void _onVBlank() { linkCable->_onVBlank(); }
+  void _onTimer() { linkCable->_onTimer(); }
+  void _onSerial() { linkCable->_onSerial(); }
 
   ~LinkUniversal() {
     delete linkCable;
@@ -247,11 +227,8 @@ class LinkUniversal {
 
   void receiveCableMessages() {
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
-      // TODO: FIX CRASH
-      // TODO: RETRIEVE ALL MESSAGES
-      if (linkCable->canRead(i))
-        linkCable->read(i);
-      // push(incomingMessages[i], qran_range(1, 10000));
+      while (linkCable->canRead(i))
+        push(incomingMessages[i], linkCable->read(i));
     }
   }
 

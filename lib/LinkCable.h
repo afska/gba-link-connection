@@ -60,6 +60,7 @@
 #define LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH 15
 #define LINK_CABLE_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_CABLE_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
+#define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
 static volatile char LINK_CABLE_VERSION[] = "LinkCable/v4.3.0";
 
@@ -77,8 +78,6 @@ class LinkCable {
     std::queue<u16> incomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
     u8 currentPlayerId;
-    bool isReady = false;
-    bool isConsumed = false;
   };
 
   struct InternalState {
@@ -86,7 +85,6 @@ class LinkCable {
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
     u32 IRQTimeout;
-    bool isAddingMessage = false;
   };
 
   enum BaudRate {
@@ -119,6 +117,9 @@ class LinkCable {
 
   void deactivate() {
     isEnabled = false;
+    isStateReady = false;
+    isStateConsumed = false;
+    isResetting = false;
     resetState();
     stop();
   }
@@ -132,28 +133,43 @@ class LinkCable {
   u8 currentPlayerId() { return $state.currentPlayerId; }
 
   bool canRead(u8 playerId) {
-    if (!$state.isReady)
+    if (!isStateReady || isStateConsumed)
       return false;
+
+    LINK_CABLE_BARRIER;
 
     return !$state.incomingMessages[playerId].empty();
   }
 
   u16 read(u8 playerId) {
-    if (!$state.isReady)
+    if (!isStateReady || isStateConsumed)
       return LINK_CABLE_NO_DATA;
+
+    LINK_CABLE_BARRIER;
 
     return LINK_CABLE_QUEUE_POP($state.incomingMessages[playerId]);
   }
 
-  void consume() { $state.isConsumed = true; }
+  void consume() { isStateConsumed = true; }
 
   void send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
       return;
 
-    _state.isAddingMessage = true;
+    LINK_CABLE_BARRIER;
+    isAddingMessage = true;
+    LINK_CABLE_BARRIER;
+
     push(_state.outgoingMessages, data);
-    _state.isAddingMessage = false;
+
+    LINK_CABLE_BARRIER;
+    isAddingMessage = false;
+    LINK_CABLE_BARRIER;
+
+    if (isResetting) {
+      LINK_CABLE_QUEUE_CLEAR(_state.outgoingMessages);
+      isResetting = false;
+    }
   }
 
   void _onVBlank() {
@@ -238,6 +254,10 @@ class LinkCable {
   u32 interval;
   u8 sendTimerId;
   bool isEnabled = false;
+  bool isStateReady = false;
+  bool isStateConsumed = false;
+  bool isAddingMessage = false;
+  bool isResetting = false;
 
   bool isReady() { return isBitHigh(LINK_CABLE_BIT_READY); }
   bool hasError() { return isBitHigh(LINK_CABLE_BIT_ERROR); }
@@ -246,8 +266,10 @@ class LinkCable {
   bool didTimeout() { return _state.IRQTimeout >= timeout; }
 
   void sendPendingData() {
-    if (_state.isAddingMessage)
+    if (isAddingMessage)
       return;
+
+    LINK_CABLE_BARRIER;
 
     transfer(LINK_CABLE_QUEUE_POP(_state.outgoingMessages));
   }
@@ -281,9 +303,13 @@ class LinkCable {
       LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
       _state.timeouts[i] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
     }
-    LINK_CABLE_QUEUE_CLEAR(_state.outgoingMessages);
     _state.IRQFlag = false;
     _state.IRQTimeout = 0;
+
+    if (isAddingMessage || isResetting)
+      isResetting = true;
+    else
+      LINK_CABLE_QUEUE_CLEAR(_state.outgoingMessages);
   }
 
   void stop() {
@@ -313,12 +339,15 @@ class LinkCable {
   }
 
   void copyState() {
-    if ($state.isReady && !$state.isConsumed)
+    if (isStateReady && !isStateConsumed)
       return;
 
-    state.isReady = true;
-    state.isConsumed = false;
+    LINK_CABLE_BARRIER;
     $state = state;
+    LINK_CABLE_BARRIER;
+    isStateReady = true;
+    isStateConsumed = false;
+    LINK_CABLE_BARRIER;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
       LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
