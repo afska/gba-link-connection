@@ -247,8 +247,11 @@ class LinkUniversal {
 
   void receiveCableMessages() {
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
+      // TODO: FIX CRASH
+      // TODO: RETRIEVE ALL MESSAGES
       if (linkCable->canRead(i))
-        push(incomingMessages[i], linkCable->read(i));
+        linkCable->read(i);
+      // push(incomingMessages[i], qran_range(1, 10000));
     }
   }
 
