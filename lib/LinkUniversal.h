@@ -189,6 +189,8 @@ class LinkUniversal {
 
   Mode getMode() { return mode; }
   LinkWireless::State getWirelessState() { return linkWireless->getState(); }
+  u32 getWaitCount() { return waitCount; }
+  u32 getSubWaitCount() { return subWaitCount; }
 
   void _onVBlank() {
     if (!isEnabled)

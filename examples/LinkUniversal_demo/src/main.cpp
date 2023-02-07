@@ -63,6 +63,8 @@ int main() {
       output += "Waiting... [" + std::to_string(linkUniversal->getMode()) + "]";
       if (linkUniversal->getMode() == LinkUniversal::Mode::LINK_WIRELESS)
         output += "[" + std::to_string(linkUniversal->getWirelessState()) + "]";
+      output += "\n_wait: " + std::to_string(linkUniversal->getWaitCount());
+      output += "\n_subW: " + std::to_string(linkUniversal->getSubWaitCount());
     }
 
     VBlankIntrWait();
