@@ -91,7 +91,8 @@
   if (!isEnabled)                     \
     return false;                     \
   if (state == NEEDS_RESET)           \
-    reset();
+    if (!reset())                     \
+      return false;
 
 static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v4.3.0";
 
