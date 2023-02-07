@@ -60,11 +60,17 @@ int main() {
       output += "_keys: " + std::to_string(keys) + "\n";
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {
-      output += "Waiting... [" + std::to_string(linkUniversal->getMode()) + "]";
+      output +=
+          "Waiting... [" + std::to_string(linkUniversal->getState()) + "]";
+      output += "<" + std::to_string(linkUniversal->getMode()) + ">";
       if (linkUniversal->getMode() == LinkUniversal::Mode::LINK_WIRELESS)
-        output += "[" + std::to_string(linkUniversal->getWirelessState()) + "]";
+        output += "          (" +
+                  std::to_string(linkUniversal->getWirelessState()) + ")";
       output += "\n_wait: " + std::to_string(linkUniversal->getWaitCount());
       output += "\n_subW: " + std::to_string(linkUniversal->getSubWaitCount());
+
+      for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
+        data[i] = 0;
     }
 
     VBlankIntrWait();

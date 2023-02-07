@@ -47,6 +47,7 @@
 #define LINK_UNIVERSAL_CABLE_TIMEOUT 5
 #define LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME 5
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
+#define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 30
 #define LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 30
@@ -60,7 +61,8 @@ void LINK_UNIVERSAL_ISR_SERIAL();
 
 class LinkUniversal {
  public:
-  enum Mode { INITIALIZING, LINK_CABLE, LINK_WIRELESS };
+  enum State { INITIALIZING, WAITING, CONNECTED };
+  enum Mode { LINK_CABLE, LINK_WIRELESS };
 
   explicit LinkUniversal(std::string gameName = "",
                          u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
@@ -113,6 +115,12 @@ class LinkUniversal {
     __qran_seed += REG_SIOCNT;
 
     switch (state) {
+      case INITIALIZING: {
+        waitCount++;
+        if (waitCount > LINK_UNIVERSAL_INIT_WAIT_FRAMES)
+          start();
+        break;
+      };
       case WAITING: {
         if (mode == LINK_CABLE) {
           // Cable, waiting...
@@ -126,7 +134,7 @@ class LinkUniversal {
             state = CONNECTED;
             goto connected;
           } else {
-            if (!tryConnectWireless())
+            if (!autoDiscoverWirelessConnections())
               waitCount = LINK_UNIVERSAL_SWITCH_WAIT_FRAMES;
             if (isConnectedWireless())
               goto connected;
@@ -187,6 +195,7 @@ class LinkUniversal {
       linkWireless->send(std::vector<u32>{data});
   }
 
+  State getState() { return state; }
   Mode getMode() { return mode; }
   LinkWireless::State getWirelessState() { return linkWireless->getState(); }
   u32 getWaitCount() { return waitCount; }
@@ -222,14 +231,12 @@ class LinkUniversal {
   }
 
  private:
-  enum State { WAITING, CONNECTED };
-
   LinkCable* linkCable;
   LinkWireless* linkWireless;
   std::string gameName;
   u32 bufferSize;
-  State state = WAITING;
-  Mode mode = INITIALIZING;
+  State state = INITIALIZING;
+  Mode mode = LINK_CABLE;
   u32 waitCount = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
@@ -237,7 +244,7 @@ class LinkUniversal {
   bool isEnabled = false;
 
   void receiveCableMessages() {
-    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
+    for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
       if (linkCable->canRead(i))
         push(incomingMessages[i], linkCable->read(i));
     }
@@ -251,7 +258,7 @@ class LinkUniversal {
       push(incomingMessages[message.playerId], (u16)message.data[0]);
   }
 
-  bool tryConnectWireless() {
+  bool autoDiscoverWirelessConnections() {
     switch (linkWireless->getState()) {
       case LinkWireless::State::NEEDS_RESET:
       case LinkWireless::State::AUTHENTICATED: {
@@ -264,7 +271,7 @@ class LinkUniversal {
         subWaitCount++;
 
         if (subWaitCount >= LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES) {
-          if (!tryConnectOrServe())
+          if (!tryConnectOrServeWirelessSession())
             return false;
         }
         break;
@@ -296,7 +303,7 @@ class LinkUniversal {
     return true;
   }
 
-  bool tryConnectOrServe() {
+  bool tryConnectOrServeWirelessSession() {
     std::vector<LinkWireless::Server> servers;
     if (!linkWireless->getServersAsyncEnd(servers))
       return false;
@@ -334,9 +341,13 @@ class LinkUniversal {
            linkWireless->getPlayerCount() >= 2;
   }
 
-  void reset() {
-    mode = INITIALIZING;
-    setMode(LINK_CABLE);
+  void reset() { setMode(LINK_CABLE); }
+
+  void stop() {
+    if (mode == LINK_CABLE)
+      linkCable->deactivate();
+    else
+      linkWireless->deactivate();
   }
 
   void toggleMode() {
@@ -344,19 +355,23 @@ class LinkUniversal {
   }
 
   void setMode(Mode mode) {
-    if (mode == LINK_CABLE)
-      linkCable->deactivate();
-    else
-      linkWireless->deactivate();
-
+    stop();
+    this->state = INITIALIZING;
     this->mode = mode;
+    resetState();
+  }
 
+  void start() {
     if (mode == LINK_CABLE)
       linkCable->activate();
     else
       linkWireless->activate();
 
     state = WAITING;
+    resetState();
+  }
+
+  void resetState() {
     waitCount = 0;
     subWaitCount = 0;
     serveWait = 0;
