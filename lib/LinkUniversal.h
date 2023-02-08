@@ -64,8 +64,10 @@ class LinkUniversal {
  public:
   enum State { INITIALIZING, WAITING, CONNECTED };
   enum Mode { LINK_CABLE, LINK_WIRELESS };
+  enum Protocol { AUTODETECT, CABLE, WIRELESS };
 
-  explicit LinkUniversal(std::string gameName = "",
+  explicit LinkUniversal(Protocol protocol = AUTODETECT,
+                         std::string gameName = "",
                          u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
                          u8 timerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
     this->linkCable =
@@ -76,6 +78,8 @@ class LinkUniversal {
         true, true, LINK_UNIVERSAL_MAX_PLAYERS,
         LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
         LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT, bufferSize);
+
+    this->protocol = protocol;
     this->gameName = gameName;
     this->bufferSize = bufferSize;
   }
@@ -214,6 +218,7 @@ class LinkUniversal {
  private:
   LinkCable* linkCable;
   LinkWireless* linkWireless;
+  Protocol protocol;
   std::string gameName;
   u32 bufferSize;
   State state = INITIALIZING;
@@ -323,7 +328,19 @@ class LinkUniversal {
            linkWireless->getPlayerCount() >= 2;
   }
 
-  void reset() { setMode(LINK_CABLE); }
+  void reset() {
+    switch (protocol) {
+      case AUTODETECT:
+      case CABLE: {
+        setMode(LINK_CABLE);
+        break;
+      }
+      case WIRELESS: {
+        setMode(LINK_WIRELESS);
+        break;
+      }
+    }
+  }
 
   void stop() {
     if (mode == LINK_CABLE)
@@ -333,7 +350,20 @@ class LinkUniversal {
   }
 
   void toggleMode() {
-    setMode(mode == LINK_CABLE ? LINK_WIRELESS : LINK_CABLE);
+    switch (protocol) {
+      case AUTODETECT: {
+        setMode(mode == LINK_CABLE ? LINK_WIRELESS : LINK_CABLE);
+        break;
+      }
+      case CABLE: {
+        setMode(LINK_CABLE);
+        break;
+      }
+      case WIRELESS: {
+        setMode(LINK_WIRELESS);
+        break;
+      }
+    }
   }
 
   void setMode(Mode mode) {
