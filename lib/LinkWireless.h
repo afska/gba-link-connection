@@ -439,8 +439,8 @@ class LinkWireless {
       return false;
     }
 
-    std::vector<u32> words;
-    if (!receiveData(words)) {
+    std::vector<u32> data;
+    if (!receiveData(data)) {
       lastError = RECEIVE_DATA_FAILED;
       return false;
     }
@@ -450,81 +450,12 @@ class LinkWireless {
 
     u32 startIndex = messages.size();
 
-    for (u32 i = 0; i < words.size(); i++) {
-      MessageHeaderSerializer serializer;
-      serializer.asInt = words[i];
-
-      MessageHeader header = serializer.asStruct;
-      u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
-      u8 remotePlayerId = header.playerId;
-      u8 size = header.size;
-      u32 packetId = header.packetId;
-
-      if (i + size >= words.size()) {
-        reset();
-        lastError = BAD_MESSAGE;
-        return false;
-      }
-
-      timeouts[0] = 0;
-      timeouts[remotePlayerId] = 0;
-
-      if (state == SERVING) {
-        if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
-            lastPacketIdFromClients[remotePlayerId] > 0 &&
-            packetId != lastPacketIdFromClients[remotePlayerId] + 1)
-          goto skip;
-
-        if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
-          lastPacketIdFromClients[remotePlayerId] = packetId;
-      } else {
-        if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
-            lastPacketIdFromServer > 0 &&
-            packetId != lastPacketIdFromServer + 1)
-          goto skip;
-
-        playerCount = remotePlayerCount;
-
-        if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
-          lastPacketIdFromServer = packetId;
-      }
-
-      if (remotePlayerId == playerId) {
-      skip:
-        i += size;
-        continue;
-      }
-
-      if (size > 0) {
-        Message message;
-        message.playerId = remotePlayerId;
-        for (u32 j = 0; j < size; j++)
-          message.data.push_back(words[i + 1 + j]);
-        message._packetId = packetId;
-
-        if (retransmission && packetId == LINK_WIRELESS_MSG_CONFIRMATION) {
-          if (!handleConfirmation(message)) {
-            reset();
-            lastError = BAD_CONFIRMATION;
-            return false;
-          }
-        } else {
-          messages.push_back(message);
-        }
-
-        i += size;
-      }
-    }
+    translateDataIntoMessages(data, messages);
 
     if (_enableTimeouts && !checkTimeouts())
       return false;
 
-    if (state == SERVING && forwarding && playerCount > 2) {
-      for (u32 i = startIndex; i < messages.size(); i++) {
-        auto message = messages[i];
-        send(message.data, message.playerId);
-      }
-    }
+    forwardMessagesIfNeeded(messages, startIndex);
 
     return true;
   }
@@ -649,38 +580,128 @@ class LinkWireless {
   bool isEnabled = false;
 
   bool sendPendingMessages() {
-    if (outgoingMessages.empty() && !retransmission) {
-      Message emptyMessage;
-      emptyMessage.playerId = playerId;
-      emptyMessage._packetId = ++lastPacketId;
-      outgoingMessages.push_back(emptyMessage);
-    }
+    addPingMessageIfNeeded();
 
-    u32 maxTransferLength = getDeviceTransferLength();
-    std::vector<u32> words;
+    auto data = translateMessagesIntoData();
 
-    if (retransmission)
-      addConfirmations(words);
-
-    for (auto& message : outgoingMessages) {
-      u8 size = message.data.size();
-      u32 header =
-          buildMessageHeader(message.playerId, size, message._packetId);
-
-      if (words.size() + 1 + size > maxTransferLength)
-        break;
-
-      words.push_back(header);
-      words.insert(words.end(), message.data.begin(), message.data.end());
-    }
-
-    if (!sendData(words))
+    if (!sendData(data))
       return false;
 
     if (!retransmission)
       outgoingMessages.clear();
 
     return true;
+  }
+
+  void addPingMessageIfNeeded() {
+    if (outgoingMessages.empty() && !retransmission) {
+      Message emptyMessage;
+      emptyMessage.playerId = playerId;
+      emptyMessage._packetId = ++lastPacketId;
+      outgoingMessages.push_back(emptyMessage);
+    }
+  }
+
+  std::vector<u32> translateMessagesIntoData() {
+    u32 maxTransferLength = getDeviceTransferLength();
+    std::vector<u32> data;
+
+    if (retransmission)
+      addConfirmations(data);
+
+    for (auto& message : outgoingMessages) {
+      u8 size = message.data.size();
+      u32 header =
+          buildMessageHeader(message.playerId, size, message._packetId);
+
+      if (data.size() + 1 + size > maxTransferLength)
+        break;
+
+      data.push_back(header);
+      data.insert(data.end(), message.data.begin(), message.data.end());
+    }
+
+    return data;
+  }
+
+  bool translateDataIntoMessages(std::vector<u32>& data,
+                                 std::vector<Message>& messages) {
+    for (u32 i = 0; i < data.size(); i++) {
+      MessageHeaderSerializer serializer;
+      serializer.asInt = data[i];
+
+      MessageHeader header = serializer.asStruct;
+      u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
+      u8 remotePlayerId = header.playerId;
+      u8 size = header.size;
+      u32 packetId = header.packetId;
+
+      if (i + size >= data.size()) {
+        reset();
+        lastError = BAD_MESSAGE;
+        return false;
+      }
+
+      timeouts[0] = 0;
+      timeouts[remotePlayerId] = 0;
+
+      if (state == SERVING) {
+        if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
+            lastPacketIdFromClients[remotePlayerId] > 0 &&
+            packetId != lastPacketIdFromClients[remotePlayerId] + 1)
+          goto skip;
+
+        if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
+          lastPacketIdFromClients[remotePlayerId] = packetId;
+      } else {
+        if (retransmission && packetId != LINK_WIRELESS_MSG_CONFIRMATION &&
+            lastPacketIdFromServer > 0 &&
+            packetId != lastPacketIdFromServer + 1)
+          goto skip;
+
+        playerCount = remotePlayerCount;
+
+        if (packetId != LINK_WIRELESS_MSG_CONFIRMATION)
+          lastPacketIdFromServer = packetId;
+      }
+
+      if (remotePlayerId == playerId) {
+      skip:
+        i += size;
+        continue;
+      }
+
+      if (size > 0) {
+        Message message;
+        message.playerId = remotePlayerId;
+        for (u32 j = 0; j < size; j++)
+          message.data.push_back(data[i + 1 + j]);
+        message._packetId = packetId;
+
+        if (retransmission && packetId == LINK_WIRELESS_MSG_CONFIRMATION) {
+          if (!handleConfirmation(message)) {
+            reset();
+            lastError = BAD_CONFIRMATION;
+            return false;
+          }
+        } else {
+          messages.push_back(message);
+        }
+
+        i += size;
+      }
+    }
+
+    return true;
+  }
+
+  void forwardMessagesIfNeeded(std::vector<Message>& messages, u32 startIndex) {
+    if (state == SERVING && forwarding && playerCount > 2) {
+      for (u32 i = startIndex; i < messages.size(); i++) {
+        auto message = messages[i];
+        send(message.data, message.playerId);
+      }
+    }
   }
 
   void trackTimeouts() {
@@ -701,14 +722,14 @@ class LinkWireless {
     return true;
   }
 
-  void addConfirmations(std::vector<u32>& words) {
+  void addConfirmations(std::vector<u32>& data) {
     if (state == SERVING) {
-      words.push_back(buildConfirmationHeader(0));
+      data.push_back(buildConfirmationHeader(0));
       for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++)
-        words.push_back(lastPacketIdFromClients[1 + i]);
+        data.push_back(lastPacketIdFromClients[1 + i]);
     } else {
-      words.push_back(buildConfirmationHeader(playerId));
-      words.push_back(lastPacketIdFromServer);
+      data.push_back(buildConfirmationHeader(playerId));
+      data.push_back(lastPacketIdFromServer);
     }
   }
 
