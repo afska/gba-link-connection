@@ -42,7 +42,9 @@
 #include "LinkCable.h"
 #include "LinkWireless.h"
 
-#define LINK_UNIVERSAL_MAX_PLAYERS 4
+#define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
+#define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
+#define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 #define LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE 30
 #define LINK_UNIVERSAL_CABLE_TIMEOUT 5
 #define LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME 5
@@ -66,6 +68,9 @@ class LinkUniversal {
   enum Mode { LINK_CABLE, LINK_WIRELESS };
   enum Protocol { AUTODETECT, CABLE, WIRELESS };
 
+  // TODO: ADD ALL PROPERTIES
+  // TODO: MAKE WIRELESS FASTER
+  // TODO: ADD DOCS
   explicit LinkUniversal(Protocol protocol = AUTODETECT,
                          std::string gameName = "",
                          u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,

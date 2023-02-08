@@ -6,13 +6,31 @@
 #include "../../../lib/LinkUniversal.h"
 
 void log(std::string text);
+void waitFor(u16 key);
 
-// (1) Create a LinkUniversal instance
-LinkUniversal* linkUniversal = new LinkUniversal();
+LinkUniversal* linkUniversal = NULL;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+}
+
+int main() {
+  init();
+
+  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
+      "force cable\n\nhold RIGHT on start:\n -> force wireless");
+  waitFor(KEY_A);
+  u16 initialKeys = ~REG_KEYS & KEY_ANY;
+  bool forceCable = initialKeys & KEY_LEFT;
+  bool forceWireless = initialKeys & KEY_RIGHT;
+  LinkUniversal::Protocol protocol = forceCable ? LinkUniversal::Protocol::CABLE
+                                     : forceWireless
+                                         ? LinkUniversal::Protocol::WIRELESS
+                                         : LinkUniversal::Protocol::AUTODETECT;
+
+  // (1) Create a LinkUniversal instance
+  linkUniversal = new LinkUniversal(protocol);
 
   // (2) Add the interrupt service routines
   interrupt_init();
@@ -25,10 +43,6 @@ void init() {
 
   // (3) Initialize the library
   linkUniversal->activate();
-}
-
-int main() {
-  init();
 
   u16 data[LINK_UNIVERSAL_MAX_PLAYERS];
   for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
@@ -84,4 +98,11 @@ void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
+}
+
+void waitFor(u16 key) {
+  u16 keys;
+  do {
+    keys = ~REG_KEYS & KEY_ANY;
+  } while (!(keys & key));
 }
