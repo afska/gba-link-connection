@@ -343,14 +343,16 @@ class LinkCable {
       return;
 
     LINK_CABLE_BARRIER;
-    $state = state;
+    $state.playerCount = state.playerCount;
+    $state.currentPlayerId = state.currentPlayerId;
+    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
+      $state.incomingMessages[i].swap(state.incomingMessages[i]);
+      LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
+    }
     LINK_CABLE_BARRIER;
     isStateReady = true;
     isStateConsumed = false;
     LINK_CABLE_BARRIER;
-
-    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
-      LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
   }
 
   void push(std::queue<u16>& q, u16 value) {
