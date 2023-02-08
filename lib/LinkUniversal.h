@@ -46,7 +46,6 @@
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 #define LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE 30
-#define LINK_UNIVERSAL_CABLE_TIMEOUT 5
 #define LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME 5
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
@@ -76,7 +75,7 @@ class LinkUniversal {
                          u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
                          u8 timerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
     this->linkCable =
-        new LinkCable(LinkCable::BAUD_RATE_1, LINK_UNIVERSAL_CABLE_TIMEOUT,
+        new LinkCable(LinkCable::BAUD_RATE_1, LINK_CABLE_DEFAULT_TIMEOUT,
                       LINK_CABLE_DEFAULT_REMOTE_TIMEOUT, bufferSize,
                       LINK_CABLE_DEFAULT_INTERVAL, timerId);
     this->linkWireless = new LinkWireless(
@@ -84,9 +83,9 @@ class LinkUniversal {
         LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
         LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT, bufferSize);
 
-    this->protocol = protocol;
-    this->gameName = gameName;
-    this->bufferSize = bufferSize;
+    this->config.protocol = protocol;
+    this->config.gameName = gameName;
+    this->config.bufferSize = bufferSize;
   }
 
   bool isActive() { return isEnabled; }
@@ -221,18 +220,22 @@ class LinkUniversal {
   }
 
  private:
+  struct Config {
+    Protocol protocol;
+    std::string gameName;
+    u32 bufferSize;
+  };
+
+  std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
   LinkCable* linkCable;
   LinkWireless* linkWireless;
-  Protocol protocol;
-  std::string gameName;
-  u32 bufferSize;
+  Config config;
   State state = INITIALIZING;
   Mode mode = LINK_CABLE;
   u32 waitCount = 0;
   u32 switchWait = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
-  std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
   bool isEnabled = false;
 
   void receiveCableMessages() {
@@ -306,7 +309,8 @@ class LinkUniversal {
       auto server = servers[i];
       u32 randomNumber = std::stoi(server.userName);
 
-      if (server.gameName == gameName && randomNumber > maxRandomNumber) {
+      if (server.gameName == config.gameName &&
+          randomNumber > maxRandomNumber) {
         maxRandomNumber = randomNumber;
         serverIndex = i;
       }
@@ -320,7 +324,7 @@ class LinkUniversal {
       serveWait = LINK_UNIVERSAL_SERVE_WAIT_FRAMES +
                   qran_range(1, LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM);
       u32 randomNumber = qran_range(1, LINK_UNIVERSAL_MAX_ROOM_NUMBER);
-      if (!linkWireless->serve(gameName, std::to_string(randomNumber)))
+      if (!linkWireless->serve(config.gameName, std::to_string(randomNumber)))
         return false;
     }
 
@@ -334,7 +338,7 @@ class LinkUniversal {
   }
 
   void reset() {
-    switch (protocol) {
+    switch (config.protocol) {
       case AUTODETECT:
       case CABLE: {
         setMode(LINK_CABLE);
@@ -355,7 +359,7 @@ class LinkUniversal {
   }
 
   void toggleMode() {
-    switch (protocol) {
+    switch (config.protocol) {
       case AUTODETECT: {
         setMode(mode == LINK_CABLE ? LINK_WIRELESS : LINK_CABLE);
         break;
@@ -399,7 +403,7 @@ class LinkUniversal {
   }
 
   void push(std::queue<u16>& q, u16 value) {
-    if (q.size() >= bufferSize)
+    if (q.size() >= config.bufferSize)
       LINK_CABLE_QUEUE_POP(q);
 
     q.push(value);

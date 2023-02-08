@@ -231,6 +231,15 @@ class LinkCable {
   }
 
  private:
+  struct Config {
+    BaudRate baudRate;
+    u32 timeout;
+    u32 remoteTimeout;
+    u32 bufferSize;
+    u32 interval;
+    u8 sendTimerId;
+  };
+
   struct PublicState {
     std::queue<u16> incomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
@@ -242,15 +251,6 @@ class LinkCable {
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
     u32 IRQTimeout;
-  };
-
-  struct Config {
-    BaudRate baudRate;
-    u32 timeout;
-    u32 remoteTimeout;
-    u32 bufferSize;
-    u32 interval;
-    u8 sendTimerId;
   };
 
   PublicState state;     // (updated state / back buffer)
