@@ -262,6 +262,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
 
+⚠️ Although games wait 1 full second, small waits (like ~160ms) also work.
+
 #### Setup - `0x17`
 
 [![Image without alt text or caption](img/0x17.png)](img/0x17.png)
