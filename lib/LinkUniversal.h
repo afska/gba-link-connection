@@ -31,7 +31,7 @@
 //     That can cause packet loss. You might want to use libugba's instead.
 //     (see examples)
 // --------------------------------------------------------------------------
-// `data` restrictions:
+// `send(...)` restrictions:
 // - 0xFFFF and 0x0 are reserved values, so don't use them!
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------

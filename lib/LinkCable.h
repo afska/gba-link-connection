@@ -31,7 +31,7 @@
 //     That can cause packet loss. You might want to use libugba's instead.
 //     (see examples)
 // --------------------------------------------------------------------------
-// `data` restrictions:
+// `send(...)` restrictions:
 // - 0xFFFF and 0x0 are reserved values, so don't use them!
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
@@ -65,8 +65,8 @@
 static volatile char LINK_CABLE_VERSION[] = "LinkCable/v4.3.0";
 
 void LINK_CABLE_ISR_VBLANK();
-void LINK_CABLE_ISR_TIMER();
 void LINK_CABLE_ISR_SERIAL();
+void LINK_CABLE_ISR_TIMER();
 u16 LINK_CABLE_QUEUE_POP(std::queue<u16>& q);
 void LINK_CABLE_QUEUE_CLEAR(std::queue<u16>& q);
 const u16 LINK_CABLE_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
@@ -240,7 +240,7 @@ class LinkCable {
     u8 sendTimerId;
   };
 
-  struct PublicState {
+  struct ExternalState {
     std::queue<u16> incomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
     u8 currentPlayerId;
@@ -253,8 +253,8 @@ class LinkCable {
     u32 IRQTimeout;
   };
 
-  PublicState state;     // (updated state / back buffer)
-  PublicState $state;    // (visible state / front buffer)
+  ExternalState state;   // (updated state / back buffer)
+  ExternalState $state;  // (visible state / front buffer)
   InternalState _state;  // (internal state)
   Config config;
   bool isEnabled = false;

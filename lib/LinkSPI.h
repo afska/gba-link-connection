@@ -7,7 +7,7 @@
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkSPI* linkSPI = new LinkSPI();
-// - 2) (Optional) Add the required interrupt service routines:
+// - 2) (Optional) Add the interrupt service routines:
 //       irq_init(NULL);
 //       irq_add(II_SERIAL, LINK_SPI_ISR_SERIAL);
 //       // (this is only required for `transferAsync`)
@@ -171,11 +171,13 @@ class LinkSPI {
   bool isWaitModeActive() { return waitMode; }
   AsyncState getAsyncState() { return asyncState; }
 
-  void _onSerial() {
+  void _onSerial(bool _customAck = false) {
     if (!isEnabled || asyncState != WAITING)
       return;
 
-    disableTransfer();
+    if (!_customAck)
+      disableTransfer();
+
     setInterruptsOff();
     asyncState = READY;
     asyncData = getData();

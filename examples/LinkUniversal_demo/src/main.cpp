@@ -32,7 +32,7 @@ int main() {
   // (1) Create a LinkUniversal instance
   linkUniversal = new LinkUniversal(protocol);
 
-  // (2) Add the interrupt service routines
+  // (2) Add the required interrupt service routines
   interrupt_init();
   interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
