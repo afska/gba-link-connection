@@ -710,6 +710,8 @@ class LinkWireless {
           return;
         }
 
+        forwardMessagesIfNeeded(messages);
+
         break;
       }
       default: {
@@ -735,18 +737,8 @@ class LinkWireless {
 
     LINK_WIRELESS_BARRIER;
 
-    addPingMessageIfNeeded();
     auto data = translateMessagesIntoData();
     sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, data);
-  }
-
-  void addPingMessageIfNeeded() {
-    if (_sessionState.outgoingMessages.empty() && !config.retransmission) {
-      Message emptyMessage;
-      emptyMessage.playerId = sessionState.currentPlayerId;
-      emptyMessage._packetId = ++_sessionState.lastPacketId;
-      _sessionState.outgoingMessages.push_back(emptyMessage);
-    }
   }
 
   std::vector<u32> translateMessagesIntoData() {
@@ -758,6 +750,8 @@ class LinkWireless {
 
     if (config.retransmission)
       addConfirmations(data);
+    else
+      addPingMessageIfNeeded();
 
     for (auto& message : _sessionState.outgoingMessages) {
       u8 size = message.data.size();
@@ -854,12 +848,21 @@ class LinkWireless {
     return true;
   }
 
-  void forwardMessagesIfNeeded(std::vector<Message>& messages, u32 startIndex) {
+  void forwardMessagesIfNeeded(std::vector<Message>& messages) {
     if (state == SERVING && config.forwarding && sessionState.playerCount > 2) {
-      for (u32 i = startIndex; i < messages.size(); i++) {
+      for (u32 i = 0; i < messages.size(); i++) {
         auto message = messages[i];
         send(message.data, message.playerId);
       }
+    }
+  }
+
+  void addPingMessageIfNeeded() {
+    if (_sessionState.outgoingMessages.empty()) {
+      Message emptyMessage;
+      emptyMessage.playerId = sessionState.currentPlayerId;
+      emptyMessage._packetId = ++_sessionState.lastPacketId;
+      _sessionState.outgoingMessages.push_back(emptyMessage);
     }
   }
 
