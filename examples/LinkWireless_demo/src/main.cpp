@@ -140,7 +140,7 @@ void serve() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
       log("Canceled!");
-      linkWireless->disconnect();
+      linkWireless->activate();
       hang();
       return;
     }
@@ -189,7 +189,7 @@ void connect() {
 
   waitFor(KEY_START | KEY_SELECT);
   if ((~REG_KEYS & KEY_ANY) & KEY_SELECT) {
-    linkWireless->disconnect();
+    linkWireless->activate();
     return;
   }
 
@@ -200,7 +200,7 @@ void connect() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
       log("Canceled!");
-      linkWireless->disconnect();
+      linkWireless->activate();
       hang();
       return;
     }
@@ -274,11 +274,7 @@ void messageLoop() {
 
     // (8) Disconnect
     if ((keys & KEY_SELECT)) {
-      if (!linkWireless->disconnect()) {
-        log("Disconn failed :(");
-        hang();
-        return;
-      }
+      linkWireless->activate();
       return;
     }
 

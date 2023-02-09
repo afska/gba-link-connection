@@ -40,7 +40,8 @@
 //         // ...
 //       }
 // - 8) Disconnect:
-//       linkWireless->disconnect();
+//       linkWireless->activate();
+//       // (resets the adapter)
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That can cause packet loss. You might want to use libugba's instead.
@@ -99,7 +100,6 @@
 #define LINK_WIRELESS_COMMAND_FINISH_CONNECTION 0x21
 #define LINK_WIRELESS_COMMAND_SEND_DATA 0x24
 #define LINK_WIRELESS_COMMAND_RECEIVE_DATA 0x26
-#define LINK_WIRELESS_COMMAND_DISCONNECT 0x30
 #define LINK_WIRELESS_BARRIER asm volatile("" ::: "memory")
 
 #define LINK_WIRELESS_RESET_IF_NEEDED \
@@ -466,30 +466,6 @@ class LinkWireless {
     return messages;
   }
 
-  bool disconnect() {
-    LINK_WIRELESS_RESET_IF_NEEDED
-
-    u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
-    while (asyncCommand.isActive) {
-      if (cmdTimeout(lines, vCount)) {
-        reset();
-        return false;
-      }
-    }
-
-    bool success = sendCommand(LINK_WIRELESS_COMMAND_DISCONNECT).success;
-
-    if (!success) {
-      reset();
-      return false;
-    }
-
-    reset();
-
-    return true;
-  }
-
   State getState() { return state; }
   bool isConnected() { return $sessionState.playerCount > 1; }
   u8 playerCount() { return $sessionState.playerCount; }
@@ -728,7 +704,7 @@ class LinkWireless {
             messages.end());
 
         if (!checkRemoteTimeouts()) {
-          disconnect();
+          reset();
           lastError = REMOTE_TIMEOUT;
           return;
         }
