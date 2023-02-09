@@ -1145,7 +1145,7 @@ class LinkWireless {
     asyncCommand.type = type;
     asyncCommand.parameters = params;
     asyncCommand.result.success = false;
-    asyncCommand.result.responses = std::vector<u32>{};
+    asyncCommand.result.responses.clear();
     asyncCommand.state = AsyncCommand::State::PENDING;
     asyncCommand.step = AsyncCommand::Step::COMMAND_HEADER;
     asyncCommand.sentParameters = 0;
