@@ -112,8 +112,8 @@
 static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v4.3.0";
 
 void LINK_WIRELESS_ISR_VBLANK();
-void LINK_WIRELESS_ISR_TIMER();
 void LINK_WIRELESS_ISR_SERIAL();
+void LINK_WIRELESS_ISR_TIMER();
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
 const u16 LINK_WIRELESS_USER_MAX_SERVER_TRANSFER_LENGTHS[] = {19, 14};
@@ -505,28 +505,6 @@ class LinkWireless {
     copyState();
   }
 
-  void _onTimer() {
-    if (!isEnabled)
-      return;
-
-    if (state != SERVING && state != CONNECTED) {
-      copyState();
-      return;
-    }
-
-    if (_sessionState.recvTimeout >= config.timeout) {
-      reset();
-      lastError = TIMEOUT;
-      copyState();
-      return;
-    }
-
-    if (!asyncCommand.isActive)
-      acceptConnectionsOrSendData();
-
-    copyState();
-  }
-
   void _onSerial() {
     if (!isEnabled)
       return;
@@ -559,6 +537,28 @@ class LinkWireless {
           processAsyncCommand();
       }
     }
+
+    copyState();
+  }
+
+  void _onTimer() {
+    if (!isEnabled)
+      return;
+
+    if (state != SERVING && state != CONNECTED) {
+      copyState();
+      return;
+    }
+
+    if (_sessionState.recvTimeout >= config.timeout) {
+      reset();
+      lastError = TIMEOUT;
+      copyState();
+      return;
+    }
+
+    if (!asyncCommand.isActive)
+      acceptConnectionsOrSendData();
 
     copyState();
   }
@@ -1321,12 +1321,12 @@ inline void LINK_WIRELESS_ISR_VBLANK() {
   linkWireless->_onVBlank();
 }
 
-inline void LINK_WIRELESS_ISR_TIMER() {
-  linkWireless->_onTimer();
-}
-
 inline void LINK_WIRELESS_ISR_SERIAL() {
   linkWireless->_onSerial();
+}
+
+inline void LINK_WIRELESS_ISR_TIMER() {
+  linkWireless->_onTimer();
 }
 
 #endif  // LINK_WIRELESS_H

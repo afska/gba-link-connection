@@ -171,22 +171,6 @@ class LinkCable {
     copyState();
   }
 
-  void _onTimer() {
-    if (!isEnabled)
-      return;
-
-    if (didTimeout()) {
-      reset();
-      copyState();
-      return;
-    }
-
-    if (isMaster() && isReady() && !isSending())
-      sendPendingData();
-
-    copyState();
-  }
-
   void _onSerial() {
     if (!isEnabled)
       return;
@@ -225,6 +209,22 @@ class LinkCable {
         LINK_CABLE_BITS_PLAYER_ID;
 
     if (!isMaster())
+      sendPendingData();
+
+    copyState();
+  }
+
+  void _onTimer() {
+    if (!isEnabled)
+      return;
+
+    if (didTimeout()) {
+      reset();
+      copyState();
+      return;
+    }
+
+    if (isMaster() && isReady() && !isSending())
       sendPendingData();
 
     copyState();
@@ -379,12 +379,12 @@ inline void LINK_CABLE_ISR_VBLANK() {
   linkCable->_onVBlank();
 }
 
-inline void LINK_CABLE_ISR_TIMER() {
-  linkCable->_onTimer();
-}
-
 inline void LINK_CABLE_ISR_SERIAL() {
   linkCable->_onSerial();
+}
+
+inline void LINK_CABLE_ISR_TIMER() {
+  linkCable->_onTimer();
 }
 
 inline u16 LINK_CABLE_QUEUE_POP(std::queue<u16>& q) {

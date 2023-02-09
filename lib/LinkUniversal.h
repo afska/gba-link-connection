@@ -58,8 +58,8 @@
 static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v4.3.0";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
-void LINK_UNIVERSAL_ISR_TIMER();
 void LINK_UNIVERSAL_ISR_SERIAL();
+void LINK_UNIVERSAL_ISR_TIMER();
 
 class LinkUniversal {
  public:
@@ -211,8 +211,8 @@ class LinkUniversal {
   u32 getSubWaitCount() { return subWaitCount; }
 
   void _onVBlank() { linkCable->_onVBlank(); }
-  void _onTimer() { linkCable->_onTimer(); }
   void _onSerial() { linkCable->_onSerial(); }
+  void _onTimer() { linkCable->_onTimer(); }
 
   ~LinkUniversal() {
     delete linkCable;
@@ -416,12 +416,12 @@ inline void LINK_UNIVERSAL_ISR_VBLANK() {
   linkUniversal->_onVBlank();
 }
 
-inline void LINK_UNIVERSAL_ISR_TIMER() {
-  linkUniversal->_onTimer();
-}
-
 inline void LINK_UNIVERSAL_ISR_SERIAL() {
   linkUniversal->_onSerial();
+}
+
+inline void LINK_UNIVERSAL_ISR_TIMER() {
+  linkUniversal->_onTimer();
 }
 
 #endif  // LINK_UNIVERSAL_H
