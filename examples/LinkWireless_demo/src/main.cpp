@@ -61,7 +61,7 @@ start:
     firstTime = false;
   }
 
-  // (2) Initialize the library
+  // (3) Initialize the library
   linkWireless->activate();
 
   bool activating = false;
@@ -130,7 +130,7 @@ void activate() {
 void serve() {
   log("Serving...");
 
-  // (3) Start a server
+  // (4) Start a server
   linkWireless->serve("LinkWireless", "Demo");
   CHECK_ERRORS("Serve failed :(")
 
@@ -140,7 +140,7 @@ void serve() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
       log("Canceled!");
-      linkWireless->activate();
+      linkWireless->disconnect();
       hang();
       return;
     }
@@ -165,7 +165,7 @@ void connect() {
     log("Searching" + dots);
   };
 
-  // (4) Connect to a server
+  // (5) Connect to a server
   std::vector<LinkWireless::Server> servers;
   linkWireless->getServers(servers, animate);
   CHECK_ERRORS("Search failed :(")
@@ -189,7 +189,7 @@ void connect() {
 
   waitFor(KEY_START | KEY_SELECT);
   if ((~REG_KEYS & KEY_ANY) & KEY_SELECT) {
-    linkWireless->activate();
+    linkWireless->disconnect();
     return;
   }
 
@@ -200,7 +200,7 @@ void connect() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
       log("Canceled!");
-      linkWireless->activate();
+      linkWireless->disconnect();
       hang();
       return;
     }
@@ -234,7 +234,7 @@ void messageLoop() {
     CHECK_ERRORS("Error :(")
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    // (5) Send data
+    // (6) Send data
     if (linkWireless->canSend() &&
         ((keys & KEY_B) || (!sending && (keys & KEY_A)))) {
       bool doubleSend = false;
@@ -254,7 +254,7 @@ void messageLoop() {
     if (sending && (!(keys & KEY_A)))
       sending = false;
 
-    // (6) Receive data
+    // (7) Receive data
     std::vector<LinkWireless::Message> messages = linkWireless->receive();
     if (messages.size() > 0) {
       for (auto& message : messages) {
@@ -272,9 +272,13 @@ void messageLoop() {
       }
     }
 
-    // (7) Disconnect
+    // (8) Disconnect
     if ((keys & KEY_SELECT)) {
-      linkWireless->activate();
+      if (!linkWireless->disconnect()) {
+        log("Disconn failed :(");
+        hang();
+        return;
+      }
       return;
     }
 
