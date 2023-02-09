@@ -509,7 +509,7 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
-    linkSPI->_onSerial();
+    linkSPI->_onSerial(true);
 
     bool hasNewData = linkSPI->getAsyncState() == LinkSPI::AsyncState::READY;
     if (hasNewData)
