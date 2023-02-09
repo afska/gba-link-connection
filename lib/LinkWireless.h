@@ -726,7 +726,7 @@ class LinkWireless {
       // Accept connections (start)
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       _sessionState.acceptCalled = true;
-    } else if (isConnected()) {
+    } else if (state == CONNECTED || isConnected()) {
       // Send data (start)
       sendPendingData();
     }
