@@ -250,6 +250,7 @@ class LinkWireless {
 
     isSessionStateReady = false;
     isSessionStateConsumed = false;
+    wait(LINK_WIRELESS_TRANSFER_WAIT);
     state = SERVING;
 
     return true;

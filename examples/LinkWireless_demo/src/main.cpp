@@ -194,7 +194,7 @@ void connect() {
   }
 
   linkWireless->connect(servers[0].id);
-  CHECK_ERRORS("Connect failed :(")
+  CHECK_ERRORS("Connect failed 1 :(")
 
   while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -206,7 +206,7 @@ void connect() {
     }
 
     linkWireless->keepConnecting();
-    CHECK_ERRORS("Finish failed :(")
+    CHECK_ERRORS("Connect failed 2 :(")
   }
 
   log("Connected! " + std::to_string(linkWireless->currentPlayerId()));
