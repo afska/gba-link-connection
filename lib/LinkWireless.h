@@ -690,7 +690,7 @@ class LinkWireless {
       return false;
     }
 
-    if (sessionState.outgoingMessages.isFull()) {
+    if (!canSend()) {
       lastError = BUFFER_IS_FULL;
       return false;
     }
@@ -904,8 +904,10 @@ class LinkWireless {
 
   void forwardMessageIfNeeded(Message& message) {  // (irq only)
     if (state == SERVING && config.forwarding && sessionState.playerCount > 2) {
-      message._packetId = ++sessionState.lastPacketId;
-      sessionState.outgoingMessages.push(message);
+      if (canSend()) {
+        message._packetId = ++sessionState.lastPacketId;
+        sessionState.outgoingMessages.push(message);
+      }
     }
   }
 
