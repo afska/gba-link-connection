@@ -480,6 +480,7 @@ class LinkWireless {
       return;
 
     linkSPI->_onSerial(true);
+    copyOutgoingState();
 
     bool hasNewData = linkSPI->getAsyncState() == LinkSPI::AsyncState::READY;
     if (hasNewData)
@@ -1107,6 +1108,11 @@ class LinkWireless {
   }
 
   void copyState() {  // (irq only)
+    copyOutgoingState();
+    copyIncomingState();
+  }
+
+  void copyOutgoingState() {  // (irq only)
     if (!isAddingMessage) {
       while (!sessionState.tmpMessagesToSend.isEmpty()) {
         if (isSessionActive() && !canSend())
@@ -1125,7 +1131,9 @@ class LinkWireless {
         isPendingClearActive = false;
       }
     }
+  }
 
+  void copyIncomingState() {  // (irq only)
     if (!isReadingMessages) {
       while (!sessionState.tmpMessagesToReceive.isEmpty()) {
         auto message = sessionState.tmpMessagesToReceive.pop();

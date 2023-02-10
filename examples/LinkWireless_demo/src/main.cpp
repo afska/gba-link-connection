@@ -27,6 +27,7 @@ void hang();
 LinkWireless::Error lastError;
 LinkWireless* linkWireless = NULL;
 bool forwarding, retransmission;
+u32 maxPlayers;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -47,7 +48,7 @@ start:
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
-  u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
+  maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(forwarding, retransmission, maxPlayers);
@@ -78,8 +79,9 @@ start:
     log(std::string("") +
         "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
-        (forwarding ? "ON" : "OFF") + "\n" +
-        "-> retransmission: " + (retransmission ? "ON" : "OFF"));
+        (forwarding ? "ON" : "OFF") +
+        "\n-> retransmission: " + (retransmission ? "ON" : "OFF") +
+        "\n-> max players: " + std::to_string(maxPlayers));
 
     // SELECT = back
     if (keys & KEY_SELECT) {
