@@ -26,6 +26,7 @@ void hang();
 
 LinkWireless::Error lastError;
 LinkWireless* linkWireless = NULL;
+bool forwarding, retransmission;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -43,8 +44,8 @@ start:
       "disable forwarding\n\nhold UP on start:\n -> disable retransmission");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
-  bool forwarding = !(initialKeys & KEY_LEFT);
-  bool retransmission = !(initialKeys & KEY_UP);
+  forwarding = !(initialKeys & KEY_LEFT);
+  retransmission = !(initialKeys & KEY_UP);
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(forwarding, retransmission);
@@ -299,6 +300,7 @@ void messageLoop() {
     if (switching && (!(keys & KEY_UP)))
       switching = false;
 
+    // Normal output
     std::string output =
         "Player #" + std::to_string(linkWireless->currentPlayerId()) + " (" +
         std::to_string(linkWireless->playerCount()) + " total)" +
@@ -309,7 +311,28 @@ void messageLoop() {
       output +=
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
     }
+
+    // Debug output
     output += "\n_buffer: " + std::to_string(linkWireless->getPendingCount());
+    if (retransmission && !packetLossCheck &&
+        linkWireless->playerCount() == 2) {
+      output +=
+          "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
+      output += "\n_nextPndngPkgId: " +
+                std::to_string(linkWireless->_nextPendingPacketId());
+
+      if (linkWireless->currentPlayerId() == 0) {
+        output += "\n_lastConfFromC1: " +
+                  std::to_string(linkWireless->_lastConfirmationFromClient1());
+        output += "\n_lastPkgIdFromC1: " +
+                  std::to_string(linkWireless->_lastPacketIdFromClient1());
+      } else {
+        output += "\n_lastConfFromSrv: " +
+                  std::to_string(linkWireless->_lastConfirmationFromServer());
+        output += "\n_lastPkgIdFromSrv: " +
+                  std::to_string(linkWireless->_lastPacketIdFromServer());
+      }
+    }
     if (packetLossCheck && lostPackets > 0) {
       output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
       output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ") " +

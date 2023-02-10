@@ -433,6 +433,23 @@ class LinkWireless {
     return error;
   }
 
+  u32 _lastPacketId() { return sessionState.lastPacketId; }
+  u32 _lastConfirmationFromClient1() {
+    return sessionState.lastConfirmationFromClients[1];
+  }
+  u32 _lastPacketIdFromClient1() {
+    return sessionState.lastPacketIdFromClients[1];
+  }
+  u32 _lastConfirmationFromServer() {
+    return sessionState.lastConfirmationFromServer;
+  }
+  u32 _lastPacketIdFromServer() { return sessionState.lastPacketIdFromServer; }
+  u32 _nextPendingPacketId() {
+    return sessionState.outgoingMessages.isEmpty()
+               ? 0
+               : sessionState.outgoingMessages.peek()._packetId;
+  }
+
   ~LinkWireless() {
     delete linkSPI;
     delete linkGPIO;
