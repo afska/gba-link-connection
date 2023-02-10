@@ -258,10 +258,10 @@ class LinkCable {
   InternalState _state;  // (internal state)
   Config config;
   bool isEnabled = false;
-  bool isStateReady = false;
-  bool isStateConsumed = false;
-  bool isAddingMessage = false;
-  bool isResetting = false;
+  volatile bool isStateReady = false;
+  volatile bool isStateConsumed = false;
+  volatile bool isAddingMessage = false;
+  volatile bool isResetting = false;
 
   bool isReady() { return isBitHigh(LINK_CABLE_BIT_READY); }
   bool hasError() { return isBitHigh(LINK_CABLE_BIT_ERROR); }

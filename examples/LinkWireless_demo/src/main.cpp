@@ -320,7 +320,6 @@ void messageLoop() {
           "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
       output += "\n_nextPndngPkgId: " +
                 std::to_string(linkWireless->_nextPendingPacketId());
-
       if (linkWireless->currentPlayerId() == 0) {
         output += "\n_lastConfFromC1: " +
                   std::to_string(linkWireless->_lastConfirmationFromClient1());
