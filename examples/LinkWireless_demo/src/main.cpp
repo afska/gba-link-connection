@@ -253,10 +253,17 @@ void messageLoop() {
       sending = false;
 
     // (7) Receive data
-    std::vector<LinkWireless::Message> messages = linkWireless->receive();
+    auto messages = std::vector<LinkWireless::Message>{};
+    linkWireless->receive(messages);
     if (messages.size() > 0) {
       for (auto& message : messages) {
         u32 expected = counters[message.playerId] + 1;
+        if (message.dataSize != 1) {
+          log("Wrong data size :(");
+          linkWireless->activate();
+          hang();
+          return;
+        }
 
         counters[message.playerId] = message.data[0];
 

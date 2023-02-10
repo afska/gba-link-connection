@@ -34,7 +34,8 @@
 // - 6) Send data:
 //       linkConnection->send(std::vector<u32>{1, 2, 3});
 // - 7) Receive data:
-//       auto messages = linkConnection->receive();
+//       auto messages = std::vector<LinkWireless::Message>{};
+//       linkConnection->receive(messages);
 //       if (messages.size() > 0) {
 //         // ...
 //       }
@@ -54,7 +55,6 @@
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
-#include <algorithm>
 #include <string>
 #include <vector>
 #include "LinkGPIO.h"
@@ -62,9 +62,10 @@
 
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
+#define LINK_WIRELESS_QUEUE_SIZE 30
+#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 5
 #define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 5
-#define LINK_WIRELESS_DEFAULT_BUFFER_SIZE 30
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define LINK_WIRELESS_BASE_FREQUENCY TM_FREQ_1024
 #define LINK_WIRELESS_MSG_CONFIRMATION 0
@@ -148,10 +149,12 @@ class LinkWireless {
   };
 
   struct Message {
-    u8 playerId = 0;
-    std::vector<u32> data = std::vector<u32>{};
-
     u32 _packetId = 0;
+
+    u32 data[LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH];
+    u32 dataSize = 0;
+
+    u8 playerId = 0;
   };
 
   struct Server {
@@ -166,14 +169,12 @@ class LinkWireless {
       u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
       u32 timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
       u32 remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
-      u32 bufferSize = LINK_WIRELESS_DEFAULT_BUFFER_SIZE,
       u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL) {
     this->config.forwarding = forwarding;
     this->config.retransmission = retransmission;
     this->config.maxPlayers = maxPlayers;
     this->config.timeout = timeout;
     this->config.remoteTimeout = remoteTimeout;
-    this->config.bufferSize = bufferSize;
     this->config.interval = interval;
   }
 
@@ -216,22 +217,20 @@ class LinkWireless {
     gameName.append(LINK_WIRELESS_MAX_GAME_NAME_LENGTH - gameName.length(), 0);
     userName.append(LINK_WIRELESS_MAX_USER_NAME_LENGTH - userName.length(), 0);
 
-    auto broadcast = std::vector<u32>{
-        buildU32(buildU16(gameName[1], gameName[0]), buildU16(0x02, 0x02)),
-        buildU32(buildU16(gameName[5], gameName[4]),
-                 buildU16(gameName[3], gameName[2])),
-        buildU32(buildU16(gameName[9], gameName[8]),
-                 buildU16(gameName[7], gameName[6])),
-        buildU32(buildU16(gameName[13], gameName[12]),
-                 buildU16(gameName[11], gameName[10])),
-        buildU32(buildU16(userName[3], userName[2]),
-                 buildU16(userName[1], userName[0])),
-        buildU32(buildU16(userName[7], userName[6]),
-                 buildU16(userName[5], userName[4]))};
-
-    bool success =
-        sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, broadcast).success &&
-        sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
+    addData(buildU32(buildU16(gameName[1], gameName[0]), buildU16(0x02, 0x02)),
+            true);
+    addData(buildU32(buildU16(gameName[5], gameName[4]),
+                     buildU16(gameName[3], gameName[2])));
+    addData(buildU32(buildU16(gameName[9], gameName[8]),
+                     buildU16(gameName[7], gameName[6])));
+    addData(buildU32(buildU16(gameName[13], gameName[12]),
+                     buildU16(gameName[11], gameName[10])));
+    addData(buildU32(buildU16(userName[3], userName[2]),
+                     buildU16(userName[1], userName[0])));
+    addData(buildU32(buildU16(userName[7], userName[6]),
+                     buildU16(userName[5], userName[4])));
+    bool success = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, true).success &&
+                   sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
 
     if (!success) {
       reset();
@@ -293,7 +292,7 @@ class LinkWireless {
     auto result = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL);
     bool success1 =
         result.success &&
-        result.responses.size() % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
+        result.responsesSize % LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
 
     if (!success1) {
       reset();
@@ -311,7 +310,7 @@ class LinkWireless {
     }
 
     u32 totalBroadcasts =
-        result.responses.size() / LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH;
+        result.responsesSize / LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH;
 
     for (u32 i = 0; i < totalBroadcasts; i++) {
       u32 start = LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH * i;
@@ -340,9 +339,8 @@ class LinkWireless {
       return false;
     }
 
-    bool success =
-        sendCommand(LINK_WIRELESS_COMMAND_CONNECT, std::vector<u32>{serverId})
-            .success;
+    addData(serverId, true);
+    bool success = sendCommand(LINK_WIRELESS_COMMAND_CONNECT, true).success;
 
     if (!success) {
       reset();
@@ -363,7 +361,7 @@ class LinkWireless {
     }
 
     auto result1 = sendCommand(LINK_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
-    if (!result1.success || result1.responses.size() == 0) {
+    if (!result1.success || result1.responsesSize == 0) {
       reset();
       lastError = COMMAND_FAILED;
       return false;
@@ -382,7 +380,7 @@ class LinkWireless {
     }
 
     auto result2 = sendCommand(LINK_WIRELESS_COMMAND_FINISH_CONNECTION);
-    if (!result2.success || result2.responses.size() == 0 ||
+    if (!result2.success || result2.responsesSize == 0 ||
         (u16)result2.responses[0] != assignedClientId) {
       reset();
       lastError = COMMAND_FAILED;
@@ -395,83 +393,32 @@ class LinkWireless {
     return true;
   }
 
-  bool send(std::vector<u32> data, int _author = -1) {
-    LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED) {
-      lastError = WRONG_STATE;
-      return false;
-    }
-    u32 maxTransferLength = state == SERVING
-                                ? LINK_WIRELESS_USER_MAX_SERVER_TRANSFER_LENGTHS
-                                      [config.retransmission]
-                                : LINK_WIRELESS_USER_MAX_CLIENT_TRANSFER_LENGTHS
-                                      [config.retransmission];
-    if (data.size() == 0 || data.size() > maxTransferLength) {
-      lastError = INVALID_SEND_SIZE;
-      return false;
-    }
+  bool send(std::vector<u32> data) { return send(&data[0], data.size()); }
 
-    if (sessionState.outgoingMessages.size() >= config.bufferSize) {
-      lastError = BUFFER_IS_FULL;
-      return false;
-    }
-
-    LINK_WIRELESS_BARRIER;
-    isAddingMessage = true;
-    LINK_WIRELESS_BARRIER;
-
-    Message message;
-    message.playerId = _author < 0 ? sessionState.currentPlayerId : _author;
-    message.data = data;
-    message._packetId = ++sessionState.lastPacketId;
-
-    sessionState.outgoingMessages.push_back(message);
-
-    LINK_WIRELESS_BARRIER;
-    isAddingMessage = false;
-    LINK_WIRELESS_BARRIER;
-
-    if (isResetting) {
-      sessionState.outgoingMessages.clear();
-      isResetting = false;
-    }
-
-    return true;
-  }
-
-  std::vector<Message> receive() {
+  bool receive(std::vector<Message>& messages) {
     if (!isEnabled || state == NEEDS_RESET ||
         (state != SERVING && state != CONNECTED))
-      return std::vector<Message>{};
+      return false;
 
     LINK_WIRELESS_BARRIER;
     isReadingMessages = true;
     LINK_WIRELESS_BARRIER;
 
-    auto messages = sessionState.incomingMessages;
-    sessionState.incomingMessages.clear();
+    while (!sessionState.incomingMessages.isEmpty())
+      messages.push_back(sessionState.incomingMessages.pop());
 
     LINK_WIRELESS_BARRIER;
     isReadingMessages = false;
     LINK_WIRELESS_BARRIER;
 
-    if (isResetting) {
-      sessionState.incomingMessages.clear();
-      isResetting = false;
-    }
-
-    return messages;
+    return true;
   }
 
   State getState() { return state; }
   bool isConnected() { return sessionState.playerCount > 1; }
   u8 playerCount() { return sessionState.playerCount; }
   u8 currentPlayerId() { return sessionState.currentPlayerId; }
-
-  bool canSend() {
-    return sessionState.outgoingMessages.size() < config.bufferSize;
-  }
-
+  bool canSend() { return !sessionState.outgoingMessages.isFull(); }
   u32 getPendingCount() { return sessionState.outgoingMessages.size(); }
   Error getLastError() {
     Error error = lastError;
@@ -545,13 +492,67 @@ class LinkWireless {
     u8 maxPlayers;
     u32 timeout;
     u32 remoteTimeout;
-    u32 bufferSize;
     u32 interval;
   };
 
+  class MessageQueue {
+   public:
+    void push(Message item) {
+      if (isFull())
+        return;
+
+      rear = (rear + 1) % LINK_WIRELESS_QUEUE_SIZE;
+      arr[rear] = item;
+      count++;
+    }
+
+    Message pop() {
+      if (isEmpty())
+        return Message{};
+
+      auto x = arr[front];
+      front = (front + 1) % LINK_WIRELESS_QUEUE_SIZE;
+      count--;
+
+      return x;
+    }
+
+    Message peek() {
+      if (isEmpty())
+        return Message{};
+      return arr[front];
+    }
+
+    template <typename F>
+    void forEach(F action) {
+      int currentFront = front;
+
+      for (u32 i = 0; i < count; i++) {
+        if (!action(arr[front]))
+          return;
+        currentFront = (currentFront + 1) % LINK_WIRELESS_QUEUE_SIZE;
+      }
+    }
+
+    void clear() {
+      while (!isEmpty())
+        pop();
+    }
+
+    int size() { return count; }
+    bool isEmpty() { return size() == 0; }
+    bool isFull() { return size() == LINK_WIRELESS_QUEUE_SIZE; }
+
+   private:
+    Message arr[LINK_WIRELESS_QUEUE_SIZE];
+    int front = 0;
+    int rear = -1;
+    u32 count = 0;
+  };
+
   struct SessionState {
-    std::vector<Message> incomingMessages;
-    std::vector<Message> outgoingMessages;
+    MessageQueue incomingMessages;
+    MessageQueue outgoingMessages;
     u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
     u32 recvTimeout = 0;
     u32 frameRecvCount = 0;
@@ -567,16 +568,6 @@ class LinkWireless {
     u32 lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
   };
 
-  struct LoginMemory {
-    u16 previousGBAData = 0xffff;
-    u16 previousAdapterData = 0xffff;
-  };
-
-  struct CommandResult {
-    bool success = false;
-    std::vector<u32> responses = std::vector<u32>{};
-  };
-
   struct MessageHeader {
     unsigned int packetId : 22;
     unsigned int size : 5;
@@ -587,6 +578,17 @@ class LinkWireless {
   union MessageHeaderSerializer {
     MessageHeader asStruct;
     u32 asInt;
+  };
+
+  struct LoginMemory {
+    u16 previousGBAData = 0xffff;
+    u16 previousAdapterData = 0xffff;
+  };
+
+  struct CommandResult {
+    bool success = false;
+    u32 responses[LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
+    u32 responsesSize = 0;
   };
 
   struct AsyncCommand {
@@ -600,7 +602,8 @@ class LinkWireless {
     };
 
     u8 type;
-    std::vector<u32> parameters;
+    u32 parameters[LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH];
+    u32 responses[LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
     CommandResult result;
     State state;
     Step step;
@@ -615,11 +618,59 @@ class LinkWireless {
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
+  u32 data[LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH];
+  u32 dataSize = 0;
   bool isReadingMessages = false;
   bool isAddingMessage = false;
   bool isResetting = false;
   Error lastError = NONE;
   bool isEnabled = false;
+
+  bool send(u32* data, u32 dataSize, int _author = -1) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING && state != CONNECTED) {
+      lastError = WRONG_STATE;
+      return false;
+    }
+    u32 maxTransferLength = state == SERVING
+                                ? LINK_WIRELESS_USER_MAX_SERVER_TRANSFER_LENGTHS
+                                      [config.retransmission]
+                                : LINK_WIRELESS_USER_MAX_CLIENT_TRANSFER_LENGTHS
+                                      [config.retransmission];
+    if (dataSize == 0 || dataSize > maxTransferLength) {
+      lastError = INVALID_SEND_SIZE;
+      return false;
+    }
+
+    if (sessionState.outgoingMessages.isFull()) {
+      lastError = BUFFER_IS_FULL;
+      return false;
+    }
+
+    LINK_WIRELESS_BARRIER;
+    isAddingMessage = true;
+    LINK_WIRELESS_BARRIER;
+
+    Message message;
+    message.playerId = _author < 0 ? sessionState.currentPlayerId : _author;
+    for (u32 i = 0; i < dataSize; i++)
+      message.data[i] = data[i];
+    message.dataSize = dataSize;
+    message._packetId = ++sessionState.lastPacketId;
+
+    sessionState.outgoingMessages.push(message);
+
+    LINK_WIRELESS_BARRIER;
+    isAddingMessage = false;
+    LINK_WIRELESS_BARRIER;
+
+    if (isResetting) {
+      sessionState.outgoingMessages.clear();
+      isResetting = false;
+    }
+
+    return true;
+  }
 
   void processAsyncCommand() {
     if (!asyncCommand.result.success) {
@@ -639,7 +690,7 @@ class LinkWireless {
     switch (asyncCommand.type) {
       case LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS: {
         // Accept connections (end)
-        sessionState.playerCount = 1 + asyncCommand.result.responses.size();
+        sessionState.playerCount = 1 + asyncCommand.result.responsesSize;
 
         break;
       }
@@ -655,30 +706,26 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // Receive data (end)
-        if (!asyncCommand.result.responses.empty()) {
+        if (asyncCommand.result.responsesSize > 0) {
           sessionState.frameRecvCount++;
           sessionState.recvTimeout = 0;
 
           // (remove wireless header)
-          asyncCommand.result.responses.erase(
-              asyncCommand.result.responses.begin());
+          for (u32 i = 1; i < asyncCommand.result.responsesSize; i++)
+            asyncCommand.result.responses[i - 1] =
+                asyncCommand.result.responses[i];
+          asyncCommand.result.responsesSize--;
         }
 
         trackRemoteTimeouts();
 
-        std::vector<Message> messages;
-        translateDataIntoMessages(asyncCommand.result.responses, messages);
-        sessionState.incomingMessages.insert(
-            sessionState.incomingMessages.end(), messages.begin(),
-            messages.end());
+        addIncomingMessagesFromData(asyncCommand.result);
 
         if (!checkRemoteTimeouts()) {
           reset();
           lastError = REMOTE_TIMEOUT;
           return;
         }
-
-        forwardMessagesIfNeeded(messages);
 
         break;
       }
@@ -703,47 +750,50 @@ class LinkWireless {
     if (isAddingMessage)
       return;
 
-    auto data = translateMessagesIntoData();
-    sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, data);
+    setDataFromOutgoingMessages();
+    sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, true);
   }
 
-  std::vector<u32> translateMessagesIntoData() {
+  void setDataFromOutgoingMessages() {
     u32 maxTransferLength = getDeviceTransferLength();
-    std::vector<u32> data;
 
-    // (add wireless header)
-    data.push_back(0);
+    addData(0, true);
 
     if (config.retransmission)
-      addConfirmations(data);
+      addConfirmations();
     else
       addPingMessageIfNeeded();
 
-    for (auto& message : sessionState.outgoingMessages) {
-      u8 size = message.data.size();
-      u32 header =
-          buildMessageHeader(message.playerId, size, message._packetId);
+    sessionState.outgoingMessages.forEach(
+        [this, maxTransferLength](Message message) {
+          u8 size = message.dataSize;
+          u32 header =
+              buildMessageHeader(message.playerId, size, message._packetId);
 
-      if (data.size() + 1 + size > maxTransferLength)
-        break;
+          if (dataSize + 1 + size > maxTransferLength)
+            return false;
 
-      data.push_back(header);
-      data.insert(data.end(), message.data.begin(), message.data.end());
-    }
+          addData(header);
+          for (u32 i = 0; i < size; i++)
+            addData(message.data[i]);
 
-    u32 bytes = (data.size() - 1) * 4;
+          return true;
+        });
+
+    // (add wireless header)
+    u32 bytes = (dataSize - 1) * 4;
     data[0] = sessionState.currentPlayerId == 0
                   ? bytes
                   : (1 << (3 + sessionState.currentPlayerId * 5)) * bytes;
-
-    return data;
   }
 
-  bool translateDataIntoMessages(std::vector<u32>& data,
-                                 std::vector<Message>& messages) {
-    for (u32 i = 0; i < data.size(); i++) {
+  bool addIncomingMessagesFromData(CommandResult& result) {
+    if (isReadingMessages)
+      return;
+
+    for (u32 i = 0; i < result.responsesSize; i++) {
       MessageHeaderSerializer serializer;
-      serializer.asInt = data[i];
+      serializer.asInt = result.responses[i];
 
       MessageHeader header = serializer.asStruct;
       u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
@@ -751,7 +801,7 @@ class LinkWireless {
       u8 size = header.size;
       u32 packetId = header.packetId;
 
-      if (i + size >= data.size()) {
+      if (i + size >= result.responsesSize) {
         reset();
         lastError = BAD_MESSAGE;
         return false;
@@ -791,10 +841,11 @@ class LinkWireless {
 
       if (size > 0) {
         Message message;
-        message.playerId = remotePlayerId;
-        for (u32 j = 0; j < size; j++)
-          message.data.push_back(data[i + 1 + j]);
         message._packetId = packetId;
+        for (u32 j = 0; j < size; j++)
+          message.data[j] = result.responses[i + 1 + j];
+        message.dataSize = size;
+        message.playerId = remotePlayerId;
 
         if (config.retransmission &&
             packetId == LINK_WIRELESS_MSG_CONFIRMATION) {
@@ -804,7 +855,8 @@ class LinkWireless {
             return false;
           }
         } else {
-          messages.push_back(message);
+          sessionState.incomingMessages.push(message);
+          forwardMessageIfNeeded(message);
         }
 
         i += size;
@@ -814,51 +866,47 @@ class LinkWireless {
     return true;
   }
 
-  void forwardMessagesIfNeeded(std::vector<Message>& messages) {
-    if (state == SERVING && config.forwarding && sessionState.playerCount > 2) {
-      for (u32 i = 0; i < messages.size(); i++) {
-        auto message = messages[i];
-        send(message.data, message.playerId);
-      }
-    }
+  void forwardMessageIfNeeded(Message& message) {
+    if (state == SERVING && config.forwarding && sessionState.playerCount > 2)
+      send(message.data, message.dataSize, message.playerId);
   }
 
   void addPingMessageIfNeeded() {
-    if (sessionState.outgoingMessages.empty()) {
+    if (sessionState.outgoingMessages.isEmpty()) {
       Message emptyMessage;
       emptyMessage.playerId = sessionState.currentPlayerId;
       emptyMessage._packetId = ++sessionState.lastPacketId;
-      sessionState.outgoingMessages.push_back(emptyMessage);
+      sessionState.outgoingMessages.push(emptyMessage);
     }
   }
 
-  void addConfirmations(std::vector<u32>& data) {
+  void addConfirmations() {
     if (state == SERVING) {
-      data.push_back(buildConfirmationHeader(0));
+      addData(buildConfirmationHeader(0));
       for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++)
-        data.push_back(sessionState.lastPacketIdFromClients[1 + i]);
+        addData(sessionState.lastPacketIdFromClients[1 + i]);
     } else {
-      data.push_back(buildConfirmationHeader(sessionState.currentPlayerId));
-      data.push_back(sessionState.lastPacketIdFromServer);
+      addData(buildConfirmationHeader(sessionState.currentPlayerId));
+      addData(sessionState.lastPacketIdFromServer);
     }
   }
 
   bool handleConfirmation(Message confirmation) {
-    if (confirmation.data.size() == 0)
+    if (confirmation.dataSize == 0)
       return false;
 
     bool isServerConfirmation = confirmation.playerId == 0;
 
     if (isServerConfirmation) {
       if (state != CONNECTED ||
-          confirmation.data.size() != LINK_WIRELESS_MAX_PLAYERS - 1)
+          confirmation.dataSize != LINK_WIRELESS_MAX_PLAYERS - 1)
         return false;
 
       sessionState.lastConfirmationFromServer =
           confirmation.data[sessionState.currentPlayerId - 1];
       removeConfirmedMessages(sessionState.lastConfirmationFromServer);
     } else {
-      if (state != SERVING || confirmation.data.size() != 1)
+      if (state != SERVING || confirmation.dataSize != 1)
         return false;
 
       u32 confirmationData = confirmation.data[0];
@@ -879,13 +927,8 @@ class LinkWireless {
   }
 
   void removeConfirmedMessages(u32 confirmation) {
-    sessionState.outgoingMessages.erase(
-        std::remove_if(sessionState.outgoingMessages.begin(),
-                       sessionState.outgoingMessages.end(),
-                       [confirmation](Message it) {
-                         return it._packetId <= confirmation;
-                       }),
-        sessionState.outgoingMessages.end());
+    while (sessionState.outgoingMessages.peek()._packetId <= confirmation)
+      sessionState.outgoingMessages.pop();
   }
 
   u32 buildConfirmationHeader(u8 playerId) {
@@ -946,6 +989,13 @@ class LinkWireless {
       name.push_back(character);
   }
 
+  void addData(u32 value, bool start = false) {
+    if (start)
+      dataSize = 0;
+    data[dataSize] = value;
+    dataSize++;
+  }
+
   bool reset() {
     resetState();
     stop();
@@ -968,10 +1018,9 @@ class LinkWireless {
       this->sessionState.lastConfirmationFromClients[i] = 0;
     }
     this->asyncCommand.isActive = false;
+    this->dataSize = 0;
 
-    if (isReadingMessages || isResetting)
-      isResetting = true;
-    else
+    if (!isReadingMessages)
       this->sessionState.incomingMessages.clear();
 
     if (isAddingMessage || isResetting)
@@ -994,9 +1043,8 @@ class LinkWireless {
     if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
       return false;
 
-    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP,
-                     std::vector<u32>{LINK_WIRELESS_SETUP_MAGIC})
-             .success)
+    addData(LINK_WIRELESS_SETUP_MAGIC, true);
+    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, true).success)
       return false;
 
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
@@ -1044,18 +1092,18 @@ class LinkWireless {
     return true;
   }
 
-  CommandResult sendCommand(u8 type,
-                            std::vector<u32> params = std::vector<u32>{}) {
+  CommandResult sendCommand(u8 type, bool withData = false) {
     CommandResult result;
-    u16 length = params.size();
-    u32 command = buildCommand(type, length);
+    u32 command = buildCommand(type, withData ? (u16)dataSize : 0);
 
     if (transfer(command) != LINK_WIRELESS_DATA_REQUEST)
       return result;
 
-    for (auto& param : params) {
-      if (transfer(param) != LINK_WIRELESS_DATA_REQUEST)
-        return result;
+    if (withData) {
+      for (u32 i = 0; i < dataSize; i++) {
+        if (transfer(data[i]) != LINK_WIRELESS_DATA_REQUEST)
+          return result;
+      }
     }
 
     u32 response = transfer(LINK_WIRELESS_DATA_REQUEST);
@@ -1070,24 +1118,27 @@ class LinkWireless {
       return result;
 
     for (u32 i = 0; i < responses; i++)
-      result.responses.push_back(transfer(LINK_WIRELESS_DATA_REQUEST));
+      result.responses[i] = transfer(LINK_WIRELESS_DATA_REQUEST);
+    result.responsesSize = responses;
 
     result.success = true;
     return result;
   }
 
-  void sendCommandAsync(u8 type, std::vector<u32> params = std::vector<u32>{}) {
+  void sendCommandAsync(u8 type, bool withData = false) {
     if (asyncCommand.isActive)
       return;
 
     asyncCommand.type = type;
-    asyncCommand.parameters = params;
+    if (withData) {
+      for (u32 i = 0; i < dataSize; i++)
+        asyncCommand.parameters[i] = data[i];
+    }
     asyncCommand.result.success = false;
-    asyncCommand.result.responses.clear();
     asyncCommand.state = AsyncCommand::State::PENDING;
     asyncCommand.step = AsyncCommand::Step::COMMAND_HEADER;
     asyncCommand.sentParameters = 0;
-    asyncCommand.totalParameters = params.size();
+    asyncCommand.totalParameters = withData ? dataSize : 0;
     asyncCommand.receivedResponses = 0;
     asyncCommand.totalResponses = 0;
     asyncCommand.isActive = true;
@@ -1129,11 +1180,13 @@ class LinkWireless {
         }
 
         asyncCommand.totalResponses = responses;
+        asyncCommand.result.responsesSize = responses;
+
         receiveAsyncCommandResponseOrFinish();
         break;
       }
       case AsyncCommand::Step::DATA_REQUEST: {
-        asyncCommand.result.responses.push_back(newData);
+        asyncCommand.result.responses[asyncCommand.receivedResponses] = newData;
         receiveAsyncCommandResponseOrFinish();
         break;
       }
