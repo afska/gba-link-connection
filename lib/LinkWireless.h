@@ -738,8 +738,6 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // Send data (end)
-        clearOutgoingMessagesIfNeeded();
-
         // Receive data (start)
         sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
 
@@ -786,6 +784,7 @@ class LinkWireless {
   void sendPendingData() {  // (irq only)
     setDataFromOutgoingMessages();
     sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, true);
+    clearOutgoingMessagesIfNeeded();
   }
 
   void setDataFromOutgoingMessages() {  // (irq only)
