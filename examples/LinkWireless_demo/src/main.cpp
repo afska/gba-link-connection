@@ -56,6 +56,8 @@ start:
     interrupt_enable(INTR_VBLANK);
     interrupt_set_handler(INTR_SERIAL, LINK_WIRELESS_ISR_SERIAL);
     interrupt_enable(INTR_SERIAL);
+    interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
+    interrupt_enable(INTR_TIMER3);
     firstTime = false;
   }
 

@@ -11,6 +11,7 @@
 //       irq_init(NULL);
 //       irq_add(II_VBLANK, LINK_WIRELESS_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_WIRELESS_ISR_SERIAL);
+//       irq_add(II_TIMER3, LINK_WIRELESS_ISR_TIMER);
 // - 3) Initialize the library with:
 //       linkWireless->activate();
 // - 4) Start a server:
@@ -65,8 +66,9 @@
 #define LINK_WIRELESS_QUEUE_SIZE 30
 #define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 5
-#define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 5
+#define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 25
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
+#define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
 #define LINK_WIRELESS_BASE_FREQUENCY TM_FREQ_1024
 #define LINK_WIRELESS_MSG_CONFIRMATION 0
 #define LINK_WIRELESS_PING_WAIT 50
@@ -112,10 +114,13 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v4.3.0";
 
 void LINK_WIRELESS_ISR_VBLANK();
 void LINK_WIRELESS_ISR_SERIAL();
+void LINK_WIRELESS_ISR_TIMER();
 const u16 LINK_WIRELESS_LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                          0x4e45, 0x4f44, 0x4f44, 0x8001};
 const u16 LINK_WIRELESS_USER_MAX_SERVER_TRANSFER_LENGTHS[] = {19, 14};
 const u32 LINK_WIRELESS_USER_MAX_CLIENT_TRANSFER_LENGTHS[] = {3, 1};
+const u16 LINK_WIRELESS_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
+                                           IRQ_TIMER3};
 
 class LinkWireless {
  public:
@@ -169,13 +174,15 @@ class LinkWireless {
       u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
       u32 timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
       u32 remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
-      u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL) {
+      u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL,
+      u8 sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID) {
     this->config.forwarding = forwarding;
     this->config.retransmission = retransmission;
     this->config.maxPlayers = maxPlayers;
     this->config.timeout = timeout;
     this->config.remoteTimeout = remoteTimeout;
     this->config.interval = interval;
+    this->config.sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID;
   }
 
   bool isActive() { return isEnabled; }
@@ -441,17 +448,8 @@ class LinkWireless {
     if (isConnected() && sessionState.frameRecvCount == 0)
       sessionState.recvTimeout++;
 
-    if (sessionState.recvTimeout >= config.timeout) {
-      reset();
-      lastError = TIMEOUT;
-      return;
-    }
-
     sessionState.frameRecvCount = 0;
     sessionState.acceptCalled = false;
-
-    if (!asyncCommand.isActive)
-      acceptConnectionsOrSendData();
   }
 
   void _onSerial() {
@@ -485,6 +483,23 @@ class LinkWireless {
     }
   }
 
+  void _onTimer() {
+    if (!isEnabled)
+      return;
+
+    if (state != SERVING && state != CONNECTED)
+      return;
+
+    if (sessionState.recvTimeout >= config.timeout) {
+      reset();
+      lastError = TIMEOUT;
+      return;
+    }
+
+    if (!asyncCommand.isActive)
+      acceptConnectionsOrSendData();
+  }
+
  private:
   struct Config {
     bool forwarding;
@@ -493,6 +508,7 @@ class LinkWireless {
     u32 timeout;
     u32 remoteTimeout;
     u32 interval;
+    u32 sendTimerId;
   };
 
   class MessageQueue {
@@ -719,7 +735,8 @@ class LinkWireless {
 
         trackRemoteTimeouts();
 
-        addIncomingMessagesFromData(asyncCommand.result);
+        if (!addIncomingMessagesFromData(asyncCommand.result))
+          return;
 
         if (!checkRemoteTimeouts()) {
           reset();
@@ -789,7 +806,7 @@ class LinkWireless {
 
   bool addIncomingMessagesFromData(CommandResult& result) {
     if (isReadingMessages)
-      return;
+      return true;
 
     for (u32 i = 0; i < result.responsesSize; i++) {
       MessageHeaderSerializer serializer;
@@ -1029,9 +1046,15 @@ class LinkWireless {
       this->sessionState.outgoingMessages.clear();
   }
 
-  void stop() { linkSPI->deactivate(); }
+  void stop() {
+    stopTimer();
+
+    linkSPI->deactivate();
+  }
 
   bool start() {
+    startTimer();
+
     pingAdapter();
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 
@@ -1051,6 +1074,17 @@ class LinkWireless {
     state = AUTHENTICATED;
 
     return true;
+  }
+
+  void stopTimer() {
+    REG_TM[config.sendTimerId].cnt =
+        REG_TM[config.sendTimerId].cnt & (~TM_ENABLE);
+  }
+
+  void startTimer() {
+    REG_TM[config.sendTimerId].start = -config.interval;
+    REG_TM[config.sendTimerId].cnt =
+        TM_ENABLE | TM_IRQ | LINK_WIRELESS_BASE_FREQUENCY;
   }
 
   void pingAdapter() {
@@ -1315,6 +1349,10 @@ inline void LINK_WIRELESS_ISR_VBLANK() {
 
 inline void LINK_WIRELESS_ISR_SERIAL() {
   linkWireless->_onSerial();
+}
+
+inline void LINK_WIRELESS_ISR_TIMER() {
+  linkWireless->_onTimer();
 }
 
 #endif  // LINK_WIRELESS_H
