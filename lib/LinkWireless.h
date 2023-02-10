@@ -409,8 +409,11 @@ class LinkWireless {
     isReadingMessages = true;
     LINK_WIRELESS_BARRIER;
 
-    while (!sessionState.incomingMessages.isEmpty())
-      messages.push_back(sessionState.incomingMessages.pop());
+    while (!sessionState.incomingMessages.isEmpty()) {
+      auto message = sessionState.incomingMessages.pop();
+      messages.push_back(message);
+      forwardMessageIfNeeded(message);
+    }
 
     LINK_WIRELESS_BARRIER;
     isReadingMessages = false;
@@ -674,7 +677,7 @@ class LinkWireless {
   Error lastError = NONE;
   bool isEnabled = false;
 
-  bool send(u32* data, u32 dataSize) {
+  bool send(u32* data, u32 dataSize, int _author = -1) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (!isSessionActive()) {
       lastError = WRONG_STATE;
@@ -691,12 +694,13 @@ class LinkWireless {
     }
 
     if (!canSend()) {
-      lastError = BUFFER_IS_FULL;
+      if (_author < 0)
+        lastError = BUFFER_IS_FULL;
       return false;
     }
 
     Message message;
-    message.playerId = sessionState.currentPlayerId;
+    message.playerId = _author > 0 ? _author : sessionState.currentPlayerId;
     for (u32 i = 0; i < dataSize; i++)
       message.data[i] = data[i];
     message.dataSize = dataSize;
@@ -712,6 +716,11 @@ class LinkWireless {
     LINK_WIRELESS_BARRIER;
 
     return true;
+  }
+
+  void forwardMessageIfNeeded(Message& message) {
+    if (state == SERVING && config.forwarding && sessionState.playerCount > 2)
+      send(&message.data[0], message.dataSize, message.playerId);
   }
 
   void processAsyncCommand() {  // (irq only)
@@ -885,10 +894,8 @@ class LinkWireless {
             lastError = BAD_CONFIRMATION;
             return false;
           }
-        } else {
+        } else
           sessionState.tmpMessagesToReceive.push(message);
-          forwardMessageIfNeeded(message);
-        }
 
         i += size;
       }
@@ -900,15 +907,6 @@ class LinkWireless {
   void clearOutgoingMessagesIfNeeded() {  // (irq only)
     if (!config.retransmission)
       sessionState.outgoingMessages.clear();
-  }
-
-  void forwardMessageIfNeeded(Message& message) {  // (irq only)
-    if (state == SERVING && config.forwarding && sessionState.playerCount > 2) {
-      if (canSend()) {
-        message._packetId = ++sessionState.lastPacketId;
-        sessionState.outgoingMessages.push(message);
-      }
-    }
   }
 
   void addPingMessageIfNeeded() {  // (irq only)
