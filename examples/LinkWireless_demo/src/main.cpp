@@ -40,15 +40,17 @@ int main() {
 
 start:
   // Options
-  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
-      "disable forwarding\n\nhold UP on start:\n -> disable retransmission");
+  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
+      "disable forwarding\n\nhold UP on start:\n -> disable "
+      "retransmission\n\nhold B on start:\n -> set 2 players");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
+  u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
 
   // (1) Create a LinkWireless instance
-  linkWireless = new LinkWireless(forwarding, retransmission);
+  linkWireless = new LinkWireless(forwarding, retransmission, maxPlayers);
 
   if (firstTime) {
     // (2) Add the required interrupt service routines
