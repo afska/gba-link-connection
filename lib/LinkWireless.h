@@ -1111,15 +1111,14 @@ class LinkWireless {
   void copyState() {  // (irq only)
     if (!isAddingMessage) {
       while (!sessionState.tmpMessagesToSend.isEmpty()) {
-        bool shouldPop = !isSessionActive() || canSend();
+        if (isSessionActive() && !canSend())
+          break;
 
-        if (shouldPop) {
-          auto message = sessionState.tmpMessagesToSend.pop();
+        auto message = sessionState.tmpMessagesToSend.pop();
 
-          if (isSessionActive()) {
-            message._packetId = ++sessionState.lastPacketId;
-            sessionState.outgoingMessages.push(message);
-          }
+        if (isSessionActive()) {
+          message._packetId = ++sessionState.lastPacketId;
+          sessionState.outgoingMessages.push(message);
         }
       }
 
