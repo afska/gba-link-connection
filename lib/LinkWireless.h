@@ -722,16 +722,11 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // Receive data (end)
-        if (asyncCommand.result.responsesSize > 0) {
-          sessionState.frameRecvCount++;
-          sessionState.recvTimeout = 0;
+        if (asyncCommand.result.responsesSize == 0)
+          break;
 
-          // (remove wireless header)
-          for (u32 i = 1; i < asyncCommand.result.responsesSize; i++)
-            asyncCommand.result.responses[i - 1] =
-                asyncCommand.result.responses[i];
-          asyncCommand.result.responsesSize--;
-        }
+        sessionState.frameRecvCount++;
+        sessionState.recvTimeout = 0;
 
         trackRemoteTimeouts();
 
@@ -808,7 +803,7 @@ class LinkWireless {
     if (isReadingMessages)
       return true;
 
-    for (u32 i = 0; i < result.responsesSize; i++) {
+    for (u32 i = 1; i < result.responsesSize; i++) {
       MessageHeaderSerializer serializer;
       serializer.asInt = result.responses[i];
 
@@ -1221,6 +1216,8 @@ class LinkWireless {
       }
       case AsyncCommand::Step::DATA_REQUEST: {
         asyncCommand.result.responses[asyncCommand.receivedResponses] = newData;
+        asyncCommand.receivedResponses++;
+
         receiveAsyncCommandResponseOrFinish();
         break;
       }
@@ -1242,7 +1239,6 @@ class LinkWireless {
     if (asyncCommand.receivedResponses < asyncCommand.totalResponses) {
       asyncCommand.step = AsyncCommand::Step::DATA_REQUEST;
       transferAsync(LINK_WIRELESS_DATA_REQUEST);
-      asyncCommand.receivedResponses++;
     } else {
       asyncCommand.result.success = true;
       asyncCommand.state = AsyncCommand::State::COMPLETED;
