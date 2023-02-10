@@ -921,7 +921,7 @@ class LinkWireless {
   void addConfirmations() {  // (irq only)
     if (state == SERVING) {
       addData(buildConfirmationHeader(0));
-      for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++)
+      for (u32 i = 0; i < config.maxPlayers - 1; i++)
         addData(sessionState.lastPacketIdFromClients[1 + i]);
     } else {
       addData(buildConfirmationHeader(sessionState.currentPlayerId));
@@ -936,8 +936,7 @@ class LinkWireless {
     bool isServerConfirmation = confirmation.playerId == 0;
 
     if (isServerConfirmation) {
-      if (state != CONNECTED ||
-          confirmation.dataSize != LINK_WIRELESS_MAX_PLAYERS - 1)
+      if (state != CONNECTED || confirmation.dataSize != config.maxPlayers - 1)
         return false;
 
       sessionState.lastConfirmationFromServer =
@@ -952,7 +951,7 @@ class LinkWireless {
           confirmationData;
 
       u32 min = 0xffffffff;
-      for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
+      for (u32 i = 0; i < config.maxPlayers - 1; i++) {
         u32 confirmationData = sessionState.lastConfirmationFromClients[1 + i];
         if (confirmationData > 0 && confirmationData < min)
           min = confirmationData;
@@ -971,8 +970,8 @@ class LinkWireless {
   }
 
   u32 buildConfirmationHeader(u8 playerId) {  // (irq only)
-    return buildMessageHeader(
-        playerId, playerId == 0 ? LINK_WIRELESS_MAX_PLAYERS - 1 : 1, 0);
+    return buildMessageHeader(playerId,
+                              playerId == 0 ? config.maxPlayers - 1 : 1, 0);
   }
 
   u32 buildMessageHeader(u8 playerId, u8 size, u32 packetId) {  // (irq only)
