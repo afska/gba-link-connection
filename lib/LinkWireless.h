@@ -64,7 +64,6 @@
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
 #define LINK_WIRELESS_QUEUE_SIZE 30
-#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 5
 #define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 25
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
@@ -79,6 +78,7 @@
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
+#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
@@ -782,7 +782,8 @@ class LinkWireless {
           u32 header =
               buildMessageHeader(message.playerId, size, message._packetId);
 
-          if (dataSize + 1 + size > maxTransferLength)
+          if (dataSize /* -1 (wireless header) + 1 (msg header) */ + size >
+              maxTransferLength)
             return false;
 
           addData(header);
@@ -1142,9 +1143,9 @@ class LinkWireless {
     u8 responses = msB16(data);
     u8 ack = lsB16(data);
 
-    if (header != LINK_WIRELESS_COMMAND_HEADER)
-      return result;
-    if (ack != type + LINK_WIRELESS_RESPONSE_ACK)
+    if ((header != LINK_WIRELESS_COMMAND_HEADER) ||
+        (ack != type + LINK_WIRELESS_RESPONSE_ACK) ||
+        (responses > LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH))
       return result;
 
     for (u32 i = 0; i < responses; i++)
@@ -1203,8 +1204,9 @@ class LinkWireless {
         u8 responses = msB16(data);
         u8 ack = lsB16(data);
 
-        if (header != LINK_WIRELESS_COMMAND_HEADER ||
-            ack != asyncCommand.type + LINK_WIRELESS_RESPONSE_ACK) {
+        if ((header != LINK_WIRELESS_COMMAND_HEADER) ||
+            (ack != asyncCommand.type + LINK_WIRELESS_RESPONSE_ACK) ||
+            (responses > LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH)) {
           asyncCommand.state = AsyncCommand::State::COMPLETED;
           return;
         }
