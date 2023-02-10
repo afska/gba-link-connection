@@ -974,7 +974,7 @@ class LinkWireless {
   bool checkRemoteTimeouts() {
     for (u32 i = 0; i < sessionState.playerCount; i++) {
       if ((i == 0 || state == SERVING) &&
-          sessionState.timeouts[i] > config.timeout)
+          sessionState.timeouts[i] > config.remoteTimeout)
         return false;
     }
 
