@@ -240,22 +240,30 @@ void messageLoop() {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // (6) Send data
-    if (linkWireless->canSend() &&
-        ((keys & KEY_B) || (!sending && (keys & KEY_A)))) {
+    if ((keys & KEY_B) || (!sending && (keys & KEY_A))) {
       bool doubleSend = false;
       sending = true;
 
     again:
-      counters[linkWireless->currentPlayerId()]++;
-      linkWireless->send(
-          std::vector<u32>{counters[linkWireless->currentPlayerId()]});
-      CHECK_ERRORS("Send failed :(")
+      u32 newValue = counters[linkWireless->currentPlayerId()] + 1;
+      bool success = linkWireless->send(std::vector<u32>{newValue});
 
-      if (!doubleSend && (keys & KEY_LEFT) && linkWireless->canSend()) {
+      if (success) {
+        counters[linkWireless->currentPlayerId()] = newValue;
+      } else {
+        if (linkWireless->getLastError(false) == LinkWireless::BUFFER_IS_FULL) {
+          linkWireless->getLastError();
+          goto sendEnd;
+        }
+        CHECK_ERRORS("Send failed :(")
+      }
+
+      if (!doubleSend && (keys & KEY_LEFT)) {
         doubleSend = true;
         goto again;
       }
     }
+  sendEnd:
     if (sending && (!(keys & KEY_A)))
       sending = false;
 

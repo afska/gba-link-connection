@@ -429,9 +429,10 @@ class LinkWireless {
   u8 currentPlayerId() { return sessionState.currentPlayerId; }
   bool canSend() { return !sessionState.outgoingMessages.isFull(); }
   u32 getPendingCount() { return sessionState.outgoingMessages.size(); }
-  Error getLastError() {
+  Error getLastError(bool clear = true) {
     Error error = lastError;
-    lastError = NONE;
+    if (clear)
+      lastError = NONE;
     return error;
   }
 
