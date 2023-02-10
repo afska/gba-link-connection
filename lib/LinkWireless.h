@@ -939,7 +939,8 @@ class LinkWireless {
   }
 
   void removeConfirmedMessages(u32 confirmation) {
-    while (sessionState.outgoingMessages.peek()._packetId <= confirmation)
+    while (!sessionState.outgoingMessages.isEmpty() &&
+           sessionState.outgoingMessages.peek()._packetId <= confirmation)
       sessionState.outgoingMessages.pop();
   }
 
