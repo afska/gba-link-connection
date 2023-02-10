@@ -578,9 +578,9 @@ class LinkWireless {
 
    private:
     Message arr[LINK_WIRELESS_QUEUE_SIZE];
-    int front = 0;
-    int rear = -1;
-    u32 count = 0;
+    vs32 front = 0;
+    vs32 rear = -1;
+    vu32 count = 0;
   };
 
   struct SessionState {
@@ -653,9 +653,9 @@ class LinkWireless {
   State state = NEEDS_RESET;
   u32 data[LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH];
   u32 dataSize = 0;
-  bool isReadingMessages = false;
-  bool isAddingMessage = false;
-  bool isResetting = false;
+  volatile bool isReadingMessages = false;
+  volatile bool isAddingMessage = false;
+  volatile bool isResetting = false;
   Error lastError = NONE;
   bool isEnabled = false;
 
@@ -698,7 +698,7 @@ class LinkWireless {
     LINK_WIRELESS_BARRIER;
 
     if (isResetting) {
-      sessionState.outgoingMessages.clear();
+      resetState();
       isResetting = false;
     }
 
@@ -1034,6 +1034,9 @@ class LinkWireless {
   }
 
   void resetState() {
+    if (isResetting)
+      return;
+
     this->state = NEEDS_RESET;
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
@@ -1054,7 +1057,7 @@ class LinkWireless {
     if (!isReadingMessages)
       this->sessionState.incomingMessages.clear();
 
-    if (isAddingMessage || isResetting)
+    if (isAddingMessage)
       isResetting = true;
     else
       this->sessionState.outgoingMessages.clear();
