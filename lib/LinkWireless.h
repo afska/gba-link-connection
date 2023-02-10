@@ -402,8 +402,7 @@ class LinkWireless {
   bool send(std::vector<u32> data) { return send(&data[0], data.size()); }
 
   bool receive(std::vector<Message>& messages) {
-    if (!isEnabled || state == NEEDS_RESET ||
-        (state != SERVING && state != CONNECTED))
+    if (!isEnabled || state == NEEDS_RESET || !isSessionActive())
       return false;
 
     LINK_WIRELESS_BARRIER;
@@ -422,6 +421,7 @@ class LinkWireless {
 
   State getState() { return state; }
   bool isConnected() { return sessionState.playerCount > 1; }
+  bool isSessionActive() { return state == SERVING || state == CONNECTED; }
   u8 playerCount() { return sessionState.playerCount; }
   u8 currentPlayerId() { return sessionState.currentPlayerId; }
   bool canSend() { return !sessionState.outgoingMessages.isFull(); }
@@ -458,7 +458,7 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
-    if (state != SERVING && state != CONNECTED) {
+    if (!isSessionActive()) {
       copyState();
       return;
     }
@@ -488,7 +488,7 @@ class LinkWireless {
       }
     u32 newData = linkSPI->getAsyncData();
 
-    if (state != SERVING && state != CONNECTED) {
+    if (!isSessionActive()) {
       copyState();
       return;
     }
@@ -512,7 +512,7 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
-    if (state != SERVING && state != CONNECTED) {
+    if (!isSessionActive()) {
       copyState();
       return;
     }
@@ -676,7 +676,7 @@ class LinkWireless {
 
   bool send(u32* data, u32 dataSize) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING && state != CONNECTED) {
+    if (!isSessionActive()) {
       lastError = WRONG_STATE;
       return false;
     }
@@ -1111,7 +1111,7 @@ class LinkWireless {
       while (!sessionState.tmpMessagesToSend.isEmpty()) {
         auto message = sessionState.tmpMessagesToSend.pop();
 
-        if (state == SERVING || state == CONNECTED) {
+        if (isSessionActive()) {
           message._packetId = ++sessionState.lastPacketId;
           sessionState.outgoingMessages.push(message);
         }
