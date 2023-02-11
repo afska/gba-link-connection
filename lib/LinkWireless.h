@@ -579,7 +579,7 @@ class LinkWireless {
       int currentFront = front;
 
       for (u32 i = 0; i < count; i++) {
-        if (!action(arr[front]))
+        if (!action(arr[currentFront]))
           return;
         currentFront = (currentFront + 1) % LINK_WIRELESS_QUEUE_SIZE;
       }

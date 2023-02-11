@@ -335,7 +335,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 
-⚠️ After calling this command, the host sends the data automatically. Guests only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command "overrides" previously scheduled transfers, so calling two consecutive `SendData`s on the guest side would result in data loss. I believe this is why most games use `SendDataWait` instead.
+⚠️ After calling this command, the host sends the data automatically. Guests only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command "overrides" previously scheduled transfers, so calling two consecutive `SendData`s on the guest side would result in data loss. I believe this is why most games use `SendDataWait`.
 
 #### SendDataWait - `0x25`
 
