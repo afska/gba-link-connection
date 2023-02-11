@@ -2,7 +2,7 @@
 
 #include <libgba-sprite-engine/background/text_stream.h>
 
-#include "../../../lib/LinkCable.h"
+#include "../main.h"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
@@ -21,7 +21,7 @@ static std::unique_ptr<InputHandler> selectHandler =
 
 inline void send(u16 data) {
   DEBULOG("-> " + asStr(data));
-  linkCable->send(data);
+  link->send(data);
 }
 
 std::vector<Background*> TestScene::backgrounds() {
@@ -42,6 +42,11 @@ void TestScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
+#ifdef USE_LINK_UNIVERSAL
+  // sync
+  link->sync();
+#endif
+
   frameCounter++;
 
   // check keys
@@ -52,12 +57,12 @@ void TestScene::tick(u16 keys) {
   selectHandler->setIsPressed(keys & KEY_SELECT);
 
   // log events
-  if (!isConnected && linkCable->isConnected()) {
+  if (!isConnected && link->isConnected()) {
     isConnected = true;
     initialized = false;
-    DEBULOG("! connected (" + asStr(linkCable->playerCount()) + " players)");
+    DEBULOG("! connected (" + asStr(link->playerCount()) + " players)");
   }
-  if (isConnected && !linkCable->isConnected()) {
+  if (isConnected && !link->isConnected()) {
     isConnected = false;
     DEBULOG("! disconnected");
   }
@@ -68,8 +73,7 @@ void TestScene::tick(u16 keys) {
 
   // determine which value should be sent
   u16 value = LINK_CABLE_NO_DATA;
-  if (!initialized && linkCable->isConnected() &&
-      linkCable->currentPlayerId() == 1) {
+  if (!initialized && link->isConnected() && link->currentPlayerId() == 1) {
     initialized = true;
     value = 999;
   }
@@ -89,17 +93,19 @@ void TestScene::tick(u16 keys) {
   }
 
   // process received data
-  if (linkCable->isConnected()) {
-    for (u32 i = 0; i < linkCable->playerCount(); i++) {
-      while (linkCable->canRead(i)) {
-        u16 message = linkCable->read(i);
-        if (i != linkCable->currentPlayerId())
+  if (link->isConnected()) {
+    for (u32 i = 0; i < link->playerCount(); i++) {
+      while (link->canRead(i)) {
+        u16 message = link->read(i);
+        if (i != link->currentPlayerId())
           DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
                   asStr(frameCounter) + ")");
       }
     }
   }
 
+#ifndef USE_LINK_UNIVERSAL
   // mark link buffer as consumed
-  linkCable->consume();
+  link->consume();
+#endif
 }
