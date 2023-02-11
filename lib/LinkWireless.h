@@ -610,6 +610,7 @@ class LinkWireless {
     u32 recvTimeout = 0;
     u32 frameRecvCount = 0;
     bool acceptCalled = false;
+    bool shouldWaitForServer = false;
 
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
@@ -749,6 +750,9 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // Send data (end)
+        if (state == CONNECTED)
+          sessionState.shouldWaitForServer = true;
+
         // Receive data (start)
         sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
 
@@ -761,6 +765,7 @@ class LinkWireless {
 
         sessionState.frameRecvCount++;
         sessionState.recvTimeout = 0;
+        sessionState.shouldWaitForServer = false;
 
         trackRemoteTimeouts();
 
@@ -787,18 +792,23 @@ class LinkWireless {
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
-      // Send data (start)
-      sendPendingData();
+      if (sessionState.shouldWaitForServer) {
+        // Receive data (start)
+        sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
+      } else {
+        // Send data (start)
+        sendPendingData();
+      }
     }
   }
 
   void sendPendingData() {  // (irq only)
-    setDataFromOutgoingMessages();
+    u32 lastPacketId = setDataFromOutgoingMessages();
     sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, true);
-    clearOutgoingMessagesIfNeeded();
+    clearOutgoingMessagesIfNeeded(lastPacketId);
   }
 
-  void setDataFromOutgoingMessages() {  // (irq only)
+  u32 setDataFromOutgoingMessages() {  // (irq only)
     u32 maxTransferLength = getDeviceTransferLength();
 
     addData(0, true);
@@ -808,8 +818,10 @@ class LinkWireless {
     else
       addPingMessageIfNeeded();
 
+    u32 lastPacketId = 0;
+
     sessionState.outgoingMessages.forEach(
-        [this, maxTransferLength](Message message) {
+        [this, maxTransferLength, &lastPacketId](Message message) {
           u8 size = message.dataSize;
           u32 header =
               buildMessageHeader(message.playerId, size, message._packetId);
@@ -822,6 +834,8 @@ class LinkWireless {
           for (u32 i = 0; i < size; i++)
             addData(message.data[i]);
 
+          lastPacketId = message._packetId;
+
           return true;
         });
 
@@ -830,6 +844,8 @@ class LinkWireless {
     data[0] = sessionState.currentPlayerId == 0
                   ? bytes
                   : (1 << (3 + sessionState.currentPlayerId * 5)) * bytes;
+
+    return lastPacketId;
   }
 
   bool addIncomingMessagesFromData(CommandResult& result) {  // (irq only)
@@ -906,9 +922,9 @@ class LinkWireless {
     return true;
   }
 
-  void clearOutgoingMessagesIfNeeded() {  // (irq only)
+  void clearOutgoingMessagesIfNeeded(u32 lastPacketId) {  // (irq only)
     if (!config.retransmission)
-      sessionState.outgoingMessages.clear();
+      removeConfirmedMessages(lastPacketId);
   }
 
   void addPingMessageIfNeeded() {  // (irq only)
@@ -1050,6 +1066,7 @@ class LinkWireless {
     this->sessionState.recvTimeout = 0;
     this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
+    this->sessionState.shouldWaitForServer = false;
     this->sessionState.lastPacketId = 0;
     this->sessionState.lastPacketIdFromServer = 0;
     this->sessionState.lastConfirmationFromServer = 0;

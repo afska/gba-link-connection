@@ -214,7 +214,18 @@ void connect() {
     CHECK_ERRORS("Connect failed 2 :(")
   }
 
-  log("Connected! " + std::to_string(linkWireless->currentPlayerId()));
+  log("Connected! " + std::to_string(linkWireless->currentPlayerId()) + "\n" +
+      "Waiting for server...");
+
+  while (!linkWireless->isConnected()) {
+    u16 keys = ~REG_KEYS & KEY_ANY;
+    if (keys & KEY_SELECT) {
+      log("Canceled!");
+      linkWireless->activate();
+      hang();
+      return;
+    }
+  }
 
   messageLoop();
 }
