@@ -75,6 +75,7 @@ class LinkUniversal {
   };
 
   struct WirelessOptions {
+    bool retransmission;
     u32 maxPlayers;
     u32 timeout;
     u32 remoteTimeout;
@@ -91,17 +92,17 @@ class LinkUniversal {
               LINK_CABLE_DEFAULT_REMOTE_TIMEOUT, LINK_CABLE_DEFAULT_INTERVAL,
               LINK_CABLE_DEFAULT_SEND_TIMER_ID},
       WirelessOptions wirelessOptions = WirelessOptions{
-          LINK_WIRELESS_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
+          true, LINK_WIRELESS_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
           LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
           LINK_WIRELESS_DEFAULT_SEND_TIMER_ID}) {
     this->linkCable =
         new LinkCable(cableOptions.baudRate, cableOptions.timeout,
                       cableOptions.remoteTimeout, LINK_UNIVERSAL_BUFFER_SIZE,
                       cableOptions.interval, cableOptions.sendTimerId);
-    this->linkWireless =
-        new LinkWireless(true, true, wirelessOptions.maxPlayers,
-                         wirelessOptions.timeout, wirelessOptions.remoteTimeout,
-                         wirelessOptions.interval, wirelessOptions.sendTimerId);
+    this->linkWireless = new LinkWireless(
+        wirelessOptions.retransmission, true, wirelessOptions.maxPlayers,
+        wirelessOptions.timeout, wirelessOptions.remoteTimeout,
+        wirelessOptions.interval, wirelessOptions.sendTimerId);
 
     this->config.protocol = protocol;
     this->config.gameName = gameName;
