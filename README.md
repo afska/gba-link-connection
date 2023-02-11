@@ -156,7 +156,7 @@ Name | Type | Default | Description
 `maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. The adapter will accept connections after reaching the limit, but the library will ignore them. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
 `timeout` | **u32** | `5` | Number of *frames* without receiving *any* data to reset the connection.
 `remoteTimeout` | **u32** | `10` | Number of *successful transfers* without a message from a client to mark the player as disconnected.
-`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3,052ms)*. It's the interval of Timer #`sendTimerId`.
+`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 
 You can also change the compile-time constant `LINK_WIRELESS_QUEUE_SIZE` to set a custom buffer size (how many incoming and outcoming messages the queues can store at max). The default value is `30`, which seems fine for most games.
