@@ -472,6 +472,7 @@ class LinkWireless {
 
     sessionState.frameRecvCount = 0;
     sessionState.acceptCalled = false;
+    sessionState.pingSent = false;
 
     copyState();
   }
@@ -610,6 +611,7 @@ class LinkWireless {
     u32 recvTimeout = 0;
     u32 frameRecvCount = 0;
     bool acceptCalled = false;
+    bool pingSent = false;
     bool shouldWaitForServer = false;
 
     u8 playerCount = 1;
@@ -928,11 +930,12 @@ class LinkWireless {
   }
 
   void addPingMessageIfNeeded() {  // (irq only)
-    if (sessionState.outgoingMessages.isEmpty()) {
+    if (sessionState.outgoingMessages.isEmpty() && !sessionState.pingSent) {
       Message emptyMessage;
       emptyMessage.playerId = sessionState.currentPlayerId;
       emptyMessage._packetId = ++sessionState.lastPacketId;
       sessionState.outgoingMessages.push(emptyMessage);
+      sessionState.pingSent = true;
     }
   }
 
@@ -1066,6 +1069,7 @@ class LinkWireless {
     this->sessionState.recvTimeout = 0;
     this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
+    this->sessionState.pingSent = false;
     this->sessionState.shouldWaitForServer = false;
     this->sessionState.lastPacketId = 0;
     this->sessionState.lastPacketIdFromServer = 0;
