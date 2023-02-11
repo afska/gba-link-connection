@@ -605,6 +605,7 @@ class LinkWireless {
     u32 frameRecvCount = 0;
     bool acceptCalled = false;
     bool pingSent = false;
+    bool sendReceiveLatch = false;
     bool shouldWaitForServer = false;
 
     u8 playerCount = 1;
@@ -747,14 +748,14 @@ class LinkWireless {
         // Send data (end)
         if (state == CONNECTED)
           sessionState.shouldWaitForServer = true;
-
-        // Receive data (start)
-        sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
+        sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
 
         break;
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // Receive data (end)
+        sessionState.sendReceiveLatch =
+            sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
         if (asyncCommand.result.responsesSize == 0)
           break;
 
@@ -787,7 +788,7 @@ class LinkWireless {
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
-      if (sessionState.shouldWaitForServer) {
+      if (!sessionState.sendReceiveLatch || sessionState.shouldWaitForServer) {
         // Receive data (start)
         sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
       } else {
@@ -1062,6 +1063,7 @@ class LinkWireless {
     this->sessionState.recvTimeout = 0;
     this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
+    this->sessionState.sendReceiveLatch = false;
     this->sessionState.pingSent = false;
     this->sessionState.shouldWaitForServer = false;
     this->sessionState.lastPacketId = 0;
