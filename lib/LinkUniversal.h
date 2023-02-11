@@ -45,6 +45,7 @@
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
+#define LINK_UNIVERSAL_BUFFER_SIZE LINK_WIRELESS_QUEUE_SIZE
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 25
@@ -65,25 +66,45 @@ class LinkUniversal {
   enum Mode { LINK_CABLE, LINK_WIRELESS };
   enum Protocol { AUTODETECT, CABLE, WIRELESS };
 
-  // TODO: ADD ALL PROPERTIES
-  // TODO: MAKE WIRELESS FASTER
-  // TODO: ADD DOCS
-  explicit LinkUniversal(Protocol protocol = AUTODETECT,
-                         std::string gameName = "",
-                         u32 bufferSize = LINK_UNIVERSAL_DEFAULT_BUFFER_SIZE,
-                         u8 timerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
+  struct CableOptions {
+    LinkCable::BaudRate baudRate;
+    u32 timeout;
+    u32 remoteTimeout;
+    u16 interval;
+    u8 sendTimerId;
+  };
+
+  struct WirelessOptions {
+    u32 maxPlayers;
+    u32 timeout;
+    u32 remoteTimeout;
+    u16 interval;
+    u8 sendTimerId;
+  };
+
+  explicit LinkUniversal(
+      Protocol protocol = AUTODETECT,
+      std::string gameName = "",
+      CableOptions cableOptions =
+          CableOptions{
+              LinkCable::BaudRate::BAUD_RATE_1, LINK_CABLE_DEFAULT_TIMEOUT,
+              LINK_CABLE_DEFAULT_REMOTE_TIMEOUT, LINK_CABLE_DEFAULT_INTERVAL,
+              LINK_CABLE_DEFAULT_SEND_TIMER_ID},
+      WirelessOptions wirelessOptions = WirelessOptions{
+          LINK_WIRELESS_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
+          LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
+          LINK_WIRELESS_DEFAULT_SEND_TIMER_ID}) {
     this->linkCable =
-        new LinkCable(LinkCable::BAUD_RATE_1, LINK_CABLE_DEFAULT_TIMEOUT,
-                      LINK_CABLE_DEFAULT_REMOTE_TIMEOUT, bufferSize,
-                      LINK_CABLE_DEFAULT_INTERVAL, timerId);
-    this->linkWireless = new LinkWireless(
-        true, true, LINK_UNIVERSAL_MAX_PLAYERS,
-        LINK_WIRELESS_DEFAULT_MSG_TIMEOUT,
-        LINK_WIRELESS_DEFAULT_MULTIRECEIVE_TIMEOUT, bufferSize);
+        new LinkCable(cableOptions.baudRate, cableOptions.timeout,
+                      cableOptions.remoteTimeout, LINK_UNIVERSAL_BUFFER_SIZE,
+                      cableOptions.interval, cableOptions.sendTimerId);
+    this->linkWireless =
+        new LinkWireless(true, true, wirelessOptions.maxPlayers,
+                         wirelessOptions.timeout, wirelessOptions.remoteTimeout,
+                         wirelessOptions.interval, wirelessOptions.sendTimerId);
 
     this->config.protocol = protocol;
     this->config.gameName = gameName;
-    this->config.bufferSize = bufferSize;
   }
 
   bool isActive() { return isEnabled; }
@@ -104,12 +125,12 @@ class LinkUniversal {
 
   u8 playerCount() {
     return mode == LINK_CABLE ? linkCable->playerCount()
-                              : linkWireless->getPlayerCount();
+                              : linkWireless->playerCount();
   }
 
   u8 currentPlayerId() {
     return mode == LINK_CABLE ? linkCable->currentPlayerId()
-                              : linkWireless->getPlayerId();
+                              : linkWireless->currentPlayerId();
   }
 
   void sync() {
@@ -171,10 +192,6 @@ class LinkUniversal {
             break;
           }
 
-          if (linkWireless->getState() == LinkWireless::State::SERVING)
-            if (!linkWireless->acceptConnections())
-              break;
-
           receiveWirelessMessages();
         }
 
@@ -205,23 +222,40 @@ class LinkUniversal {
   State getState() { return state; }
   Mode getMode() { return mode; }
   LinkWireless::State getWirelessState() { return linkWireless->getState(); }
-  u32 getWaitCount() { return waitCount; }
-  u32 getSubWaitCount() { return subWaitCount; }
-
-  void _onVBlank() { linkCable->_onVBlank(); }
-  void _onSerial() { linkCable->_onSerial(); }
-  void _onTimer() { linkCable->_onTimer(); }
 
   ~LinkUniversal() {
     delete linkCable;
     delete linkWireless;
   }
 
+  u32 _getWaitCount() { return waitCount; }
+  u32 _getSubWaitCount() { return subWaitCount; }
+
+  void _onVBlank() {
+    if (mode == LINK_CABLE)
+      linkCable->_onVBlank();
+    else
+      linkWireless->_onVBlank();
+  }
+
+  void _onSerial() {
+    if (mode == LINK_CABLE)
+      linkCable->_onSerial();
+    else
+      linkWireless->_onSerial();
+  }
+
+  void _onTimer() {
+    if (mode == LINK_CABLE)
+      linkCable->_onTimer();
+    else
+      linkWireless->_onTimer();
+  }
+
  private:
   struct Config {
     Protocol protocol;
     std::string gameName;
-    u32 bufferSize;
   };
 
   std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
@@ -245,7 +279,7 @@ class LinkUniversal {
 
   void receiveWirelessMessages() {
     std::vector<LinkWireless::Message> messages;
-    linkWireless->receiveMany(messages, LINK_UNIVERSAL_WIRELESS_TX_PER_FRAME);
+    linkWireless->receive(messages);
 
     for (auto& message : messages)
       push(incomingMessages[message.playerId], (u16)message.data[0]);
@@ -280,9 +314,6 @@ class LinkUniversal {
         subWaitCount++;
 
         if (subWaitCount > serveWait)
-          return false;
-
-        if (!linkWireless->acceptConnections())
           return false;
 
         break;
@@ -330,10 +361,7 @@ class LinkUniversal {
   }
 
   bool isConnectedCable() { return linkCable->isConnected(); }
-  bool isConnectedWireless() {
-    return linkWireless->getState() == LinkWireless::State::CONNECTED ||
-           linkWireless->getPlayerCount() >= 2;
-  }
+  bool isConnectedWireless() { return linkWireless->isConnected(); }
 
   void reset() {
     switch (config.protocol) {
@@ -401,7 +429,7 @@ class LinkUniversal {
   }
 
   void push(std::queue<u16>& q, u16 value) {
-    if (q.size() >= config.bufferSize)
+    if (q.size() >= LINK_UNIVERSAL_BUFFER_SIZE)
       LINK_CABLE_QUEUE_POP(q);
 
     q.push(value);

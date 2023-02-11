@@ -80,8 +80,8 @@ int main() {
       if (linkUniversal->getMode() == LinkUniversal::Mode::LINK_WIRELESS)
         output += "          (" +
                   std::to_string(linkUniversal->getWirelessState()) + ")";
-      output += "\n_wait: " + std::to_string(linkUniversal->getWaitCount());
-      output += "\n_subW: " + std::to_string(linkUniversal->getSubWaitCount());
+      output += "\n_wait: " + std::to_string(linkUniversal->_getWaitCount());
+      output += "\n_subW: " + std::to_string(linkUniversal->_getSubWaitCount());
 
       for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
         data[i] = 0;

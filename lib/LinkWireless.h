@@ -436,6 +436,11 @@ class LinkWireless {
     return error;
   }
 
+  ~LinkWireless() {
+    delete linkSPI;
+    delete linkGPIO;
+  }
+
   bool _canSend() { return !sessionState.outgoingMessages.isFull(); }
   u32 _getPendingCount() { return sessionState.outgoingMessages.size(); }
   u32 _lastPacketId() { return sessionState.lastPacketId; }
@@ -453,11 +458,6 @@ class LinkWireless {
     return sessionState.outgoingMessages.isEmpty()
                ? 0
                : sessionState.outgoingMessages.peek()._packetId;
-  }
-
-  ~LinkWireless() {
-    delete linkSPI;
-    delete linkGPIO;
   }
 
   void _onVBlank() {
