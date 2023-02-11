@@ -44,7 +44,7 @@ Name | Type | Default | Description
 `timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
-`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between messages *(50 = 3,052ms)*. It's the interval of Timer #`sendTimerId`.
+`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between messages *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 
 ## Methods
