@@ -7,6 +7,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
+- [🌎](#-LinkUniversal) [LinkUniversal.h](lib/LinkUniversal.h): Add multiplayer support to you game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
 
 *(click on the emojis for documentation)*
 
@@ -39,7 +40,7 @@ The library uses message queues to send/receive data and transmits when it's pos
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`baudRate` | **BaudRate** | `LinkCable::BaudRate::BAUD_RATE_1` | Sets a specific baud rate.
+`baudRate` | **BaudRate** | `BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
 `bufferSize` | **u32** | `30` | Number of *messages* that the queues will be able to store.
@@ -194,3 +195,30 @@ Name | Return type | Description
 ⚠️ if `retransmission` is on, these limits drop to `14` and `1`!
 
 ⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+
+# 🌎 LinkUniversal
+
+A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and try to connect to other peers, supporting hot swapping cables with adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
+
+## Constructor
+
+`new LinkUniversal(...)` accepts these **optional** parameters:
+
+Name | Type | Default | Description
+--- | --- | --- | ---
+`protocol` | **LinkUniversal::Protocol** | `AUTODETECT` | Specifies what protocol should be used (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, or `LinkUniversal::Protocol::WIRELESS`).
+`gameName` | **std::string** | `""` | The game name that will be broadcasted in wireless sessions. The library uses this to only connect to servers from the same game.
+`cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#constructor) constructor parameters in one *struct*.
+`wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-2) constructor parameters in one *struct*.
+
+## Methods
+
+The interface is the same as [👾 LinkCable](#methods), with one exception: instead of calling `consume()` at the end of your game loop, you call `sync()` at the start.
+
+Aditionally, it supports these methods:
+
+Name | Return type | Description
+--- | --- | ---
+`getState()` | **LinkUniversal::State** | Returns the current state (one of `LinkUniversal::State::INITIALIZING`, `LinkUniversal::State::WAITING`, or `LinkUniversal::State::CONNECTED`).
+`getMode()` | **LinkUniversal::Mode** | Returns the active mode (one of `LinkUniversal::Mode::LINK_CABLE`, or `LinkUniversal::Mode::LINK_WIRELESS`).
+`getWirelessState()` | **LinkWireless::State** | Returns the wireless state (same as [📻 LinkWireless](#methods-4)'s `getState()`).
