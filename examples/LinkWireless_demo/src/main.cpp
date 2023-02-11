@@ -340,7 +340,7 @@ void messageLoop() {
     }
 
     // Debug output
-    output += "\n_buffer: " + std::to_string(linkWireless->getPendingCount());
+    output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
     if (retransmission && !packetLossCheck && linkWireless->playerCount() > 2 &&
         linkWireless->playerCount() < 4) {
       output +=

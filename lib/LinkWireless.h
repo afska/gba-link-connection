@@ -61,9 +61,11 @@
 #include "LinkGPIO.h"
 #include "LinkSPI.h"
 
+// Buffer size
+#define LINK_WIRELESS_QUEUE_SIZE 30
+
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
-#define LINK_WIRELESS_QUEUE_SIZE 30
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 5
 #define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
@@ -427,8 +429,6 @@ class LinkWireless {
   bool isSessionActive() { return state == SERVING || state == CONNECTED; }
   u8 playerCount() { return sessionState.playerCount; }
   u8 currentPlayerId() { return sessionState.currentPlayerId; }
-  bool canSend() { return !sessionState.outgoingMessages.isFull(); }
-  u32 getPendingCount() { return sessionState.outgoingMessages.size(); }
   Error getLastError(bool clear = true) {
     Error error = lastError;
     if (clear)
@@ -436,6 +436,8 @@ class LinkWireless {
     return error;
   }
 
+  bool _canSend() { return !sessionState.outgoingMessages.isFull(); }
+  u32 _getPendingCount() { return sessionState.outgoingMessages.size(); }
   u32 _lastPacketId() { return sessionState.lastPacketId; }
   u32 _lastConfirmationFromClient1() {
     return sessionState.lastConfirmationFromClients[1];
@@ -698,7 +700,7 @@ class LinkWireless {
       return false;
     }
 
-    if (!canSend()) {
+    if (!_canSend()) {
       if (_author < 0)
         lastError = BUFFER_IS_FULL;
       return false;
@@ -1137,7 +1139,7 @@ class LinkWireless {
   void copyOutgoingState() {  // (irq only)
     if (!isAddingMessage) {
       while (!sessionState.tmpMessagesToSend.isEmpty()) {
-        if (isSessionActive() && !canSend())
+        if (isSessionActive() && !_canSend())
           break;
 
         auto message = sessionState.tmpMessagesToSend.pop();
