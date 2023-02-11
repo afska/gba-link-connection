@@ -225,6 +225,8 @@ void connect() {
       hang();
       return;
     }
+
+    VBlankIntrWait();
   }
 
   messageLoop();
