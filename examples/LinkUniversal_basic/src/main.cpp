@@ -2,6 +2,9 @@
 #include <string>
 #include "../../_lib/interrupt.h"
 
+// BASIC:
+// This example sends the pressed buttons to other players.
+
 // (0) Include the header
 #include "../../../lib/LinkUniversal.h"
 
