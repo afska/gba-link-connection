@@ -217,7 +217,8 @@ void connect() {
   log("Connected! " + std::to_string(linkWireless->currentPlayerId()) + "\n" +
       "Waiting for server...");
 
-  while (!linkWireless->isConnected()) {
+  while (linkWireless->getState() == LinkWireless::State::CONNECTED &&
+         !linkWireless->isConnected()) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
       log("Canceled!");
@@ -228,6 +229,7 @@ void connect() {
 
     VBlankIntrWait();
   }
+  CHECK_ERRORS("Connect failed 3 :(")
 
   messageLoop();
 }
