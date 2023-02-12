@@ -853,7 +853,7 @@ class LinkWireless {
       bool isFromSamePlayer = remotePlayerId == sessionState.currentPlayerId;
       bool hasBadChecksum = checksum != buildChecksum(data);
 
-      if (isFromSamePlayer || isPing || hasBadChecksum)
+      if (isFromSamePlayer || hasBadChecksum)
         continue;
 
       Message message;
@@ -861,7 +861,7 @@ class LinkWireless {
       message.data = data;
       message.playerId = remotePlayerId;
 
-      if (!acceptMessage(message, isConfirmation, remotePlayerCount))
+      if (!acceptMessage(message, isConfirmation, remotePlayerCount) || isPing)
         continue;
 
       if (config.retransmission && isConfirmation) {
