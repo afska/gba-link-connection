@@ -154,7 +154,7 @@ Name | Type | Default | Description
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
 `maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. The adapter will accept connections after reaching the limit, but the library will ignore them. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
-`timeout` | **u32** | `5` | Number of *frames* without receiving *any* data to reset the connection.
+`timeout` | **u32** | `8` | Number of *frames* without receiving *any* data to reset the connection.
 `remoteTimeout` | **u32** | `10` | Number of *successful transfers* without a message from a client to mark the player as disconnected.
 `interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.

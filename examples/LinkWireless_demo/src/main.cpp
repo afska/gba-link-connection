@@ -52,6 +52,7 @@ start:
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(forwarding, retransmission, maxPlayers);
+  // linkWireless->debug = [](std::string str) { log(str); };
 
   if (firstTime) {
     // (2) Add the required interrupt service routines
@@ -249,6 +250,7 @@ void messageLoop() {
   u32 lastLostPacketPlayerId = 0;
   u32 lastLostPacketExpected = 0;
   u32 lastLostPacketReceived = 0;
+  u32 lastLostPacketReceivedPacketId = 0;
 
   while (true) {
     CHECK_ERRORS("Error :(")
@@ -303,6 +305,7 @@ void messageLoop() {
           lastLostPacketPlayerId = message.playerId;
           lastLostPacketExpected = expected;
           lastLostPacketReceived = message.data[0];
+          lastLostPacketReceivedPacketId = message._packetId;
         }
       }
     }
@@ -341,8 +344,7 @@ void messageLoop() {
 
     // Debug output
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
-    if (retransmission && !packetLossCheck && linkWireless->playerCount() > 2 &&
-        linkWireless->playerCount() < 4) {
+    if (retransmission && !packetLossCheck && linkWireless->playerCount() < 4) {
       output +=
           "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
       output += "\n_nextPndngPkgId: " +
@@ -361,7 +363,8 @@ void messageLoop() {
     }
     if (packetLossCheck && lostPackets > 0) {
       output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
-      output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ") " +
+      output += "_last: (" + std::to_string(lastLostPacketPlayerId) + "->" +
+                std::to_string(lastLostPacketReceivedPacketId) + ") " +
                 std::to_string(lastLostPacketReceived) + " [vs " +
                 std::to_string(lastLostPacketExpected) + "]";
     }
