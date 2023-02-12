@@ -32,7 +32,7 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
-// - 0xFFFF and 0x0 are reserved values, so don't use them!
+// - 0xFFFF and 0x0 are reserved values, so don't send them!
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 

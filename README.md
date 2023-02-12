@@ -62,7 +62,7 @@ Name | Return type | Description
 `consume()` | - | Marks the current data as processed, enabling the library to fetch more.
 `send(data)` | - | Sends `data` to all connected players.
 
-⚠️ `0xFFFF` and `0x0` are reserved values, so don't use them!
+⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
 
 # 💻 LinkCableMultiboot
 
@@ -141,7 +141,7 @@ Name | Return type | Description
 
 This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this article](docs/wireless_adapter.md) is very helpful. I've updated the blog post to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
 
-The library, by default, implements a lightweight protocol on top of the adapter's message system. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
+The library, by default, implements a lightweight protocol (on top of the adapter's message system) that sends packet IDs and checksums. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
 
 ![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
 
@@ -188,13 +188,7 @@ Name | Return type | Description
 `currentPlayerId()` | **u8** *(0~4)* | Returns the current player id.
 `getLastError([clear])` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared if `clear` is `true` (default behavior).
 
-⚠️ servers can send up to `19` words of 32 bits at a time!
-
-⚠️ clients can send up to `3` words of 32 bits at a time!
-
-⚠️ if `retransmission` is on, these limits drop to `14` and `1`!
-
-⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+⚠️ `0xFFFF` is a reserved value, so don't send it!
 
 # 🌎 LinkUniversal
 

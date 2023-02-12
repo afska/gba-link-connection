@@ -283,7 +283,7 @@ class LinkUniversal {
     linkWireless->receive(messages);
 
     for (auto& message : messages)
-      push(incomingMessages[message.playerId], (u16)message.data[0]);
+      push(incomingMessages[message.playerId], message.data);
   }
 
   bool autoDiscoverWirelessConnections() {

@@ -238,7 +238,7 @@ void connect() {
 void messageLoop() {
   // Each player starts counting from a different value:
   // 1, 11, 21, 31, 41
-  std::vector<u32> counters;
+  std::vector<u16> counters;
   for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
     counters.push_back(1 + i * 10);
 
@@ -262,8 +262,8 @@ void messageLoop() {
       sending = true;
 
     again:
-      u32 newValue = counters[linkWireless->currentPlayerId()] + 1;
-      bool success = linkWireless->send(std::vector<u32>{newValue});
+      u16 newValue = counters[linkWireless->currentPlayerId()] + 1;
+      bool success = linkWireless->send(newValue);
 
       if (success) {
         counters[linkWireless->currentPlayerId()] = newValue;
@@ -290,21 +290,15 @@ void messageLoop() {
     if (messages.size() > 0) {
       for (auto& message : messages) {
         u32 expected = counters[message.playerId] + 1;
-        if (message.dataSize != 1) {
-          log("Wrong data size :(");
-          linkWireless->activate();
-          hang();
-          return;
-        }
 
-        counters[message.playerId] = message.data[0];
+        counters[message.playerId] = message.data;
 
         // Check for packet loss
-        if (packetLossCheck && message.data[0] != expected) {
+        if (packetLossCheck && message.data != expected) {
           lostPackets++;
           lastLostPacketPlayerId = message.playerId;
           lastLostPacketExpected = expected;
-          lastLostPacketReceived = message.data[0];
+          lastLostPacketReceived = message.data;
           lastLostPacketReceivedPacketId = message._packetId;
         }
       }
