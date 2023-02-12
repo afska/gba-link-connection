@@ -33,10 +33,10 @@
 //       // `currentPlayerId()` should return 1, 2, 3, or 4 (the host is 0)
 //       // `playerCount()` should return the number of active consoles
 // - 6) Send data:
-//       linkConnection->send(std::vector<u32>{1, 2, 3});
+//       linkWireless->send(std::vector<u32>{1, 2, 3});
 // - 7) Receive data:
 //       auto messages = std::vector<LinkWireless::Message>{};
-//       linkConnection->receive(messages);
+//       linkWireless->receive(messages);
 //       if (messages.size() > 0) {
 //         // ...
 //       }
@@ -49,10 +49,7 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
-// - servers can send up to 19 words of 32 bits at a time!
-// - clients can send up to 3 words of 32 bits at a time!
-// - if retransmission is on, these limits drop to 14 and 1!
-// - don't send 0xFFFFFFFF, it's reserved for errors!
+// - don't send 0xFFFF, it's reserved for errors!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
