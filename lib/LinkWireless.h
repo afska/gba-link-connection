@@ -466,7 +466,7 @@ class LinkWireless {
   bool _canSend() { return !sessionState.outgoingMessages.isFull(); }
   u32 _getPendingCount() { return sessionState.outgoingMessages.size(); }
   u32 _lastPacketId() { return sessionState.lastPacketId; }
-  int _lastConfirmationFromClient1() {
+  u32 _lastConfirmationFromClient1() {
     return sessionState.lastConfirmationFromClients[1];
   }
   u32 _lastPacketIdFromClient1() {
@@ -638,7 +638,7 @@ class LinkWireless {
     u32 lastPacketIdFromServer = 0;
     u32 lastConfirmationFromServer = 0;
     u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
-    int lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
+    u32 lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
   };
 
   struct MessageHeader {
@@ -923,6 +923,17 @@ class LinkWireless {
 
   void addConfirmations() {  // (irq only)
     if (state == SERVING) {
+      if (config.maxPlayers > 2 &&
+          (sessionState.lastPacketIdFromClients[1] == 0 ||
+           sessionState.lastPacketIdFromClients[2] == 0 ||
+           sessionState.lastPacketIdFromClients[3] == 0 ||
+           sessionState.lastPacketIdFromClients[4] == 0)) {
+        u32 lastPacketId = sessionState.lastPacketId;
+        u32 header = buildConfirmationHeader(0, lastPacketId);
+        u32 rawMessage = buildU32(header, lastPacketId & 0xffff);
+        addData(rawMessage);
+      }
+
       for (int i = 0; i < config.maxPlayers - 1; i++) {
         u32 confirmationData = sessionState.lastPacketIdFromClients[1 + i];
         u16 header = buildConfirmationHeader(1 + i, confirmationData);
@@ -942,7 +953,10 @@ class LinkWireless {
     u32 confirmationData = (confirmation._packetId << 16) | confirmation.data;
 
     if (state == CONNECTED) {
-      if (confirmation.playerId == sessionState.currentPlayerId)
+      if (confirmation.playerId == 0 &&
+          sessionState.lastPacketIdFromServer == 0)
+        sessionState.lastPacketIdFromServer = confirmationData;
+      else if (confirmation.playerId == sessionState.currentPlayerId)
         handleServerConfirmation(confirmationData);
       else
         return false;
@@ -964,8 +978,8 @@ class LinkWireless {
 
     u32 min = 0xffffffff;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
-      int confirmationData = sessionState.lastConfirmationFromClients[1 + i];
-      if (confirmationData > -1 && (u32)confirmationData < min)
+      u32 confirmationData = sessionState.lastConfirmationFromClients[1 + i];
+      if (confirmationData > 0 && confirmationData < min)
         min = confirmationData;
     }
     if (min < 0xffffffff)
@@ -1121,7 +1135,7 @@ class LinkWireless {
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
       this->sessionState.timeouts[i] = 0;
       this->sessionState.lastPacketIdFromClients[i] = 0;
-      this->sessionState.lastConfirmationFromClients[i] = -1;
+      this->sessionState.lastConfirmationFromClients[i] = 0;
     }
     this->asyncCommand.isActive = false;
     this->nextCommandDataSize = 0;
