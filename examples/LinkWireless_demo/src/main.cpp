@@ -338,7 +338,7 @@ void messageLoop() {
 
     // Debug output
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
-    if (retransmission && !packetLossCheck && linkWireless->playerCount() < 4) {
+    if (retransmission && !packetLossCheck) {
       output +=
           "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
       output += "\n_nextPndngPkgId: " +
