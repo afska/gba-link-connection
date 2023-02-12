@@ -845,7 +845,8 @@ class LinkWireless {
       sessionState.timeouts[0] = 0;
       sessionState.timeouts[remotePlayerId] = 0;
 
-      bool isFromSamePlayer = remotePlayerId == sessionState.currentPlayerId;
+      bool isFromSamePlayer =
+          !isConfirmation && remotePlayerId == sessionState.currentPlayerId;
       bool hasBadChecksum = checksum != buildChecksum(data);
 
       if (isFromSamePlayer || hasBadChecksum)
