@@ -845,11 +845,7 @@ class LinkWireless {
       sessionState.timeouts[0] = 0;
       sessionState.timeouts[remotePlayerId] = 0;
 
-      bool isFromSamePlayer =
-          !isConfirmation && remotePlayerId == sessionState.currentPlayerId;
-      bool hasBadChecksum = checksum != buildChecksum(data);
-
-      if (isFromSamePlayer || hasBadChecksum)
+      if (checksum != buildChecksum(data))
         continue;
 
       Message message;
@@ -903,7 +899,10 @@ class LinkWireless {
       }
     }
 
-    return true;
+    bool isMessageFromCurrentPlayer =
+        !isConfirmation && message.playerId == sessionState.currentPlayerId;
+
+    return !isMessageFromCurrentPlayer;
   }
 
   void clearOutgoingMessagesIfNeeded(int lastPacketId) {  // (irq only)
