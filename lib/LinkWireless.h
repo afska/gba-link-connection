@@ -62,8 +62,8 @@
 
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
-#define LINK_WIRELESS_DEFAULT_TIMEOUT 0xfffffffe         // 8 // TODO: FIX
-#define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 0xfffffffe  // 10
+#define LINK_WIRELESS_DEFAULT_TIMEOUT 8
+#define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
 #define LINK_WIRELESS_BASE_FREQUENCY TM_FREQ_1024
@@ -615,6 +615,7 @@ class LinkWireless {
     u32 lastConfirmationFromServer = 0;
     u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
     int lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
+    u32 minLastConfirmationFromClients = 0;
   };
 
   struct MessageHeader {
@@ -989,24 +990,28 @@ class LinkWireless {
         return false;
 
       u32 confirmationData = confirmation.data[0];
-      int lastConfirmation =
-          sessionState.lastConfirmationFromClients[confirmation.playerId];
       sessionState.lastConfirmationFromClients[confirmation.playerId] =
           confirmationData;
-      if (lastConfirmation == -1 ||
-          sessionState.lastConfirmationFromClients[confirmation.playerId] !=
-              lastConfirmation)
-        removeConfirmedMessages(confirmationData);  // TODO: FIX!
 
-      // TODO: USE > DIFF
-      // u32 min = 0xffffffff;
-      // for (u32 i = 0; i < (u32)(config.maxPlayers - 1); i++) {
-      //   int confirmationData = sessionState.lastConfirmationFromClients[1 +
-      //   i]; if (confirmationData > -1 && (u32)confirmationData < min)
-      //     min = confirmationData;
-      // }
-      // if (min < 0xffffffff)
-      //   removeConfirmedMessages(min);
+      if (sessionState.outgoingMessages.isEmpty())
+        return true;
+
+      u32 nextPendingPacketId = sessionState.outgoingMessages.peek()._packetId;
+      u32 diff = 0xffffffff;
+      int min = -1;
+      for (u32 i = 0; i < (u32)(config.maxPlayers - 1); i++) {
+        int confirmationData = sessionState.lastConfirmationFromClients[1 + i];
+        u32 clientDiff = abs(confirmationData - (int)nextPendingPacketId);
+        if (confirmationData > -1 && clientDiff < diff) {
+          diff = clientDiff;
+          min = confirmationData;
+        }
+      }
+
+      if (min > -1 && (u32)min != sessionState.minLastConfirmationFromClients) {
+        removeConfirmedMessages(min);
+        sessionState.minLastConfirmationFromClients = min;
+      }
     }
 
     return true;
@@ -1118,6 +1123,7 @@ class LinkWireless {
     this->sessionState.lastPacketId = 0;
     this->sessionState.lastPacketIdFromServer = 0;
     this->sessionState.lastConfirmationFromServer = 0;
+    this->sessionState.minLastConfirmationFromClients = 0;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
       this->sessionState.timeouts[i] = 0;
       this->sessionState.lastPacketIdFromClients[i] = 0;
