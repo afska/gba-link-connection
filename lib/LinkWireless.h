@@ -377,8 +377,6 @@ class LinkWireless {
       return true;
 
     u8 assignedPlayerId = 1 + (u8)msB32(result1.responses[0]);
-    u16 assignedClientId = (u16)result1.responses[0];
-
     if (assignedPlayerId >= LINK_WIRELESS_MAX_PLAYERS) {
       reset();
       lastError = WEIRD_PLAYER_ID;
@@ -386,8 +384,7 @@ class LinkWireless {
     }
 
     auto result2 = sendCommand(LINK_WIRELESS_COMMAND_FINISH_CONNECTION);
-    if (!result2.success || result2.responsesSize == 0 ||
-        (u16)result2.responses[0] != assignedClientId) {
+    if (!result2.success) {
       reset();
       lastError = COMMAND_FAILED;
       return false;
