@@ -217,7 +217,7 @@ class LinkUniversal {
     if (mode == LINK_CABLE)
       linkCable->send(data);
     else
-      linkWireless->send(std::vector<u32>{data});
+      linkWireless->send(data);
   }
 
   State getState() { return state; }
