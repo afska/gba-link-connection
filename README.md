@@ -159,7 +159,9 @@ Name | Type | Default | Description
 `interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 
-You can also change the compile-time constant `LINK_WIRELESS_QUEUE_SIZE` to set a custom buffer size (how many incoming and outcoming messages the queues can store at max). The default value is `30`, which seems fine for most games.
+You can also change these compile-time constants:
+- `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outcoming messages the queues can store at max). The default value is `30`, which seems fine for most games.
+- `LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH`: to set the biggest allowed response from the adapter. The default value is `50`, which allows reading all user messages (max receive length is `21`) and -in theory- up to `7` broadcasting servers *(7 values per broadcast * 7 = 49 responses)*. This library was only tested with `4` adapters, so the real maximum is unknown.
 
 ## Methods
 
@@ -205,7 +207,7 @@ Name | Type | Default | Description
 `protocol` | **LinkUniversal::Protocol** | `AUTODETECT` | Specifies what protocol should be used (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `gameName` | **std::string** | `""` | The game name that will be broadcasted in wireless sessions. The library uses this to only connect to servers from the same game.
 `cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#constructor) constructor parameters in one *struct*.
-`wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-2) constructor parameters in one *struct*.
+`wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-1) constructor parameters in one *struct*.
 
 ## Methods
 

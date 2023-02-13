@@ -63,6 +63,9 @@
 // Buffer size
 #define LINK_WIRELESS_QUEUE_SIZE 30
 
+// Max command response length
+#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
+
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 8
@@ -82,7 +85,6 @@
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
-#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
 #define LINK_WIRELESS_LOGIN_STEPS 9
 #define LINK_WIRELESS_COMMAND_HEADER 0x9966
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
@@ -929,7 +931,7 @@ class LinkWireless {
            sessionState.lastPacketIdFromClients[3] == 0 ||
            sessionState.lastPacketIdFromClients[4] == 0)) {
         u32 lastPacketId = sessionState.lastPacketId;
-        u32 header = buildConfirmationHeader(0, lastPacketId);
+        u16 header = buildConfirmationHeader(0, lastPacketId);
         u32 rawMessage = buildU32(header, lastPacketId & 0xffff);
         addData(rawMessage);
       }
@@ -992,7 +994,7 @@ class LinkWireless {
       sessionState.outgoingMessages.pop();
   }
 
-  u32 buildConfirmationHeader(u8 playerId,
+  u16 buildConfirmationHeader(u8 playerId,
                               u32 confirmationData) {  // (irq only)
     // confirmation messages "repurpose" some message header fields:
     //     packetId => high 6 bits of confirmation
