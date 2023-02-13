@@ -977,7 +977,7 @@ class LinkWireless {
     sessionState.lastConfirmationFromClients[playerId] = confirmationData;
 
     u32 min = 0xffffffff;
-    for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS - 1; i++) {
+    for (int i = 0; i < config.maxPlayers - 1; i++) {
       u32 confirmationData = sessionState.lastConfirmationFromClients[1 + i];
       if (confirmationData > 0 && confirmationData < min)
         min = confirmationData;
