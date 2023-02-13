@@ -1,6 +1,5 @@
+#include "main.h"
 #include <libgba-sprite-engine/gba_engine.h>
-#include <tonc.h>
-#include "../../../lib/LinkCable.h"
 #include "../../_lib/interrupt.h"
 #include "scenes/TestScene.h"
 #include "utils/SceneUtils.h"
@@ -12,7 +11,15 @@ void setUpInterrupts();
 void printTutorial();
 static std::shared_ptr<GBAEngine> engine{new GBAEngine()};
 static std::unique_ptr<TestScene> testScene{new TestScene(engine)};
+
+#ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
+LinkCable* link = linkCable;
+#endif
+#ifdef USE_LINK_UNIVERSAL
+LinkUniversal* linkUniversal = new LinkUniversal();
+LinkUniversal* link = linkUniversal;
+#endif
 
 int main() {
   setUpInterrupts();
@@ -25,19 +32,19 @@ int main() {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // enable and disable
-    if ((keys & KEY_DOWN) && linkCable->isActive()) {
-      linkCable->deactivate();
+    if ((keys & KEY_DOWN) && link->isActive()) {
+      link->deactivate();
       DEBULOG("! stopped");
     }
-    if ((keys & KEY_START) && !linkCable->isActive()) {
-      linkCable->activate();
+    if ((keys & KEY_START) && !link->isActive()) {
+      link->activate();
       DEBULOG("! started");
     }
 
     // log player id/count and important flags
     TextStream::instance().setText(
-        "P" + asStr(linkCable->currentPlayerId()) + "/" +
-            asStr(linkCable->playerCount()) + "-R" +
+        "P" + asStr(link->currentPlayerId()) + "/" +
+            asStr(link->playerCount()) + "-R" +
             asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_READY)) + "-S" +
             asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_START)) + "-E" +
             asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_ERROR)),
@@ -59,6 +66,7 @@ inline void ISR_reset() {
 inline void setUpInterrupts() {
   interrupt_init();
 
+#ifndef USE_LINK_UNIVERSAL
   // LinkCable
   interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
@@ -66,6 +74,16 @@ inline void setUpInterrupts() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
+#endif
+#ifdef USE_LINK_UNIVERSAL
+  // LinkUniversal
+  interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
+  interrupt_enable(INTR_VBLANK);
+  interrupt_set_handler(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
+  interrupt_enable(INTR_SERIAL);
+  interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
+  interrupt_enable(INTR_TIMER3);
+#endif
 
   // A+B+START+SELECT
   REG_KEYCNT = 0b1100000000001111;
@@ -73,13 +91,19 @@ inline void setUpInterrupts() {
 }
 
 void printTutorial() {
-  DEBULOG("gba-link-connection demo");
+#ifndef USE_LINK_UNIVERSAL
+  DEBULOG("LinkCable demo");
+#endif
+#ifdef USE_LINK_UNIVERSAL
+  DEBULOG("LinkUniversal demo");
+#endif
+
   DEBULOG("");
   DEBULOG("START: turn on connection");
   DEBULOG("(on connection, p1 sends 999)");
   DEBULOG("");
-  DEBULOG("A: send counter++ (once)");
-  DEBULOG("B: send counter++ (cont)");
+  DEBULOG("B: send counter++ (once)");
+  DEBULOG("A: send counter++ (cont)");
   DEBULOG("L: send counter++ twice (once)");
   DEBULOG("R: send counter++ twice (cont)");
   DEBULOG("SELECT: force lag (9k lines)");

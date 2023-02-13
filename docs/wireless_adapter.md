@@ -262,6 +262,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
 
+⚠️ Although games wait 1 full second, small waits (like ~160ms) also work.
+
 #### Setup - `0x17`
 
 [![Image without alt text or caption](img/0x17.png)](img/0x17.png)
@@ -333,7 +335,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 
-⚠️ The command "overrides" previous data, so if one node is using `ReceiveData`, but before the receive call the other node uses two consecutive `SendData`s, the receiving end will only get the last stream.
+⚠️ After calling this command, the host sends the data automatically. Guests only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command "overrides" previously scheduled transfers, so calling two consecutive `SendData`s on the guest side would result in data loss. I believe this is why most games use `SendDataWait`.
 
 #### SendDataWait - `0x25`
 
