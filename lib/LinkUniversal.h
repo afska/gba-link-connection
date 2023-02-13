@@ -64,7 +64,7 @@ class LinkUniversal {
  public:
   enum State { INITIALIZING, WAITING, CONNECTED };
   enum Mode { LINK_CABLE, LINK_WIRELESS };
-  enum Protocol { AUTODETECT, CABLE, WIRELESS };
+  enum Protocol { AUTODETECT, CABLE, WIRELESS_AUTO, WIRELESS_CLIENT };
 
   struct CableOptions {
     LinkCable::BaudRate baudRate;
@@ -350,6 +350,9 @@ class LinkUniversal {
       if (!linkWireless->connect(servers[serverIndex].id))
         return false;
     } else {
+      if (config.protocol == WIRELESS_CLIENT)
+        return false;
+
       subWaitCount = 0;
       serveWait = LINK_UNIVERSAL_SERVE_WAIT_FRAMES +
                   qran_range(1, LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM);
@@ -371,7 +374,8 @@ class LinkUniversal {
         setMode(LINK_CABLE);
         break;
       }
-      case WIRELESS: {
+      case WIRELESS_AUTO:
+      case WIRELESS_CLIENT: {
         setMode(LINK_WIRELESS);
         break;
       }
@@ -395,7 +399,8 @@ class LinkUniversal {
         setMode(LINK_CABLE);
         break;
       }
-      case WIRELESS: {
+      case WIRELESS_AUTO:
+      case WIRELESS_CLIENT: {
         setMode(LINK_WIRELESS);
         break;
       }

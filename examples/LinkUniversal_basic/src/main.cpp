@@ -27,10 +27,10 @@ int main() {
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
   bool forceWireless = initialKeys & KEY_RIGHT;
-  LinkUniversal::Protocol protocol = forceCable ? LinkUniversal::Protocol::CABLE
-                                     : forceWireless
-                                         ? LinkUniversal::Protocol::WIRELESS
-                                         : LinkUniversal::Protocol::AUTODETECT;
+  LinkUniversal::Protocol protocol =
+      forceCable      ? LinkUniversal::Protocol::CABLE
+      : forceWireless ? LinkUniversal::Protocol::WIRELESS_AUTO
+                      : LinkUniversal::Protocol::AUTODETECT;
 
   // (1) Create a LinkUniversal instance
   linkUniversal = new LinkUniversal(protocol);
