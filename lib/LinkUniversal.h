@@ -54,7 +54,7 @@
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v5.0.0";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v5.0.1";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
 void LINK_UNIVERSAL_ISR_SERIAL();
@@ -260,6 +260,7 @@ class LinkUniversal {
   };
 
   std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
+  std::vector<LinkWireless::Message> tmpMessages;
   LinkCable* linkCable;
   LinkWireless* linkWireless;
   Config config;
@@ -279,10 +280,10 @@ class LinkUniversal {
   }
 
   void receiveWirelessMessages() {
-    std::vector<LinkWireless::Message> messages;
-    linkWireless->receive(messages);
+    tmpMessages.clear();
+    linkWireless->receive(tmpMessages);
 
-    for (auto& message : messages)
+    for (auto& message : tmpMessages)
       push(incomingMessages[message.playerId], message.data);
   }
 
