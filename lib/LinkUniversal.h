@@ -118,6 +118,9 @@ class LinkUniversal {
     linkWireless->deactivate();
   }
 
+  void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
+  Protocol getProtocol() { return this->config.protocol; }
+
   bool isConnected() { return state == CONNECTED; }
 
   u8 playerCount() {
