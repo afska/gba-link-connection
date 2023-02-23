@@ -63,7 +63,7 @@
 #define LINK_CABLE_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 #define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v5.0.1";
+static volatile char LINK_CABLE_VERSION[] = "LinkCable/v5.0.2";
 
 void LINK_CABLE_ISR_VBLANK();
 void LINK_CABLE_ISR_SERIAL();
