@@ -37,14 +37,12 @@
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
-#include <queue>
 #include "LinkCable.h"
 #include "LinkWireless.h"
 
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
-#define LINK_UNIVERSAL_BUFFER_SIZE LINK_WIRELESS_QUEUE_SIZE
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 25
@@ -94,10 +92,9 @@ class LinkUniversal {
           true, LINK_WIRELESS_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
           LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
           LINK_WIRELESS_DEFAULT_SEND_TIMER_ID}) {
-    this->linkCable =
-        new LinkCable(cableOptions.baudRate, cableOptions.timeout,
-                      cableOptions.remoteTimeout, LINK_UNIVERSAL_BUFFER_SIZE,
-                      cableOptions.interval, cableOptions.sendTimerId);
+    this->linkCable = new LinkCable(
+        cableOptions.baudRate, cableOptions.timeout, cableOptions.remoteTimeout,
+        cableOptions.interval, cableOptions.sendTimerId);
     this->linkWireless = new LinkWireless(
         wirelessOptions.retransmission, true, wirelessOptions.maxPlayers,
         wirelessOptions.timeout, wirelessOptions.remoteTimeout,
@@ -203,11 +200,9 @@ class LinkUniversal {
       linkCable->consume();
   }
 
-  bool canRead(u8 playerId) { return !incomingMessages[playerId].empty(); }
+  bool canRead(u8 playerId) { return !incomingMessages[playerId].isEmpty(); }
 
-  u16 read(u8 playerId) {
-    return LINK_CABLE_QUEUE_POP(incomingMessages[playerId]);
-  }
+  u16 read(u8 playerId) { return incomingMessages[playerId].pop(); }
 
   void send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
@@ -258,7 +253,7 @@ class LinkUniversal {
     std::string gameName;
   };
 
-  std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
+  LinkCable::U16Queue incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
   LinkCable* linkCable;
   LinkWireless* linkWireless;
   Config config;
@@ -273,7 +268,7 @@ class LinkUniversal {
   void receiveCableMessages() {
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
       while (linkCable->canRead(i))
-        push(incomingMessages[i], linkCable->read(i));
+        incomingMessages[i].push(linkCable->read(i));
     }
   }
 
@@ -286,7 +281,7 @@ class LinkUniversal {
       if (message.packetId == LINK_WIRELESS_END)
         break;
 
-      push(incomingMessages[message.playerId], message.data);
+      incomingMessages[message.playerId].push(message.data);
     }
   }
 
@@ -438,14 +433,7 @@ class LinkUniversal {
     subWaitCount = 0;
     serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
-      LINK_CABLE_QUEUE_CLEAR(incomingMessages[i]);
-  }
-
-  void push(std::queue<u16>& q, u16 value) {
-    if (q.size() >= LINK_UNIVERSAL_BUFFER_SIZE)
-      LINK_CABLE_QUEUE_POP(q);
-
-    q.push(value);
+      incomingMessages[i].clear();
   }
 };
 

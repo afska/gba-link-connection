@@ -37,14 +37,15 @@
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
-#include <queue>
+
+// Buffer size
+#define LINK_CABLE_QUEUE_SIZE 30
 
 #define LINK_CABLE_MAX_PLAYERS 4
 #define LINK_CABLE_DISCONNECTED 0xFFFF
 #define LINK_CABLE_NO_DATA 0x0
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
 #define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 5
-#define LINK_CABLE_DEFAULT_BUFFER_SIZE 30
 #define LINK_CABLE_DEFAULT_INTERVAL 50
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
 #define LINK_CABLE_BASE_FREQUENCY TM_FREQ_1024
@@ -67,8 +68,6 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v5.0.1";
 void LINK_CABLE_ISR_VBLANK();
 void LINK_CABLE_ISR_SERIAL();
 void LINK_CABLE_ISR_TIMER();
-u16 LINK_CABLE_QUEUE_POP(std::queue<u16>& q);
-void LINK_CABLE_QUEUE_CLEAR(std::queue<u16>& q);
 const u16 LINK_CABLE_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                         IRQ_TIMER3};
 
@@ -81,16 +80,52 @@ class LinkCable {
     BAUD_RATE_3   // 115200 bps
   };
 
+  class U16Queue {
+   public:
+    void push(u16 item) {
+      if (isFull())
+        pop();
+
+      rear = (rear + 1) % LINK_CABLE_QUEUE_SIZE;
+      arr[rear] = item;
+      count++;
+    }
+
+    u16 pop() {
+      if (isEmpty())
+        return LINK_CABLE_NO_DATA;
+
+      auto x = arr[front];
+      front = (front + 1) % LINK_CABLE_QUEUE_SIZE;
+      count--;
+
+      return x;
+    }
+
+    void clear() {
+      while (!isEmpty())
+        pop();
+    }
+
+    int size() { return count; }
+    bool isEmpty() { return size() == 0; }
+    bool isFull() { return size() == LINK_CABLE_QUEUE_SIZE; }
+
+   private:
+    u16 arr[LINK_CABLE_QUEUE_SIZE];
+    vs32 front = 0;
+    vs32 rear = -1;
+    vu32 count = 0;
+  };
+
   explicit LinkCable(BaudRate baudRate = BAUD_RATE_1,
                      u32 timeout = LINK_CABLE_DEFAULT_TIMEOUT,
                      u32 remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
-                     u32 bufferSize = LINK_CABLE_DEFAULT_BUFFER_SIZE,
                      u16 interval = LINK_CABLE_DEFAULT_INTERVAL,
                      u8 sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
     this->config.baudRate = baudRate;
     this->config.timeout = timeout;
     this->config.remoteTimeout = remoteTimeout;
-    this->config.bufferSize = bufferSize;
     this->config.interval = interval;
     this->config.sendTimerId = sendTimerId;
   }
@@ -125,7 +160,7 @@ class LinkCable {
 
     LINK_CABLE_BARRIER;
 
-    return !$state.incomingMessages[playerId].empty();
+    return !$state.incomingMessages[playerId].isEmpty();
   }
 
   u16 read(u8 playerId) {
@@ -134,7 +169,7 @@ class LinkCable {
 
     LINK_CABLE_BARRIER;
 
-    return LINK_CABLE_QUEUE_POP($state.incomingMessages[playerId]);
+    return $state.incomingMessages[playerId].pop();
   }
 
   void consume() { isStateConsumed = true; }
@@ -147,14 +182,14 @@ class LinkCable {
     isAddingMessage = true;
     LINK_CABLE_BARRIER;
 
-    push(_state.outgoingMessages, data);
+    _state.outgoingMessages.push(data);
 
     LINK_CABLE_BARRIER;
     isAddingMessage = false;
     LINK_CABLE_BARRIER;
 
     if (isResetting) {
-      LINK_CABLE_QUEUE_CLEAR(_state.outgoingMessages);
+      _state.outgoingMessages.clear();
       isResetting = false;
     }
   }
@@ -189,14 +224,14 @@ class LinkCable {
 
       if (data != LINK_CABLE_DISCONNECTED) {
         if (data != LINK_CABLE_NO_DATA && i != state.currentPlayerId)
-          push(state.incomingMessages[i], data);
+          state.incomingMessages[i].push(data);
         newPlayerCount++;
         _state.timeouts[i] = 0;
       } else if (_state.timeouts[i] > LINK_CABLE_REMOTE_TIMEOUT_OFFLINE) {
         _state.timeouts[i]++;
 
         if (_state.timeouts[i] >= (int)config.remoteTimeout) {
-          LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
+          state.incomingMessages[i].clear();
           _state.timeouts[i] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
         } else
           newPlayerCount++;
@@ -235,19 +270,18 @@ class LinkCable {
     BaudRate baudRate;
     u32 timeout;
     u32 remoteTimeout;
-    u32 bufferSize;
     u32 interval;
     u8 sendTimerId;
   };
 
   struct ExternalState {
-    std::queue<u16> incomingMessages[LINK_CABLE_MAX_PLAYERS];
+    U16Queue incomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
     u8 currentPlayerId;
   };
 
   struct InternalState {
-    std::queue<u16> outgoingMessages;
+    U16Queue outgoingMessages;
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
     u32 IRQTimeout;
@@ -275,7 +309,7 @@ class LinkCable {
 
     LINK_CABLE_BARRIER;
 
-    transfer(LINK_CABLE_QUEUE_POP(_state.outgoingMessages));
+    transfer(_state.outgoingMessages.pop());
   }
 
   void transfer(u16 data) {
@@ -304,7 +338,7 @@ class LinkCable {
     state.playerCount = 0;
     state.currentPlayerId = 0;
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
+      state.incomingMessages[i].clear();
       _state.timeouts[i] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
     }
     _state.IRQFlag = false;
@@ -313,7 +347,7 @@ class LinkCable {
     if (isAddingMessage || isResetting)
       isResetting = true;
     else
-      LINK_CABLE_QUEUE_CLEAR(_state.outgoingMessages);
+      _state.outgoingMessages.clear();
   }
 
   void stop() {
@@ -352,20 +386,14 @@ class LinkCable {
     $state.playerCount = state.playerCount;
     $state.currentPlayerId = state.currentPlayerId;
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      $state.incomingMessages[i].swap(state.incomingMessages[i]);
-      LINK_CABLE_QUEUE_CLEAR(state.incomingMessages[i]);
+      $state.incomingMessages[i].clear();
+      while (!state.incomingMessages[i].isEmpty())
+        $state.incomingMessages[i].push(state.incomingMessages[i].pop());
     }
     LINK_CABLE_BARRIER;
     isStateReady = true;
     isStateConsumed = false;
     LINK_CABLE_BARRIER;
-  }
-
-  void push(std::queue<u16>& q, u16 value) {
-    if (q.size() >= config.bufferSize)
-      LINK_CABLE_QUEUE_POP(q);
-
-    q.push(value);
   }
 
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
@@ -385,20 +413,6 @@ inline void LINK_CABLE_ISR_SERIAL() {
 
 inline void LINK_CABLE_ISR_TIMER() {
   linkCable->_onTimer();
-}
-
-inline u16 LINK_CABLE_QUEUE_POP(std::queue<u16>& q) {
-  if (q.empty())
-    return LINK_CABLE_NO_DATA;
-
-  u16 value = q.front();
-  q.pop();
-  return value;
-}
-
-inline void LINK_CABLE_QUEUE_CLEAR(std::queue<u16>& q) {
-  while (!q.empty())
-    LINK_CABLE_QUEUE_POP(q);
 }
 
 #endif  // LINK_CABLE_H
