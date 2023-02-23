@@ -635,7 +635,7 @@ class LinkWireless {
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
 
-    bool didReceiveFirstPacketIdFromServer = false;
+    bool didReceiveLastPacketIdFromServer = false;
     u32 lastPacketId = 0;
     u32 lastPacketIdFromServer = 0;
     u32 lastConfirmationFromServer = 0;
@@ -889,16 +889,13 @@ class LinkWireless {
                              LINK_WIRELESS_MAX_PACKET_IDS;
 
       if (config.retransmission && !isConfirmation &&
-          sessionState.didReceiveFirstPacketIdFromServer &&
           message._packetId != expectedPacketId)
         return false;
 
       sessionState.playerCount = remotePlayerCount;
 
-      if (!isConfirmation) {
-        sessionState.didReceiveFirstPacketIdFromServer = true;
+      if (!isConfirmation)
         message._packetId = ++sessionState.lastPacketIdFromServer;
-      }
     }
 
     bool isMessageFromCurrentPlayer =
@@ -956,12 +953,14 @@ class LinkWireless {
 
     if (state == CONNECTED) {
       if (confirmation.playerId == 0 &&
-          sessionState.lastPacketIdFromServer == 0)
+          !sessionState.didReceiveLastPacketIdFromServer) {
         sessionState.lastPacketIdFromServer = confirmationData;
-      else if (confirmation.playerId == sessionState.currentPlayerId)
+        sessionState.didReceiveLastPacketIdFromServer = true;
+      } else if (confirmation.playerId == sessionState.currentPlayerId) {
         handleServerConfirmation(confirmationData);
-      else
+      } else {
         return false;
+      }
     } else {
       handleClientConfirmation(confirmationData, confirmation.playerId);
     }
@@ -1130,7 +1129,7 @@ class LinkWireless {
     this->sessionState.sendReceiveLatch = false;
     this->sessionState.pingSent = false;
     this->sessionState.shouldWaitForServer = false;
-    this->sessionState.didReceiveFirstPacketIdFromServer = false;
+    this->sessionState.didReceiveLastPacketIdFromServer = false;
     this->sessionState.lastPacketId = 0;
     this->sessionState.lastPacketIdFromServer = 0;
     this->sessionState.lastConfirmationFromServer = 0;
