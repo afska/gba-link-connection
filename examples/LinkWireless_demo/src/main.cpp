@@ -1,6 +1,7 @@
 #include <tonc.h>
 #include <functional>
 #include <string>
+#include <vector>
 #include "../../_lib/interrupt.h"
 
 // (0) Include the header
@@ -172,17 +173,21 @@ void connect() {
   };
 
   // (5) Connect to a server
-  std::vector<LinkWireless::Server> servers;
+  LinkWireless::Server servers[LINK_WIRELESS_MAX_SERVERS];
   linkWireless->getServers(servers, animate);
   CHECK_ERRORS("Search failed :(")
 
-  if (servers.size() == 0) {
+  if (servers[0].id == LINK_WIRELESS_END) {
     log("Nothing found :(");
     hang();
     return;
   } else {
     std::string str = "Press START to connect\n(first ID will be used)\n\n";
-    for (auto& server : servers) {
+    for (u32 i = 0; i < LINK_WIRELESS_MAX_SERVERS; i++) {
+      auto server = servers[i];
+      if (server.id == LINK_WIRELESS_END)
+        break;
+
       str += std::to_string(server.id) + "\n";
       if (server.gameName.length() > 0)
         str += " -> game: " + server.gameName + "\n";
@@ -285,10 +290,14 @@ void messageLoop() {
       sending = false;
 
     // (7) Receive data
-    auto messages = std::vector<LinkWireless::Message>{};
+    LinkWireless::Message messages[LINK_WIRELESS_MAX_TRANSFER_LENGTH];
     linkWireless->receive(messages);
-    if (messages.size() > 0) {
-      for (auto& message : messages) {
+    if (messages[0].packetId != LINK_WIRELESS_END) {
+      for (u32 i = 0; i < LINK_WIRELESS_MAX_TRANSFER_LENGTH; i++) {
+        auto message = messages[i];
+        if (message.packetId == LINK_WIRELESS_END)
+          break;
+
         u32 expected = counters[message.playerId] + 1;
 
         counters[message.playerId] = message.data;
@@ -299,7 +308,7 @@ void messageLoop() {
           lastLostPacketPlayerId = message.playerId;
           lastLostPacketExpected = expected;
           lastLostPacketReceived = message.data;
-          lastLostPacketReceivedPacketId = message._packetId;
+          lastLostPacketReceivedPacketId = message.packetId;
         }
       }
     }

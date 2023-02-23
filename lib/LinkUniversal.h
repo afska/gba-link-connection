@@ -38,7 +38,6 @@
 
 #include <tonc_core.h>
 #include <queue>
-#include <vector>
 #include "LinkCable.h"
 #include "LinkWireless.h"
 
@@ -260,7 +259,6 @@ class LinkUniversal {
   };
 
   std::queue<u16> incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
-  std::vector<LinkWireless::Message> tmpMessages;
   LinkCable* linkCable;
   LinkWireless* linkWireless;
   Config config;
@@ -280,11 +278,16 @@ class LinkUniversal {
   }
 
   void receiveWirelessMessages() {
-    tmpMessages.clear();
-    linkWireless->receive(tmpMessages);
+    LinkWireless::Message messages[LINK_WIRELESS_MAX_TRANSFER_LENGTH];
+    linkWireless->receive(messages);
 
-    for (auto& message : tmpMessages)
+    for (u32 i = 0; i < LINK_WIRELESS_MAX_TRANSFER_LENGTH; i++) {
+      auto message = messages[i];
+      if (message.packetId == LINK_WIRELESS_END)
+        break;
+
       push(incomingMessages[message.playerId], message.data);
+    }
   }
 
   bool autoDiscoverWirelessConnections() {
@@ -330,14 +333,17 @@ class LinkUniversal {
   }
 
   bool tryConnectOrServeWirelessSession() {
-    std::vector<LinkWireless::Server> servers;
+    LinkWireless::Server servers[LINK_WIRELESS_MAX_SERVERS];
     if (!linkWireless->getServersAsyncEnd(servers))
       return false;
 
     u32 maxRandomNumber = 0;
     u32 serverIndex = 0;
-    for (u32 i = 0; i < servers.size(); i++) {
+    for (u32 i = 0; i < LINK_WIRELESS_MAX_SERVERS; i++) {
       auto server = servers[i];
+      if (server.id == LINK_WIRELESS_END)
+        break;
+
       u32 randomNumber = std::stoi(server.userName);
 
       if (server.gameName == config.gameName &&

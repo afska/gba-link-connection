@@ -176,13 +176,13 @@ Name | Return type | Description
 `activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`. It can also be used to disconnect or reset the adapter.
 `deactivate()` | - | Deactivates the library.
 `serve([gameName], [userName])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters) and `userName` (max `8` characters) that games will be able to read.
-`getServers(servers, [onWait])` | **bool** | Fills the `servers` vector with all the currently broadcasting servers. This action takes 1 second to complete, but you can optionally provide an `onWait()` function which will be invoked each time VBlank starts.
+`getServers(servers, [onWait])` | **bool** | Fills the `servers` array with all the currently broadcasting servers. This action takes 1 second to complete, but you can optionally provide an `onWait()` function which will be invoked each time VBlank starts.
 `getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
-`getServersAsyncEnd(servers)` | **bool** | Fills the `servers` vector with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
+`getServersAsyncEnd(servers)` | **bool** | Fills the `servers` array with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
 `connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
 `keepConnecting()` | **bool** | When connecting, this needs to be called until the state is `CONNECTED`. It assigns a player id. Keep in mind that `isConnected()` and `playerCount()` won't be updated until the first message from server arrives.
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes.
-`receive(messages)` | **bool** | Fills the `messages` vector with incoming messages, forwarding if needed.
+`receive(messages)` | **bool** | Fills the `messages` array with incoming messages, forwarding if needed.
 `getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
 `isConnected()` | **bool** | Returns true if the player count is higher than 1.
 `isSessionActive()` | **bool** | Returns true if the state is `SERVING` or `CONNECTED`.
