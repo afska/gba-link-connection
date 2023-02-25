@@ -532,10 +532,7 @@ class LinkWireless {
 
     if (asyncCommand.isActive) {
       if (asyncCommand.state == AsyncCommand::State::PENDING) {
-        if (hasNewData)
-          updateAsyncCommand(newData);
-        else
-          asyncCommand.state = AsyncCommand::State::COMPLETED;
+        updateAsyncCommand(newData);
 
         if (asyncCommand.state == AsyncCommand::State::COMPLETED)
           processAsyncCommand();
