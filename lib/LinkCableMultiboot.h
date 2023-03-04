@@ -25,7 +25,6 @@
 
 #include <tonc_bios.h>
 #include <tonc_core.h>
-#include <vector>
 
 #define LINK_CABLE_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
 #define LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
@@ -120,6 +119,10 @@ class LinkCableMultiboot {
  private:
   enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
 
+  struct Responses {
+    u16 d[LINK_CABLE_MULTIBOOT_CLIENTS];
+  };
+
   template <typename F>
   PartialResult detectClients(MultiBootParam& multiBootParameters, F cancel) {
     setMultiplayerMode();
@@ -130,9 +133,9 @@ class LinkCableMultiboot {
         return ABORTED;
 
       for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-        if ((responses[i] & 0xfff0) ==
+        if ((responses.d[i] & 0xfff0) ==
             LINK_CABLE_MULTIBOOT_HANDSHAKE_RESPONSE) {
-          auto clientId = responses[i] & 0xf;
+          auto clientId = responses.d[i] & 0xf;
 
           switch (clientId) {
             case 0b0010:
@@ -200,8 +203,8 @@ class LinkCableMultiboot {
       return ABORTED;
 
     for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-      if (responses[i] >> 8 == LINK_CABLE_MULTIBOOT_ACK_RESPONSE)
-        multiBootParameters.client_data[i] = responses[i] & 0xff;
+      if (responses.d[i] >> 8 == LINK_CABLE_MULTIBOOT_ACK_RESPONSE)
+        multiBootParameters.client_data[i] = responses.d[i] & 0xff;
     }
 
     for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
@@ -225,8 +228,8 @@ class LinkCableMultiboot {
     if (cancel())
       return ABORTED;
 
-    return (responses[0] >> 8) == LINK_CABLE_MULTIBOOT_ACK_RESPONSE ? FINISHED
-                                                                    : ERROR;
+    return (responses.d[0] >> 8) == LINK_CABLE_MULTIBOOT_ACK_RESPONSE ? FINISHED
+                                                                      : ERROR;
   }
 
   template <typename F>
@@ -243,7 +246,7 @@ class LinkCableMultiboot {
       u16 expectedResponseWithId = expectedResponse | clientId;
       bool isClientConnected = multiBootParameters.client_bit & clientId;
 
-      if (isClientConnected && responses[i] != expectedResponseWithId)
+      if (isClientConnected && responses.d[i] != expectedResponseWithId)
         return ERROR;
     }
 
@@ -256,8 +259,11 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  std::vector<u16> exchange(u16 data, F cancel) {
-    std::vector<u16> responses = {0xffff, 0xffff, 0xffff};
+  Responses exchange(u16 data, F cancel) {
+    Responses responses;
+    responses.d[0] = 0xffff;
+    responses.d[1] = 0xffff;
+    responses.d[2] = 0xffff;
 
     wait(LINK_CABLE_MULTIBOOT_WAIT_BEFORE_TRANSFER);
 
@@ -273,7 +279,7 @@ class LinkCableMultiboot {
         return responses;
 
     for (u32 i = 0; i < 3; i++)
-      responses[i] = REG_SIOMULTI[1 + i];
+      responses.d[i] = REG_SIOMULTI[1 + i];
 
     return responses;
   }
