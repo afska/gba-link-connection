@@ -15,9 +15,9 @@ make rebuild
 cp LinkCable_stress.gba ../
 cd ..
 
-cd LinkCableMultiboot_demo/
+cd LinkCableMultiBoot_demo/
 make rebuild
-cp LinkCableMultiboot_demo.mb.gba ../
+cp LinkCableMultiBoot_demo.mb.gba ../
 cd ..
 
 cd LinkGPIO_demo/
