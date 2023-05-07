@@ -39,6 +39,7 @@
 #include <tonc_core.h>
 
 #define LINK_SPI_NO_DATA 0xffffffff
+#define LINK_SPI_NO_DATA_8 0xff
 #define LINK_SPI_SIOCNT_NORMAL 0
 #define LINK_SPI_BIT_CLOCK 0
 #define LINK_SPI_BIT_CLOCK_SPEED 1
@@ -58,17 +59,22 @@ class LinkSPI {
  public:
   enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
   enum AsyncState { IDLE, WAITING, READY };
+  enum PacketSize { PACKET_32BITS, PACKET_8BITS };
 
   bool isActive() { return isEnabled; }
 
-  void activate(Mode mode) {
+  void activate(Mode mode, PacketSize packetSize = PACKET_32BITS) {
     this->mode = mode;
+    this->packetSize = packetSize;
     this->waitMode = false;
     this->asyncState = IDLE;
     this->asyncData = 0;
 
     setNormalMode();
-    set32BitPackets();
+    if (packetSize == PACKET_32BITS)
+      set32BitPackets();
+    else
+      set8BitPackets();
     setInterruptsOff();
     disableTransfer();
 
@@ -99,52 +105,12 @@ class LinkSPI {
   }
 
   u32 transfer(u32 data) {
-    return transfer(data, []() { return false; });
+    return transfer(data, []() { return false; }, false);
   }
 
   template <typename F>
-  u32 transfer(u32 data,
-               F cancel,
-               bool _async = false,
-               bool _customAck = false) {
-    if (asyncState != IDLE)
-      return LINK_SPI_NO_DATA;
-
-    setData(data);
-
-    if (_async) {
-      asyncState = WAITING;
-      setInterruptsOn();
-    } else {
-      setInterruptsOff();
-    }
-
-    enableTransfer();
-
-    while (isMaster() && waitMode && !isSlaveReady())
-      if (cancel()) {
-        disableTransfer();
-        setInterruptsOff();
-        asyncState = IDLE;
-        return LINK_SPI_NO_DATA;
-      }
-
-    startTransfer();
-
-    if (_async)
-      return LINK_SPI_NO_DATA;
-
-    while (!isReady())
-      if (cancel()) {
-        stopTransfer();
-        disableTransfer();
-        return LINK_SPI_NO_DATA;
-      }
-
-    if (!_customAck)
-      disableTransfer();
-
-    return getData();
+  u32 transfer(u32 data, F cancel) {
+    return transfer(data, cancel, false);
   }
 
   void transferAsync(u32 data) {
@@ -157,11 +123,39 @@ class LinkSPI {
     transfer(data, cancel, true);
   }
 
+  u8 transfer8(u8 data) {
+    return transfer(data, []() { return false; }, false);
+  }
+
+  template <typename F>
+  u8 transfer8(u8 data, F cancel) {
+    return transfer(data, cancel, false);
+  }
+
+  void transferAsync8(u8 data) {
+    transfer(
+        data, []() { return false; }, true);
+  }
+
+  template <typename F>
+  void transferAsync8(u8 data, F cancel) {
+    transfer(data, cancel, true);
+  }
+
   u32 getAsyncData() {
     if (asyncState != READY)
       return LINK_SPI_NO_DATA;
 
     u32 data = asyncData;
+    asyncState = IDLE;
+    return data;
+  }
+
+  u8 getAsyncData8() {
+    if (asyncState != READY)
+      return LINK_SPI_NO_DATA_8;
+
+    u8 data = (u8)asyncData;
     asyncState = IDLE;
     return data;
   }
@@ -180,7 +174,7 @@ class LinkSPI {
 
     setInterruptsOff();
     asyncState = READY;
-    asyncData = getData();
+    asyncData = (packetSize == PACKET_8BITS) ? getData8() : getData();
   }
 
   void _setSOHigh() { setBitHigh(LINK_SPI_BIT_SO); }
@@ -189,6 +183,7 @@ class LinkSPI {
 
  private:
   Mode mode = Mode::SLAVE;
+  PacketSize packetSize = PacketSize::PACKET_32BITS;
   bool waitMode = false;
   AsyncState asyncState = IDLE;
   u32 asyncData = 0;
@@ -205,7 +200,9 @@ class LinkSPI {
   }
 
   void setData(u32 data) { REG_SIODATA32 = data; }
+  void setData8(u8 data) { REG_SIODATA8 = data; }
   u32 getData() { return REG_SIODATA32; }
+  u8 getData8() { return REG_SIODATA8; }
 
   void enableTransfer() { _setSOLow(); }
   void disableTransfer() { _setSOHigh(); }
@@ -215,6 +212,7 @@ class LinkSPI {
   bool isSlaveReady() { return !_isSIHigh(); }
 
   void set32BitPackets() { setBitHigh(LINK_SPI_BIT_LENGTH); }
+  void set8BitPackets() { setBitLow(LINK_SPI_BIT_LENGTH); }
   void setMasterMode() { setBitHigh(LINK_SPI_BIT_CLOCK); }
   void setSlaveMode() { setBitLow(LINK_SPI_BIT_CLOCK); }
   void set256KbpsSpeed() { setBitLow(LINK_SPI_BIT_CLOCK_SPEED); }
@@ -226,6 +224,51 @@ class LinkSPI {
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { LINK_SPI_SET_HIGH(REG_SIOCNT, bit); }
   void setBitLow(u8 bit) { LINK_SPI_SET_LOW(REG_SIOCNT, bit); }
+
+  template <typename U, typename F>
+  U transfer(U data,
+             F cancel,
+             bool _async,
+             bool _customAck = false) {
+    if (asyncState != IDLE)
+      return (sizeof(U) == 1) ? LINK_SPI_NO_DATA_8 : LINK_SPI_NO_DATA;
+
+    setData(data);
+
+    if (_async) {
+      asyncState = WAITING;
+      setInterruptsOn();
+    } else {
+      setInterruptsOff();
+    }
+
+    enableTransfer();
+
+    while (isMaster() && waitMode && !isSlaveReady())
+      if (cancel()) {
+        disableTransfer();
+        setInterruptsOff();
+        asyncState = IDLE;
+        return (sizeof(U) == 1) ? LINK_SPI_NO_DATA_8 : LINK_SPI_NO_DATA;
+      }
+
+    startTransfer();
+
+    if (_async)
+      return (sizeof(U) == 1) ? LINK_SPI_NO_DATA_8 : LINK_SPI_NO_DATA;
+
+    while (!isReady())
+      if (cancel()) {
+        stopTransfer();
+        disableTransfer();
+        return (sizeof(U) == 1) ? LINK_SPI_NO_DATA_8 : LINK_SPI_NO_DATA;
+      }
+
+    if (!_customAck)
+      disableTransfer();
+
+    return (sizeof(U) == 1) ? getData8() : getData();
+  }
 };
 
 extern LinkSPI* linkSPI;
