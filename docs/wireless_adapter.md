@@ -279,7 +279,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Send length: 0, response length: 0+
     
 *   Responds with the ID of the adapter that wants to connect, or the length of the response is zero if no adapter wants to connect.
-*   Don’t know if multiple IDs can be included here[3](#i-know-more). ⚠️ Yes!
+*   Don’t know if multiple IDs can be included here[3](#i-know-more). ⚠️ Yes! It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsFinishedConnect](#isfinishedconnect---0x20)) and the least significant byte is the ID.
 
 ⚠️ I would rename this command to `AcceptConnections`. When acting as a host, games frequently call this method. Though this doesn't really **accepts** new connections (the adapter does it regardless of whether you call this command or not), it returns a list with all the connected adapter IDs, and it's important for keeping the server (and other clients) informed about who's connected.
 
@@ -355,7 +355,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Responds with all the data from all adapters. No IDs are included, this is just what was sent concatenated together.
 *   Once data has been pulled out, it clears the data buffer, so calling this again can only get new data.
 
-⚠️ When the data is concatenated, only one **header** (see [SendData](#senddata---0x24)) is included at the first value of the response.
+⚠️ When the data is concatenated, the **headers** sent to [SendData](#senddata---0x24) are not included, just the raw data. A single header is included as the first value of the response. I didn't spend too much time analyzing the form of ReceiveData's header. I imagine it's a bitfield indicating the amount of data that was concatenated for each player.
 
 #### Wait - `0x27`
 
