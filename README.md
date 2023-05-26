@@ -199,7 +199,7 @@ Name | Return type | Description
 
 A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and try to connect to other peers, supporting hot swapping cables with adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
 
-https://user-images.githubusercontent.com/1631752/218244610-99618911-0be9-4861-a10f-8b4bdf7259dd.mp4
+https://github.com/rodri042/gba-link-connection/assets/1631752/b2900110-3b27-4cdb-8ae1-744878d6384b
 
 ## Constructor
 
