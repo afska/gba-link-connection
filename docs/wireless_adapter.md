@@ -248,6 +248,12 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Send length: 0, response length: 0
     
 *   This uses the broadcast data given by the broadcast command and actually does the broadcasting.
+
+#### ⚠️ End Host - `0x1b`
+
+*   Send length: 0, response length: 0
+    
+*   This command stops host broadcast, disconnects (how?) all clients and allows the adapter to potentially connect as a client to another host.
     
 #### BroadcastRead - `0x1d` and `0x1e` (⚠️ and `0x1c`)
 
@@ -322,7 +328,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 ⚠️ The first value **is a header**, and has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
 - For hosts: the number of `bytes` that come next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   * `0x00000008`, `0xaabbccdd`, `0x12345678`.
-- For guests: `(1 << (3 + (1+clientNumber) * 5)) * bytes`. The `clientNumber` is what I described in [IsConnectAttempt](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
+- For guests: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsConnectAttempt](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
   * The first client should send: `0x400`, `0xaabbccdd`
   * The second client should send: `0x8000`, `0xaabbccdd`
   * The third client should send: `0x100000`, `0xaabbccdd`
@@ -332,6 +338,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 - **Host:** 90 bytes (or 22 values)
 - **Guests:** 16 bytes (or 4 values)
 - *(the header doesn't count)*
+
+⚠️ Any non-multiple of 4 byte count will send LSB bytes first. For example, a host sending `0x00000003`, `0xaabbccdd` will result in bytes 0xbb, 0xcc and 0xdd being received by clients (the clients will receive 0x00bbccdd).
 
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 
@@ -385,7 +393,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   I generally set the response to `0x00`.
     
 
-#### `0x30`
+#### `0x30` Disconnect client (⚠️)
 
 [![Image without alt text or caption](img/0x30.png)](img/0x30.png)
 
@@ -397,6 +405,10 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     *   Disconnects
     *   Stops broadcasting
     *   Clears buffers?[3](#i-know-more)
+    
+⚠️ This command disconnects clients. The argument seems to be a bitmask of the client ID to disconnect. Sending 0x1 means "disconnect client number 0", and sending 0xF would allegedly disconnect all the clients.
+
+⚠️ The host might need to monitor clients to ensure they are still alive (ie. through some PING like mechanism) and disconnect them if they are not, to allow new clients to connect. [4](#pokered)
 
 Waiting
 -------
@@ -428,3 +440,5 @@ If you know any extra details about the wireless adapter, get in touch!. For spe
 2.  [Games compatible with the wireless adapter](https://en.wikipedia.org/wiki/Game_Boy_Advance_Wireless_Adapter#Compatible_games) [↩︎](#fnref:list_of_games)
     
 3.  [Send me an email if you know more about this](https://blog.kuiper.dev/contact) [↩︎](#fnref:email_me) [↩︎2](#fnref:email_me:1) [↩︎3](#fnref:email_me:2) [↩︎4](#fnref:email_me:3) [↩︎5](#fnref:email_me:4)
+
+4.  Some interesting data about the RFU adapter can be found in Pokemon Games, see the [FireRed Decompilation](https://github.com/pret/pokefirered/) for more information.
