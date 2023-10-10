@@ -319,7 +319,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   Send N 32 bit values to connected adapter.
     
-⚠️ The first byte **is a header**, and has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
+⚠️ The first value **is a header**, and has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
 - For hosts: the number of `bytes` that come next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   * `0x00000008`, `0xaabbccdd`, `0x12345678`.
 - For guests: `(1 << (3 + (1+clientNumber) * 5)) * bytes`. The `clientNumber` is what I described in [IsConnectAttempt](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
