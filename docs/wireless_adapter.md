@@ -1,9 +1,9 @@
-Game Boy Advance Wireless Adapter (14 October 2022)
+Game Boy Advance Wireless Adapter
 -------------------------------------------------
 
-🌎 From: https://blog.kuiper.dev/gba-wireless-adapter 🌎
-
-**Notes starting with "⚠️" are comments from me (Rodrigo) and not part of Corwin's original post.**
+- 🌎 *(October 14, 2022)* **Original post**: https://blog.kuiper.dev/gba-wireless-adapter 🌎
+- ✏️ *(February 2, 2023)* **Update**: Notes starting with "⚠️" are comments from me ([@afska](https://github.com/afska)) and not part of Corwin's original post.
+- ✏️ *(October 10, 2023)* **Update**: [@davidgfnet](https://github.com/davidgfnet) has been discovering new things and he added them here!
 
 Some people may be aware that I have played around with the GBA wireless adapter, indeed I’ve made one that works over the internet but unstably. The reason that I hadn’t made this post earlier is because I wanted to make it stable before releasing the code and writing it up. Alas, I haven’t had much motivation to continue, which is a shame given I got so close.
 
@@ -339,7 +339,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 - **Guests:** 16 bytes (or 4 values)
 - *(the header doesn't count)*
 
-⚠️ Any non-multiple of 4 byte count will send LSB bytes first. For example, a host sending `0x00000003`, `0xaabbccdd` will result in bytes 0xbb, 0xcc and 0xdd being received by clients (the clients will receive 0x00bbccdd).
+⚠️ Any non-multiple of 4 byte count will send LSB bytes first. For example, a host sending `0x00000003`, `0xaabbccdd` will result in bytes `0xbb`, `0xcc` and `0xdd` being received by clients (the clients will receive `0x00bbccdd`).
 
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 
@@ -406,7 +406,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     *   Stops broadcasting
     *   Clears buffers?[3](#i-know-more)
     
-⚠️ This command disconnects clients. The argument seems to be a bitmask of the client ID to disconnect. Sending 0x1 means "disconnect client number 0", and sending 0xF would allegedly disconnect all the clients.
+⚠️ This command disconnects clients. The argument seems to be a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", and sending `0xF` would allegedly disconnect all the clients.
 
 ⚠️ The host might need to monitor clients to ensure they are still alive (ie. through some PING like mechanism) and disconnect them if they are not, to allow new clients to connect. [4](#pokered)
 
