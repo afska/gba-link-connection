@@ -227,7 +227,16 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Send length: 0, Response length: 0
     
 *   First thing to be called after finishing the initialisation sequence.
+
+#### ⚠️ SystemStatus - `0x13`
+
+*   Send length: 0, Response length: 1
+
+⚠️ Returns some information about the current connection and device state. The returned word contains the device ID in the lower 16 bits (or zero if the device is not connected nor hosting). For clients, it contains the `clientNumber` (0 to 3) in bits 17 and 16. For a host, bit 24 is set.
     
+#### ⚠️ SlotStatus - `0x14`
+
+⚠️ Seems to be the same as `0x1a` (returns a list of connected devices) but might have different implications (perhaps it doesn't actually accept new connections but only list existing ones?).
 
 #### Broadcast - `0x16`
 
