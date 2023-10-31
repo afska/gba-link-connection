@@ -3,7 +3,7 @@ Game Boy Advance Wireless Adapter
 
 - 🌎 *(October 14, 2022)* **Original post**: https://blog.kuiper.dev/gba-wireless-adapter 🌎
 - ✏️ *(February 2, 2023)* **Update**: Notes starting with "⚠️" are comments from me ([@afska](https://github.com/afska)) and not part of Corwin's original post.
-- ✏️ *(October 10, 2023)* **Update**: [@davidgfnet](https://github.com/davidgfnet) has been discovering new things and he added them here!
+- ✏️ **Updates** *from October 10, 2023*: [@davidgfnet](https://github.com/davidgfnet) and I were discovering new things and we added them here!
 
 Some people may be aware that I have played around with the GBA wireless adapter, indeed I’ve made one that works over the internet but unstably. The reason that I hadn’t made this post earlier is because I wanted to make it stable before releasing the code and writing it up. Alas, I haven’t had much motivation to continue, which is a shame given I got so close.
 
@@ -199,7 +199,7 @@ Commands are how you tell the adapter to do things. When in command mode the clo
     
     In the figure, you’ll see that after exchanging any 32 bit value using SPI, some out of clock communication happens. This is the GBA and the Adapter signalling to each other that they are ready to communicate. This happens over the following stages:
     
-    1.  The GBA goes low as soon as it can
+    1.  The GBA goes low as soon as it can.
     2.  The adapter goes high.
     3.  The GBA goes high.
     4.  The adapter goes low _when it’s ready_.
@@ -210,7 +210,7 @@ Commands are how you tell the adapter to do things. When in command mode the clo
 
 ⚠️ Also, the ACK protocol is different after a [Wait](#waiting) command:
 
-    1.  The GBA goes high as soon as it can
+    1.  The GBA goes high as soon as it can.
     2.  The adapter goes high.
     3.  The GBA goes low _when it’s ready_.
     4.  The adapter goes low when it’s ready.
@@ -220,23 +220,13 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ### List of commands
 
-#### Finish Initialisation - `0x10` and `0x3d`
+#### FinishInitialisation - `0x10` and `0x3d`
 
 [![Image without alt text or caption](img/0x10.png)](img/0x10.png)
 
 *   Send length: 0, Response length: 0
     
 *   First thing to be called after finishing the initialisation sequence.
-
-#### ⚠️ SystemStatus - `0x13`
-
-*   Send length: 0, Response length: 1
-
-⚠️ Returns some information about the current connection and device state. The returned word contains the device ID in the lower 16 bits (or zero if the device is not connected nor hosting). For clients, it contains the `clientNumber` (0 to 3) in bits 17 and 16. For a host, bit 24 is set.
-    
-#### ⚠️ SlotStatus - `0x14`
-
-⚠️ Seems to be the same as `0x1a` (returns a list of connected devices) but might have different implications (perhaps it doesn't actually accept new connections but only list existing ones?).
 
 #### Broadcast - `0x16`
 
@@ -252,17 +242,23 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 (if you read from right to left, it says `ICE CLIMBER` - `NINTENDO`)
 
-#### Start Host - `0x19`
+#### StartHost - `0x19`
 
 *   Send length: 0, response length: 0
     
 *   This uses the broadcast data given by the broadcast command and actually does the broadcasting.
 
-#### ⚠️ End Host - `0x1b`
+#### EndHost - `0x1b`
 
-*   Send length: 0, response length: 0
+*   Send length: 0, response length: ~~0~~ ⚠️ 2+
     
-*   This command stops host broadcast, disconnects (how?) all clients and allows the adapter to potentially connect as a client to another host.
+*   This command stops host broadcast, ~~disconnects (how?) all clients and allows the adapter to potentially connect as a client to another host~~.
+
+⚠️ This allows to "close" the session and stop allowing new clients, but also keeping the existing connections alive. Sends and Receives still work, but:
+
+- Clients cannot find the broadcast anymore.
+- Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
+- Calls to `AcceptConnections` on the host side will fail.
     
 #### BroadcastRead - `0x1d` and `0x1e` (⚠️ and `0x1c`)
 
@@ -279,6 +275,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ Although games wait 1 full second, small waits (like ~160ms) also work.
 
+⚠️ If a client sends a `0x1c` and then starts a `0x1d` loop (1 command per frame), and a console that was broadcasting is turned off, it disappears after 3 seconds.
+
 #### Setup - `0x17`
 
 [![Image without alt text or caption](img/0x17.png)](img/0x17.png)
@@ -289,7 +287,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ The multiboot ROM that the adapter sends when no cartridge is inserted also uses `0x003C0420`. It doesn't seem related to Pokemon.
 
-#### IsConnectAttempt - `0x1a`
+#### ~~IsConnectAttempt~~ AcceptConnections - `0x1a`
 
 *   Send length: 0, response length: 0+
     
@@ -298,7 +296,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ I would rename this command to `AcceptConnections`. When acting as a host, games frequently call this method. Though this doesn't really **accepts** new connections (the adapter does it regardless of whether you call this command or not), it returns a list with all the connected adapter IDs, and it's important for keeping the server (and other clients) informed about who's connected.
 
-⚠️ If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in other way.
+⚠️ If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
 
 #### Connect - `0x1f`
 
@@ -337,7 +335,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 ⚠️ The first value **is a header**, and has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
 - For hosts: the number of `bytes` that come next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   * `0x00000008`, `0xaabbccdd`, `0x12345678`.
-- For guests: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsConnectAttempt](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
+- For guests: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsFinishedConnect](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
   * The first client should send: `0x400`, `0xaabbccdd`
   * The second client should send: `0x8000`, `0xaabbccdd`
   * The third client should send: `0x100000`, `0xaabbccdd`
@@ -353,6 +351,10 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 ⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
 
 ⚠️ After calling this command, the host sends the data automatically. Guests only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command "overrides" previously scheduled transfers, so calling two consecutive `SendData`s on the guest side would result in data loss. I believe this is why most games use `SendDataWait`.
+
+⚠️ The receive buffer size is 1 packet on both sides, so if a host performs 3 consecutive `SendData` calls, a `ReceiveData` on a client will only receive the last one.
+
+⚠️ This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet.
 
 #### SendDataWait - `0x25`
 
@@ -372,6 +374,8 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Responds with all the data from all adapters. No IDs are included, this is just what was sent concatenated together.
 *   Once data has been pulled out, it clears the data buffer, so calling this again can only get new data.
 
+⚠️ The data is only concatenated on the host side, and its order is based on the `clientNumber`. It doesn't matter who called `SendData` first.
+
 ⚠️ When the data is concatenated, the **headers** sent to [SendData](#senddata---0x24) are not included, just the raw data. A single header is included as the first value of the response. I didn't spend too much time analyzing the form of ReceiveData's header. I imagine it's a bitfield indicating the amount of data that was concatenated for each player.
 
 #### Wait - `0x27`
@@ -382,10 +386,26 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   See [Waiting](#waiting) for more details on this.
     
+#### DisconnectClient - `0x30`
+
+[![Image without alt text or caption](img/0x30.png)](img/0x30.png)
+
+*   Send length 1, reponse length: 0
+    
+*   This is very important, is the end of every connection I’ve seen.
+*   ~~Appears to reset the adapter in some way:~~
+    *   ~~Disconnects~~
+    *   ~~Stops broadcasting~~
+    *   ~~Clears buffers?~~
+    
+⚠️ This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `AcceptConnection` calls and its `clientNumber` will be liberated, so other peers can connect.
+
+⚠️ The clients also are able to disconnect themselves using this command, but they can only send its corresponding bit or `0xF`, other bits are ignored (they cannot disconnect other clients). Also, the host won't know if a client disconnects itself, so this feature is not very useful:
+  * The host still needs to monitor clients to ensure they are still alive (ie. through some PING like mechanism) and disconnect them if they are not, to allow new clients to connect. [4](#pokered)
 
 ### List of commands that I don’t quite know the meaning of [3](#i-know-more)
 
-#### `0x11`
+#### SignalLevel - `0x11`
 
 [![Image without alt text or caption](img/0x11.png)](img/0x11.png)
 
@@ -395,29 +415,32 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   I generally set this to `0xFF`.
 *   If my theory is correct then up to 3 bytes could be included each referring to the signal strength of the potentially connected 3 devices.
 
-#### `0x13`
+#### ⚠️ VersionStatus - `0x13`
+*   Send length: 0, Response length: 1
 
-*   Send length: 0, response length: 1
+⚠️ It always returns `8585495` (decimal).
+
+#### ⚠️ SystemStatus - `0x13`
+
+*   Send length: 0, Response length: 1
+
+⚠️ Returns some information about the current connection and device state. The returned word contains the device ID in the lower 16 bits (or zero if the device is not connected nor hosting). For clients, it contains the `clientNumber` (0 to 3) in bits 17 and 16. For a host, bit 24 is set.
     
-*   I generally set the response to `0x00`.
-    
+#### ⚠️ SlotStatus - `0x14`
 
-#### `0x30` Disconnect client (⚠️)
+⚠️ Seems to be the same as `AcceptConnections` (returns a list of connected devices) but might have different implications (perhaps it doesn't actually accept new connections but only list existing ones?). The differences I found so far are:
+- `SlotStatus` has an extra word at the start of the response, indicating the number of connected clients.
+- `SlotStatus` can be called after `EndHost`, while `AcceptConnections` fails.
 
-[![Image without alt text or caption](img/0x30.png)](img/0x30.png)
+#### ⚠️ ConfigStatus - `0x15`
 
-*   Send length 1, reponse length: 0
-    
-*   This is very important, is the end of every connection I’ve seen.
-*   Send is always `0x1`.
-*   Appears to reset the adapter in some way:
-    *   Disconnects
-    *   Stops broadcasting
-    *   Clears buffers?[3](#i-know-more)
-    
-⚠️ This command disconnects clients. The argument seems to be a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", and sending `0xF` would allegedly disconnect all the clients.
+*   Send length: 0, Response length: 7 (as client), or 8 (as host)
 
-⚠️ The host might need to monitor clients to ensure they are still alive (ie. through some PING like mechanism) and disconnect them if they are not, to allow new clients to connect. [4](#pokered)
+⚠️
+- As client, returns: `0, 0, 0, 0, 0, 0, 257`.
+- As host, returns: `1, 2, 3, 4, 5, 6, 3933216, 257`.
+  * `1, 2, 3, 4, 5, 6` would be the broadcast data.
+  * `3933216` and `257` are fixed values. No idea what this means.
 
 Waiting
 -------
