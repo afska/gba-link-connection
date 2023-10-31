@@ -107,6 +107,7 @@
 #define LINK_WIRELESS_COMMAND_BROADCAST 0x16
 #define LINK_WIRELESS_COMMAND_START_HOST 0x19
 #define LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
+#define LINK_WIRELESS_COMMAND_END_HOST 0x1b
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL 0x1d
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_END 0x1e
@@ -731,13 +732,25 @@ class LinkWireless {
 
     switch (asyncCommand.type) {
       case LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS: {
-        // Accept connections (end)
+        // AcceptConnections (end)
+        u8 oldPlayerCount = sessionState.playerCount;
         sessionState.playerCount = 1 + asyncCommand.result.responsesSize;
+
+        if (sessionState.playerCount > oldPlayerCount &&
+            sessionState.playerCount == config.maxPlayers) {
+          // EndHost (start)
+          sendCommandAsync(LINK_WIRELESS_COMMAND_END_HOST);
+        }
+
+        break;
+      }
+      case LINK_WIRELESS_COMMAND_END_HOST: {
+        // EndHost (end)
 
         break;
       }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
-        // Send data (end)
+        // SendData (end)
         if (state == CONNECTED)
           sessionState.shouldWaitForServer = true;
         sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
@@ -745,7 +758,7 @@ class LinkWireless {
         break;
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
-        // Receive data (end)
+        // ReceiveData (end)
         sessionState.sendReceiveLatch =
             sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
         if (asyncCommand.result.responsesSize == 0)
@@ -776,15 +789,15 @@ class LinkWireless {
   void acceptConnectionsOrSendData() {  // (irq only)
     if (state == SERVING && !sessionState.acceptCalled &&
         sessionState.playerCount < config.maxPlayers) {
-      // Accept connections (start)
+      // AcceptConnections (start)
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
       if (!sessionState.sendReceiveLatch || sessionState.shouldWaitForServer) {
-        // Receive data (start)
+        // ReceiveData (start)
         sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
       } else {
-        // Send data (start)
+        // SendData (start)
         sendPendingData();
       }
     }
