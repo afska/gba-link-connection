@@ -162,6 +162,7 @@ Name | Type | Default | Description
 `remoteTimeout` | **u32** | `10` | Number of *successful transfers* without a message from a client to mark the player as disconnected.
 `interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
+`asyncACKTimerId` | **s8** *(0~3 or -1)* | `-1` | GBA Timer to use for ACKs. If you have free timers, use one here to reduce CPU usage.
 
 You can also change these compile-time constants:
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outcoming messages the queues can store at max). The default value is `30`, which seems fine for most games.

@@ -27,7 +27,7 @@ void hang();
 
 LinkWireless::Error lastError;
 LinkWireless* linkWireless = NULL;
-bool forwarding, retransmission;
+bool forwarding, retransmission, asyncACK;
 u32 maxPlayers;
 
 void init() {
@@ -42,17 +42,22 @@ int main() {
 
 start:
   // Options
-  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
+  log("Press A to start\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
       "disable forwarding\n\nhold UP on start:\n -> disable "
-      "retransmission\n\nhold B on start:\n -> set 2 players");
+      "retransmission\n\nhold B on start:\n -> set 2 players\n\nhold START on "
+      "start:\n -> async ACK");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
   maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
+  asyncACK = initialKeys & KEY_START;
 
   // (1) Create a LinkWireless instance
-  linkWireless = new LinkWireless(forwarding, retransmission, maxPlayers);
+  linkWireless = new LinkWireless(
+      forwarding, retransmission, maxPlayers, LINK_WIRELESS_DEFAULT_TIMEOUT,
+      LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
+      LINK_WIRELESS_DEFAULT_SEND_TIMER_ID, asyncACK ? 2 : -1);
   // linkWireless->debug = [](std::string str) { log(str); };
 
   if (firstTime) {
@@ -64,6 +69,11 @@ start:
     interrupt_enable(INTR_SERIAL);
     interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
     interrupt_enable(INTR_TIMER3);
+
+    // (only required when using async ACK)
+    interrupt_set_handler(INTR_TIMER2, LINK_WIRELESS_ISR_ACK_TIMER);
+    interrupt_enable(INTR_TIMER2);
+
     firstTime = false;
   }
 
@@ -83,7 +93,8 @@ start:
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
         (forwarding ? "ON" : "OFF") +
         "\n-> retransmission: " + (retransmission ? "ON" : "OFF") +
-        "\n-> max players: " + std::to_string(maxPlayers));
+        "\n-> max players: " + std::to_string(maxPlayers) +
+        "\n-> async ACK: " + (asyncACK ? "ON" : "OFF"));
 
     // SELECT = back
     if (keys & KEY_SELECT) {
