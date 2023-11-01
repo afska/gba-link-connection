@@ -53,7 +53,7 @@
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v5.0.2";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v5.1.0";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
 void LINK_UNIVERSAL_ISR_SERIAL();

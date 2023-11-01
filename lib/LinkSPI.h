@@ -52,7 +52,7 @@
 #define LINK_SPI_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_SPI_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v5.0.2";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v5.1.0";
 
 class LinkSPI {
  public:
