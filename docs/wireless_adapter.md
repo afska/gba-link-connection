@@ -414,7 +414,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   I generally set this to `0xFF`.
 *   If my theory is correct then up to 3 bytes could be included each referring to the signal strength of the potentially connected 3 devices.
 
-#### ⚠️ VersionStatus - `0x13`
+#### ⚠️ VersionStatus - `0x12`
 *   Send length: 0, Response length: 1
 
 ⚠️ It always returns `8585495` (decimal).
@@ -472,4 +472,4 @@ If you know any extra details about the wireless adapter, get in touch!. For spe
     
 3.  [Send me an email if you know more about this](https://blog.kuiper.dev/contact) [↩︎](#fnref:email_me) [↩︎2](#fnref:email_me:1) [↩︎3](#fnref:email_me:2) [↩︎4](#fnref:email_me:3) [↩︎5](#fnref:email_me:4)
 
-4.  Some interesting data about the RFU adapter can be found in Pokemon Games, see the [FireRed Decompilation](https://github.com/pret/pokefirered/) for more information.
+4.  Some interesting data about the RFU adapter can be found in Pokemon Games, see the [FireRed Decompilation](https://github.com/pret/pokefirered/blob/49ea462d7f421e75a76b25d7e85c92494c0a9798/include/librfu.h#L44) for more information.
