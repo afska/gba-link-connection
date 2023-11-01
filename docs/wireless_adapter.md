@@ -256,7 +256,6 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ This allows to "close" the session and stop allowing new clients, but also keeping the existing connections alive. Sends and Receives still work, but:
 
-- Clients cannot find the broadcast anymore.
 - Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
 - Calls to `AcceptConnections` on the host side will fail.
     
