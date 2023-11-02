@@ -21,16 +21,22 @@ void init() {
 int main() {
   init();
 
-  log("Press A to start\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
-      "force cable\n\nhold RIGHT on start:\n -> force wireless");
+  log("Press A to start\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> "
+      "force cable\n\nhold RIGHT on start:\n -> force wireless\n\nhold UP on "
+      "start:\n -> force wireless host\n\nhold DOWN on start:\n -> force "
+      "wireless client");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
   bool forceWireless = initialKeys & KEY_RIGHT;
+  bool forceWirelessHost = initialKeys & KEY_UP;
+  bool forceWirelessClient = initialKeys & KEY_DOWN;
   LinkUniversal::Protocol protocol =
-      forceCable      ? LinkUniversal::Protocol::CABLE
-      : forceWireless ? LinkUniversal::Protocol::WIRELESS_AUTO
-                      : LinkUniversal::Protocol::AUTODETECT;
+      forceCable            ? LinkUniversal::Protocol::CABLE
+      : forceWireless       ? LinkUniversal::Protocol::WIRELESS_AUTO
+      : forceWirelessHost   ? LinkUniversal::Protocol::WIRELESS_SERVER
+      : forceWirelessClient ? LinkUniversal::Protocol::WIRELESS_CLIENT
+                            : LinkUniversal::Protocol::AUTODETECT;
 
   // (1) Create a LinkUniversal instance
   linkUniversal = new LinkUniversal(protocol);

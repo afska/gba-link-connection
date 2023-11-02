@@ -210,7 +210,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/b2900110-3b27-4cdb-8
 
 Name | Type | Default | Description
 --- | --- | --- | ---
-`protocol` | **LinkUniversal::Protocol** | `AUTODETECT` | Specifies what protocol should be used (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
+`protocol` | **LinkUniversal::Protocol** | `AUTODETECT` | Specifies what protocol should be used (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `gameName` | **std::string** | `""` | The game name that will be broadcasted in wireless sessions. The library uses this to only connect to servers from the same game.
 `cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#constructor) constructor parameters in one *struct*.
 `wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-1) constructor parameters in one *struct*.
@@ -225,6 +225,6 @@ Name | Return type | Description
 --- | --- | ---
 `getState()` | **LinkUniversal::State** | Returns the current state (one of `LinkUniversal::State::INITIALIZING`, `LinkUniversal::State::WAITING`, or `LinkUniversal::State::CONNECTED`).
 `getMode()` | **LinkUniversal::Mode** | Returns the active mode (one of `LinkUniversal::Mode::LINK_CABLE`, or `LinkUniversal::Mode::LINK_WIRELESS`).
-`getProtocol()` | **LinkUniversal::Protocol** | Returns the active protocol (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
+`getProtocol()` | **LinkUniversal::Protocol** | Returns the active protocol (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `setProtocol(protocol)` | - | Sets the active `protocol`.
 `getWirelessState()` | **LinkWireless::State** | Returns the wireless state (same as [📻 LinkWireless](#methods-4)'s `getState()`).

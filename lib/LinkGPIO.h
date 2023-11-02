@@ -37,7 +37,7 @@
 #define LINK_GPIO_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_GPIO_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
-static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v5.1.0";
+static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v5.1.1";
 
 const u8 LINK_GPIO_DATA_BITS[] = {2, 3, 1, 0};
 const u8 LINK_GPIO_DIRECTION_BITS[] = {6, 7, 5, 4};
