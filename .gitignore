@@ -6,3 +6,7 @@ build
 *.elf
 *.gba
 *.sav
+*.sa1
+*.sa2
+*.sa3
+*.sa4
