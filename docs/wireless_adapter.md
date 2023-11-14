@@ -334,7 +334,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 ⚠️ The first value **is a header**, and has to be correct. Otherwise, the adapter will ignore the command and won't send any data. The header is as follows:
 - For hosts: the number of `bytes` that come next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   * `0x00000008`, `0xaabbccdd`, `0x12345678`.
-- For guests: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsFinishedConnect](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
+- For clients: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsFinishedConnect](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
   * The first client should send: `0x400`, `0xaabbccdd`
   * The second client should send: `0x8000`, `0xaabbccdd`
   * The third client should send: `0x100000`, `0xaabbccdd`
@@ -342,16 +342,33 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ⚠️ Each `SendData` can send up to:
 - **Host:** 90 bytes (or 22 values)
-- **Guests:** 16 bytes (or 4 values)
+- **Clients:** 16 bytes (or 4 values)
 - *(the header doesn't count)*
 
 ⚠️ Any non-multiple of 4 byte count will send LSB bytes first. For example, a host sending `0x00000003`, `0xaabbccdd` will result in bytes `0xbb`, `0xcc` and `0xdd` being received by clients (the clients will receive `0x00bbccdd`).
 
-⚠️ Note that when having more than 2 connected adapters, data is not transferred between different guests. If a guest wants to tell something to another guest, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other guest.
+⚠️ Note that when having more than 2 connected adapters, data is not transferred between different clients. If a client wants to tell something to another client, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other client.
 
-⚠️ After calling this command, the host sends the data automatically. Guests only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command "overrides" previously scheduled transfers, so calling two consecutive `SendData`s on the guest side would result in data loss. I believe this is why most games use `SendDataWait`.
-
-⚠️ The receive buffer size is 1 packet on both sides, so if a host performs 3 consecutive `SendData` calls, a `ReceiveData` on a client will only receive the last one.
+⚠️ Internally, data is only sent when **the host** calls `SendData`:
+- The send/receive buffer size is 1 packet, so calling `SendData` multiple times on either side (before the other side calls `ReceiveData`) will result in data loss.
+- Clients only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command overrides previously scheduled transfers, so calling `SendData` multiple times on the client side before the host calls `SendData` would also result in data loss. I believe this is why most games use `SendDataWait` on the client side.
+- Here's an example of this behavior:
+    - **Client**: `SendData` `{sndHeader}`, `10`
+    - **Host**: `SendData` `{sndHeader}`, `1` **(\*)**
+        - *(here, the adapter internally receives the 10 from the client)*
+    - **Host**: `SendData` `{sndHeader}`, `2`
+        - *(here, the previous packet with 1 is lost since nobody received it yet)*
+    - **Client**: `ReceiveData`
+        - Receives `{rcvHeader}`, `2`
+    - **Client**: `SendData` `{sndHeader}`, `20`
+    - **Host**: `ReceiveData`
+        - Receives `{rcvHeader}`, `10` *(pending from **(\*)**)*
+    - **Host**: `ReceiveData`
+        - Receives nothing
+    - **Host**: `SendData` `{sndHeader}`, `3`
+        - *(here, the adapter internally receives the 20 from the client)*
+    - **Host**: `ReceiveData`
+        - Receives `{rcvHeader}`, 20
 
 ⚠️ This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet.
 
