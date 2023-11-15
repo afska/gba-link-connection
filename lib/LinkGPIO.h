@@ -53,9 +53,6 @@ class LinkGPIO {
   }
 
   void setMode(Pin pin, Direction direction) {
-    if (pin == Pin::SI && Direction::OUTPUT)
-      return;  // (disabled for safety reasons)
-
     LINK_GPIO_SET(REG_RCNT, LINK_GPIO_DIRECTION_BITS[pin],
                   direction == Direction::OUTPUT);
   }
