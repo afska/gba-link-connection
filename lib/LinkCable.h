@@ -332,7 +332,7 @@ class LinkCable {
     state.playerCount = 0;
     state.currentPlayerId = 0;
 
-    if (isAddingMessage)
+    if (isAddingMessage || isAddingWhileResetting)
       isAddingWhileResetting = true;
     else
       _state.outgoingMessages.clear();
