@@ -227,14 +227,14 @@ class LinkCable {
 
       if (data != LINK_CABLE_DISCONNECTED) {
         if (data != LINK_CABLE_NO_DATA && i != state.currentPlayerId)
-          _state.tmpMessagesToReceive[i].push(data);
+          _state.newMessages[i].push(data);
         newPlayerCount++;
         setOnline(i);
       } else if (isOnline(i)) {
         _state.timeouts[i]++;
 
         if (_state.timeouts[i] >= (int)config.remoteTimeout) {
-          _state.tmpMessagesToReceive[i].clear();
+          _state.newMessages[i].clear();
           setOffline(i);
         } else {
           newPlayerCount++;
@@ -286,7 +286,7 @@ class LinkCable {
   struct InternalState {
     U16Queue outgoingMessages;
     U16Queue pendingMessages[LINK_CABLE_MAX_PLAYERS];
-    U16Queue tmpMessagesToReceive[LINK_CABLE_MAX_PLAYERS];
+    U16Queue newMessages[LINK_CABLE_MAX_PLAYERS];
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
     u32 IRQTimeout;
@@ -341,7 +341,7 @@ class LinkCable {
       if (!isReadingMessages)
         _state.pendingMessages[i].clear();
 
-      _state.tmpMessagesToReceive[i].clear();
+      _state.newMessages[i].clear();
       setOffline(i);
     }
     _state.IRQFlag = false;
@@ -382,7 +382,7 @@ class LinkCable {
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       if (isOnline(i))
-        move(_state.tmpMessagesToReceive[i], _state.pendingMessages[i]);
+        move(_state.newMessages[i], _state.pendingMessages[i]);
       else
         _state.pendingMessages[i].clear();
     }
