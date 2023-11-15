@@ -42,6 +42,13 @@ cp LinkCable_full.gba ../LinkUniversal_full.gba
 sed -i -e "s/#define USE_LINK_UNIVERSAL/\/\/ #define USE_LINK_UNIVERSAL/g" src/main.h
 cd ..
 
+cd LinkCable_stress/
+sed -i -e "s/\/\/ #define USE_LINK_UNIVERSAL/#define USE_LINK_UNIVERSAL/g" src/main.h
+make rebuild
+cp LinkCable_stress.gba ../LinkUniversal_stress.gba
+sed -i -e "s/#define USE_LINK_UNIVERSAL/\/\/ #define USE_LINK_UNIVERSAL/g" src/main.h
+cd ..
+
 cd LinkWireless_demo/
 make rebuild
 cp LinkWireless_demo.gba ../
