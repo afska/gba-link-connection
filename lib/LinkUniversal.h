@@ -38,6 +38,7 @@
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 
+#include <tonc_bios.h>
 #include <tonc_core.h>
 #include "LinkCable.h"
 #include "LinkWireless.h"
@@ -212,6 +213,25 @@ class LinkUniversal {
         break;
       }
     }
+  }
+
+  bool waitFor(u8 playerId) {
+    return waitFor(playerId, []() { return false; });
+  }
+
+  template <typename F>
+  bool waitFor(u8 playerId, F cancel) {
+    sync();
+
+    u8 timerId = mode == LINK_CABLE ? linkCable->config.sendTimerId
+                                    : linkWireless->config.sendTimerId;
+
+    while (isConnected() && !canRead(playerId) && !cancel()) {
+      IntrWait(1, IRQ_SERIAL | LINK_CABLE_TIMER_IRQ_IDS[timerId]);
+      sync();
+    }
+
+    return isConnected() && canRead(playerId);
   }
 
   bool canRead(u8 playerId) { return !incomingMessages[playerId].isEmpty(); }

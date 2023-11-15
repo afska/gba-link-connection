@@ -36,6 +36,7 @@
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 
+#include <tonc_bios.h>
 #include <tonc_core.h>
 
 // Buffer size
@@ -171,6 +172,22 @@ class LinkCable {
         state.incomingMessages[i].clear();
   }
 
+  bool waitFor(u8 playerId) {
+    return waitFor(playerId, []() { return false; });
+  }
+
+  template <typename F>
+  bool waitFor(u8 playerId, F cancel) {
+    sync();
+
+    while (isConnected() && !canRead(playerId) && !cancel()) {
+      IntrWait(1, IRQ_SERIAL | LINK_CABLE_TIMER_IRQ_IDS[config.sendTimerId]);
+      sync();
+    }
+
+    return isConnected() && canRead(playerId);
+  }
+
   bool canRead(u8 playerId) {
     return !state.incomingMessages[playerId].isEmpty();
   }
@@ -268,7 +285,6 @@ class LinkCable {
     copyState();
   }
 
- private:
   struct Config {
     BaudRate baudRate;
     u32 timeout;
@@ -277,6 +293,9 @@ class LinkCable {
     u8 sendTimerId;
   };
 
+  Config config;
+
+ private:
   struct ExternalState {
     U16Queue incomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
@@ -294,7 +313,6 @@ class LinkCable {
 
   ExternalState state;
   InternalState _state;
-  Config config;
   volatile bool isEnabled = false;
   volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;

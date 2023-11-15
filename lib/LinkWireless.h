@@ -609,7 +609,6 @@ class LinkWireless {
     }
   }
 
- private:
   struct Config {
     bool forwarding;
     bool retransmission;
@@ -621,6 +620,9 @@ class LinkWireless {
     s8 asyncACKTimerId;
   };
 
+  Config config;
+
+ private:
   class MessageQueue {
    public:
     void push(Message item) {
@@ -751,7 +753,6 @@ class LinkWireless {
 
   SessionState sessionState;
   AsyncCommand asyncCommand;
-  Config config;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
