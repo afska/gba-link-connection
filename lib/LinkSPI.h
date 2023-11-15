@@ -52,7 +52,7 @@
 #define LINK_SPI_SET_HIGH(REG, BIT) REG |= 1 << BIT
 #define LINK_SPI_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v5.1.1";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.0.0";
 
 class LinkSPI {
  public:
@@ -192,7 +192,7 @@ class LinkSPI {
   bool waitMode = false;
   AsyncState asyncState = IDLE;
   u32 asyncData = 0;
-  bool isEnabled = false;
+  volatile bool isEnabled = false;
 
   void setNormalMode() {
     LINK_SPI_SET_LOW(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);

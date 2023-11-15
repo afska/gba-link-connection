@@ -38,7 +38,10 @@ int main() {
     data[i] = 0;
 
   while (true) {
-    // (4) Send/read messages
+    // (4) Sync
+    linkCable->sync();
+
+    // (5) Send/read messages
     u16 keys = ~REG_KEYS & KEY_ANY;
     linkCable->send(keys + 1);  // (avoid using 0)
 
@@ -62,9 +65,6 @@ int main() {
     } else {
       output += std::string("Waiting...");
     }
-
-    // (5) Mark the current state copy (front buffer) as consumed
-    linkCable->consume();
 
     VBlankIntrWait();
     log(output);

@@ -96,6 +96,7 @@ int main() {
     // Client mode
     // ---
 
+    linkCable->sync();
     linkCable->send(keys + 1);
 
     std::string output = "";
@@ -118,8 +119,6 @@ int main() {
     } else {
       output += std::string("Waiting... ");
     }
-
-    linkCable->consume();
 
     VBlankIntrWait();
     log(output);

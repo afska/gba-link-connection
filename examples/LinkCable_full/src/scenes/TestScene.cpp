@@ -42,10 +42,8 @@ void TestScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
-#ifdef USE_LINK_UNIVERSAL
   // sync
   link->sync();
-#endif
 
   frameCounter++;
 
@@ -103,9 +101,4 @@ void TestScene::tick(u16 keys) {
       }
     }
   }
-
-#ifndef USE_LINK_UNIVERSAL
-  // mark link buffer as consumed
-  link->consume();
-#endif
 }

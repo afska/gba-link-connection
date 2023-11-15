@@ -128,7 +128,7 @@
     if (!reset())                     \
       return false;
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v5.1.1";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.0";
 
 void LINK_WIRELESS_ISR_VBLANK();
 void LINK_WIRELESS_ISR_SERIAL();
@@ -661,8 +661,8 @@ class LinkWireless {
     }
 
     void clear() {
-      while (!isEmpty())
-        pop();
+      front = count = 0;
+      rear = -1;
     }
 
     int size() { return count; }
@@ -761,7 +761,7 @@ class LinkWireless {
   volatile bool isAddingMessage = false;
   volatile bool isPendingClearActive = false;
   Error lastError = NONE;
-  bool isEnabled = false;
+  volatile bool isEnabled = false;
 
   void forwardMessageIfNeeded(Message& message) {
     if (state == SERVING && config.forwarding && sessionState.playerCount > 2)

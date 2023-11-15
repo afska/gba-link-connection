@@ -35,6 +35,8 @@ int main() {
   bool error = false;
 
   while (true) {
+    linkCable->sync();
+
     std::string output = "";
     if (linkCable->isConnected()) {
       auto playerCount = linkCable->playerCount();
@@ -67,8 +69,6 @@ int main() {
       remoteCounter = 0;
       error = false;
     }
-
-    linkCable->consume();
 
     VBlankIntrWait();
     log(output);
