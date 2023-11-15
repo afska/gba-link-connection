@@ -17,7 +17,7 @@
 // - 4) Sync:
 //       linkUniversal->sync();
 //       // (put this line at the start of your game loop)
-// - 4) Send/read messages by using:
+// - 5) Send/read messages by using:
 //       bool isConnected = linkCable->isConnected();
 //       u8 playerCount = linkCable->playerCount();
 //       u8 currentPlayerId = linkCable->currentPlayerId();

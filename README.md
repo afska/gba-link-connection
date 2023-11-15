@@ -1,13 +1,13 @@
 ﻿# gba-link-connection
 
-A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is providing multiplayer support to homebrew games.
+A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games.
 
 - [👾](#-LinkCable) [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
 - [💻](#-LinkCableMultiboot) [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
 - [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
-- [🌎](#-LinkUniversal) [LinkUniversal.h](lib/LinkUniversal.h): Add multiplayer support to you game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
+- [🌎](#-LinkUniversal) [LinkUniversal.h](lib/LinkUniversal.h): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
 
 *(click on the emojis for documentation)*
 
@@ -15,8 +15,8 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 ## Usage
 
-- Include the library you want (e.g. [LinkCable.h](lib/LinkCable.h)) in your game code, and read its comment for instructions.
-- Check out the [examples](examples) folder
+- Include the library you want (e.g. [LinkCable.h](lib/LinkCable.h)) in your game code, and refer to its comments for instructions.
+- Check out the [examples](examples) folder.
 	* Builds are available in *Releases*.
 	* They can be tested on real GBAs or using emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
 
@@ -32,7 +32,7 @@ make [ clean | build | start | rebuild | restart ]
 
 This is the Link Port mode that games use for multiplayer.
 
-The library uses message queues to send/receive data and transmits when it's possible. As it uses CPU interrupts, the connection is alive even if a console drops a frame or gets stucked in a long iteration loop. After such event, all nodes end up receiving all the pending messages, so a lockstep communication protocol can be used.
+The library uses message queues to send/receive data and transmits when it's possible. As it uses CPU interrupts, the connection is alive even if a console drops a frame or gets stuck in a long iteration loop. After such an event, all nodes end up receiving all the pending messages.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/99154109-1d131980-268c-11eb-86b1-7a728f639e5e.png)
 
@@ -101,7 +101,7 @@ Name | Return type | Description
 `getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
 `readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
-`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
+`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, an IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
 ⚠️ always set the `SI` terminal to an input!
 
@@ -109,7 +109,7 @@ Name | Return type | Description
 
 *(aka Normal Mode)*
 
-This is GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
+This is the GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
@@ -200,7 +200,7 @@ Name | Return type | Description
 
 # 🌎 LinkUniversal
 
-A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and try to connect to other peers, supporting hot swapping cables with adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
+A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and tries to connect to other peers, supporting the hot swapping of cables and adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
 
 https://github.com/afska/gba-link-connection/assets/1631752/b2900110-3b27-4cdb-8ae1-744878d6384b
 
@@ -217,7 +217,7 @@ Name | Type | Default | Description
 
 ## Methods
 
-The interface is the same as [👾 LinkCable](#methods). Aditionally, it supports these methods:
+The interface is the same as [👾 LinkCable](#methods). Additionally, it supports these methods:
 
 Name | Return type | Description
 --- | --- | ---
