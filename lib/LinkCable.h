@@ -134,15 +134,26 @@ class LinkCable {
   bool isActive() { return isEnabled; }
 
   void activate() {
+    LINK_CABLE_BARRIER;
     isEnabled = false;
+    LINK_CABLE_BARRIER;
+
     reset();
+    clearIncomingMessages();
+
+    LINK_CABLE_BARRIER;
     isEnabled = true;
+    LINK_CABLE_BARRIER;
   }
 
   void deactivate() {
+    LINK_CABLE_BARRIER;
     isEnabled = false;
+    LINK_CABLE_BARRIER;
+
     resetState();
     stop();
+    clearIncomingMessages();
   }
 
   bool isConnected() {
@@ -168,8 +179,7 @@ class LinkCable {
     LINK_CABLE_BARRIER;
 
     if (!isConnected())
-      for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
-        state.incomingMessages[i].clear();
+      clearIncomingMessages();
   }
 
   bool waitFor(u8 playerId) {
@@ -392,6 +402,11 @@ class LinkCable {
     REG_TM[config.sendTimerId].start = -config.interval;
     REG_TM[config.sendTimerId].cnt =
         TM_ENABLE | TM_IRQ | LINK_CABLE_BASE_FREQUENCY;
+  }
+
+  void clearIncomingMessages() {
+    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
+      state.incomingMessages[i].clear();
   }
 
   void copyState() {

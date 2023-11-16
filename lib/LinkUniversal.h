@@ -125,9 +125,9 @@ class LinkUniversal {
 
   void deactivate() {
     isEnabled = false;
-
     linkCable->deactivate();
     linkWireless->deactivate();
+    resetState();
   }
 
   void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
