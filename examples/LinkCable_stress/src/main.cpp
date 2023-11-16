@@ -114,6 +114,18 @@ void test(bool withSync) {
       auto currentPlayerId = link->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
+      if (localCounter == 0 && link->currentPlayerId() == 0) {
+        // NO$GBA 3.04 hack (not required on actual hardware)
+        // The emulator incorrectly triggers the master node's serial IRQs even
+        // if the slave node has SIO disabled, so depending on which console
+        // started first, the initial packets might be lost. This fix forces the
+        // master node to wait until the slave is actually connected.
+        link->waitFor(remotePlayerId, []() {
+          resetIfNeeded();
+          return false;
+        });
+      }
+
       if (localCounter < FINAL_VALUE) {
         localCounter++;
         link->send(localCounter);
@@ -131,6 +143,7 @@ void test(bool withSync) {
       while (link->canRead(remotePlayerId)) {
         expectedCounter++;
         u16 message = link->read(remotePlayerId);
+
         if (message != expectedCounter) {
           error = true;
           receivedRemoteCounter = message;
