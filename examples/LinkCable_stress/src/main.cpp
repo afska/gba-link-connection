@@ -4,11 +4,24 @@
 #include "../../_lib/interrupt.h"
 
 // STRESS:
-// This example sends consecutive values in a two-player setup.
-// When a GBA receives something not equal to previousValue + 1, it hangs.
-// It should work indefinitely (with no packet loss).
+// This example can perform multiple stress tests.
+// A) Packet loss test:
+//   - This example sends consecutive values in a two-player setup.
+//   - The units will start running at the same time when both receive a 1.
+//   - When a GBA receives something not equal to previousValue + 1, it hangs.
+//   - It should continue until reaching 65534, with no packet loss.
+//   - The user can purposely mess up the sync by pressing START to add lag.
+// B) Packet sync test:
+//   - Same as (A), but using synchronous transfers.
+//   - The test will ensure the remote counters match local counters.
 
+#define FINAL_VALUE 65534
+
+void test(bool withSync);
 void log(std::string text);
+void waitFor(u16 key);
+void wait(u32 verticalLines);
+void resetIfNeeded();
 
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
@@ -50,50 +63,96 @@ void init() {
 int main() {
   init();
 
-  u16 localCounter = 0;
-  u16 remoteCounter = 0;
-  bool error = false;
-
-  while (true) {
-    link->sync();
-
 #ifndef USE_LINK_UNIVERSAL
-    std::string output = "LinkCable\n\n";
+  std::string output = "LinkCable\n\n";
 #endif
 #ifdef USE_LINK_UNIVERSAL
-    std::string output = "LinkUniversal\n\n";
+  std::string output = "LinkUniversal\n\n";
 #endif
 
-    if (link->isConnected()) {
-      auto playerCount = link->playerCount();
+  output +=
+      "A: Test packet loss\nB: Test packet sync\n\n"
+      "START: Add lag\nL: Reset";
+  log(output);
+
+  waitFor(KEY_A | KEY_B);
+  u16 initialKeys = ~REG_KEYS & KEY_ANY;
+
+  if (initialKeys & KEY_A)
+    test(false);
+  else if (initialKeys & KEY_B)
+    test(true);
+  else if (initialKeys & KEY_R)
+    test(true);
+
+  return 0;
+}
+
+void test(bool withSync) {
+  u16 localCounter = 0;
+  u16 expectedCounter = 0;
+  bool error = false;
+  u16 receivedRemoteCounter = 0;
+
+  log("Waiting for data...");
+
+  while (true) {
+    resetIfNeeded();
+
+    link->sync();
+    auto playerCount = link->playerCount();
+
+    std::string output = "";
+
+    if (link->isConnected() && playerCount == 2) {
+      u16 keys = ~REG_KEYS & KEY_ANY;
+      if (keys & KEY_START) {
+        log("Lagging...");
+        wait(3000);
+      }
+
       auto currentPlayerId = link->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
-      output += "Players: " + std::to_string(playerCount) + "\n";
-
-      if (playerCount == 2) {
-        link->send(localCounter + 1);
+      if (localCounter < FINAL_VALUE) {
         localCounter++;
+        link->send(localCounter);
       }
 
-      while (link->canRead(remotePlayerId)) {
-        u16 message = link->read(remotePlayerId) - 1;
-        if (message == remoteCounter) {
-          remoteCounter++;
-        } else {
-          error = true;
-          output += "ERROR!\nExpected " + std::to_string(remoteCounter) +
-                    " but got " + std::to_string(message) + "\n";
+      if (localCounter == 1 || withSync) {
+        while (link->peek(remotePlayerId) != localCounter) {
+          link->waitFor(remotePlayerId, []() {
+            resetIfNeeded();
+            return false;
+          });
         }
       }
 
+      while (link->canRead(remotePlayerId)) {
+        expectedCounter++;
+        u16 message = link->read(remotePlayerId);
+        if (message != expectedCounter) {
+          error = true;
+          receivedRemoteCounter = message;
+          break;
+        } else if (withSync && message != localCounter) {
+          error = true;
+          receivedRemoteCounter = message;
+          expectedCounter = localCounter;
+        }
+      }
+
+      if (error)
+        output += "ERROR!\nExpected " + std::to_string(expectedCounter) +
+                  " but got " + std::to_string(receivedRemoteCounter) + "\n";
       output += "(" + std::to_string(localCounter) + ", " +
-                std::to_string(remoteCounter) + ")\n";
+                std::to_string(expectedCounter) + ")\n";
     } else {
       output += "Waiting...";
       localCounter = 0;
-      remoteCounter = 0;
+      expectedCounter = 0;
       error = false;
+      receivedRemoteCounter = 0;
     }
 
     VBlankIntrWait();
@@ -101,15 +160,46 @@ int main() {
 
     if (error) {
       while (true)
-        ;
+        resetIfNeeded();
+    } else if (localCounter == FINAL_VALUE && expectedCounter == FINAL_VALUE) {
+      log("Test passed!");
+      while (true)
+        resetIfNeeded();
     }
   }
-
-  return 0;
 }
 
 void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
+}
+
+void waitFor(u16 key) {
+  u16 keys;
+  do {
+    keys = ~REG_KEYS & KEY_ANY;
+  } while (!(keys & key));
+}
+
+void wait(u32 verticalLines) {
+  u32 count = 0;
+  u32 vCount = REG_VCOUNT;
+
+  while (count < verticalLines) {
+    if (REG_VCOUNT != vCount) {
+      count++;
+      vCount = REG_VCOUNT;
+    }
+  };
+}
+
+void resetIfNeeded() {
+  u16 keys = ~REG_KEYS & KEY_ANY;
+  if (keys & KEY_L) {
+    link->deactivate();
+
+    RegisterRamReset(RESET_REG | RESET_VRAM);
+    SoftReset();
+  }
 }

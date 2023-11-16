@@ -65,7 +65,8 @@ Name | Return type | Description
 `waitFor(playerId)` | **bool** | Waits for data from player #`playerId`. Returns `true` on success, or `false` on disconnection.
 `waitFor(playerId, cancel)` | **bool** | Like `waitFor(playerId)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
 `canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`.
-`read(playerId)` | **u16** | Returns one message from player #`playerId`.
+`read(playerId)` | **u16** | Dequeues and returns the next message from player #`playerId`.
+`peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing  it.
 `send(data)` | - | Sends `data` to all connected players.
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!

@@ -103,6 +103,13 @@ class LinkCable {
       return x;
     }
 
+    u16 peek() {
+      if (isEmpty())
+        return LINK_CABLE_NO_DATA;
+
+      return arr[front];
+    }
+
     void clear() {
       front = count = 0;
       rear = -1;
@@ -203,6 +210,8 @@ class LinkCable {
   }
 
   u16 read(u8 playerId) { return state.incomingMessages[playerId].pop(); }
+
+  u16 peek(u8 playerId) { return state.incomingMessages[playerId].peek(); }
 
   void send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)

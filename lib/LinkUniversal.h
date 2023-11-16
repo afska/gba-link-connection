@@ -238,6 +238,8 @@ class LinkUniversal {
 
   u16 read(u8 playerId) { return incomingMessages[playerId].pop(); }
 
+  u16 peek(u8 playerId) { return incomingMessages[playerId].peek(); }
+
   void send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
       return;
