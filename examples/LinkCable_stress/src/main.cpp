@@ -108,7 +108,7 @@ void test(bool withSync) {
       u16 keys = ~REG_KEYS & KEY_ANY;
       if (keys & KEY_START) {
         log("Lagging...");
-        wait(3000);
+        wait(1500);
       }
 
       auto currentPlayerId = link->currentPlayerId();
@@ -155,9 +155,16 @@ void test(bool withSync) {
         }
       }
 
-      if (error)
+      if (error) {
         output += "ERROR!\nExpected " + std::to_string(expectedCounter) +
-                  " but got " + std::to_string(receivedRemoteCounter) + "\n";
+                  " but got " + std::to_string(receivedRemoteCounter) + "\n\n";
+        if (link->canRead(remotePlayerId)) {
+          output += "Remaining packets: |";
+          while (link->canRead(remotePlayerId))
+            output += std::to_string(link->read(remotePlayerId)) + "| ";
+          output += "\n\n";
+        }
+      }
       output += "(" + std::to_string(localCounter) + ", " +
                 std::to_string(expectedCounter) + ")\n";
     } else {
