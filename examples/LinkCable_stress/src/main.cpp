@@ -21,7 +21,7 @@ void test(bool withSync);
 void log(std::string text);
 void waitFor(u16 key);
 void wait(u32 verticalLines);
-void resetIfNeeded();
+bool needsReset();
 
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
@@ -56,34 +56,36 @@ void init() {
   interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 #endif
-
-  link->activate();
 }
 
 int main() {
   init();
 
+  while (true) {
 #ifndef USE_LINK_UNIVERSAL
-  std::string output = "LinkCable\n\n";
+    std::string output = "LinkCable\n\n";
 #endif
 #ifdef USE_LINK_UNIVERSAL
-  std::string output = "LinkUniversal\n\n";
+    std::string output = "LinkUniversal\n\n";
 #endif
 
-  output +=
-      "A: Test packet loss\nB: Test packet sync\n\n"
-      "START: Add lag\nL: Reset";
-  log(output);
+    link->deactivate();
 
-  waitFor(KEY_A | KEY_B);
-  u16 initialKeys = ~REG_KEYS & KEY_ANY;
+    output +=
+        "A: Test packet loss\nB: Test packet sync\n\n"
+        "START: Add lag\nL: Reset";
+    log(output);
 
-  if (initialKeys & KEY_A)
-    test(false);
-  else if (initialKeys & KEY_B)
-    test(true);
-  else if (initialKeys & KEY_R)
-    test(true);
+    waitFor(KEY_A | KEY_B);
+    u16 initialKeys = ~REG_KEYS & KEY_ANY;
+
+    link->activate();
+
+    if (initialKeys & KEY_A)
+      test(false);
+    else if (initialKeys & KEY_B)
+      test(true);
+  }
 
   return 0;
 }
@@ -97,7 +99,8 @@ void test(bool withSync) {
   log("Waiting for data...");
 
   while (true) {
-    resetIfNeeded();
+    if (needsReset())
+      return;
 
     link->sync();
     auto playerCount = link->playerCount();
@@ -120,10 +123,8 @@ void test(bool withSync) {
         // if the slave node has SIO disabled, so depending on which console
         // started first, the initial packets might be lost. This fix forces the
         // master node to wait until the slave is actually connected.
-        link->waitFor(remotePlayerId, []() {
-          resetIfNeeded();
-          return false;
-        });
+        if (!link->waitFor(remotePlayerId, needsReset))
+          return;
       }
 
       if (localCounter < FINAL_VALUE) {
@@ -133,14 +134,13 @@ void test(bool withSync) {
 
       if (localCounter == 1 || withSync) {
         while (link->peek(remotePlayerId) != localCounter) {
-          link->waitFor(remotePlayerId, []() {
-            resetIfNeeded();
-            return false;
-          });
+          if (!link->waitFor(remotePlayerId, needsReset))
+            return;
         }
       }
 
-      while (link->canRead(remotePlayerId)) {
+      while (link->canRead(remotePlayerId) &&
+             (!withSync || expectedCounter + 1 == localCounter)) {
         expectedCounter++;
         u16 message = link->read(remotePlayerId);
 
@@ -180,11 +180,13 @@ void test(bool withSync) {
 
     if (error) {
       while (true)
-        resetIfNeeded();
+        if (needsReset())
+          return;
     } else if (localCounter == FINAL_VALUE && expectedCounter == FINAL_VALUE) {
       log("Test passed!");
       while (true)
-        resetIfNeeded();
+        if (needsReset())
+          return;
     }
   }
 }
@@ -214,12 +216,7 @@ void wait(u32 verticalLines) {
   };
 }
 
-void resetIfNeeded() {
+bool needsReset() {
   u16 keys = ~REG_KEYS & KEY_ANY;
-  if (keys & KEY_L) {
-    link->deactivate();
-
-    RegisterRamReset(RESET_REG | RESET_VRAM);
-    SoftReset();
-  }
+  return keys & KEY_L;
 }
