@@ -129,6 +129,7 @@ void test(bool withSync) {
   log("Waiting for data...");
 
   while (true) {
+  retry:
     if (needsReset())
       return;
 
@@ -153,8 +154,12 @@ void test(bool withSync) {
         // if the slave node has SIO disabled, so depending on which console
         // started first, the initial packets might be lost. This fix forces the
         // master node to wait until the slave is actually connected.
-        if (!link->waitFor(remotePlayerId, needsReset))
-          return;
+        if (!link->waitFor(remotePlayerId, needsReset)) {
+          if (needsReset())
+            return;
+          else
+            goto retry;
+        }
       }
 
       if (localCounter < FINAL_VALUE) {
@@ -230,6 +235,7 @@ void measureLatency(bool withPong) {
   u32 totalMs = 0;
 
   while (true) {
+  retry:
     if (needsReset())
       return;
 
@@ -243,6 +249,15 @@ void measureLatency(bool withPong) {
       if (!didInitialize) {
         counter = 11 + link->currentPlayerId() * 10;
         didInitialize = true;
+
+        if (currentPlayerId == 0) {
+          if (!link->waitFor(remotePlayerId, needsReset)) {
+            if (needsReset())
+              return;
+            else
+              goto retry;
+          }
+        }
       }
 
       forceSync();
@@ -296,15 +311,7 @@ void measureLatency(bool withPong) {
 }
 
 void forceSync() {
-  auto currentPlayerId = link->currentPlayerId();
   auto remotePlayerId = !link->currentPlayerId();
-
-  if (currentPlayerId == 0)
-    if (!link->waitFor(remotePlayerId, needsReset)) {
-      log("Sync failed! Press DOWN");
-      waitFor(KEY_DOWN);
-      return;
-    }
 
   link->send(10);
   while (link->isConnected() && !needsReset() &&
