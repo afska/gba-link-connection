@@ -615,6 +615,8 @@ class LinkWireless {
     if (!asyncCommand.isActive)
       acceptConnectionsOrSendData();
 
+    copyState();
+
 #ifdef PROFILING_ENABLED
     lastTimerTime = std::max((int)REG_VCOUNT - (int)start, 0);
     timerIRQCount++;
@@ -728,8 +730,6 @@ class LinkWireless {
     u32 frameRecvCount = 0;
     bool acceptCalled = false;
     bool pingSent = false;
-    bool sendReceiveLatch = false;
-    bool shouldWaitForServer = false;
 
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
@@ -845,27 +845,24 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // SendData (end)
-        if (state == CONNECTED)
-          sessionState.shouldWaitForServer = true;
-        sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
+        if (state == SERVING) {
+          // ReceiveData (start)
+          sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
+        }
 
         break;
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // ReceiveData (end)
-        sessionState.sendReceiveLatch =
-            sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
+
         if (asyncCommand.result.responsesSize == 0)
           break;
 
         sessionState.frameRecvCount++;
         sessionState.recvTimeout = 0;
-        sessionState.shouldWaitForServer = false;
 
         trackRemoteTimeouts();
-
-        if (!addIncomingMessagesFromData(asyncCommand.result))
-          return;
+        addIncomingMessagesFromData(asyncCommand.result);
 
         if (!checkRemoteTimeouts()) {
           reset();
@@ -873,11 +870,18 @@ class LinkWireless {
           return;
         }
 
+        if (state == CONNECTED) {
+          // SendData (start)
+          sendPendingData();
+        }
+
         break;
       }
       default: {
       }
     }
+
+    copyState();
   }
 
   void acceptConnectionsOrSendData() {  // (irq only)
@@ -887,7 +891,7 @@ class LinkWireless {
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
-      if (!sessionState.sendReceiveLatch || sessionState.shouldWaitForServer) {
+      if (state == CONNECTED) {
         // ReceiveData (start)
         sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
       } else {
@@ -941,7 +945,7 @@ class LinkWireless {
     return lastPacketId;
   }
 
-  bool addIncomingMessagesFromData(CommandResult& result) {  // (irq only)
+  void addIncomingMessagesFromData(CommandResult& result) {  // (irq only)
     for (u32 i = 1; i < result.responsesSize; i++) {
       u32 rawMessage = result.responses[i];
       u16 headerInt = msB32(rawMessage);
@@ -979,8 +983,6 @@ class LinkWireless {
         sessionState.tmpMessagesToReceive.push(message);
       }
     }
-
-    return true;
   }
 
   bool acceptMessage(Message& message,
@@ -1165,34 +1167,36 @@ class LinkWireless {
   }
 
   void copyOutgoingState() {  // (irq only)
-    if (!isAddingMessage) {
-      while (!sessionState.tmpMessagesToSend.isEmpty()) {
-        if (isSessionActive() && !_canSend())
-          break;
+    if (isAddingMessage)
+      return;
 
-        auto message = sessionState.tmpMessagesToSend.pop();
+    while (!sessionState.tmpMessagesToSend.isEmpty()) {
+      if (isSessionActive() && !_canSend())
+        break;
 
-        if (isSessionActive()) {
-          message.packetId = newPacketId();
-          sessionState.outgoingMessages.push(message);
-        }
+      auto message = sessionState.tmpMessagesToSend.pop();
+
+      if (isSessionActive()) {
+        message.packetId = newPacketId();
+        sessionState.outgoingMessages.push(message);
       }
+    }
 
-      if (isPendingClearActive) {
-        sessionState.outgoingMessages.clear();
-        isPendingClearActive = false;
-      }
+    if (isPendingClearActive) {
+      sessionState.outgoingMessages.clear();
+      isPendingClearActive = false;
     }
   }
 
   void copyIncomingState() {  // (irq only)
-    if (!isReadingMessages) {
-      while (!sessionState.tmpMessagesToReceive.isEmpty()) {
-        auto message = sessionState.tmpMessagesToReceive.pop();
+    if (isReadingMessages)
+      return;
 
-        if (state == SERVING || state == CONNECTED)
-          sessionState.incomingMessages.push(message);
-      }
+    while (!sessionState.tmpMessagesToReceive.isEmpty()) {
+      auto message = sessionState.tmpMessagesToReceive.pop();
+
+      if (state == SERVING || state == CONNECTED)
+        sessionState.incomingMessages.push(message);
     }
   }
 
@@ -1251,9 +1255,7 @@ class LinkWireless {
     this->sessionState.recvTimeout = 0;
     this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
-    this->sessionState.sendReceiveLatch = false;
     this->sessionState.pingSent = false;
-    this->sessionState.shouldWaitForServer = false;
     this->sessionState.didReceiveLastPacketIdFromServer = false;
     this->sessionState.lastPacketId = 0;
     this->sessionState.lastPacketIdFromServer = 0;
