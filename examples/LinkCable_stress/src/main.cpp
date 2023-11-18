@@ -23,6 +23,7 @@
 
 void test(bool withSync);
 void measureLatency(bool withPong);
+void forceSync();
 void log(std::string text);
 void waitFor(u16 key);
 void wait(u32 verticalLines);
@@ -224,7 +225,7 @@ void test(bool withSync) {
 void measureLatency(bool withPong) {
   log("Waiting for data...");
 
-  bool didFinishInitialSync = false;
+  bool didInitialize = false;
   u32 counter = 0;
   u32 samples = 0;
   u32 totalMs = 0;
@@ -240,21 +241,12 @@ void measureLatency(bool withPong) {
       auto currentPlayerId = link->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
-      if (!didFinishInitialSync) {
+      if (!didInitialize) {
         counter = 11 + link->currentPlayerId() * 10;
-        if (currentPlayerId == 0)
-          if (!link->waitFor(remotePlayerId, needsReset)) {
-            log("Sync failed! Press DOWN");
-            waitFor(KEY_DOWN);
-            return;
-          }
-
-        link->send(10);
-        link->waitFor(remotePlayerId);
-        while (link->peek(remotePlayerId) == 10)
-          link->read(remotePlayerId);
-        didFinishInitialSync = true;
+        didInitialize = true;
       }
+
+      forceSync();
 
       u32 sentPacket = ++counter;
 
@@ -302,6 +294,24 @@ void measureLatency(bool withPong) {
       log("Waiting...");
     }
   }
+}
+
+void forceSync() {
+  auto currentPlayerId = link->currentPlayerId();
+  auto remotePlayerId = !link->currentPlayerId();
+
+  if (currentPlayerId == 0)
+    if (!link->waitFor(remotePlayerId, needsReset)) {
+      log("Sync failed! Press DOWN");
+      waitFor(KEY_DOWN);
+      return;
+    }
+
+  link->send(10);
+  while (link->isConnected() && !needsReset() &&
+         link->peek(remotePlayerId) != 10)
+    link->waitFor(remotePlayerId);
+  link->read(remotePlayerId);
 }
 
 void log(std::string text) {
