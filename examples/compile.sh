@@ -59,10 +59,10 @@ cp LinkWireless_demo.gba ../
 cd ..
 
 cd LinkWireless_demo/
-sed -i -e "s/\/\/ #define PROFILING_ENABLED/#define PROFILING_ENABLED/g" ../../lib/LinkWireless.h
+sed -i -e "s/\/\/ #define PROFILING_ENABLED/#define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 mv LinkWireless_demo.gba backup.gba
 make rebuild
 cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
 mv backup.gba LinkWireless_demo.gba
-sed -i -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.h
+sed -i -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 cd ..

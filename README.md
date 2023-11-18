@@ -2,12 +2,12 @@
 
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games.
 
-- [👾](#-LinkCable) [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
-- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
-- [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
-- [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
-- [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
-- [🌎](#-LinkUniversal) [LinkUniversal.h](lib/LinkUniversal.h): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
+- [👾](#-LinkCable) [LinkCable.hpp](lib/LinkCable.hpp): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
+- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
+- [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
+- [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
+- [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
+- [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
 
 *(click on the emojis for documentation)*
 
@@ -15,10 +15,11 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 ## Usage
 
-- Include the library you want (e.g. [LinkCable.h](lib/LinkCable.h)) in your game code, and refer to its comments for instructions.
+- Include the library you want (e.g. [LinkCable.hpp](lib/LinkCable.hpp)) in your game code, and refer to its comments for instructions.
 - Check out the [examples](examples) folder.
 	* Builds are available in *Releases*.
-	* They can be tested on real GBAs or using emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
+	* They can be tested on real GBAs or using emulators (*mGBA*, *NO$GBA*, or *VBA-M*).
+	* For `LinkCable`/`LinkWireless`/`LinkUniversal` there are stress tests that you can use to tweak your configuration.
 
 ### Makefile actions (for all examples)
 
@@ -45,8 +46,13 @@ Name | Type | Default | Description
 `baudRate` | **BaudRate** | `BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
-`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between messages *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
+`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
+
+You can update these values at any time without creating a new instance:
+- Call `deactivate()`.
+- Mutate the `config` property.
+- Call `activate()`.
 
 You can also change these compile-time constants:
 - `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
@@ -64,9 +70,9 @@ Name | Return type | Description
 `sync()` | - | Call this method every time you need to fetch new data.
 `waitFor(playerId)` | **bool** | Waits for data from player #`playerId`. Returns `true` on success, or `false` on disconnection.
 `waitFor(playerId, cancel)` | **bool** | Like `waitFor(playerId)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
-`canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`.
+`canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`. Keep in mind that if this returns `false`, it will keep doing so until you *fetch new data* with `sync()`.
 `read(playerId)` | **u16** | Dequeues and returns the next message from player #`playerId`.
-`peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing  it.
+`peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing it.
 `send(data)` | - | Sends `data` to all connected players.
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
@@ -150,7 +156,7 @@ This is a driver for an accessory that enables wireless games up to 5 players. T
 
 The library, by default, implements a lightweight protocol (on top of the adapter's message system) that sends packet IDs and checksums. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
 
-![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
+https://github.com/afska/gba-link-connection/assets/1631752/7eeafc49-2dfa-4902-aa78-57b391720564
 
 ## Constructor
 
@@ -163,9 +169,14 @@ Name | Type | Default | Description
 `maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. The adapter will accept connections after reaching the limit, but the library will ignore them. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
 `timeout` | **u32** | `8` | Number of *frames* without receiving *any* data to reset the connection.
 `remoteTimeout` | **u32** | `10` | Number of *successful transfers* without a message from a client to mark the player as disconnected.
-`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
+`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 `asyncACKTimerId` | **s8** *(0~3 or -1)* | `-1` | GBA Timer to use for ACKs. If you have free timers, use one here to reduce CPU usage.
+
+You can update these values at any time without creating a new instance:
+- Call `deactivate()`.
+- Mutate the `config` property.
+- Call `activate()`.
 
 You can also change these compile-time constants:
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
@@ -205,7 +216,7 @@ Name | Return type | Description
 
 A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and tries to connect to other peers, supporting the hot swapping of cables and adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
 
-https://github.com/afska/gba-link-connection/assets/1631752/b2900110-3b27-4cdb-8ae1-744878d6384b
+https://github.com/afska/gba-link-connection/assets/1631752/d1f49a48-6b17-4954-99d6-d0b7586f5730
 
 ## Constructor
 

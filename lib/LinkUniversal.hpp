@@ -40,8 +40,8 @@
 
 #include <tonc_bios.h>
 #include <tonc_core.h>
-#include "LinkCable.h"
-#include "LinkWireless.h"
+#include "LinkCable.hpp"
+#include "LinkWireless.hpp"
 
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED

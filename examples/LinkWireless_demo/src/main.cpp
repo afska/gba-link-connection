@@ -5,7 +5,7 @@
 #include "../../_lib/interrupt.h"
 
 // (0) Include the header
-#include "../../../lib/LinkWireless.h"
+#include "../../../lib/LinkWireless.hpp"
 
 #ifdef PROFILING_ENABLED
 #include <regex>

@@ -56,8 +56,8 @@
 
 #include <tonc_core.h>
 #include <string>
-#include "LinkGPIO.h"
-#include "LinkSPI.h"
+#include "LinkGPIO.hpp"
+#include "LinkSPI.hpp"
 
 // #include <functional>
 
@@ -840,7 +840,6 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_END_HOST: {
         // EndHost (end)
-
         break;
       }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
@@ -854,7 +853,6 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // ReceiveData (end)
-
         if (asyncCommand.result.responsesSize == 0)
           break;
 

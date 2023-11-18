@@ -6,7 +6,7 @@
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
-#include "../../../lib/LinkCable.h"
+#include "../../../lib/LinkCable.hpp"
 
 void log(std::string text);
 

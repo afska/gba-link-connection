@@ -1,6 +1,6 @@
 #include <tonc.h>
-#include "../../../lib/LinkCable.h"
-#include "../../../lib/LinkUniversal.h"
+#include "../../../lib/LinkCable.hpp"
+#include "../../../lib/LinkUniversal.hpp"
 
 // #define USE_LINK_UNIVERSAL
 

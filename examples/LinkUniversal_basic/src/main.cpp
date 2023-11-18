@@ -6,7 +6,7 @@
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
-#include "../../../lib/LinkUniversal.h"
+#include "../../../lib/LinkUniversal.hpp"
 
 void log(std::string text);
 void waitFor(u16 key);
