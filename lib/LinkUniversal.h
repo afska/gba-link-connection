@@ -288,6 +288,9 @@ class LinkUniversal {
       linkWireless->_onACKTimer();
   }
 
+  LinkCable* linkCable;
+  LinkWireless* linkWireless;
+
  private:
   struct Config {
     Protocol protocol;
@@ -295,8 +298,6 @@ class LinkUniversal {
   };
 
   LinkCable::U16Queue incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
-  LinkCable* linkCable;
-  LinkWireless* linkWireless;
   Config config;
   State state = INITIALIZING;
   Mode mode = LINK_CABLE;

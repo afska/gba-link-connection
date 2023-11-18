@@ -99,11 +99,29 @@ int main() {
 
     output +=
         "A: Test packet loss\nB: Test packet sync\nL: Measure ping latency\nR: "
-        "Measure ping-pong latency\n\nSTART : Add lag\nSELECT : Reset ";
+        "Measure ping-pong latency\n\nLEFT: t=100\nRIGHT: t=25\nDOWN: "
+        "t=200\nUP: t=10\nSTART: Add lag\nSELECT: Reset ";
     log(output);
 
     waitFor(KEY_A | KEY_B | KEY_L | KEY_R);
     u16 initialKeys = ~REG_KEYS & KEY_ANY;
+
+    u32 interval = 50;
+    if (initialKeys & KEY_LEFT)
+      interval = 100;
+    if (initialKeys & KEY_RIGHT)
+      interval = 25;
+    if (initialKeys & KEY_DOWN)
+      interval = 200;
+    if (initialKeys & KEY_UP)
+      interval = 10;
+#ifndef USE_LINK_UNIVERSAL
+    link->config.interval = interval;
+#endif
+#ifdef USE_LINK_UNIVERSAL
+    link->linkCable->config.interval = interval;
+    link->linkWireless->config.interval = interval;
+#endif
 
     link->activate();
 
