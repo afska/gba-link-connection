@@ -7,6 +7,10 @@
 // (0) Include the header
 #include "../../../lib/LinkWireless.h"
 
+#ifdef PROFILING_ENABLED
+#include <regex>
+#endif
+
 #define CHECK_ERRORS(MESSAGE)                                             \
   if ((lastError = linkWireless->getLastError()) ||                       \
       linkWireless->getState() == LinkWireless::State::NEEDS_RESET) {     \
@@ -57,7 +61,7 @@ start:
   linkWireless = new LinkWireless(
       forwarding, retransmission, maxPlayers, LINK_WIRELESS_DEFAULT_TIMEOUT,
       LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
-      LINK_WIRELESS_DEFAULT_SEND_TIMER_ID, asyncACK ? 2 : -1);
+      LINK_WIRELESS_DEFAULT_SEND_TIMER_ID, asyncACK ? 0 : -1);
   // linkWireless->debug = [](std::string str) { log(str); };
 
   if (firstTime) {
@@ -71,8 +75,8 @@ start:
     interrupt_enable(INTR_TIMER3);
 
     // (only required when using async ACK)
-    interrupt_set_handler(INTR_TIMER2, LINK_WIRELESS_ISR_ACK_TIMER);
-    interrupt_enable(INTR_TIMER2);
+    interrupt_set_handler(INTR_TIMER0, LINK_WIRELESS_ISR_ACK_TIMER);
+    interrupt_enable(INTR_TIMER0);
 
     firstTime = false;
   }
@@ -259,14 +263,16 @@ void messageLoop() {
     counters.push_back(1 + i * 10);
 
   bool sending = false;
-  bool packetLossCheck = false;
+  bool altView = false;
   bool switching = false;
 
+#ifndef PROFILING_ENABLED
   u32 lostPackets = 0;
   u32 lastLostPacketPlayerId = 0;
   u32 lastLostPacketExpected = 0;
   u32 lastLostPacketReceived = 0;
   u32 lastLostPacketReceivedPacketId = 0;
+#endif
 
   while (true) {
     CHECK_ERRORS("Error :(")
@@ -309,18 +315,22 @@ void messageLoop() {
         if (message.packetId == LINK_WIRELESS_END)
           break;
 
+#ifndef PROFILING_ENABLED
         u32 expected = counters[message.playerId] + 1;
+#endif
 
         counters[message.playerId] = message.data;
 
+#ifndef PROFILING_ENABLED
         // Check for packet loss
-        if (packetLossCheck && message.data != expected) {
+        if (altView && message.data != expected) {
           lostPackets++;
           lastLostPacketPlayerId = message.playerId;
           lastLostPacketExpected = expected;
           lastLostPacketReceived = message.data;
           lastLostPacketReceivedPacketId = message.packetId;
         }
+#endif
       }
     }
 
@@ -333,13 +343,15 @@ void messageLoop() {
     // Packet loss check setting
     if (!switching && (keys & KEY_UP)) {
       switching = true;
-      packetLossCheck = !packetLossCheck;
-      if (!packetLossCheck) {
+      altView = !altView;
+#ifndef PROFILING_ENABLED
+      if (!altView) {
         lostPackets = 0;
         lastLostPacketPlayerId = 0;
         lastLostPacketExpected = 0;
         lastLostPacketReceived = 0;
       }
+#endif
     }
     if (switching && (!(keys & KEY_UP)))
       switching = false;
@@ -350,7 +362,13 @@ void messageLoop() {
         std::to_string(linkWireless->playerCount()) + " total)" +
         "\n\n(press A to increment counter)\n(hold B to do it "
         "continuously)\n(hold LEFT for double send)\n\nPacket loss check: " +
-        (packetLossCheck ? "ON" : "OFF") + "\n(switch with UP)\n\n";
+        (altView ? "ON" : "OFF") + "\n(switch with UP)\n\n";
+
+#ifdef PROFILING_ENABLED
+    output = std::regex_replace(output, std::regex("Packet loss check"),
+                                "Show latency");
+#endif
+
     for (u32 i = 0; i < linkWireless->playerCount(); i++) {
       output +=
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
@@ -358,7 +376,7 @@ void messageLoop() {
 
     // Debug output
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
-    if (retransmission && !packetLossCheck) {
+    if (retransmission && !altView) {
       output +=
           "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
       output += "\n_nextPndngPkgId: " +
@@ -375,12 +393,25 @@ void messageLoop() {
                   std::to_string(linkWireless->_lastPacketIdFromServer());
       }
     }
-    if (packetLossCheck && lostPackets > 0) {
-      output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
-      output += "_last: (" + std::to_string(lastLostPacketPlayerId) + "->" +
-                std::to_string(lastLostPacketReceivedPacketId) + ") " +
-                std::to_string(lastLostPacketReceived) + " [vs " +
-                std::to_string(lastLostPacketExpected) + "]";
+    if (altView) {
+#ifdef PROFILING_ENABLED
+      output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
+      output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
+      output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);
+      output +=
+          "\n_serialIRQs: " + std::to_string(linkWireless->lastFrameSerialIRQs);
+      output +=
+          "\n_timerIRQs: " + std::to_string(linkWireless->lastFrameTimerIRQs);
+#endif
+#ifndef PROFILING_ENABLED
+      if (lostPackets > 0) {
+        output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
+        output += "_last: (" + std::to_string(lastLostPacketPlayerId) + "->" +
+                  std::to_string(lastLostPacketReceivedPacketId) + ") " +
+                  std::to_string(lastLostPacketReceived) + " [vs " +
+                  std::to_string(lastLostPacketExpected) + "]";
+      }
+#endif
     }
 
     // Print

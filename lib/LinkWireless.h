@@ -140,7 +140,17 @@ const u16 LINK_WIRELESS_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
 
 class LinkWireless {
  public:
-  // std::function<void(std::string str)> debug;
+// std::function<void(std::string str)> debug;
+// #define PROFILING_ENABLED
+#ifdef PROFILING_ENABLED
+  u32 lastVBlankTime;
+  u32 lastSerialTime;
+  u32 lastTimerTime;
+  u32 lastFrameSerialIRQs;
+  u32 lastFrameTimerIRQs;
+  u32 serialIRQCount;
+  u32 timerIRQCount;
+#endif
 
   enum State {
     NEEDS_RESET,
@@ -504,6 +514,10 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
+#ifdef PROFILING_ENABLED
+    u32 start = REG_VCOUNT;
+#endif
+
     if (!isSessionActive()) {
       copyState();
       return;
@@ -517,11 +531,23 @@ class LinkWireless {
     sessionState.pingSent = false;
 
     copyState();
+
+#ifdef PROFILING_ENABLED
+    lastVBlankTime = std::max((int)REG_VCOUNT - (int)start, 0);
+    lastFrameSerialIRQs = serialIRQCount;
+    lastFrameTimerIRQs = timerIRQCount;
+    serialIRQCount = 0;
+    timerIRQCount = 0;
+#endif
   }
 
   void _onSerial() {
     if (!isEnabled)
       return;
+
+#ifdef PROFILING_ENABLED
+    u32 start = REG_VCOUNT;
+#endif
 
     linkSPI->_onSerial(true);
 
@@ -562,11 +588,20 @@ class LinkWireless {
         }
       }
     }
+
+#ifdef PROFILING_ENABLED
+    lastSerialTime = std::max((int)REG_VCOUNT - (int)start, 0);
+    serialIRQCount++;
+#endif
   }
 
   void _onTimer() {
     if (!isEnabled)
       return;
+
+#ifdef PROFILING_ENABLED
+    u32 start = REG_VCOUNT;
+#endif
 
     if (!isSessionActive())
       return;
@@ -579,6 +614,11 @@ class LinkWireless {
 
     if (!asyncCommand.isActive)
       acceptConnectionsOrSendData();
+
+#ifdef PROFILING_ENABLED
+    lastTimerTime = std::max((int)REG_VCOUNT - (int)start, 0);
+    timerIRQCount++;
+#endif
   }
 
   void _onACKTimer() {
