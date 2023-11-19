@@ -31,11 +31,9 @@
 #define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
 #define LINK_GPIO_SET(REG, BIT, DATA) \
   if (DATA)                           \
-    LINK_GPIO_SET_HIGH(REG, BIT);     \
+    REG |= 1 << BIT;                  \
   else                                \
-    LINK_GPIO_SET_LOW(REG, BIT);
-#define LINK_GPIO_SET_HIGH(REG, BIT) REG |= 1 << BIT
-#define LINK_GPIO_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
+    REG &= ~(1 << BIT);
 
 static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v6.0.0";
 
