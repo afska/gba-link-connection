@@ -73,6 +73,9 @@
 // Max client transfer length
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 
+// Use send/receive latch (uncomment to enable)
+// #define USE_SEND_RECEIVE_LATCH
+
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
 #define LINK_WIRELESS_END 0
@@ -730,6 +733,10 @@ class LinkWireless {
     u32 frameRecvCount = 0;
     bool acceptCalled = false;
     bool pingSent = false;
+#ifdef USE_SEND_RECEIVE_LATCH
+    bool sendReceiveLatch = false;
+    bool shouldWaitForServer = false;
+#endif
 
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
@@ -844,20 +851,38 @@ class LinkWireless {
       }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // SendData (end)
+
+#ifdef USE_SEND_RECEIVE_LATCH
+        if (state == CONNECTED)
+          sessionState.shouldWaitForServer = true;
+        sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
+#endif
+#ifndef USE_SEND_RECEIVE_LATCH
         if (state == SERVING) {
           // ReceiveData (start)
           sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
         }
+#endif
 
         break;
       }
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // ReceiveData (end)
+
+#ifdef USE_SEND_RECEIVE_LATCH
+        sessionState.sendReceiveLatch =
+            sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
+#endif
+
         if (asyncCommand.result.responsesSize == 0)
           break;
 
         sessionState.frameRecvCount++;
         sessionState.recvTimeout = 0;
+
+#ifdef USE_SEND_RECEIVE_LATCH
+        sessionState.shouldWaitForServer = false;
+#endif
 
         trackRemoteTimeouts();
         addIncomingMessagesFromData(asyncCommand.result);
@@ -868,10 +893,12 @@ class LinkWireless {
           return;
         }
 
+#ifndef USE_SEND_RECEIVE_LATCH
         if (state == CONNECTED) {
           // SendData (start)
           sendPendingData();
         }
+#endif
 
         break;
       }
@@ -889,7 +916,15 @@ class LinkWireless {
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
-      if (state == CONNECTED) {
+#ifdef USE_SEND_RECEIVE_LATCH
+      bool shouldReceive =
+          !sessionState.sendReceiveLatch || sessionState.shouldWaitForServer;
+#endif
+#ifndef USE_SEND_RECEIVE_LATCH
+      bool shouldReceive = state == CONNECTED;
+#endif
+
+      if (shouldReceive) {
         // ReceiveData (start)
         sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
       } else {
@@ -1254,6 +1289,10 @@ class LinkWireless {
     this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
     this->sessionState.pingSent = false;
+#ifdef USE_SEND_RECEIVE_LATCH
+    this->sessionState.sendReceiveLatch = false;
+    this->sessionState.shouldWaitForServer = false;
+#endif
     this->sessionState.didReceiveLastPacketIdFromServer = false;
     this->sessionState.lastPacketId = 0;
     this->sessionState.lastPacketIdFromServer = 0;
