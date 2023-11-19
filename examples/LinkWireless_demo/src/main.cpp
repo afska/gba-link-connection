@@ -398,10 +398,22 @@ void messageLoop() {
       output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
       output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
       output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);
+      if (asyncACK)
+        output += " | " + std::to_string(linkWireless->lastACKTimerTime);
       output +=
           "\n_serialIRQs: " + std::to_string(linkWireless->lastFrameSerialIRQs);
       output +=
           "\n_timerIRQs: " + std::to_string(linkWireless->lastFrameTimerIRQs);
+      if (asyncACK)
+        output += " | " + std::to_string(linkWireless->lastFrameACKTimerIRQs);
+      output +=
+          "\n_ms: " +
+          std::to_string(linkWireless->toMs(
+              linkWireless->lastVBlankTime +
+              linkWireless->lastSerialTime * linkWireless->lastFrameSerialIRQs +
+              linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs +
+              linkWireless->lastACKTimerTime *
+                  linkWireless->lastFrameACKTimerIRQs));
 #endif
 #ifndef PROFILING_ENABLED
       if (lostPackets > 0) {

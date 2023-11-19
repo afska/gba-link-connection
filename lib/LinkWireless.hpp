@@ -146,13 +146,16 @@ class LinkWireless {
 // std::function<void(std::string str)> debug;
 // #define PROFILING_ENABLED
 #ifdef PROFILING_ENABLED
-  u32 lastVBlankTime;
-  u32 lastSerialTime;
-  u32 lastTimerTime;
-  u32 lastFrameSerialIRQs;
-  u32 lastFrameTimerIRQs;
-  u32 serialIRQCount;
-  u32 timerIRQCount;
+  u32 lastVBlankTime = 0;
+  u32 lastSerialTime = 0;
+  u32 lastTimerTime = 0;
+  u32 lastACKTimerTime = 0;
+  u32 lastFrameSerialIRQs = 0;
+  u32 lastFrameTimerIRQs = 0;
+  u32 lastFrameACKTimerIRQs = 0;
+  u32 serialIRQCount = 0;
+  u32 timerIRQCount = 0;
+  u32 ackTimerIRQCount = 0;
 #endif
 
   enum State {
@@ -518,7 +521,7 @@ class LinkWireless {
       return;
 
 #ifdef PROFILING_ENABLED
-    u32 start = REG_VCOUNT;
+    profileStart();
 #endif
 
     if (!isSessionActive()) {
@@ -536,11 +539,13 @@ class LinkWireless {
     copyState();
 
 #ifdef PROFILING_ENABLED
-    lastVBlankTime = std::max((int)REG_VCOUNT - (int)start, 0);
+    lastVBlankTime = profileStop();
     lastFrameSerialIRQs = serialIRQCount;
     lastFrameTimerIRQs = timerIRQCount;
+    lastFrameACKTimerIRQs = ackTimerIRQCount;
     serialIRQCount = 0;
     timerIRQCount = 0;
+    ackTimerIRQCount = 0;
 #endif
   }
 
@@ -549,7 +554,7 @@ class LinkWireless {
       return;
 
 #ifdef PROFILING_ENABLED
-    u32 start = REG_VCOUNT;
+    profileStart();
 #endif
 
     linkSPI->_onSerial(true);
@@ -593,7 +598,7 @@ class LinkWireless {
     }
 
 #ifdef PROFILING_ENABLED
-    lastSerialTime = std::max((int)REG_VCOUNT - (int)start, 0);
+    lastSerialTime = profileStop();
     serialIRQCount++;
 #endif
   }
@@ -603,7 +608,7 @@ class LinkWireless {
       return;
 
 #ifdef PROFILING_ENABLED
-    u32 start = REG_VCOUNT;
+    profileStart();
 #endif
 
     if (!isSessionActive())
@@ -621,7 +626,7 @@ class LinkWireless {
     copyState();
 
 #ifdef PROFILING_ENABLED
-    lastTimerTime = std::max((int)REG_VCOUNT - (int)start, 0);
+    lastTimerTime = profileStop();
     timerIRQCount++;
 #endif
   }
@@ -641,6 +646,10 @@ class LinkWireless {
       if (linkSPI->_isSIHigh())
         return;
 
+#ifdef PROFILING_ENABLED
+      profileStart();
+#endif
+
       linkSPI->_setSOLow();
       asyncCommand.ackStep = AsyncCommand::ACKStep::READY;
       stopACKTimer();
@@ -651,6 +660,11 @@ class LinkWireless {
         if (asyncCommand.state == AsyncCommand::State::COMPLETED)
           processAsyncCommand();
       }
+
+#ifdef PROFILING_ENABLED
+      lastACKTimerTime = profileStop();
+      ackTimerIRQCount++;
+#endif
     }
   }
 
@@ -1612,6 +1626,33 @@ class LinkWireless {
   u16 lsB32(u32 value) { return value & 0xffff; }
   u8 msB16(u16 value) { return value >> 8; }
   u8 lsB16(u16 value) { return value & 0xff; }
+
+#ifdef PROFILING_ENABLED
+  void profileStart() {
+    REG_TM1CNT_L = 0;
+    REG_TM2CNT_L = 0;
+
+    REG_TM1CNT_H = 0;
+    REG_TM2CNT_H = 0;
+
+    REG_TM2CNT_H = TM_ENABLE | TM_CASCADE;
+    REG_TM1CNT_H = TM_ENABLE | TM_FREQ_1;
+  }
+
+  u32 profileStop() {
+    REG_TM1CNT_H = 0;
+    REG_TM2CNT_H = 0;
+
+    return (REG_TM1CNT_L | (REG_TM2CNT_L << 16));
+  }
+
+ public:
+  u32 toMs(u32 cycles) {
+    // CPU Frequency * time per frame = cycles per frame
+    // 16780000 * (1/60) ~= 279666
+    return (cycles * 1000) / (279666 * 60);
+  }
+#endif
 };
 
 extern LinkWireless* linkWireless;
