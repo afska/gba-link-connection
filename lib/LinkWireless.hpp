@@ -621,7 +621,7 @@ class LinkWireless {
     }
 
     if (!asyncCommand.isActive)
-      acceptConnectionsOrSendData();
+      acceptConnectionsOrTransferData();
 
     copyState();
 
@@ -923,7 +923,7 @@ class LinkWireless {
     copyState();
   }
 
-  void acceptConnectionsOrSendData() {  // (irq only)
+  void acceptConnectionsOrTransferData() {  // (irq only)
     if (state == SERVING && !sessionState.acceptCalled &&
         sessionState.playerCount < config.maxPlayers) {
       // AcceptConnections (start)
@@ -984,10 +984,9 @@ class LinkWireless {
 
     // (add wireless header)
     u32 bytes = (nextCommandDataSize - 1) * 4;
-    nextCommandData[0] =
-        sessionState.currentPlayerId == 0
-            ? bytes
-            : (1 << (3 + sessionState.currentPlayerId * 5)) * bytes;
+    nextCommandData[0] = sessionState.currentPlayerId == 0
+                             ? bytes
+                             : bytes << (3 + sessionState.currentPlayerId * 5);
 
     return lastPacketId;
   }
