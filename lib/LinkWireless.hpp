@@ -219,8 +219,8 @@ class LinkWireless {
     this->config.timeout = timeout;
     this->config.remoteTimeout = remoteTimeout;
     this->config.interval = interval;
-    this->config.sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID;
-    this->config.asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID;
+    this->config.sendTimerId = sendTimerId;
+    this->config.asyncACKTimerId = asyncACKTimerId;
   }
 
   bool isActive() { return isEnabled; }
