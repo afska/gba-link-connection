@@ -5,7 +5,7 @@
 // STRESS:
 // This example can perform multiple stress tests.
 // A) Packet loss test:
-//   - This example sends consecutive values in a two-player setup.
+//   - It sends consecutive values in a two-player setup.
 //   - The units will start running at the same time when both receive a 1.
 //   - When a GBA receives something not equal to previousValue + 1, it hangs.
 //   - It should continue until reaching 65534, with no packet loss.
