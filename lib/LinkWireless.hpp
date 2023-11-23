@@ -524,10 +524,8 @@ class LinkWireless {
     profileStart();
 #endif
 
-    if (!isSessionActive()) {
-      copyState();
+    if (!isSessionActive())
       return;
-    }
 
     if (isConnected() && sessionState.frameRecvCount == 0)
       sessionState.recvTimeout++;
@@ -535,8 +533,6 @@ class LinkWireless {
     sessionState.frameRecvCount = 0;
     sessionState.acceptCalled = false;
     sessionState.pingSent = false;
-
-    copyState();
 
 #ifdef PROFILING_ENABLED
     lastVBlankTime = profileStop();
@@ -622,8 +618,6 @@ class LinkWireless {
 
     if (!asyncCommand.isActive)
       acceptConnectionsOrTransferData();
-
-    copyState();
 
 #ifdef PROFILING_ENABLED
     lastTimerTime = profileStop();
@@ -821,7 +815,6 @@ class LinkWireless {
   u32 nextCommandDataSize = 0;
   volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;
-  volatile bool isPendingClearActive = false;
   Error lastError = NONE;
   volatile bool isEnabled = false;
 
@@ -859,10 +852,10 @@ class LinkWireless {
 
         break;
       }
-      case LINK_WIRELESS_COMMAND_END_HOST: {
-        // EndHost (end)
-        break;
-      }
+      // case LINK_WIRELESS_COMMAND_END_HOST: {
+      //   // EndHost (end)
+      //   break;
+      // }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // SendData (end)
 
@@ -919,8 +912,6 @@ class LinkWireless {
       default: {
       }
     }
-
-    copyState();
   }
 
   void acceptConnectionsOrTransferData() {  // (irq only)
@@ -949,6 +940,7 @@ class LinkWireless {
   }
 
   void sendPendingData() {  // (irq only)
+    copyOutgoingState();
     int lastPacketId = setDataFromOutgoingMessages();
     sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, true);
     clearOutgoingMessagesIfNeeded(lastPacketId);
@@ -1029,6 +1021,7 @@ class LinkWireless {
         sessionState.tmpMessagesToReceive.push(message);
       }
     }
+    copyIncomingState();
   }
 
   bool acceptMessage(Message& message,
@@ -1207,11 +1200,6 @@ class LinkWireless {
                             : LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
   }
 
-  void copyState() {  // (irq only)
-    copyOutgoingState();
-    copyIncomingState();
-  }
-
   void copyOutgoingState() {  // (irq only)
     if (isAddingMessage)
       return;
@@ -1226,11 +1214,6 @@ class LinkWireless {
         message.packetId = newPacketId();
         sessionState.outgoingMessages.push(message);
       }
-    }
-
-    if (isPendingClearActive) {
-      sessionState.outgoingMessages.clear();
-      isPendingClearActive = false;
     }
   }
 
@@ -1320,8 +1303,7 @@ class LinkWireless {
 
     if (!isReadingMessages)
       this->sessionState.incomingMessages.clear();
-
-    isPendingClearActive = true;
+    this->sessionState.outgoingMessages.clear();
   }
 
   void stop() {
