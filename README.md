@@ -184,6 +184,16 @@ You can also change these compile-time constants:
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
 - `USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but reduce overall CPU usage.
 
+Placing critical functions in IWRAM can significantly improve performance due to its faster access speed. If you have available IWRAM, consider using it for the following functions:
+
+- `LINK_WIRELESS_ISR_SERIAL`
+- `LINK_WIRELESS_ISR_TIMER`
+- `LINK_WIRELESS_ISR_ACK_TIMER`
+
+```c++
+#define CODE_IWRAM __attribute__((section(".iwram"), target("arm"), noinline))
+```
+
 ## Methods
 
 - Most of these methods return a boolean, indicating if the action was successful. If not, you can call `getLastError()` to know the reason. Usually, unless it's a trivial error (like buffers being full), the connection with the adapter is reset and the game needs to start again.
