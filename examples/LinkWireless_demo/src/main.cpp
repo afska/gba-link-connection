@@ -366,7 +366,7 @@ void messageLoop() {
 
 #ifdef PROFILING_ENABLED
     output = std::regex_replace(output, std::regex("Packet loss check"),
-                                "Show latency");
+                                "Show profiler");
 #endif
 
     for (u32 i = 0; i < linkWireless->playerCount(); i++) {

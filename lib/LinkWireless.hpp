@@ -9,11 +9,11 @@
 //       LinkWireless* linkWireless = new LinkWireless();
 // - 2) Add the required interrupt service routines: (*)
 //       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_WIRELESS_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_WIRELESS_ISR_SERIAL);
-//       irq_add(II_TIMER3, LINK_WIRELESS_ISR_TIMER);
-//       irq_add(II_TIMER2, LINK_WIRELESS_ISR_ACK_TIMER); // (optional)
-//       // for `LinkWireless::asyncACKTimerId` -------------^
+//       irq_add(II_VBLANK, (void (*)())LINK_WIRELESS_ISR_VBLANK);
+//       irq_add(II_SERIAL, (void (*)())LINK_WIRELESS_ISR_SERIAL);
+//       irq_add(II_TIMER3, (void (*)())LINK_WIRELESS_ISR_TIMER);
+//       irq_add(II_TIMER2, (void (*)())LINK_WIRELESS_ISR_ACK_TIMER); // (*)
+//       // optional, for `LinkWireless::asyncACKTimerId` ----------------^
 // - 3) Initialize the library with:
 //       linkWireless->activate();
 // - 4) Start a server:
@@ -73,8 +73,11 @@
 // Max client transfer length
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 
+// Put Interrupt Service Routines (ISR) in IWRAM (uncomment to enable)
+// #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
+
 // Use send/receive latch (uncomment to enable)
-// #define USE_SEND_RECEIVE_LATCH
+// #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
 
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
@@ -105,6 +108,7 @@
 #define LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH \
   (1 + LINK_WIRELESS_BROADCAST_LENGTH)
 #define LINK_WIRELESS_MAX_TRANSFER_LENGTH 20
+#define LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 22
 #define LINK_WIRELESS_MAX_SERVERS              \
   (LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
    LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH)
@@ -123,6 +127,8 @@
 #define LINK_WIRELESS_COMMAND_SEND_DATA 0x24
 #define LINK_WIRELESS_COMMAND_RECEIVE_DATA 0x26
 #define LINK_WIRELESS_BARRIER asm volatile("" ::: "memory")
+#define LINK_WIRELESS_CODE_IWRAM \
+  __attribute__((section(".iwram"), target("arm"), noinline))
 
 #define LINK_WIRELESS_RESET_IF_NEEDED \
   if (!isEnabled)                     \
@@ -747,7 +753,7 @@ class LinkWireless {
     u32 frameRecvCount = 0;
     bool acceptCalled = false;
     bool pingSent = false;
-#ifdef USE_SEND_RECEIVE_LATCH
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     bool sendReceiveLatch = false;
     bool shouldWaitForServer = false;
 #endif
@@ -800,7 +806,7 @@ class LinkWireless {
     enum ACKStep { READY, WAITING_FOR_HIGH, WAITING_FOR_LOW };
 
     u8 type;
-    u32 parameters[LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH];
+    u32 parameters[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
     u32 responses[LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
     CommandResult result;
     State state;
@@ -817,7 +823,7 @@ class LinkWireless {
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
-  u32 nextCommandData[LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH];
+  u32 nextCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
   u32 nextCommandDataSize = 0;
   volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;
@@ -865,12 +871,12 @@ class LinkWireless {
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // SendData (end)
 
-#ifdef USE_SEND_RECEIVE_LATCH
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         if (state == CONNECTED)
           sessionState.shouldWaitForServer = true;
         sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
 #endif
-#ifndef USE_SEND_RECEIVE_LATCH
+#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         if (state == SERVING) {
           // ReceiveData (start)
           sendCommandAsync(LINK_WIRELESS_COMMAND_RECEIVE_DATA);
@@ -882,7 +888,7 @@ class LinkWireless {
       case LINK_WIRELESS_COMMAND_RECEIVE_DATA: {
         // ReceiveData (end)
 
-#ifdef USE_SEND_RECEIVE_LATCH
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.sendReceiveLatch =
             sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
 #endif
@@ -893,14 +899,14 @@ class LinkWireless {
         sessionState.frameRecvCount++;
         sessionState.recvTimeout = 0;
 
-#ifdef USE_SEND_RECEIVE_LATCH
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.shouldWaitForServer = false;
 #endif
 
         trackRemoteTimeouts();
         addIncomingMessagesFromData(asyncCommand.result);
 
-#ifndef USE_SEND_RECEIVE_LATCH
+#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         if (state == CONNECTED) {
           // SendData (start)
           sendPendingData();
@@ -921,11 +927,11 @@ class LinkWireless {
       sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
       sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
-#ifdef USE_SEND_RECEIVE_LATCH
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive =
           !sessionState.sendReceiveLatch || sessionState.shouldWaitForServer;
 #endif
-#ifndef USE_SEND_RECEIVE_LATCH
+#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive = state == CONNECTED;
 #endif
 
@@ -1285,7 +1291,7 @@ class LinkWireless {
     this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
     this->sessionState.pingSent = false;
-#ifdef USE_SEND_RECEIVE_LATCH
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     this->sessionState.sendReceiveLatch = false;
     this->sessionState.shouldWaitForServer = false;
 #endif
@@ -1642,16 +1648,21 @@ inline void LINK_WIRELESS_ISR_VBLANK() {
   linkWireless->_onVBlank();
 }
 
+#ifndef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 inline void LINK_WIRELESS_ISR_SERIAL() {
   linkWireless->_onSerial();
 }
-
 inline void LINK_WIRELESS_ISR_TIMER() {
   linkWireless->_onTimer();
 }
-
 inline void LINK_WIRELESS_ISR_ACK_TIMER() {
   linkWireless->_onACKTimer();
 }
+#endif
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+void LINK_WIRELESS_ISR_SERIAL();
+void LINK_WIRELESS_ISR_TIMER();
+void LINK_WIRELESS_ISR_ACK_TIMER();
+#endif
 
 #endif  // LINK_WIRELESS_H

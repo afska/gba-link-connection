@@ -54,15 +54,19 @@ sed -i -e "s/#define USE_LINK_UNIVERSAL/\/\/ #define USE_LINK_UNIVERSAL/g" src/m
 cd ..
 
 cd LinkWireless_demo/
+sed -i -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 make rebuild
+sed -i -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 cp LinkWireless_demo.gba ../
 cd ..
 
 cd LinkWireless_demo/
+sed -i -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 sed -i -e "s/\/\/ #define PROFILING_ENABLED/#define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 mv LinkWireless_demo.gba backup.gba
 make rebuild
 cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
 mv backup.gba LinkWireless_demo.gba
+sed -i -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 sed -i -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 cd ..

@@ -12,8 +12,8 @@
 //       irq_add(II_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
 //       irq_add(II_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-//       irq_add(II_TIMER2, LINK_UNIVERSAL_ISR_ACK_TIMER); // (optional)
-//       // for `LinkWireless::asyncACKTimerId` --------------^
+//       irq_add(II_TIMER2, LINK_UNIVERSAL_ISR_ACK_TIMER); // (*)
+//       // optional, for `LinkWireless::asyncACKTimerId` -----^
 // - 3) Initialize the library with:
 //       linkUniversal->activate();
 // - 4) Sync:

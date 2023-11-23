@@ -1,3 +1,6 @@
+#ifndef MAIN_H
+#define MAIN_H
+
 #include <tonc.h>
 #include "../../../lib/LinkCable.hpp"
 #include "../../../lib/LinkUniversal.hpp"
@@ -10,3 +13,5 @@ extern LinkCable* link;
 #ifdef USE_LINK_UNIVERSAL
 extern LinkUniversal* link;
 #endif
+
+#endif  // MAIN_H
