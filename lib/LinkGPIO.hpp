@@ -31,13 +31,11 @@
 #define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
 #define LINK_GPIO_SET(REG, BIT, DATA) \
   if (DATA)                           \
-    LINK_GPIO_SET_HIGH(REG, BIT);     \
+    REG |= 1 << BIT;                  \
   else                                \
-    LINK_GPIO_SET_LOW(REG, BIT);
-#define LINK_GPIO_SET_HIGH(REG, BIT) REG |= 1 << BIT
-#define LINK_GPIO_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
+    REG &= ~(1 << BIT);
 
-static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v5.1.1";
+static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v6.0.0";
 
 const u8 LINK_GPIO_DATA_BITS[] = {2, 3, 1, 0};
 const u8 LINK_GPIO_DIRECTION_BITS[] = {6, 7, 5, 4};
@@ -53,9 +51,6 @@ class LinkGPIO {
   }
 
   void setMode(Pin pin, Direction direction) {
-    if (pin == Pin::SI && Direction::OUTPUT)
-      return;  // (disabled for safety reasons)
-
     LINK_GPIO_SET(REG_RCNT, LINK_GPIO_DIRECTION_BITS[pin],
                   direction == Direction::OUTPUT);
   }

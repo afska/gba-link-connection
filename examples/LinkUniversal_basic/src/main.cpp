@@ -6,7 +6,7 @@
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
-#include "../../../lib/LinkUniversal.h"
+#include "../../../lib/LinkUniversal.hpp"
 
 void log(std::string text);
 void waitFor(u16 key);
@@ -77,9 +77,9 @@ int main() {
         while (linkUniversal->canRead(i))
           data[i] = linkUniversal->read(i) - 1;  // (avoid using 0)
 
-        output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
+        output += std::to_string(data[i]) + (i + 1 == playerCount ? "" : ", ");
       }
-      output += "\n";
+      output += ")\n";
       output += "_keys: " + std::to_string(keys) + "\n";
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {

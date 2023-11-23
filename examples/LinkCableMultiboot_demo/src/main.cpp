@@ -2,9 +2,9 @@
 #include <string>
 #include "../../_lib/interrupt.h"
 
-#include "../../../lib/LinkCable.h"
+#include "../../../lib/LinkCable.hpp"
 // (0) Include the header
-#include "../../../lib/LinkCableMultiboot.h"
+#include "../../../lib/LinkCableMultiboot.hpp"
 
 void log(std::string text);
 
@@ -96,6 +96,7 @@ int main() {
     // Client mode
     // ---
 
+    linkCable->sync();
     linkCable->send(keys + 1);
 
     std::string output = "";
@@ -110,16 +111,14 @@ int main() {
         while (linkCable->canRead(i))
           data[i] = linkCable->read(i) - 1;
 
-        output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
+        output += std::to_string(data[i]) + (i + 1 == playerCount ? "" : ", ");
       }
-      output += "\n";
+      output += ")\n";
       output += "_keys: " + std::to_string(keys) + "\n";
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {
       output += std::string("Waiting... ");
     }
-
-    linkCable->consume();
 
     VBlankIntrWait();
     log(output);

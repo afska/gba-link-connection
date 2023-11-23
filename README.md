@@ -1,13 +1,13 @@
 ﻿# gba-link-connection
 
-A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is providing multiplayer support to homebrew games.
+A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games.
 
-- [👾](#-LinkCable) [LinkCable.h](lib/LinkCable.h): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
-- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.h](lib/LinkCableMultiboot.h): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
-- [🔌](#-LinkGPIO) [LinkGPIO.h](lib/LinkGPIO.h): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
-- [🔗](#-LinkSPI) [LinkSPI.h](lib/LinkSPI.h): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
-- [📻](#-LinkWireless) [LinkWireless.h](lib/LinkWireless.h): Connect up to 5 consoles with the **Wireless Adapter**!
-- [🌎](#-LinkUniversal) [LinkUniversal.h](lib/LinkUniversal.h): Add multiplayer support to you game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
+- [👾](#-LinkCable) [LinkCable.hpp](lib/LinkCable.hpp): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
+- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
+- [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
+- [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
+- [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
+- [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
 
 *(click on the emojis for documentation)*
 
@@ -15,10 +15,11 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 ## Usage
 
-- Include the library you want (e.g. [LinkCable.h](lib/LinkCable.h)) in your game code, and read its comment for instructions.
-- Check out the [examples](examples) folder
+- Include the library you want (e.g. [LinkCable.hpp](lib/LinkCable.hpp)) in your game code, and refer to its comments for instructions.
+- Check out the [examples](examples) folder.
 	* Builds are available in *Releases*.
-	* They can be tested on real GBAs or using emulators (*NO$GBA*, *mGBA*, or *VBA-M*).
+	* They can be tested on real GBAs or using emulators (*mGBA*, *NO$GBA*, or *VBA-M*).
+	* For `LinkCable`/`LinkWireless`/`LinkUniversal` there are stress tests that you can use to tweak your configuration.
 
 ### Makefile actions (for all examples)
 
@@ -32,7 +33,7 @@ make [ clean | build | start | rebuild | restart ]
 
 This is the Link Port mode that games use for multiplayer.
 
-The library uses message queues to send/receive data and transmits when it's possible. As it uses CPU interrupts, the connection is alive even if a console drops a frame or gets stucked in a long iteration loop. After such event, all nodes end up receiving all the pending messages, so a lockstep communication protocol can be used.
+The library uses message queues to send/receive data and transmits when it's possible. As it uses CPU interrupts, the connection is alive even if a console drops a frame or gets stuck in a long iteration loop. After such an event, all nodes end up receiving all the pending messages.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/99154109-1d131980-268c-11eb-86b1-7a728f639e5e.png)
 
@@ -45,11 +46,16 @@ Name | Type | Default | Description
 `baudRate` | **BaudRate** | `BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
-`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between messages *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
+`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 
+You can update these values at any time without creating a new instance:
+- Call `deactivate()`.
+- Mutate the `config` property.
+- Call `activate()`.
+
 You can also change these compile-time constants:
-- `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outcoming messages the queues can store at max). The default value is `30`, which seems fine for most games.
+- `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
 
 ## Methods
 
@@ -61,9 +67,12 @@ Name | Return type | Description
 `isConnected()` | **bool** | Returns `true` if there are at least 2 connected players.
 `playerCount()` | **u8** *(0~4)* | Returns the number of connected players.
 `currentPlayerId()` | **u8** *(0~3)* | Returns the current player id.
-`canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`.
-`read(playerId)` | **u16** | Returns one message from player #`playerId`.
-`consume()` | - | Marks the current data as processed, enabling the library to fetch more.
+`sync()` | - | Call this method every time you need to fetch new data.
+`waitFor(playerId)` | **bool** | Waits for data from player #`playerId`. Returns `true` on success, or `false` on disconnection.
+`waitFor(playerId, cancel)` | **bool** | Like `waitFor(playerId)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
+`canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`. Keep in mind that if this returns `false`, it will keep doing so until you *fetch new data* with `sync()`.
+`read(playerId)` | **u16** | Dequeues and returns the next message from player #`playerId`.
+`peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing it.
 `send(data)` | - | Sends `data` to all connected players.
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
@@ -101,7 +110,7 @@ Name | Return type | Description
 `getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
 `readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
 `writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
-`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, a IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
+`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, an IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
 ⚠️ always set the `SI` terminal to an input!
 
@@ -109,7 +118,7 @@ Name | Return type | Description
 
 *(aka Normal Mode)*
 
-This is GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
+This is the GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
@@ -147,7 +156,7 @@ This is a driver for an accessory that enables wireless games up to 5 players. T
 
 The library, by default, implements a lightweight protocol (on top of the adapter's message system) that sends packet IDs and checksums. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
 
-![photo](https://user-images.githubusercontent.com/1631752/216233248-1f8ee26e-c8c1-418a-ad02-ad7c283dc49f.png)
+https://github.com/afska/gba-link-connection/assets/1631752/7eeafc49-2dfa-4902-aa78-57b391720564
 
 ## Constructor
 
@@ -158,16 +167,23 @@ Name | Type | Default | Description
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
 `maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. The adapter will accept connections after reaching the limit, but the library will ignore them. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
-`timeout` | **u32** | `8` | Number of *frames* without receiving *any* data to reset the connection.
+`timeout` | **u32** | `10` | Number of *frames* without receiving *any* data to reset the connection.
 `remoteTimeout` | **u32** | `10` | Number of *successful transfers* without a message from a client to mark the player as disconnected.
-`interval` | **u16** | `50` | Number of *1024cycles* (61.04μs) ticks between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`.
+`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 `asyncACKTimerId` | **s8** *(0~3 or -1)* | `-1` | GBA Timer to use for ACKs. If you have free timers, use one here to reduce CPU usage.
 
+You can update these values at any time without creating a new instance:
+- Call `deactivate()`.
+- Mutate the `config` property.
+- Call `activate()`.
+
 You can also change these compile-time constants:
-- `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outcoming messages the queues can store at max). The default value is `30`, which seems fine for most games.
+- `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
 - `LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH`: to set the biggest allowed response from the adapter. The default value is `50`, which allows reading all user messages (max receive length is `21`) and -in theory- up to `7` broadcasting servers *(7 values per broadcast * 7 = 49 responses)*. This library was only tested with `4` adapters, so the real maximum is unknown.
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
+- `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions (~3.5KB) in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
+- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but reduce overall CPU usage.
 
 ## Methods
 
@@ -200,9 +216,9 @@ Name | Return type | Description
 
 # 🌎 LinkUniversal
 
-A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and try to connect to other peers, supporting hot swapping cables with adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
+A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and tries to connect to other peers, supporting the hot swapping of cables and adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
 
-https://github.com/afska/gba-link-connection/assets/1631752/b2900110-3b27-4cdb-8ae1-744878d6384b
+https://github.com/afska/gba-link-connection/assets/1631752/d1f49a48-6b17-4954-99d6-d0b7586f5730
 
 ## Constructor
 
@@ -217,9 +233,7 @@ Name | Type | Default | Description
 
 ## Methods
 
-The interface is the same as [👾 LinkCable](#methods), with one exception: instead of calling `consume()` at the end of your game loop, you call `sync()` at the start.
-
-Aditionally, it supports these methods:
+The interface is the same as [👾 LinkCable](#methods). Additionally, it supports these methods:
 
 Name | Return type | Description
 --- | --- | ---

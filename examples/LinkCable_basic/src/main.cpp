@@ -6,7 +6,7 @@
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
-#include "../../../lib/LinkCable.h"
+#include "../../../lib/LinkCable.hpp"
 
 void log(std::string text);
 
@@ -38,7 +38,10 @@ int main() {
     data[i] = 0;
 
   while (true) {
-    // (4) Send/read messages
+    // (4) Sync
+    linkCable->sync();
+
+    // (5) Send/read messages
     u16 keys = ~REG_KEYS & KEY_ANY;
     linkCable->send(keys + 1);  // (avoid using 0)
 
@@ -54,17 +57,14 @@ int main() {
         while (linkCable->canRead(i))
           data[i] = linkCable->read(i) - 1;  // (avoid using 0)
 
-        output += std::to_string(data[i]) + (i + 1 == playerCount ? ")" : ", ");
+        output += std::to_string(data[i]) + (i + 1 == playerCount ? "" : ", ");
       }
-      output += "\n";
+      output += ")\n";
       output += "_keys: " + std::to_string(keys) + "\n";
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {
       output += std::string("Waiting...");
     }
-
-    // (5) Mark the current state copy (front buffer) as consumed
-    linkCable->consume();
 
     VBlankIntrWait();
     log(output);

@@ -39,7 +39,6 @@
 #include <tonc_core.h>
 
 #define LINK_SPI_NO_DATA 0xffffffff
-#define LINK_SPI_SIOCNT_NORMAL 0
 #define LINK_SPI_BIT_CLOCK 0
 #define LINK_SPI_BIT_CLOCK_SPEED 1
 #define LINK_SPI_BIT_SI 2
@@ -49,10 +48,8 @@
 #define LINK_SPI_BIT_IRQ 14
 #define LINK_SPI_BIT_GENERAL_PURPOSE_LOW 14
 #define LINK_SPI_BIT_GENERAL_PURPOSE_HIGH 15
-#define LINK_SPI_SET_HIGH(REG, BIT) REG |= 1 << BIT
-#define LINK_SPI_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v5.1.1";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.0.0";
 
 class LinkSPI {
  public:
@@ -67,9 +64,7 @@ class LinkSPI {
     this->asyncState = IDLE;
     this->asyncData = 0;
 
-    setNormalMode();
-    set32BitPackets();
-    setInterruptsOff();
+    setNormalMode32Bit();
     disableTransfer();
 
     if (mode == SLAVE)
@@ -88,8 +83,6 @@ class LinkSPI {
 
   void deactivate() {
     isEnabled = false;
-    stopTransfer();
-    disableTransfer();
     setGeneralPurposeMode();
 
     mode = SLAVE;
@@ -192,16 +185,16 @@ class LinkSPI {
   bool waitMode = false;
   AsyncState asyncState = IDLE;
   u32 asyncData = 0;
-  bool isEnabled = false;
+  volatile bool isEnabled = false;
 
-  void setNormalMode() {
-    LINK_SPI_SET_LOW(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
-    REG_SIOCNT = LINK_SPI_SIOCNT_NORMAL;
+  void setNormalMode32Bit() {
+    REG_RCNT = REG_RCNT & ~(1 << LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
+    REG_SIOCNT = 1 << LINK_SPI_BIT_LENGTH;
   }
 
   void setGeneralPurposeMode() {
-    LINK_SPI_SET_LOW(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_LOW);
-    LINK_SPI_SET_HIGH(REG_RCNT, LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
+    REG_RCNT = (REG_RCNT & ~(1 << LINK_SPI_BIT_GENERAL_PURPOSE_LOW)) |
+               (1 << LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void setData(u32 data) { REG_SIODATA32 = data; }
@@ -214,7 +207,6 @@ class LinkSPI {
   bool isReady() { return !isBitHigh(LINK_SPI_BIT_START); }
   bool isSlaveReady() { return !_isSIHigh(); }
 
-  void set32BitPackets() { setBitHigh(LINK_SPI_BIT_LENGTH); }
   void setMasterMode() { setBitHigh(LINK_SPI_BIT_CLOCK); }
   void setSlaveMode() { setBitLow(LINK_SPI_BIT_CLOCK); }
   void set256KbpsSpeed() { setBitLow(LINK_SPI_BIT_CLOCK_SPEED); }
@@ -224,8 +216,8 @@ class LinkSPI {
 
   bool isMaster() { return mode != SLAVE; }
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { LINK_SPI_SET_HIGH(REG_SIOCNT, bit); }
-  void setBitLow(u8 bit) { LINK_SPI_SET_LOW(REG_SIOCNT, bit); }
+  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkSPI* linkSPI;

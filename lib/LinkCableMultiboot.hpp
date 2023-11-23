@@ -48,8 +48,6 @@
 #define LINK_CABLE_MULTIBOOT_BIT_MULTIPLAYER 13
 #define LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_LOW 14
 #define LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH 15
-#define LINK_CABLE_MULTIBOOT_SET_HIGH(REG, BIT) REG |= 1 << BIT
-#define LINK_CABLE_MULTIBOOT_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)    \
   do {                                    \
     partialResult = CALL;                 \
@@ -60,7 +58,7 @@
     return error(FAILURE_DURING_HANDSHAKE);
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v5.1.1";
+    "LinkCableMultiboot/v6.0.0";
 
 const u8 LINK_CABLE_MULTIBOOT_CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
 
@@ -125,7 +123,7 @@ class LinkCableMultiboot {
 
   template <typename F>
   PartialResult detectClients(MultiBootParam& multiBootParameters, F cancel) {
-    setMultiplayerMode();
+    setMultiPlayMode();
 
     for (u32 t = 0; t < LINK_CABLE_MULTIBOOT_DETECTION_TRIES; t++) {
       auto responses = exchange(LINK_CABLE_MULTIBOOT_HANDSHAKE, cancel);
@@ -284,19 +282,17 @@ class LinkCableMultiboot {
     return responses;
   }
 
-  void setMultiplayerMode() {
-    LINK_CABLE_MULTIBOOT_SET_LOW(REG_RCNT,
-                                 LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH);
-
-    REG_SIOCNT = LINK_CABLE_MULTIBOOT_SIOCNT_MAX_BAUD_RATE;
-    setBitHigh(LINK_CABLE_MULTIBOOT_BIT_MULTIPLAYER);
+  void setMultiPlayMode() {
+    REG_RCNT = REG_RCNT & ~(1 << LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH);
+    REG_SIOCNT = (1 << LINK_CABLE_MULTIBOOT_BIT_MULTIPLAYER);
+    REG_SIOCNT |= LINK_CABLE_MULTIBOOT_SIOCNT_MAX_BAUD_RATE;
+    REG_SIOMLT_SEND = 0;
   }
 
   void setGeneralPurposeMode() {
-    LINK_CABLE_MULTIBOOT_SET_LOW(REG_RCNT,
-                                 LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_LOW);
-    LINK_CABLE_MULTIBOOT_SET_HIGH(
-        REG_RCNT, LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH);
+    REG_RCNT =
+        (REG_RCNT & ~(1 << LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_LOW)) |
+        (1 << LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void wait(u32 verticalLines) {
@@ -312,8 +308,8 @@ class LinkCableMultiboot {
   }
 
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { LINK_CABLE_MULTIBOOT_SET_HIGH(REG_SIOCNT, bit); }
-  void setBitLow(u8 bit) { LINK_CABLE_MULTIBOOT_SET_LOW(REG_SIOCNT, bit); }
+  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkCableMultiboot* linkCableMultiboot;

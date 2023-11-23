@@ -14,7 +14,10 @@
 //       irq_add(II_TIMER3, LINK_CABLE_ISR_TIMER);
 // - 3) Initialize the library with:
 //       linkCable->activate();
-// - 4) Send/read messages by using:
+// - 4) Sync:
+//       linkUniversal->sync();
+//       // (put this line at the start of your game loop)
+// - 5) Send/read messages by using:
 //       bool isConnected = linkCable->isConnected();
 //       u8 playerCount = linkCable->playerCount();
 //       u8 currentPlayerId = linkCable->currentPlayerId();
@@ -23,9 +26,6 @@
 //         u16 message = linkCable->read(!currentPlayerId);
 //         // ...
 //       }
-// - 5) Mark the current state copy (front buffer) as consumed:
-//       linkCable->consume();
-//       // (put this line at the end of your game loop)
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That can cause packet loss. You might want to use libugba's instead.
@@ -36,10 +36,11 @@
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 
+#include <tonc_bios.h>
 #include <tonc_core.h>
 
 // Buffer size
-#define LINK_CABLE_QUEUE_SIZE 30
+#define LINK_CABLE_QUEUE_SIZE 15
 
 #define LINK_CABLE_MAX_PLAYERS 4
 #define LINK_CABLE_DISCONNECTED 0xFFFF
@@ -59,11 +60,9 @@
 #define LINK_CABLE_BIT_IRQ 14
 #define LINK_CABLE_BIT_GENERAL_PURPOSE_LOW 14
 #define LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH 15
-#define LINK_CABLE_SET_HIGH(REG, BIT) REG |= 1 << BIT
-#define LINK_CABLE_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
 #define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v5.1.1";
+static volatile char LINK_CABLE_VERSION[] = "LinkCable/v6.0.0";
 
 void LINK_CABLE_ISR_VBLANK();
 void LINK_CABLE_ISR_SERIAL();
@@ -102,9 +101,16 @@ class LinkCable {
       return x;
     }
 
+    u16 peek() {
+      if (isEmpty())
+        return LINK_CABLE_NO_DATA;
+
+      return arr[front];
+    }
+
     void clear() {
-      while (!isEmpty())
-        pop();
+      front = count = 0;
+      rear = -1;
     }
 
     int size() { return count; }
@@ -133,46 +139,77 @@ class LinkCable {
   bool isActive() { return isEnabled; }
 
   void activate() {
+    LINK_CABLE_BARRIER;
+    isEnabled = false;
+    LINK_CABLE_BARRIER;
+
     reset();
+    clearIncomingMessages();
+
+    LINK_CABLE_BARRIER;
     isEnabled = true;
+    LINK_CABLE_BARRIER;
   }
 
   void deactivate() {
+    LINK_CABLE_BARRIER;
     isEnabled = false;
-    isStateReady = false;
-    isStateConsumed = false;
-    isResetting = false;
+    LINK_CABLE_BARRIER;
+
     resetState();
     stop();
+    clearIncomingMessages();
   }
 
   bool isConnected() {
-    return $state.playerCount > 1 &&
-           $state.currentPlayerId < $state.playerCount;
+    return state.playerCount > 1 && state.currentPlayerId < state.playerCount;
   }
 
-  u8 playerCount() { return $state.playerCount; }
-  u8 currentPlayerId() { return $state.currentPlayerId; }
+  u8 playerCount() { return state.playerCount; }
+  u8 currentPlayerId() { return state.currentPlayerId; }
+
+  void sync() {
+    if (!isEnabled)
+      return;
+
+    LINK_CABLE_BARRIER;
+    isReadingMessages = true;
+    LINK_CABLE_BARRIER;
+
+    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
+      move(_state.pendingMessages[i], state.incomingMessages[i]);
+
+    LINK_CABLE_BARRIER;
+    isReadingMessages = false;
+    LINK_CABLE_BARRIER;
+
+    if (!isConnected())
+      clearIncomingMessages();
+  }
+
+  bool waitFor(u8 playerId) {
+    return waitFor(playerId, []() { return false; });
+  }
+
+  template <typename F>
+  bool waitFor(u8 playerId, F cancel) {
+    sync();
+
+    while (isConnected() && !canRead(playerId) && !cancel()) {
+      IntrWait(1, IRQ_SERIAL | LINK_CABLE_TIMER_IRQ_IDS[config.sendTimerId]);
+      sync();
+    }
+
+    return isConnected() && canRead(playerId);
+  }
 
   bool canRead(u8 playerId) {
-    if (!isStateReady || isStateConsumed)
-      return false;
-
-    LINK_CABLE_BARRIER;
-
-    return !$state.incomingMessages[playerId].isEmpty();
+    return !state.incomingMessages[playerId].isEmpty();
   }
 
-  u16 read(u8 playerId) {
-    if (!isStateReady || isStateConsumed)
-      return LINK_CABLE_NO_DATA;
+  u16 read(u8 playerId) { return state.incomingMessages[playerId].pop(); }
 
-    LINK_CABLE_BARRIER;
-
-    return $state.incomingMessages[playerId].pop();
-  }
-
-  void consume() { isStateConsumed = true; }
+  u16 peek(u8 playerId) { return state.incomingMessages[playerId].peek(); }
 
   void send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
@@ -188,9 +225,9 @@ class LinkCable {
     isAddingMessage = false;
     LINK_CABLE_BARRIER;
 
-    if (isResetting) {
+    if (isAddingWhileResetting) {
       _state.outgoingMessages.clear();
-      isResetting = false;
+      isAddingWhileResetting = false;
     }
   }
 
@@ -210,8 +247,8 @@ class LinkCable {
     if (!isEnabled)
       return;
 
-    if (resetIfNeeded()) {
-      copyState();
+    if (!isReady() || hasError()) {
+      reset();
       return;
     }
 
@@ -224,17 +261,18 @@ class LinkCable {
 
       if (data != LINK_CABLE_DISCONNECTED) {
         if (data != LINK_CABLE_NO_DATA && i != state.currentPlayerId)
-          state.incomingMessages[i].push(data);
+          _state.newMessages[i].push(data);
         newPlayerCount++;
-        _state.timeouts[i] = 0;
-      } else if (_state.timeouts[i] > LINK_CABLE_REMOTE_TIMEOUT_OFFLINE) {
+        setOnline(i);
+      } else if (isOnline(i)) {
         _state.timeouts[i]++;
 
         if (_state.timeouts[i] >= (int)config.remoteTimeout) {
-          state.incomingMessages[i].clear();
-          _state.timeouts[i] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
-        } else
+          _state.newMessages[i].clear();
+          setOffline(i);
+        } else {
           newPlayerCount++;
+        }
       }
     }
 
@@ -255,7 +293,6 @@ class LinkCable {
 
     if (didTimeout()) {
       reset();
-      copyState();
       return;
     }
 
@@ -265,7 +302,6 @@ class LinkCable {
     copyState();
   }
 
- private:
   struct Config {
     BaudRate baudRate;
     u32 timeout;
@@ -274,6 +310,9 @@ class LinkCable {
     u8 sendTimerId;
   };
 
+  Config config;
+
+ private:
   struct ExternalState {
     U16Queue incomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
@@ -282,20 +321,19 @@ class LinkCable {
 
   struct InternalState {
     U16Queue outgoingMessages;
+    U16Queue pendingMessages[LINK_CABLE_MAX_PLAYERS];
+    U16Queue newMessages[LINK_CABLE_MAX_PLAYERS];
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
     u32 IRQTimeout;
   };
 
-  ExternalState state;   // (updated state / back buffer)
-  ExternalState $state;  // (visible state / front buffer)
-  InternalState _state;  // (internal state)
-  Config config;
-  bool isEnabled = false;
-  volatile bool isStateReady = false;
-  volatile bool isStateConsumed = false;
+  ExternalState state;
+  InternalState _state;
+  volatile bool isEnabled = false;
+  volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;
-  volatile bool isResetting = false;
+  volatile bool isAddingWhileResetting = false;
 
   bool isReady() { return isBitHigh(LINK_CABLE_BIT_READY); }
   bool hasError() { return isBitHigh(LINK_CABLE_BIT_ERROR); }
@@ -319,15 +357,6 @@ class LinkCable {
       setBitHigh(LINK_CABLE_BIT_START);
   }
 
-  bool resetIfNeeded() {
-    if (!isReady() || hasError()) {
-      reset();
-      return true;
-    }
-
-    return false;
-  }
-
   void reset() {
     resetState();
     stop();
@@ -337,34 +366,32 @@ class LinkCable {
   void resetState() {
     state.playerCount = 0;
     state.currentPlayerId = 0;
+
+    if (isAddingMessage || isAddingWhileResetting)
+      isAddingWhileResetting = true;
+    else
+      _state.outgoingMessages.clear();
+
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      state.incomingMessages[i].clear();
-      _state.timeouts[i] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
+      if (!isReadingMessages)
+        _state.pendingMessages[i].clear();
+
+      _state.newMessages[i].clear();
+      setOffline(i);
     }
     _state.IRQFlag = false;
     _state.IRQTimeout = 0;
-
-    if (isAddingMessage || isResetting)
-      isResetting = true;
-    else
-      _state.outgoingMessages.clear();
   }
 
   void stop() {
     stopTimer();
-
-    LINK_CABLE_SET_LOW(REG_RCNT, LINK_CABLE_BIT_GENERAL_PURPOSE_LOW);
-    LINK_CABLE_SET_HIGH(REG_RCNT, LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH);
+    setGeneralPurposeMode();
   }
 
   void start() {
     startTimer();
-
-    LINK_CABLE_SET_LOW(REG_RCNT, LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH);
-    REG_SIOCNT = config.baudRate;
-    REG_SIOMLT_SEND = 0;
-    setBitHigh(LINK_CABLE_BIT_MULTIPLAYER);
-    setBitHigh(LINK_CABLE_BIT_IRQ);
+    setMultiPlayMode();
+    setInterruptsOn();
   }
 
   void stopTimer() {
@@ -378,27 +405,53 @@ class LinkCable {
         TM_ENABLE | TM_IRQ | LINK_CABLE_BASE_FREQUENCY;
   }
 
+  void clearIncomingMessages() {
+    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
+      state.incomingMessages[i].clear();
+  }
+
   void copyState() {
-    if (isStateReady && !isStateConsumed)
+    if (isReadingMessages)
       return;
 
-    LINK_CABLE_BARRIER;
-    $state.playerCount = state.playerCount;
-    $state.currentPlayerId = state.currentPlayerId;
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      $state.incomingMessages[i].clear();
-      while (!state.incomingMessages[i].isEmpty())
-        $state.incomingMessages[i].push(state.incomingMessages[i].pop());
+      if (isOnline(i))
+        move(_state.newMessages[i], _state.pendingMessages[i]);
+      else
+        _state.pendingMessages[i].clear();
     }
-    LINK_CABLE_BARRIER;
-    isStateReady = true;
-    isStateConsumed = false;
-    LINK_CABLE_BARRIER;
+  }
+
+  void move(U16Queue& src, U16Queue& dst) {
+    while (!src.isEmpty())
+      dst.push(src.pop());
+  }
+
+  bool isOnline(u8 playerId) {
+    return _state.timeouts[playerId] != LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
+  }
+  void setOnline(u8 playerId) { _state.timeouts[playerId] = 0; }
+  void setOffline(u8 playerId) {
+    _state.timeouts[playerId] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
+  }
+
+  void setInterruptsOn() { setBitHigh(LINK_CABLE_BIT_IRQ); }
+
+  void setMultiPlayMode() {
+    REG_RCNT = REG_RCNT & ~(1 << LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH);
+    REG_SIOCNT = (1 << LINK_CABLE_BIT_MULTIPLAYER);
+    REG_SIOCNT |= config.baudRate;
+    REG_SIOMLT_SEND = 0;
+  }
+
+  void setGeneralPurposeMode() {
+    REG_RCNT = (REG_RCNT & ~(1 << LINK_CABLE_BIT_GENERAL_PURPOSE_LOW)) |
+               (1 << LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH);
   }
 
   bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { LINK_CABLE_SET_HIGH(REG_SIOCNT, bit); }
-  void setBitLow(u8 bit) { LINK_CABLE_SET_LOW(REG_SIOCNT, bit); }
+  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkCable* linkCable;
