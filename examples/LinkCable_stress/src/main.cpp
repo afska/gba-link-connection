@@ -79,8 +79,8 @@ void init() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-  interrupt_set_handler(INTR_TIMER2, LINK_UNIVERSAL_ISR_ACK_TIMER);
-  interrupt_enable(INTR_TIMER2);
+  interrupt_set_handler(INTR_TIMER0, LINK_UNIVERSAL_ISR_ACK_TIMER);
+  interrupt_enable(INTR_TIMER0);
 #endif
 }
 
