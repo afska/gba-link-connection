@@ -530,6 +530,18 @@ class LinkWireless {
     if (isConnected() && sessionState.frameRecvCount == 0)
       sessionState.recvTimeout++;
 
+    if (sessionState.recvTimeout >= config.timeout) {
+      reset();
+      lastError = TIMEOUT;
+      return;
+    }
+
+    if (!checkRemoteTimeouts()) {
+      reset();
+      lastError = REMOTE_TIMEOUT;
+      return;
+    }
+
     sessionState.frameRecvCount = 0;
     sessionState.acceptCalled = false;
     sessionState.pingSent = false;
@@ -609,12 +621,6 @@ class LinkWireless {
 
     if (!isSessionActive())
       return;
-
-    if (sessionState.recvTimeout >= config.timeout) {
-      reset();
-      lastError = TIMEOUT;
-      return;
-    }
 
     if (!asyncCommand.isActive)
       acceptConnectionsOrTransferData();
@@ -893,12 +899,6 @@ class LinkWireless {
 
         trackRemoteTimeouts();
         addIncomingMessagesFromData(asyncCommand.result);
-
-        if (!checkRemoteTimeouts()) {
-          reset();
-          lastError = REMOTE_TIMEOUT;
-          return;
-        }
 
 #ifndef USE_SEND_RECEIVE_LATCH
         if (state == CONNECTED) {
