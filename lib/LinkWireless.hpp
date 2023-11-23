@@ -9,11 +9,11 @@
 //       LinkWireless* linkWireless = new LinkWireless();
 // - 2) Add the required interrupt service routines: (*)
 //       irq_init(NULL);
-//       irq_add(II_VBLANK, (void (*)())LINK_WIRELESS_ISR_VBLANK);
-//       irq_add(II_SERIAL, (void (*)())LINK_WIRELESS_ISR_SERIAL);
-//       irq_add(II_TIMER3, (void (*)())LINK_WIRELESS_ISR_TIMER);
-//       irq_add(II_TIMER2, (void (*)())LINK_WIRELESS_ISR_ACK_TIMER); // (*)
-//       // optional, for `LinkWireless::asyncACKTimerId` ----------------^
+//       irq_add(II_VBLANK, LINK_WIRELESS_ISR_VBLANK);
+//       irq_add(II_SERIAL, LINK_WIRELESS_ISR_SERIAL);
+//       irq_add(II_TIMER3, LINK_WIRELESS_ISR_TIMER);
+//       irq_add(II_TIMER2, LINK_WIRELESS_ISR_ACK_TIMER); // --v
+//       // optional, for `LinkWireless::asyncACKTimerId` -----^
 // - 3) Initialize the library with:
 //       linkWireless->activate();
 // - 4) Start a server:
@@ -129,6 +129,7 @@
 #define LINK_WIRELESS_BARRIER asm volatile("" ::: "memory")
 #define LINK_WIRELESS_CODE_IWRAM \
   __attribute__((section(".iwram"), target("arm"), noinline))
+#define LINK_WIRELESS_ALWAYS_INLINE inline __attribute__((always_inline))
 
 #define LINK_WIRELESS_RESET_IF_NEEDED \
   if (!isEnabled)                     \
@@ -563,7 +564,18 @@ class LinkWireless {
 #endif
   }
 
-  void _onSerial() {
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+  void _onSerial();
+  void _onTimer();
+  void _onACKTimer();
+#endif
+#ifndef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+  void _onSerial() { __onSerial(); }
+  void _onTimer() { __onTimer(); }
+  void _onACKTimer() { __onACKTimer(); }
+#endif
+
+  LINK_WIRELESS_ALWAYS_INLINE void __onSerial() {
     if (!isEnabled)
       return;
 
@@ -617,7 +629,7 @@ class LinkWireless {
 #endif
   }
 
-  void _onTimer() {
+  LINK_WIRELESS_ALWAYS_INLINE void __onTimer() {
     if (!isEnabled)
       return;
 
@@ -637,7 +649,7 @@ class LinkWireless {
 #endif
   }
 
-  void _onACKTimer() {
+  LINK_WIRELESS_ALWAYS_INLINE void __onACKTimer() {
     if (!isEnabled || !asyncCommand.isActive ||
         asyncCommand.ackStep == AsyncCommand::ACKStep::READY)
       return;
@@ -1648,21 +1660,16 @@ inline void LINK_WIRELESS_ISR_VBLANK() {
   linkWireless->_onVBlank();
 }
 
-#ifndef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 inline void LINK_WIRELESS_ISR_SERIAL() {
   linkWireless->_onSerial();
 }
+
 inline void LINK_WIRELESS_ISR_TIMER() {
   linkWireless->_onTimer();
 }
+
 inline void LINK_WIRELESS_ISR_ACK_TIMER() {
   linkWireless->_onACKTimer();
 }
-#endif
-#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
-void LINK_WIRELESS_ISR_SERIAL();
-void LINK_WIRELESS_ISR_TIMER();
-void LINK_WIRELESS_ISR_ACK_TIMER();
-#endif
 
 #endif  // LINK_WIRELESS_H
