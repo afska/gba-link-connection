@@ -7,12 +7,13 @@
 
 #pragma GCC system_header
 
-#include "background.h"
-#include "text.h"
-
 #include <libgba-sprite-engine/palette/palette_manager.h>
+
 #include <memory>
 #include <string>
+
+#include "background.h"
+#include "text.h"
 
 #define CHAR_OFFSET_INDEX 32
 #define TILE_WIDTH 32

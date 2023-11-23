@@ -15,8 +15,6 @@
 
 #define MEM_OBJ_VRAM_BASE (MEM_VRAM + VRAM_BG_SIZE)
 
-u32 voidPtrToU32(void* ptr);
-
 class AllocatedData {
  public:
   void* pointer() const { return (void*)currentAddress; };

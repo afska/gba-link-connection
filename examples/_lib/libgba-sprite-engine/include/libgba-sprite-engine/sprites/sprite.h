@@ -22,15 +22,12 @@
 #else
 #include <libgba-sprite-engine/gba/tonc_math.h>
 #endif
-#include <libgba-sprite-engine/gbavector.h>
 
 #define COLOR_MODE_16 0
 #define COLOR_MODE_256 1
 #define GFX_MODE 0
 #define MOSAIC_MODE 1
 #define AFFINE_FLAG_NONE_SET_YET 0
-#define HORIZONTAL_FLIP_FLAG 0
-#define VERTICAL_FLIP_FLAG 0
 
 #define FLIP_VERTICAL_CLEAR 0xdfff
 #define FLIP_HORIZONTAL_CLEAR 0xefff
@@ -102,16 +99,12 @@ class Sprite {
   inline void update();
 
   inline void moveTo(int x, int y);
-  inline void moveTo(VECTOR location);
   inline bool collidesWith(Sprite& s2);
 
   inline void flipVertically(bool flip);
   inline void flipHorizontally(bool flip);
 
   inline u32 getTileIndex() { return tileIndex; }
-  inline VECTOR getPos() { return {x, y}; }
-  inline GBAVector getPosAsVector() { return GBAVector(getPos()); }
-  inline VECTOR getCenter() { return {x + w / 2, y + h / 2}; }
   inline int getX() { return x; }
   inline int getY() { return y; }
   inline u32 getWidth() { return w; }
@@ -125,14 +118,7 @@ class Sprite {
   friend class SpriteManager;
 };
 
-inline void Sprite::moveTo(VECTOR location) {
-  moveTo(location.x, location.y);
-}
-
 inline void Sprite::moveTo(int x, int y) {
-  if (x == this->x && y == this->y)
-    return;
-
   this->x = x;
   this->y = y;
 }
@@ -321,7 +307,8 @@ inline void Sprite::buildOam(int tileIndex) {
               (MOSAIC_MODE << 12) | (COLOR_MODE_256 << 13) |
               (this->shape_bits << 14);
   oam.attr1 = (this->x & 0x01FF) | (AFFINE_FLAG_NONE_SET_YET << 9) |
-              (HORIZONTAL_FLIP_FLAG << 12) | (VERTICAL_FLIP_FLAG << 13) |
+              (((oam.attr1 & ATTR1_HFLIP) != 0) << 12) |
+              (((oam.attr1 & ATTR1_VFLIP) != 0) << 13) |
               (this->size_bits << 14);
 
   oam.attr2 = ATTR2_ID(tileIndex) | ATTR2_PRIO(priority) | ATTR2_PALBANK(0);

@@ -76,6 +76,8 @@ void SpriteBuilder<T>::setProperties(T* s) {
     s->makeAnimated(this->beginFrame, this->numberOfFrames,
                     this->animationDelay);
   }
+  s->flipHorizontally(false);
+  s->flipVertically(false);
 }
 
 template <typename T>

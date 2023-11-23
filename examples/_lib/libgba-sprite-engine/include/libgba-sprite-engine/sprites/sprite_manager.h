@@ -18,18 +18,7 @@ class SpriteManager {
   bool initialized;
   std::vector<Sprite*> sprites;
 
-  inline void copyOverSpriteOAMToVRAM() {
-    int i = 0;
-
-    for (auto sprite : this->sprites) {
-      if (sprite->enabled) {
-        sprite->update();
-        oam_mem[i] = sprite->oam;
-      }
-
-      i++;
-    }
-  }
+  void copyOverSpriteOAMToVRAM();
 
   void copyOverImageDataToVRAM(Sprite* s);
   void copyOverImageDataToVRAM();
