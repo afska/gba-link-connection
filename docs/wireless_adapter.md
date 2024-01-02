@@ -384,12 +384,12 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 ⚠️ When the data is concatenated, the **headers** sent to [SendData](#senddata---0x24) are not included, just the raw data. A single header is included as the first value of the response. This header is as follows:
 
-- Bits `0-6`: Received bytes from host
-- Bits `8-12`: Received bytes from client 0
-- Bits `13-17`: Received bytes from client 1
-- Bits `18-22`: Received bytes from client 2
-- Bits `23-27`: Received bytes from client 3
-- The rest of the bits are `0`
+- Bits `0-6`: # of received bytes from host.
+- Bits `8-12`: # of received bytes from client 0.
+- Bits `13-17`: # of received bytes from client 1.
+- Bits `18-22`: # of received bytes from client 2.
+- Bits `23-27`: # of received bytes from client 3.
+- The rest of the bits are `0`.
 
 #### Wait - `0x27`
 
@@ -488,6 +488,6 @@ If you know any extra details about the wireless adapter, get in touch!. For spe
     
 2.  [Games compatible with the wireless adapter](https://en.wikipedia.org/wiki/Game_Boy_Advance_Wireless_Adapter#Compatible_games) [↩︎](#fnref:list_of_games)
     
-3.  [Send me an email if you know more about this](https://blog.kuiper.dev/contact) [↩︎](#fnref:email_me) [↩︎2](#fnref:email_me:1) [↩︎3](#fnref:email_me:2) [↩︎4](#fnref:email_me:3) [↩︎5](#fnref:email_me:4)
+3.  [Send me an email if you know more about this](https://blog.kuiper.dev/contact)
 
 4.  Some interesting data about the RFU adapter can be found in Pokemon Games, see the [FireRed Decompilation](https://github.com/pret/pokefirered/blob/49ea462d7f421e75a76b25d7e85c92494c0a9798/include/librfu.h#L44) for more information.

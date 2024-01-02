@@ -64,9 +64,6 @@
 // Buffer size
 #define LINK_WIRELESS_QUEUE_SIZE 30
 
-// Max command response length
-#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
-
 // Max server transfer length
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
 
@@ -96,6 +93,7 @@
 #define LINK_WIRELESS_TRANSFER_WAIT 15
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT_FRAMES 60
 #define LINK_WIRELESS_CMD_TIMEOUT 100
+#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
 #define LINK_WIRELESS_MAX_GAME_ID 0x7fff
 #define LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
@@ -140,7 +138,7 @@
     if (!reset())                     \
       return false;
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.0";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.1";
 
 void LINK_WIRELESS_ISR_VBLANK();
 void LINK_WIRELESS_ISR_SERIAL();
