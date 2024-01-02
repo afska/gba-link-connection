@@ -65,7 +65,7 @@
 #define LINK_WIRELESS_QUEUE_SIZE 30
 
 // Max command response length
-#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 50
+#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
 
 // Max server transfer length
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
@@ -96,6 +96,7 @@
 #define LINK_WIRELESS_TRANSFER_WAIT 15
 #define LINK_WIRELESS_BROADCAST_SEARCH_WAIT_FRAMES 60
 #define LINK_WIRELESS_CMD_TIMEOUT 100
+#define LINK_WIRELESS_MAX_GAME_ID 0x7fff
 #define LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_WIRELESS_LOGIN_STEPS 9
@@ -201,6 +202,7 @@ class LinkWireless {
 
   struct Server {
     u16 id = 0;
+    u16 gameId;
     std::string gameName;
     std::string userName;
   };
@@ -247,7 +249,9 @@ class LinkWireless {
     stop();
   }
 
-  bool serve(std::string gameName = "", std::string userName = "") {
+  bool serve(std::string gameName = "",
+             std::string userName = "",
+             u16 gameId = LINK_WIRELESS_MAX_GAME_ID) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
       lastError = WRONG_STATE;
@@ -264,7 +268,8 @@ class LinkWireless {
     gameName.append(LINK_WIRELESS_MAX_GAME_NAME_LENGTH - gameName.length(), 0);
     userName.append(LINK_WIRELESS_MAX_USER_NAME_LENGTH - userName.length(), 0);
 
-    addData(buildU32(buildU16(gameName[1], gameName[0]), buildU16(0x02, 0x02)),
+    addData(buildU32(buildU16(gameName[1], gameName[0]),
+                     gameId & LINK_WIRELESS_MAX_GAME_ID),
             true);
     addData(buildU32(buildU16(gameName[5], gameName[4]),
                      buildU16(gameName[3], gameName[2])));
@@ -364,6 +369,7 @@ class LinkWireless {
 
       Server server;
       server.id = (u16)result.responses[start];
+      server.gameId = result.responses[start + 1] & LINK_WIRELESS_MAX_GAME_ID;
       recoverName(server.gameName, result.responses[start + 1], false);
       recoverName(server.gameName, result.responses[start + 2]);
       recoverName(server.gameName, result.responses[start + 3]);

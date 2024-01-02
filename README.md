@@ -180,7 +180,6 @@ You can update these values at any time without creating a new instance:
 
 You can also change these compile-time constants:
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
-- `LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH`: to set the biggest allowed response from the adapter. The default value is `50`, which allows reading all user messages (max receive length is `21`) and -in theory- up to `7` broadcasting servers *(7 values per broadcast * 7 = 49 responses)*. This library was only tested with `4` adapters, so the real maximum is unknown.
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions (~3.5KB) in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
 - `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but reduce overall CPU usage.
@@ -197,7 +196,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`. It can also be used to disconnect or reset the adapter.
 `deactivate()` | - | Deactivates the library.
-`serve([gameName], [userName])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters) and `userName` (max `8` characters) that games will be able to read.
+`serve([gameName], [userName], [gameId])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameId` *(0 ~ 0x7FFF)*, a `gameName` (max `14` characters) and a `userName` (max `8` characters) that games will be able to read.
 `getServers(servers, [onWait])` | **bool** | Fills the `servers` array with all the currently broadcasting servers. This action takes 1 second to complete, but you can optionally provide an `onWait()` function which will be invoked each time VBlank starts.
 `getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
 `getServersAsyncEnd(servers)` | **bool** | Fills the `servers` array with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
