@@ -1,13 +1,8 @@
 Game Boy Advance Wireless Adapter
 -------------------------------------------------
 
-- 🌎 *(October 14, 2022)* **Original post**: https://blog.kuiper.dev/gba-wireless-adapter 🌎
-- ✏️ *(February 2, 2023)* **Update**: Notes starting with "⚠️" are comments from me ([@afska](https://github.com/afska)) and not part of Corwin's original post.
-- ✏️ **Updates** *from October 10, 2023*: [@davidgfnet](https://github.com/davidgfnet) and I were discovering new things and we added them here!
-
-Some people may be aware that I have played around with the GBA wireless adapter, indeed I’ve made one that works over the internet but unstably. The reason that I hadn’t made this post earlier is because I wanted to make it stable before releasing the code and writing it up. Alas, I haven’t had much motivation to continue, which is a shame given I got so close.
-
-This is the first post of a planned two. In this first post I will be talking about how the wireless adapter works, and in the second I will talk about specifically how I did all this. The short version of that second post is using the PIO on Pi Picos.
+- 🌎 **Original post**: https://blog.kuiper.dev/gba-wireless-adapter 🌎
+- ✏️ **Updates**: [@davidgfnet](https://github.com/davidgfnet) and I were discovering new things and we added them here!
 
 The Wireless Adapter
 ====================
@@ -189,7 +184,7 @@ Commands are how you tell the adapter to do things. When in command mode the clo
     
     The adapter responds with a command, the length is the number of 32 bit values and the command type is always what you send + `0x80`. In this case the length is zero and the command is `0x17` + `0x80` = `0x97`.
     
-    ⚠️ When you send invalid commands or a one you're not supposed to send in the current state (like sending a `0x1d` before a `0x1c`), the adapter responds `0x996601ee`. I guess that if you read the next word (as the response size is `01`), it gives you an error code.
+    * ⚠️ When you send invalid commands or a one you're not supposed to send in the current state (like sending a `0x1d` before a `0x1c`), the adapter responds `0x996601ee`. If you read the next word (as the response size is `01`), it gives you an error code (`2` when using an invalid command, `1` when using a valid command in an invalid state, or `0`).
 
 *   Response
     
@@ -206,9 +201,9 @@ Commands are how you tell the adapter to do things. When in command mode the clo
     5.  The GBA goes low when it’s ready.
     6.  The GBA starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
 
-⚠️ If this acknowledge procedure doesn't complete, the adapter "gives up" after ~800μs and start listening again for commands. That means that if a game doesn't implement this logic, it has to wait almost 1 millisecond between transfers (vs ~40μs in normal scenarios).
+⌛ If this acknowledge procedure doesn't complete, the adapter "gives up" after ~800μs and start listening again for commands. That means that if a game doesn't implement this logic, it has to wait almost 1 millisecond between transfers (vs ~40μs in normal scenarios).
 
-⚠️ Also, the ACK protocol is different after a [Wait](#waiting) command:
+🔀 Also, the ACK protocol is different after a [Wait](#waiting) command:
 
     1.  The GBA goes high as soon as it can.
     2.  The adapter goes high.
@@ -220,13 +215,23 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 ### List of commands
 
-#### FinishInitialisation - `0x10` and `0x3d`
+#### Hello - `0x10`
 
 [![Image without alt text or caption](img/0x10.png)](img/0x10.png)
 
 *   Send length: 0, Response length: 0
     
 *   First thing to be called after finishing the initialisation sequence.
+
+#### Setup - `0x17`
+
+[![Image without alt text or caption](img/0x17.png)](img/0x17.png)
+
+*   Send length: 1, response length: 0
+    
+*   Games set this. It seems to setup the adapter's configuration.
+
+Both Pokemon games and the multiboot ROM that the adapter sends when no cartridge is inserted use `0x003C0420`.
 
 #### Broadcast - `0x16`
 
@@ -236,11 +241,13 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   The data to be broadcast out to all adapters. Examples of use include the union room, broadcasting game name and username in download play, and the username in direct multiplayer in Pokémon.
 
-⚠️ This is the command used to start a server. The 6 parameters are the ASCII characters of the game and user name, plus some bytes indicating whether the server should appear in the Download Play list or not. Here's a byte by byte explanation:
+💻 This is the first command used to start a server. The 6 parameters are the ASCII characters of the game and user name, plus some bytes indicating whether the server should appear in the Download Play list or not. Here's a byte by byte explanation:
 
 [![Image without alt text or caption](img/broadcast.png)](img/broadcast.png)
 
 (if you read from right to left, it says `ICE CLIMBER` - `NINTENDO`)
+
+🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection.
 
 #### StartHost - `0x19`
 
@@ -250,52 +257,37 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 #### EndHost - `0x1b`
 
-*   Send length: 0, response length: ~~0~~ ⚠️ 2+
+*   Send length: 0, response length: 2+
     
-*   This command stops host broadcast, ~~disconnects (how?) all clients and allows the adapter to potentially connect as a client to another host~~.
-
-⚠️ This allows to "close" the session and stop allowing new clients, but also keeping the existing connections alive. Sends and Receives still work, but:
-
-- Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
-- Calls to `AcceptConnections` on the host side will fail.
+*   This command stops host broadcast. This allows to "close" the session and stop allowing new clients, but also **keeping the existing connections alive**. Sends and Receives still work, but:
+    - Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
+    - Calls to `AcceptConnections` on the host side will fail.
     
-#### BroadcastRead - `0x1d` and `0x1e` (⚠️ and `0x1c`)
+#### BroadcastRead - `0x1d`, `0x1e` and `0x1c`
 
 [![Image without alt text or caption](img/0x1d.png)](img/0x1d.png)
 
 *   Send length: 0, response length: 7 \* number of broadcasts
     
-*   All currently broadcasting devices are returned here along with an ID at the start of each. I’m not sure how unique IDs are.
-*   IDs I’ve observed have been 16 bits.
+*   All currently broadcasting devices are returned here along with an ID at the start of each.
+*   IDs have 16 bits.
 
-⚠️ IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
+🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
 
-⚠️ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
+✅ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
 
-⚠️ Although games wait 1 full second, small waits (like ~160ms) also work.
+⌚ Although games wait 1 full second, small waits (like ~160ms) also work.
 
-⚠️ If a client sends a `0x1c` and then starts a `0x1d` loop (1 command per frame), and a console that was broadcasting is turned off, it disappears after 3 seconds.
+⏳ If a client sends a `0x1c` and then starts a `0x1d` loop (1 command per frame), and a console that was broadcasting is turned off, it disappears after 3 seconds.
 
-#### Setup - `0x17`
-
-[![Image without alt text or caption](img/0x17.png)](img/0x17.png)
-
-*   Send length: 1, response length: 0
-    
-*   Games set this. Not sure what affect this has[3](#i-know-more), Pokemon uses `0x003C0420`.
-
-⚠️ The multiboot ROM that the adapter sends when no cartridge is inserted also uses `0x003C0420`. It doesn't seem related to Pokemon.
-
-#### ~~IsConnectAttempt~~ AcceptConnections - `0x1a`
+#### AcceptConnections - `0x1a`
 
 *   Send length: 0, response length: 0+
     
-*   Responds with the ID of the adapter that wants to connect, or the length of the response is zero if no adapter wants to connect.
-*   Don’t know if multiple IDs can be included here[3](#i-know-more). ⚠️ Yes! It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsFinishedConnect](#isfinishedconnect---0x20)) and the least significant byte is the ID.
+*   Accepts new connections and returns a list with the connected adapters. The length of the response is zero if there are no connected adapters.
+*   It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsFinishedConnect](#isfinishedconnect---0x20)) and the least significant byte is the ID.
 
-⚠️ I would rename this command to `AcceptConnections`. When acting as a host, games frequently call this method. Though this doesn't really **accepts** new connections (the adapter does it regardless of whether you call this command or not), it returns a list with all the connected adapter IDs, and it's important for keeping the server (and other clients) informed about who's connected.
-
-⚠️ If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
+🔗 If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
 
 #### Connect - `0x1f`
 
@@ -303,8 +295,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 *   Send length: 1, response length: 0
     
-*   Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1d-and-0x1e-%EF%B8%8F-and-0x1c).
-    
+*   Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1d-0x1e-and-0x1c).
 
 #### IsFinishedConnect - `0x20`
 
@@ -314,7 +305,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     
 *   Responds with 16 bit ID as lower 16 bits if finished, otherwise responds with `0x01000000`.
     
-⚠️ It also responds in its bits 16 and 17 a number that represents the `clientNumber` (0 to 3). Lets say our ID is `abcd`, it will respond `0x0000abcd` if we are the first client that connects to that server, `0x0001abcd` if we are the second one, `0x0002abcd` third, and `0x0003abcd` fourth. Games allow 5 simultaneous adapters at max.
+👆 It also responds in its bits 16 and 17 a number that represents the `clientNumber` (0 to 3). Lets say our ID is `abcd`, it will respond `0x0000abcd` if we are the first client that connects to that server, `0x0001abcd` if we are the second one, `0x0002abcd` third, and `0x0003abcd` fourth. Games allow 5 simultaneous adapters at max.
 
 #### FinishConnection - `0x21`
 
@@ -322,8 +313,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 *   Send length: 0, response length: 1
     
-*   Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the same ID as in that response ⚠️ (and zeros in its high 16 bits, like `0x0000abcd`)
-    
+*   Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the same ID as in that response (and zeros in its high 16 bits, like `0x0000abcd`)
 
 #### SendData - `0x24`
 
@@ -340,16 +330,16 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
   * The third client should send: `0x100000`, `0xaabbccdd`
   * The fourth client should send: `0x2000000`, `0xaabbccdd`
 
-⚠️ Each `SendData` can send up to:
-- **Host:** 90 bytes (or 22 values)
+🔝 Each `SendData` can send up to:
+- **Host:** 87 bytes (or 21.75 values)
 - **Clients:** 16 bytes (or 4 values)
 - *(the header doesn't count)*
 
-⚠️ Any non-multiple of 4 byte count will send LSB bytes first. For example, a host sending `0x00000003`, `0xaabbccdd` will result in bytes `0xbb`, `0xcc` and `0xdd` being received by clients (the clients will receive `0x00bbccdd`).
+🗂️ Any non-multiple of 4 byte count will send LSB bytes first. For example, a host sending `0x00000003`, `0xaabbccdd` will result in bytes `0xbb`, `0xcc` and `0xdd` being received by clients (the clients will receive `0x00bbccdd`).
 
-⚠️ Note that when having more than 2 connected adapters, data is not transferred between different clients. If a client wants to tell something to another client, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other client.
+🤝 Note that when having more than 2 connected adapters, data is not transferred between different clients. If a client wants to tell something to another client, it has to talk first with the host with `SendData`, and then the host needs to relay that information to the other client.
 
-⚠️ Internally, data is only sent when **the host** calls `SendData`:
+👑 Internally, data is only sent when **the host** calls `SendData`:
 - The send/receive buffer size is 1 packet, so calling `SendData` multiple times on either side (before the other side calls `ReceiveData`) will result in data loss.
 - Clients only **schedule** the data transfer, but they don't do it until the host sends something. This is problematic because the command overrides previously scheduled transfers, so calling `SendData` multiple times on the client side before the host calls `SendData` would also result in data loss. I believe this is why most games use `SendDataWait` on the client side.
 - Here's an example of this behavior:
@@ -370,7 +360,7 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
     - **Host**: `ReceiveData`
         - Receives `{rcvHeader}`, 20
 
-⚠️ This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet.
+🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet.
 
 #### SendDataWait - `0x25`
 
@@ -390,9 +380,16 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 *   Responds with all the data from all adapters. No IDs are included, this is just what was sent concatenated together.
 *   Once data has been pulled out, it clears the data buffer, so calling this again can only get new data.
 
-⚠️ The data is only concatenated on the host side, and its order is based on the `clientNumber`. It doesn't matter who called `SendData` first.
+🧩 The data is only concatenated on the host side, and its order is based on the `clientNumber`. It doesn't matter who called `SendData` first.
 
-⚠️ When the data is concatenated, the **headers** sent to [SendData](#senddata---0x24) are not included, just the raw data. A single header is included as the first value of the response. I didn't spend too much time analyzing the form of ReceiveData's header. I imagine it's a bitfield indicating the amount of data that was concatenated for each player.
+⚠️ When the data is concatenated, the **headers** sent to [SendData](#senddata---0x24) are not included, just the raw data. A single header is included as the first value of the response. This header is as follows:
+
+- Bits `0-6`: Received bytes from host
+- Bits `8-12`: Received bytes from client 0
+- Bits `13-17`: Received bytes from client 1
+- Bits `18-22`: Received bytes from client 2
+- Bits `23-27`: Received bytes from client 3
+- The rest of the bits are `0`
 
 #### Wait - `0x27`
 
@@ -407,19 +404,19 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 [![Image without alt text or caption](img/0x30.png)](img/0x30.png)
 
 *   Send length 1, reponse length: 0
-    
-*   This is very important, is the end of every connection I’ve seen.
-*   ~~Appears to reset the adapter in some way:~~
-    *   ~~Disconnects~~
-    *   ~~Stops broadcasting~~
-    *   ~~Clears buffers?~~
-    
-⚠️ This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `AcceptConnection` calls and its `clientNumber` will be liberated, so other peers can connect.
+        
+*   This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `AcceptConnection` calls and its `clientNumber` will be liberated, so other peers can connect.
 
-⚠️ The clients also are able to disconnect themselves using this command, but they can only send its corresponding bit or `0xF`, other bits are ignored (they cannot disconnect other clients). Also, the host won't know if a client disconnects itself, so this feature is not very useful:
+⚡ The clients also are able to disconnect themselves using this command, but they can only send its corresponding bit or `0xF`, other bits are ignored (they cannot disconnect other clients). Also, the host won't know if a client disconnects itself, so this feature is not very useful:
   * The host still needs to monitor clients to ensure they are still alive (ie. through some PING like mechanism) and disconnect them if they are not, to allow new clients to connect. [4](#pokered)
 
-### List of commands that I don’t quite know the meaning of [3](#i-know-more)
+#### Bye - `0x3d`
+
+*   Send length: 0, Response length: 0
+    
+*   This sets the adapter in a low power mode. Games use it when the player exits the multiplayer mode.
+
+### Other commands
 
 #### SignalLevel - `0x11`
 
@@ -427,34 +424,38 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 *   Send length: 0, response length: 1
     
-*   I think this is signal level of the adapters.
-*   I generally set this to `0xFF`.
-*   If my theory is correct then up to 3 bytes could be included each referring to the signal strength of the potentially connected 3 devices.
+*   This returns the signal level of the other adapters from `0` to `0xFF` (`0` means disconnected).
+*   The levels are returned in a single value, the first byte being the signal level of client 0, and the last byte being the signal level of client 3.
+*   When called from a client, it only returns the signal level of that client in its corresponding byte. The rest of the bytes will be `0`.
 
-#### ⚠️ VersionStatus - `0x12`
-*   Send length: 0, Response length: 1
-
-⚠️ It always returns `8585495` (decimal).
-
-#### ⚠️ SystemStatus - `0x13`
+#### VersionStatus - `0x12`
 
 *   Send length: 0, Response length: 1
 
-⚠️ Returns some information about the current connection and device state. The returned word contains the device ID in the lower 16 bits (or zero if the device is not connected nor hosting). For clients, it contains the `clientNumber` (0 to 3) in bits 17 and 16. For a host, bit 24 is set.
+*   In my adapter, it always returns `8585495` (decimal). It contains the hardware and firmware version of the adapter.
+
+#### SystemStatus - `0x13`
+
+*   Send length: 0, Response length: 1
+
+*   Returns some information about the current connection and device state. The returned word contains the device ID in the lower 16 bits (or zero if the device is not connected nor hosting). For clients, it contains the `clientNumber` (0 to 3) in bits 17 and 16. For a host, bit 24 is set, but this could be more complex.
     
-#### ⚠️ SlotStatus - `0x14`
+#### SlotStatus - `0x14`
 
-⚠️ Seems to be the same as `AcceptConnections` (returns a list of connected devices) but might have different implications (perhaps it doesn't actually accept new connections but only list existing ones?). The differences I found so far are:
-- `SlotStatus` has an extra word at the start of the response, indicating the number of connected clients.
-- `SlotStatus` can be called after `EndHost`, while `AcceptConnections` fails.
+*   Send length: 0, Response length: 1+
 
-#### ⚠️ ConfigStatus - `0x15`
+*   It's returns a list of the connected adapters, similar to what `AcceptConnections` responds, but also:
+
+    - `SlotStatus` has an extra word at the start of the response, indicating the `clientNumber` that the next connection will have (or `0xFF` if there are already 4 connected clients).
+    - `SlotStatus` can be called after `EndHost`, while `AcceptConnections` fails.
+
+#### ConfigStatus - `0x15`
 
 *   Send length: 0, Response length: 7 (as client), or 8 (as host)
 
-⚠️
-- As client, returns: `0, 0, 0, 0, 0, 0, 257`.
-- As host, returns: `1, 2, 3, 4, 5, 6, 3933216, 257`.
+🤔 In my tests...
+- As client, it returned: `0, 0, 0, 0, 0, 0, 257`.
+- As host, it returned: `1, 2, 3, 4, 5, 6, 3933216, 257`.
   * `1, 2, 3, 4, 5, 6` would be the broadcast data.
   * `3933216` and `257` are fixed values. No idea what this means.
 
@@ -469,19 +470,19 @@ Waiting
 *   The GBA then sends the response back, `0x996600A8` as `0x28` + `0x80` = `0xA8`.
 *   After this, control of the clock returns to the GBA, and it can start sending commands back again. For example this might be receiving the command sent by the other device using [ReceiveData](#receivedata---0x26).
 
-⚠️ This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027` instead of `0x99660028`, having the same effect and switching things back to normal.
+This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027` instead of `0x99660028`, having the same effect and switching things back to normal.
 
 SPI config
 ----------
 
-⚠️ Here's how SPI works on the GBA:
+Here's how SPI works on the GBA:
 
 [![Image without alt text or caption](img/logic2.png)](img/logic2.png)
 
 I know more!
 ============
 
-If you know any extra details about the wireless adapter, get in touch!. For specific details I’ve left footnotes around if you happen to know that piece of information[3](#i-know-more).
+If you know any extra details about the wireless adapter, get in touch!. For specific details I’ve left footnotes around if you happen to know that piece of information.
 
 1.  Multiboot is what we call a rom that can be booted over link cable. This can be used for something akin to download play software for the DS. [↩︎](#fnref:multiboot)
     
