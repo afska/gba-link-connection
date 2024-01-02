@@ -126,6 +126,7 @@
 #define LINK_WIRELESS_COMMAND_FINISH_CONNECTION 0x21
 #define LINK_WIRELESS_COMMAND_SEND_DATA 0x24
 #define LINK_WIRELESS_COMMAND_RECEIVE_DATA 0x26
+#define LINK_WIRELESS_COMMAND_BYE 0x3d
 #define LINK_WIRELESS_BARRIER asm volatile("" ::: "memory")
 #define LINK_WIRELESS_CODE_IWRAM \
   __attribute__((section(".iwram"), target("arm"), noinline))
@@ -238,6 +239,8 @@ class LinkWireless {
   }
 
   void deactivate() {
+    sendCommand(LINK_WIRELESS_COMMAND_BYE);
+
     lastError = NONE;
     isEnabled = false;
     resetState();
