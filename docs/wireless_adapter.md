@@ -414,7 +414,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Send length: 0, Response length: 0
     
-*   This sets the adapter in a low power mode. Games use it when the player exits the multiplayer mode.
+*   This sets the adapter in a low power mode. Games use it when the player exits the multiplayer mode. To use the adapter again after this command, a new reset/initialization is needed.
 
 ### Other commands
 
