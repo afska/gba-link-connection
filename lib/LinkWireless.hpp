@@ -238,13 +238,15 @@ class LinkWireless {
     return success;
   }
 
-  void deactivate() {
-    sendCommand(LINK_WIRELESS_COMMAND_BYE);
+  bool deactivate() {
+    bool success = sendCommand(LINK_WIRELESS_COMMAND_BYE).success;
 
     lastError = NONE;
     isEnabled = false;
     resetState();
     stop();
+
+    return success;
   }
 
   bool serve(std::string gameName = "",
