@@ -251,9 +251,10 @@ class LinkWireless {
 
   bool serve(std::string gameName = "",
              std::string userName = "",
-             u16 gameId = LINK_WIRELESS_MAX_GAME_ID) {
+             u16 gameId = LINK_WIRELESS_MAX_GAME_ID,
+             bool isUpdate = false) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED) {
+    if (state != AUTHENTICATED && (!isUpdate || state != SERVING)) {
       lastError = WRONG_STATE;
       return false;
     }
@@ -281,8 +282,13 @@ class LinkWireless {
                      buildU16(userName[1], userName[0])));
     addData(buildU32(buildU16(userName[7], userName[6]),
                      buildU16(userName[5], userName[4])));
-    bool success = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, true).success &&
-                   sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
+
+    bool success = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, true).success;
+
+    if (!isUpdate) {
+      success =
+          success && sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
+    }
 
     if (!success) {
       reset();
@@ -513,6 +519,7 @@ class LinkWireless {
     delete linkGPIO;
   }
 
+  bool _hasActiveAsyncCommand() { return asyncCommand.isActive; }
   bool _canSend() { return !sessionState.outgoingMessages.isFull(); }
   u32 _getPendingCount() { return sessionState.outgoingMessages.size(); }
   u32 _lastPacketId() { return sessionState.lastPacketId; }

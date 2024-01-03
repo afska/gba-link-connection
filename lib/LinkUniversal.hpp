@@ -47,6 +47,8 @@
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
+#define LINK_UNIVERSAL_FULL_ROOM_NUMBER 32001
+#define LINK_UNIVERSAL_FULL_ROOM_NUMBER_STR "32001"
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 25
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM 10
@@ -208,6 +210,15 @@ class LinkUniversal {
           }
 
           receiveWirelessMessages();
+
+          if (!linkWireless->_hasActiveAsyncCommand() &&
+              linkWireless->playerCount() == linkWireless->config.maxPlayers &&
+              !didCloseWirelessRoom) {
+            linkWireless->serve(config.gameName,
+                                LINK_UNIVERSAL_FULL_ROOM_NUMBER_STR,
+                                LINK_WIRELESS_MAX_GAME_ID, true);
+            didCloseWirelessRoom = true;
+          }
         }
 
         break;
@@ -305,6 +316,7 @@ class LinkUniversal {
   u32 switchWait = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
+  bool didCloseWirelessRoom = false;
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
@@ -381,12 +393,13 @@ class LinkUniversal {
       if (server.id == LINK_WIRELESS_END)
         break;
 
-      u32 randomNumber = std::stoi(server.userName);
-
-      if (server.gameName == config.gameName &&
-          randomNumber > maxRandomNumber) {
-        maxRandomNumber = randomNumber;
-        serverIndex = i;
+      if (server.gameName == config.gameName) {
+        u32 randomNumber = safeStoi(server.userName);
+        if (randomNumber > maxRandomNumber &&
+            randomNumber < LINK_UNIVERSAL_FULL_ROOM_NUMBER) {
+          maxRandomNumber = randomNumber;
+          serverIndex = i;
+        }
       }
     }
 
@@ -478,6 +491,19 @@ class LinkUniversal {
     serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
       incomingMessages[i].clear();
+    didCloseWirelessRoom = false;
+  }
+
+  u32 safeStoi(const std::string& str) {
+    uint32_t num = 0;
+
+    for (char ch : str) {
+      if (ch < '0' || ch > '9')
+        return 0;
+      num = num * 10 + (ch - '0');
+    }
+
+    return num;
   }
 };
 
