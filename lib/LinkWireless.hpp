@@ -138,7 +138,7 @@
     if (!reset())                     \
       return false;
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.1";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.2";
 
 void LINK_WIRELESS_ISR_VBLANK();
 void LINK_WIRELESS_ISR_SERIAL();

@@ -58,7 +58,7 @@
     return error(FAILURE_DURING_HANDSHAKE);
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v6.0.1";
+    "LinkCableMultiboot/v6.0.2";
 
 const u8 LINK_CABLE_MULTIBOOT_CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
 

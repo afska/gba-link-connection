@@ -249,7 +249,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection.
 
-🔥 This command can be called even when the server has already started with `StartHost`, and the adapter will update the broadcast data. Some games include metadata in the game/user name fields, such as the player's gender or a busy flag.
+🔥 This command can be called to update the broadcast data even when the server has already started using `StartHost`. Some games include metadata in the game/user name fields, such as the player's gender or a busy flag.
 
 #### StartHost - `0x19`
 
