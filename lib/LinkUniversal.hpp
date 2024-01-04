@@ -213,12 +213,12 @@ class LinkUniversal {
 
           receiveWirelessMessages();
 
-          if (!linkWireless->_hasActiveAsyncCommand() &&
+          if (linkWireless->getState() == LinkWireless::State::SERVING &&
+              !didCloseWirelessRoom &&
               linkWireless->playerCount() == linkWireless->config.maxPlayers &&
-              !didCloseWirelessRoom) {
+              !linkWireless->_hasActiveAsyncCommand()) {
             linkWireless->serve(config.gameName,
-                                LINK_UNIVERSAL_FULL_ROOM_NUMBER_STR,
-                                LINK_WIRELESS_MAX_GAME_ID, true);
+                                LINK_UNIVERSAL_FULL_ROOM_NUMBER_STR);
             didCloseWirelessRoom = true;
           }
         }

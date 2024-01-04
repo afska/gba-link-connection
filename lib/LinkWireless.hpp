@@ -252,10 +252,9 @@ class LinkWireless {
 
   bool serve(std::string gameName = "",
              std::string userName = "",
-             u16 gameId = LINK_WIRELESS_MAX_GAME_ID,
-             bool isUpdate = false) {
+             u16 gameId = LINK_WIRELESS_MAX_GAME_ID) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED && (!isUpdate || state != SERVING)) {
+    if (state != AUTHENTICATED && state != SERVING) {
       lastError = WRONG_STATE;
       return false;
     }
@@ -286,7 +285,7 @@ class LinkWireless {
 
     bool success = sendCommand(LINK_WIRELESS_COMMAND_BROADCAST, true).success;
 
-    if (!isUpdate) {
+    if (state != SERVING) {
       success =
           success && sendCommand(LINK_WIRELESS_COMMAND_START_HOST).success;
     }
