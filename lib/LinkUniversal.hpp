@@ -48,8 +48,6 @@
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
-#define LINK_UNIVERSAL_FULL_ROOM_NUMBER 32001
-#define LINK_UNIVERSAL_FULL_ROOM_NUMBER_STR "32001"
 #define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 25
 #define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM 10
@@ -57,7 +55,7 @@
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.0.2";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.0.3";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
 void LINK_UNIVERSAL_ISR_SERIAL();
@@ -212,15 +210,6 @@ class LinkUniversal {
           }
 
           receiveWirelessMessages();
-
-          if (linkWireless->getState() == LinkWireless::State::SERVING &&
-              !didCloseWirelessRoom &&
-              linkWireless->playerCount() == linkWireless->config.maxPlayers &&
-              !linkWireless->_hasActiveAsyncCommand()) {
-            linkWireless->serve(config.gameName,
-                                LINK_UNIVERSAL_FULL_ROOM_NUMBER_STR);
-            didCloseWirelessRoom = true;
-          }
         }
 
         break;
@@ -318,7 +307,6 @@ class LinkUniversal {
   u32 switchWait = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
-  bool didCloseWirelessRoom = false;
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
@@ -395,10 +383,10 @@ class LinkUniversal {
       if (server.id == LINK_WIRELESS_END)
         break;
 
-      if (server.gameName == config.gameName) {
+      if (!server.isFull() && server.gameName == config.gameName) {
         u32 randomNumber = safeStoi(server.userName);
         if (randomNumber > maxRandomNumber &&
-            randomNumber < LINK_UNIVERSAL_FULL_ROOM_NUMBER) {
+            randomNumber < LINK_UNIVERSAL_MAX_ROOM_NUMBER) {
           maxRandomNumber = randomNumber;
           serverIndex = i;
         }
@@ -493,7 +481,6 @@ class LinkUniversal {
     serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
       incomingMessages[i].clear();
-    didCloseWirelessRoom = false;
   }
 
   u32 safeStoi(const std::string& str) {

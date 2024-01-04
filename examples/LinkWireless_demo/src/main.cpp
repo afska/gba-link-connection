@@ -203,8 +203,13 @@ void connect() {
       if (server.id == LINK_WIRELESS_END)
         break;
 
-      str += std::to_string(server.id) + " (" + std::to_string(server.gameId) +
-             ")\n";
+      str +=
+          std::to_string(server.id) +
+          (server.isFull() ? " [full]"
+                           : " [" + std::to_string(server.currentPlayerCount) +
+                                 " online]") +
+          "\n";
+      str += " -> gameID: " + std::to_string(server.gameId) + "\n";
       if (server.gameName.length() > 0)
         str += " -> game: " + server.gameName + "\n";
       if (server.userName.length() > 0)

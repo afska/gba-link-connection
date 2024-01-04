@@ -103,6 +103,7 @@
 #define LINK_WIRELESS_RESPONSE_ACK 0x80
 #define LINK_WIRELESS_DATA_REQUEST 0x80000000
 #define LINK_WIRELESS_SETUP_MAGIC 0x003c0420
+#define LINK_WIRELESS_SETUP_MAX_PLAYERS_BIT 16
 #define LINK_WIRELESS_STILL_CONNECTING 0x01000000
 #define LINK_WIRELESS_BROADCAST_LENGTH 6
 #define LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH \
@@ -117,7 +118,6 @@
 #define LINK_WIRELESS_COMMAND_BROADCAST 0x16
 #define LINK_WIRELESS_COMMAND_START_HOST 0x19
 #define LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
-#define LINK_WIRELESS_COMMAND_END_HOST 0x1b
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_POLL 0x1d
 #define LINK_WIRELESS_COMMAND_BROADCAST_READ_END 0x1e
@@ -139,7 +139,7 @@
     if (!reset())                     \
       return false;
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.2";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.3";
 
 void LINK_WIRELESS_ISR_VBLANK();
 void LINK_WIRELESS_ISR_SERIAL();
@@ -204,6 +204,9 @@ class LinkWireless {
     u16 gameId;
     std::string gameName;
     std::string userName;
+    u8 currentPlayerCount;
+
+    bool isFull() { return currentPlayerCount == 0; }
   };
 
   explicit LinkWireless(
@@ -268,6 +271,9 @@ class LinkWireless {
     }
     gameName.append(LINK_WIRELESS_MAX_GAME_NAME_LENGTH - gameName.length(), 0);
     userName.append(LINK_WIRELESS_MAX_USER_NAME_LENGTH - userName.length(), 0);
+
+    if (state != SERVING)
+      setup(config.maxPlayers);
 
     addData(buildU32(buildU16(gameName[1], gameName[0]),
                      gameId & LINK_WIRELESS_MAX_GAME_ID),
@@ -382,6 +388,9 @@ class LinkWireless {
       recoverName(server.gameName, result.responses[start + 4]);
       recoverName(server.userName, result.responses[start + 5]);
       recoverName(server.userName, result.responses[start + 6]);
+      u8 connectedClients = (result.responses[start] >> 16) & 0xff;
+      server.currentPlayerCount =
+          connectedClients == 0xff ? 0 : (1 + connectedClients);
 
       servers[i] = server;
     }
@@ -881,22 +890,11 @@ class LinkWireless {
     switch (asyncCommand.type) {
       case LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS: {
         // AcceptConnections (end)
-        u8 oldPlayerCount = sessionState.playerCount;
         sessionState.playerCount =
             min(1 + asyncCommand.result.responsesSize, config.maxPlayers);
 
-        if (sessionState.playerCount > oldPlayerCount &&
-            sessionState.playerCount == config.maxPlayers) {
-          // EndHost (start)
-          sendCommandAsync(LINK_WIRELESS_COMMAND_END_HOST);
-        }
-
         break;
       }
-      // case LINK_WIRELESS_COMMAND_END_HOST: {
-      //   // EndHost (end)
-      //   break;
-      // }
       case LINK_WIRELESS_COMMAND_SEND_DATA: {
         // SendData (end)
 
@@ -1363,8 +1361,7 @@ class LinkWireless {
     if (!sendCommand(LINK_WIRELESS_COMMAND_HELLO).success)
       return false;
 
-    addData(LINK_WIRELESS_SETUP_MAGIC, true);
-    if (!sendCommand(LINK_WIRELESS_COMMAND_SETUP, true).success)
+    if (!setup())
       return false;
 
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
@@ -1421,6 +1418,14 @@ class LinkWireless {
     memory.previousAdapterData = expectedResponse;
 
     return true;
+  }
+
+  bool setup(u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS) {
+    addData(LINK_WIRELESS_SETUP_MAGIC |
+                (((LINK_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
+                 << LINK_WIRELESS_SETUP_MAX_PLAYERS_BIT),
+            true);
+    return sendCommand(LINK_WIRELESS_COMMAND_SETUP, true).success;
   }
 
   CommandResult sendCommand(u8 type, bool withData = false) {
