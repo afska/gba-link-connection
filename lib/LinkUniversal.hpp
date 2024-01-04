@@ -40,6 +40,7 @@
 
 #include <tonc_bios.h>
 #include <tonc_core.h>
+#include <tonc_math.h>
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
@@ -101,7 +102,7 @@ class LinkUniversal {
               LINK_CABLE_DEFAULT_REMOTE_TIMEOUT, LINK_CABLE_DEFAULT_INTERVAL,
               LINK_CABLE_DEFAULT_SEND_TIMER_ID},
       WirelessOptions wirelessOptions = WirelessOptions{
-          true, LINK_WIRELESS_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
+          true, LINK_UNIVERSAL_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
           LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
           LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
           LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID}) {
@@ -109,7 +110,8 @@ class LinkUniversal {
         cableOptions.baudRate, cableOptions.timeout, cableOptions.remoteTimeout,
         cableOptions.interval, cableOptions.sendTimerId);
     this->linkWireless = new LinkWireless(
-        wirelessOptions.retransmission, true, wirelessOptions.maxPlayers,
+        wirelessOptions.retransmission, true,
+        min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
         wirelessOptions.timeout, wirelessOptions.remoteTimeout,
         wirelessOptions.interval, wirelessOptions.sendTimerId,
         wirelessOptions.asyncACKTimerId);

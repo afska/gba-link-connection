@@ -55,6 +55,7 @@
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
+#include <tonc_math.h>
 #include <string>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
@@ -882,7 +883,8 @@ class LinkWireless {
       case LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS: {
         // AcceptConnections (end)
         u8 oldPlayerCount = sessionState.playerCount;
-        sessionState.playerCount = 1 + asyncCommand.result.responsesSize;
+        sessionState.playerCount =
+            min(1 + asyncCommand.result.responsesSize, config.maxPlayers);
 
         if (sessionState.playerCount > oldPlayerCount &&
             sessionState.playerCount == config.maxPlayers) {
