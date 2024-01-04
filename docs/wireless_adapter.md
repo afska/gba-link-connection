@@ -233,6 +233,14 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 Both Pokemon games and the multiboot ROM that the adapter sends when no cartridge is inserted use `0x003C0420`.
 
+🔝 For a game, the most important bits are bits `16-17` (let's call this `maxPlayers`), which specify the maximum number of allowed players:
+- `00`: 5 players (1 host and 4 clients)
+- `01`: 4 players
+- `10`: 3 players
+- `11`: 2 players
+
+⚠️ Clients must always set `maxPlayers` to `00`.
+
 #### Broadcast - `0x16`
 
 [![Image without alt text or caption](img/0x16.png)](img/0x16.png)
@@ -265,14 +273,22 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
     - Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
     - Calls to `AcceptConnections` on the host side will fail.
     
-#### BroadcastRead - `0x1d`, `0x1e` and `0x1c`
+#### BroadcastRead - `0x1c`, `0x1d` and `0x1e`
 
 [![Image without alt text or caption](img/0x1d.png)](img/0x1d.png)
 
-*   Send length: 0, response length: 7 \* number of broadcasts
+*   Send length: 0, response length: 7 \* number of broadcasts (maximum: 4)
     
-*   All currently broadcasting devices are returned here along with an ID at the start of each.
-*   IDs have 16 bits.
+*   All currently broadcasting devices are returned here along with a word of **metadata** (the metadata word first, then 6 words with broadcast data).
+*   The metadata contains:
+    * First 2 bytes: Server ID. IDs have 16 bits.
+    * 3rd byte: Available slots. This can be used to check whether a player can join a room or not.
+      * `0b00`: No one is connected yet (just the host).
+      * `0b01`: There is 1 connected client, and there's room for more.
+      * `0b10`: There are 2 connected clients, and there's room for more.
+      * `0b11`: There are 3 connected clients, and there's room for more.
+      * `0xff`: The server is full. The number of connected players is unknown, as it depends on `maxPlayers` (see [Setup](#setup---0x17)).
+    * 4th byte: Zero.
 
 🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
 
@@ -297,7 +313,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Send length: 1, response length: 0
     
-*   Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1d-0x1e-and-0x1c).
+*   Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1c-0x1d-and-0x1e).
 
 #### IsFinishedConnect - `0x20`
 
