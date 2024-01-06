@@ -27,6 +27,7 @@ void connect();
 void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
+void wait(u32 verticalLines);
 void hang();
 
 LinkWireless::Error lastError;
@@ -432,6 +433,10 @@ void messageLoop() {
 #endif
     }
 
+    // Test lag
+    if (keys & KEY_DOWN)
+      wait(9000);
+
     // Print
     VBlankIntrWait();
     log(output);
@@ -449,6 +454,18 @@ void waitFor(u16 key) {
   do {
     keys = ~REG_KEYS & KEY_ANY;
   } while (!(keys & key));
+}
+
+void wait(u32 verticalLines) {
+  u32 count = 0;
+  u32 vCount = REG_VCOUNT;
+
+  while (count < verticalLines) {
+    if (REG_VCOUNT != vCount) {
+      count += max((int)REG_VCOUNT - (int)vCount, 0);
+      vCount = REG_VCOUNT;
+    }
+  };
 }
 
 void hang() {
