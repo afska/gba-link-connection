@@ -37,7 +37,7 @@
 // - 6) Send data:
 //       linkWireless->send(0x1234);
 // - 7) Receive data:
-//       LinkWireless::Message messages[LINK_WIRELESS_MAX_TRANSFER_LENGTH];
+//       LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
 //       linkWireless->receive(messages);
 //       if (messages[0].packetId != LINK_WIRELESS_END) {
 //         // ...

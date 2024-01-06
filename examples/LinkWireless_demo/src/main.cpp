@@ -314,10 +314,10 @@ void messageLoop() {
       sending = false;
 
     // (7) Receive data
-    LinkWireless::Message messages[LINK_WIRELESS_MAX_TRANSFER_LENGTH];
+    LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
     linkWireless->receive(messages);
     if (messages[0].packetId != LINK_WIRELESS_END) {
-      for (u32 i = 0; i < LINK_WIRELESS_MAX_TRANSFER_LENGTH; i++) {
+      for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
         auto message = messages[i];
         if (message.packetId == LINK_WIRELESS_END)
           break;

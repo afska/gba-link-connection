@@ -317,10 +317,10 @@ class LinkUniversal {
   }
 
   void receiveWirelessMessages() {
-    LinkWireless::Message messages[LINK_WIRELESS_MAX_TRANSFER_LENGTH];
+    LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
     linkWireless->receive(messages);
 
-    for (u32 i = 0; i < LINK_WIRELESS_MAX_TRANSFER_LENGTH; i++) {
+    for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
       auto message = messages[i];
       if (message.packetId == LINK_WIRELESS_END)
         break;
