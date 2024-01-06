@@ -462,7 +462,7 @@ void wait(u32 verticalLines) {
 
   while (count < verticalLines) {
     if (REG_VCOUNT != vCount) {
-      count += max((int)REG_VCOUNT - (int)vCount, 0);
+      count++;
       vCount = REG_VCOUNT;
     }
   };

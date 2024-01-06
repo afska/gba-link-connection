@@ -1612,7 +1612,7 @@ class LinkWireless {
 
   bool timeout(u32 limit, u32& lines, u32& vCount) {
     if (REG_VCOUNT != vCount) {
-      lines += std::max((int)REG_VCOUNT - (int)vCount, 0);
+      lines += max((int)REG_VCOUNT - (int)vCount, 0);
       vCount = REG_VCOUNT;
     }
 
@@ -1625,7 +1625,7 @@ class LinkWireless {
 
     while (count < verticalLines) {
       if (REG_VCOUNT != vCount) {
-        count += std::max((int)REG_VCOUNT - (int)vCount, 0);
+        count++;
         vCount = REG_VCOUNT;
       }
     };
