@@ -485,6 +485,11 @@ class LinkWireless {
     isAddingMessage = false;
     LINK_WIRELESS_BARRIER;
 
+    if (isPendingClearActive) {
+      sessionState.tmpMessagesToSend.clear();
+      isPendingClearActive = false;
+    }
+
     return true;
   }
 
@@ -864,6 +869,7 @@ class LinkWireless {
   u32 nextCommandDataSize = 0;
   volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;
+  volatile bool isPendingClearActive = false;
   Error lastError = NONE;
   volatile bool isEnabled = false;
 
@@ -1238,15 +1244,12 @@ class LinkWireless {
       return;
 
     while (!sessionState.tmpMessagesToSend.isEmpty()) {
-      if (isSessionActive() && !_canSend())
+      if (!_canSend())
         break;
 
       auto message = sessionState.tmpMessagesToSend.pop();
-
-      if (isSessionActive()) {
-        message.packetId = newPacketId();
-        sessionState.outgoingMessages.push(message);
-      }
+      message.packetId = newPacketId();
+      sessionState.outgoingMessages.push(message);
     }
   }
 
@@ -1256,9 +1259,7 @@ class LinkWireless {
 
     while (!sessionState.tmpMessagesToReceive.isEmpty()) {
       auto message = sessionState.tmpMessagesToReceive.pop();
-
-      if (state == SERVING || state == CONNECTED)
-        sessionState.incomingMessages.push(message);
+      sessionState.incomingMessages.push(message);
     }
   }
 
@@ -1337,6 +1338,12 @@ class LinkWireless {
     if (!isReadingMessages)
       this->sessionState.incomingMessages.clear();
     this->sessionState.outgoingMessages.clear();
+
+    this->sessionState.tmpMessagesToReceive.clear();
+    if (!isAddingMessage)
+      this->sessionState.tmpMessagesToSend.clear();
+    else
+      isPendingClearActive = true;
   }
 
   void stop() {
