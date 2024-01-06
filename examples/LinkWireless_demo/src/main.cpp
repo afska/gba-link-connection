@@ -199,7 +199,7 @@ void connect() {
     return;
   } else {
     std::string str = "Press START to connect\n(first ID will be used)\n\n";
-    for (u32 i = 0; i < LINK_WIRELESS_MAX_SERVERS; i++) {
+    for (u32 i = 0; i < 3; i++) {
       auto server = servers[i];
       if (server.id == LINK_WIRELESS_END)
         break;
@@ -425,7 +425,7 @@ void messageLoop() {
 #ifndef PROFILING_ENABLED
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
-        output += "_last: (" + std::to_string(lastLostPacketPlayerId) + "->" +
+        output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ":" +
                   std::to_string(lastLostPacketReceivedPacketId) + ") " +
                   std::to_string(lastLostPacketReceived) + " [vs " +
                   std::to_string(lastLostPacketExpected) + "]";
