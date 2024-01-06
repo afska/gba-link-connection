@@ -31,8 +31,10 @@ cp LinkSPI_demo.gba ../
 cd ..
 
 cd LinkUniversal_basic/
+sed -i -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 make rebuild
 cp LinkUniversal_basic.gba ../
+sed -i -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 cd ..
 
 cd LinkCable_full/

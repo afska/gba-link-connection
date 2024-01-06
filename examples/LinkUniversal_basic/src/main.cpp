@@ -21,10 +21,10 @@ void init() {
 int main() {
   init();
 
-  log("Press A to start\n\n\n\n\n\n\n\n\nhold LEFT on start:\n -> force "
+  log("Press A to start\n\n\n\n\nhold LEFT on start:\n -> force "
       "cable\n\nhold RIGHT on start:\n -> force wireless\n\nhold UP on "
       "start:\n -> force wireless server\n\nhold DOWN on start:\n -> force "
-      "wireless client");
+      "wireless client\n\nhold B on start:\n -> set 2 players (wireless)");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
@@ -37,9 +37,25 @@ int main() {
       : forceWirelessServer ? LinkUniversal::Protocol::WIRELESS_SERVER
       : forceWirelessClient ? LinkUniversal::Protocol::WIRELESS_CLIENT
                             : LinkUniversal::Protocol::AUTODETECT;
+  u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_UNIVERSAL_MAX_PLAYERS;
 
   // (1) Create a LinkUniversal instance
-  linkUniversal = new LinkUniversal(protocol);
+  linkUniversal = new LinkUniversal(
+      protocol, "LinkUNI",
+      (LinkUniversal::CableOptions){
+          .baudRate = LinkCable::BAUD_RATE_1,
+          .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
+          .remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
+          .interval = LINK_CABLE_DEFAULT_INTERVAL,
+          .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
+      (LinkUniversal::WirelessOptions){
+          .retransmission = true,
+          .maxPlayers = maxPlayers,
+          .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
+          .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
+          .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
+          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
+          .asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID});
 
   // (2) Add the required interrupt service routines
   interrupt_init();

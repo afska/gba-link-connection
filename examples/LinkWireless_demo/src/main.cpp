@@ -27,6 +27,7 @@ void connect();
 void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
+void wait(u32 verticalLines);
 void hang();
 
 LinkWireless::Error lastError;
@@ -198,13 +199,18 @@ void connect() {
     return;
   } else {
     std::string str = "Press START to connect\n(first ID will be used)\n\n";
-    for (u32 i = 0; i < LINK_WIRELESS_MAX_SERVERS; i++) {
+    for (u32 i = 0; i < 3; i++) {
       auto server = servers[i];
       if (server.id == LINK_WIRELESS_END)
         break;
 
-      str += std::to_string(server.id) + " (" + std::to_string(server.gameId) +
-             ")\n";
+      str +=
+          std::to_string(server.id) +
+          (server.isFull() ? " [full]"
+                           : " [" + std::to_string(server.currentPlayerCount) +
+                                 " online]") +
+          "\n";
+      str += " -> gameID: " + std::to_string(server.gameId) + "\n";
       if (server.gameName.length() > 0)
         str += " -> game: " + server.gameName + "\n";
       if (server.userName.length() > 0)
@@ -308,10 +314,10 @@ void messageLoop() {
       sending = false;
 
     // (7) Receive data
-    LinkWireless::Message messages[LINK_WIRELESS_MAX_TRANSFER_LENGTH];
+    LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
     linkWireless->receive(messages);
     if (messages[0].packetId != LINK_WIRELESS_END) {
-      for (u32 i = 0; i < LINK_WIRELESS_MAX_TRANSFER_LENGTH; i++) {
+      for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
         auto message = messages[i];
         if (message.packetId == LINK_WIRELESS_END)
           break;
@@ -419,13 +425,17 @@ void messageLoop() {
 #ifndef PROFILING_ENABLED
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
-        output += "_last: (" + std::to_string(lastLostPacketPlayerId) + "->" +
+        output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ":" +
                   std::to_string(lastLostPacketReceivedPacketId) + ") " +
                   std::to_string(lastLostPacketReceived) + " [vs " +
                   std::to_string(lastLostPacketExpected) + "]";
       }
 #endif
     }
+
+    // Test lag
+    if (keys & KEY_DOWN)
+      wait(9000);
 
     // Print
     VBlankIntrWait();
@@ -444,6 +454,18 @@ void waitFor(u16 key) {
   do {
     keys = ~REG_KEYS & KEY_ANY;
   } while (!(keys & key));
+}
+
+void wait(u32 verticalLines) {
+  u32 count = 0;
+  u32 vCount = REG_VCOUNT;
+
+  while (count < verticalLines) {
+    if (REG_VCOUNT != vCount) {
+      count++;
+      vCount = REG_VCOUNT;
+    }
+  };
 }
 
 void hang() {
