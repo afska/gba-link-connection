@@ -31,7 +31,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - don't send 0xFFFF, it's a reserved value that means <disconnected client>
-// - only transfer if isReady()
+// - only transfer(...) if isReady()
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
@@ -140,10 +140,10 @@ class LinkRawCable {
     return data;
   }
 
-  AsyncState getAsyncState() { return asyncState; }
-
+  BaudRate getBaudRate() { return baudRate; }
   bool isMaster() { return !isBitHigh(LINK_RAW_CABLE_BIT_SLAVE); }
   bool isReady() { return isBitHigh(LINK_RAW_CABLE_BIT_READY); }
+  AsyncState getAsyncState() { return asyncState; }
 
   void _onSerial() {
     if (!isEnabled || asyncState != WAITING)
