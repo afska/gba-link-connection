@@ -43,7 +43,7 @@
 #define LINK_CABLE_QUEUE_SIZE 15
 
 #define LINK_CABLE_MAX_PLAYERS 4
-#define LINK_CABLE_DISCONNECTED 0xFFFF
+#define LINK_CABLE_DISCONNECTED 0xffff
 #define LINK_CABLE_NO_DATA 0x0
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
 #define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 5
@@ -335,9 +335,9 @@ class LinkCable {
   volatile bool isAddingMessage = false;
   volatile bool isAddingWhileResetting = false;
 
+  bool isMaster() { return !isBitHigh(LINK_CABLE_BIT_SLAVE); }
   bool isReady() { return isBitHigh(LINK_CABLE_BIT_READY); }
   bool hasError() { return isBitHigh(LINK_CABLE_BIT_ERROR); }
-  bool isMaster() { return !isBitHigh(LINK_CABLE_BIT_SLAVE); }
   bool isSending() { return isBitHigh(LINK_CABLE_BIT_START); }
   bool didTimeout() { return _state.IRQTimeout >= config.timeout; }
 

@@ -25,6 +25,11 @@ make rebuild
 cp LinkGPIO_demo.gba ../
 cd ..
 
+cd LinkRawCable_demo/
+make rebuild
+cp LinkRawCable_demo.gba ../
+cd ..
+
 cd LinkSPI_demo/
 make rebuild
 cp LinkSPI_demo.gba ../
