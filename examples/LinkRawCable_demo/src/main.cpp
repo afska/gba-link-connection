@@ -60,7 +60,7 @@ int main() {
       }
 
       if (!async) {
-        // (4)/(5) Exchange 32-bit data with the other end
+        // (4)/(5) Exchange 16-bit data with the connected consoles
         if (prevKeys == 0 && keys != 0 && linkRawCable->isReady()) {
           counter++;
           log(output + "...");
