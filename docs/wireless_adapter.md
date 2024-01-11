@@ -282,12 +282,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 *   All currently broadcasting devices are returned here along with a word of **metadata** (the metadata word first, then 6 words with broadcast data).
 *   The metadata contains:
     * First 2 bytes: Server ID. IDs have 16 bits.
-    * 3rd byte: Available slots. This can be used to check whether a player can join a room or not.
-      * `0b00`: No one is connected yet (just the host).
-      * `0b01`: There is 1 connected client, and there's room for more.
-      * `0b10`: There are 2 connected clients, and there's room for more.
-      * `0b11`: There are 3 connected clients, and there's room for more.
-      * `0xff`: The server is full. The number of connected players is unknown, as it depends on `maxPlayers` (see [Setup](#setup---0x17)).
+    * 3rd byte: Next available slot. This can be used to check whether a player can join a room or not.
+      * `0b00`: If you join this room, your `clientNumber` will be 0. This can mean that no one has connected yet (just the host), or that there are connected players but the first one has disconnected, so this is the next **free** slot.
+      * `0b01`: If you join this room, your `clientNumber` will be 1. This can mean that there's one connected client, or that there are more but the second one has disconnected.
+      * `0b10`: If you join this room, your `clientNumber` will be 2.
+      * `0b11`: If you join this room, your `clientNumber` will be 3.
+      * `0xff`: The server is full. You cannot join this room.
+      * Although `LinkWireless` uses this to know the number of connected players, that only works because -by design- rooms are closed when a player disconnects. The hardware allows disconnecting specific clients, so if the next available slot is e.g. 2, it can mean that there are 3 connected players (1 host + 2 clients) or that there are more players, but the third client (`clientNumber` = 2) has disconnected and the slot is now free.
+      * The number of available slots depends on `maxPlayers` (see [Setup](#setup---0x17)).
     * 4th byte: Zero.
 
 🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
