@@ -8,9 +8,6 @@
 
 const u32 TEXT_MIDDLE_COL = 12;
 
-extern int DEBULOG_LINE;
-void DEBULOG(std::string string);
-
 inline std::string asStr(u16 data) {
   return std::to_string(data);
 }

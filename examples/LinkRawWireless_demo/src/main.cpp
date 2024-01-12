@@ -17,13 +17,7 @@ int main() {
 
   engine->setScene(debugScene.get());
 
-  printTutorial();
-
   while (true) {
-    // u16 keys = ~REG_KEYS & KEY_ANY;
-
-    SCENE_write("Hello", 0);
-
     engine->update();
 
     VBlankIntrWait();
@@ -48,9 +42,4 @@ inline void setUpInterrupts() {
   // A+B+START+SELECT
   REG_KEYCNT = 0b1100000000001111;
   interrupt_set_handler(INTR_KEYPAD, ISR_reset);
-}
-
-void printTutorial() {
-  DEBULOG("");
-  DEBULOG("START: turn on connection");
 }
