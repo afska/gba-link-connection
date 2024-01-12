@@ -30,6 +30,11 @@ make rebuild
 cp LinkRawCable_demo.gba ../
 cd ..
 
+cd LinkRawWireless_demo/
+make rebuild
+cp LinkRawWireless_demo.gba ../
+cd ..
+
 cd LinkSPI_demo/
 make rebuild
 cp LinkSPI_demo.gba ../

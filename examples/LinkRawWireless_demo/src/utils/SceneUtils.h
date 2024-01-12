@@ -15,10 +15,6 @@ inline std::string asStr(u16 data) {
   return std::to_string(data);
 }
 
-inline bool isBitHigh(u16 data, u8 bit) {
-  return (data >> bit) & 1;
-}
-
 inline void BACKGROUND_enable(bool bg0, bool bg1, bool bg2, bool bg3) {
   REG_DISPCNT = bg0 ? REG_DISPCNT | DCNT_BG0 : REG_DISPCNT & ~DCNT_BG0;
   REG_DISPCNT = bg1 ? REG_DISPCNT | DCNT_BG1 : REG_DISPCNT & ~DCNT_BG1;
