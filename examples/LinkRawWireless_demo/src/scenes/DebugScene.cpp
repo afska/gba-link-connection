@@ -20,6 +20,8 @@ static std::unique_ptr<InputHandler> lHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> rHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> selectHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> startHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 
@@ -46,7 +48,7 @@ void scrollBack() {
 }
 
 void scrollForward() {
-  if (currentDebugLine == (int)debugLines.size() - 1)
+  if (currentDebugLine == (int)debugLines.size())
     return;
   currentDebugLine++;
   print();
@@ -59,6 +61,12 @@ void scrollToTop() {
 
 void scrollToBottom() {
   currentDebugLine = debugLines.size();
+  print();
+}
+
+void clear() {
+  debugLines.clear();
+  currentDebugLine = 0;
   print();
 }
 
@@ -88,9 +96,11 @@ void DebugScene::load() {
   log("B: toggle log level");
   log("UP/DOWN: scroll up/down");
   log("L/R: scroll to top/bottom");
+  log("SELECT: clear");
   log("---");
   log("");
   log("! setting log level to NORMAL");
+  log("");
 }
 
 void DebugScene::tick(u16 keys) {
@@ -109,17 +119,31 @@ void DebugScene::processButtons(u16 keys) {
   downHandler->setIsPressed(keys & KEY_DOWN);
   lHandler->setIsPressed(keys & KEY_L);
   rHandler->setIsPressed(keys & KEY_R);
+  selectHandler->setIsPressed(keys & KEY_SELECT);
   startHandler->setIsPressed(keys & KEY_START);
 
-  if (lHandler->getIsPressed())
+  if (lHandler->hasBeenPressedNow())
     scrollToTop();
 
-  if (rHandler->getIsPressed())
+  if (rHandler->hasBeenPressedNow())
     scrollToBottom();
 
-  if (upHandler->hasBeenPressedNow())
+  if (upHandler->getIsPressed())
     scrollBack();
 
-  if (downHandler->hasBeenPressedNow())
+  if (downHandler->getIsPressed())
     scrollForward();
+
+  if (selectHandler->hasBeenPressedNow())
+    clear();
+
+  if (startHandler->hasBeenPressedNow())
+    resetAdapter();
+}
+
+void DebugScene::resetAdapter() {
+  log("> resetting adapter...");
+  bool success = linkRawWireless->activate();
+  log(success ? "< it worked :)" : "< it failed :(");
+  log("");
 }

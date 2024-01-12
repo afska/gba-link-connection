@@ -20,6 +20,7 @@ class DebugScene : public Scene {
 
  private:
   void processButtons(u16 keys);
+  void resetAdapter();
 };
 
 #endif  // DEBUG_SCENE_H

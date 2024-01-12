@@ -13,6 +13,7 @@
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -52,13 +53,6 @@
 #define LINK_RAW_WIRELESS_COMMAND_SEND_DATA 0x24
 #define LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA 0x26
 #define LINK_RAW_WIRELESS_COMMAND_BYE 0x3d
-
-#define LINK_RAW_WIRELESS_RESET_IF_NEEDED \
-  if (!isEnabled)                         \
-    return false;                         \
-  if (state == NEEDS_RESET)               \
-    if (!reset())                         \
-      return false;
 
 static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v6.0.3";
 
@@ -123,12 +117,20 @@ class LinkRawWireless {
     return success;
   }
 
+  bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS) {
+    return sendCommand(
+               LINK_RAW_WIRELESS_COMMAND_SETUP,
+               std::vector<u32>{
+                   (u32)(LINK_RAW_WIRELESS_SETUP_MAGIC |
+                         (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
+                          << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT))})
+        .success;
+  }
+
   bool serve(std::string gameName = "",
              std::string userName = "",
              u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
-    if (state != AUTHENTICATED &&
-        state != SERVING) {  // TODO: REMOVE THESE CHECKS
+    if (state != AUTHENTICATED && state != SERVING) {
       lastError = WRONG_STATE;
       return false;
     }
@@ -180,7 +182,6 @@ class LinkRawWireless {
   }
 
   bool acceptConnections(std::string& connectedIds) {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if (state != SERVING)
       return false;
 
@@ -202,7 +203,6 @@ class LinkRawWireless {
   }
 
   bool getServersAsyncStart() {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
       lastError = WRONG_STATE;
       return false;
@@ -223,7 +223,6 @@ class LinkRawWireless {
   }
 
   bool getServersAsyncEnd(std::vector<Server>& servers) {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if (state != SEARCHING) {
       lastError = WRONG_STATE;
       return false;
@@ -277,7 +276,6 @@ class LinkRawWireless {
   }
 
   bool connect(u16 serverId) {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
       lastError = WRONG_STATE;
       return false;
@@ -299,7 +297,6 @@ class LinkRawWireless {
   }
 
   bool keepConnecting() {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if (state != CONNECTING) {
       lastError = WRONG_STATE;
       return false;
@@ -382,7 +379,6 @@ class LinkRawWireless {
   volatile bool isEnabled = false;
 
   bool sendData(std::vector<u32> data) {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
         data.size() > LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH)
       return false;
@@ -406,7 +402,6 @@ class LinkRawWireless {
   }
 
   bool receiveData(std::vector<u32>& data) {
-    LINK_RAW_WIRELESS_RESET_IF_NEEDED
     if (state != SERVING && state != CONNECTED)
       return false;
 
@@ -471,9 +466,6 @@ class LinkRawWireless {
     if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_HELLO).success)
       return false;
 
-    if (!setup())
-      return false;
-
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
     state = AUTHENTICATED;
 
@@ -517,16 +509,6 @@ class LinkRawWireless {
     memory.previousAdapterData = expectedResponse;
 
     return true;
-  }
-
-  bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS) {
-    return sendCommand(
-               LINK_RAW_WIRELESS_COMMAND_SETUP,
-               std::vector<u32>{
-                   (u32)(LINK_RAW_WIRELESS_SETUP_MAGIC |
-                         (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
-                          << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT))})
-        .success;
   }
 
   CommandResult sendCommand(u8 type,
