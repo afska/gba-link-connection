@@ -27,6 +27,7 @@ static std::unique_ptr<InputHandler> startHandler =
 
 static std::vector<std::string> debugLines;
 static int currentDebugLine = 0;
+static bool useVerboseLog = true;
 
 void print() {
   u32 drawLine = 2;
@@ -88,6 +89,12 @@ void DebugScene::load() {
   SCENE_init();
   BACKGROUND_enable(true, false, false, false);
 
+  linkRawWireless->debug = [](std::string string) {
+    if (useVerboseLog)
+      log(string);
+  };
+  linkRawWireless->log = [](std::string string) { log(string); };
+
   log("---");
   log("LinkRawWireless demo");
   log("");
@@ -99,8 +106,7 @@ void DebugScene::load() {
   log("SELECT: clear");
   log("---");
   log("");
-  log("! setting log level to NORMAL");
-  log("");
+  toggleLogLevel();
 }
 
 void DebugScene::tick(u16 keys) {
@@ -122,6 +128,9 @@ void DebugScene::processButtons(u16 keys) {
   selectHandler->setIsPressed(keys & KEY_SELECT);
   startHandler->setIsPressed(keys & KEY_START);
 
+  if (bHandler->hasBeenPressedNow())
+    toggleLogLevel();
+
   if (lHandler->hasBeenPressedNow())
     scrollToTop();
 
@@ -141,6 +150,16 @@ void DebugScene::processButtons(u16 keys) {
     resetAdapter();
 }
 
+void DebugScene::toggleLogLevel() {
+  if (useVerboseLog) {
+    useVerboseLog = false;
+    log("! setting log level to NORMAL");
+  } else {
+    useVerboseLog = true;
+    log("! setting log level to VERBOSE");
+  }
+  log("");
+}
 void DebugScene::resetAdapter() {
   log("> resetting adapter...");
   bool success = linkRawWireless->activate();

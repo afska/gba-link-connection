@@ -13,7 +13,6 @@
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -62,7 +61,12 @@ const u16 LINK_RAW_WIRELESS_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1,
                                                IRQ_TIMER2, IRQ_TIMER3};
 
 class LinkRawWireless {
+  typedef void (*Logger)(std::string);
+
  public:
+  Logger debug = [](std::string str) {};
+  Logger log = [](std::string str) {};
+
   enum State {
     NEEDS_RESET,
     AUTHENTICATED,
@@ -456,6 +460,7 @@ class LinkRawWireless {
 
   bool start() {
     pingAdapter();
+    debug("setting SPI mode");
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 
     if (!login())
@@ -473,16 +478,21 @@ class LinkRawWireless {
   }
 
   void pingAdapter() {
+    debug("setting SO as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
+    debug("setting SD as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
+    debug("setting SD = HIGH");
     linkGPIO->writePin(LinkGPIO::SD, true);
     wait(LINK_RAW_WIRELESS_PING_WAIT);
+    debug("setting SD = LOW");
     linkGPIO->writePin(LinkGPIO::SD, false);
   }
 
   bool login() {
     LoginMemory memory;
 
+    debug("first login packet");
     if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[0], 0, memory))
       return false;
 
@@ -502,8 +512,10 @@ class LinkRawWireless {
     u32 response = transfer(packet, false);
 
     if (msB32(response) != expectedResponse ||
-        lsB32(response) != (u16)~memory.previousGBAData)
+        lsB32(response) != (u16)~memory.previousGBAData) {
+      debug("! invalid response");
       return false;
+    }
 
     memory.previousGBAData = data;
     memory.previousAdapterData = expectedResponse;
