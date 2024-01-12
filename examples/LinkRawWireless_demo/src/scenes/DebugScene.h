@@ -19,6 +19,7 @@ class DebugScene : public Scene {
   void tick(u16 keys) override;
 
  private:
+  void processButtons(u16 keys);
 };
 
 #endif  // DEBUG_SCENE_H

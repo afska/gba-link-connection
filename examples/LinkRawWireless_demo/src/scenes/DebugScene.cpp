@@ -12,6 +12,10 @@ static std::unique_ptr<InputHandler> aHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> bHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> upHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> downHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> lHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> rHandler =
@@ -34,12 +38,6 @@ void print() {
     TextStream::instance().setText("                              ", i, -3);
 }
 
-void log(std::string string) {
-  debugLines.push_back(string);
-  currentDebugLine = debugLines.size() - 1;
-  print();
-}
-
 void scrollBack() {
   if (currentDebugLine < 19)
     return;
@@ -52,6 +50,21 @@ void scrollForward() {
     return;
   currentDebugLine++;
   print();
+}
+
+void scrollToTop() {
+  currentDebugLine = 18;
+  print();
+}
+
+void scrollToBottom() {
+  currentDebugLine = debugLines.size();
+  print();
+}
+
+void log(std::string string) {
+  debugLines.push_back(string);
+  scrollToBottom();
 }
 
 std::vector<Background*> DebugScene::backgrounds() {
@@ -67,43 +80,46 @@ void DebugScene::load() {
   SCENE_init();
   BACKGROUND_enable(true, false, false, false);
 
-  log("Hello");
-  log("Line 1");
-  log("Line 2");
-  log("Line 3");
-  log("Line 4");
-  log("Line 5");
-  log("Line 6");
-  log("Line 7");
-  log("Line 8");
-  log("Line 9");
-  log("Line 10");
-  log("Line 11");
-  log("Line 12");
-  log("Line 13");
-  log("Line 14");
-  log("Line 16");
-  log("Line 17");
-  log("Line 18");
-  log("Line 19");
-  log("Line 20");
-  log("Line 21");
-  log("Line 22");
+  log("---");
+  log("LinkRawWireless demo");
+  log("");
+  log("START: reset wireless adapter");
+  log("A: send command");
+  log("B: toggle log level");
+  log("UP/DOWN: scroll up/down");
+  log("L/R: scroll to top/bottom");
+  log("---");
+  log("");
+  log("! setting log level to NORMAL");
 }
 
 void DebugScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
+  TextStream::instance().setText("state = AUTHENTICATED   p? / ?", 0, -3);
+
+  processButtons(keys);
+}
+
+void DebugScene::processButtons(u16 keys) {
   aHandler->setIsPressed(keys & KEY_A);
   bHandler->setIsPressed(keys & KEY_B);
+  upHandler->setIsPressed(keys & KEY_UP);
+  downHandler->setIsPressed(keys & KEY_DOWN);
   lHandler->setIsPressed(keys & KEY_L);
   rHandler->setIsPressed(keys & KEY_R);
   startHandler->setIsPressed(keys & KEY_START);
 
   if (lHandler->getIsPressed())
-    scrollBack();
+    scrollToTop();
 
   if (rHandler->getIsPressed())
+    scrollToBottom();
+
+  if (upHandler->hasBeenPressedNow())
+    scrollBack();
+
+  if (downHandler->hasBeenPressedNow())
     scrollForward();
 }
