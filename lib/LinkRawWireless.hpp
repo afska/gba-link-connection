@@ -65,7 +65,7 @@ class LinkRawWireless {
 
  public:
   Logger debug = [](std::string str) {};
-  Logger log = [](std::string str) {};
+  Logger log = [](std::string str) {};  // TODO: USE / REMOVE
 
   enum State {
     NEEDS_RESET,
@@ -460,7 +460,7 @@ class LinkRawWireless {
 
   bool start() {
     pingAdapter();
-    debug("setting SPI mode");
+    debug("setting SPI to 256Kbps");
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 
     if (!login())
@@ -468,9 +468,11 @@ class LinkRawWireless {
 
     wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
 
+    debug("sending HELLO command");
     if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_HELLO).success)
       return false;
 
+    debug("setting SPI to 2Mbps");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
     state = AUTHENTICATED;
 
@@ -492,11 +494,13 @@ class LinkRawWireless {
   bool login() {
     LoginMemory memory;
 
-    debug("first login packet");
+    debug("sending initial login packet");
     if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[0], 0, memory))
       return false;
 
     for (u32 i = 0; i < LINK_RAW_WIRELESS_LOGIN_STEPS; i++) {
+      debug("sending login packet " + std::to_string(i + 1) + "/" +
+            std::to_string(LINK_RAW_WIRELESS_LOGIN_STEPS));
       if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[i],
                                LINK_RAW_WIRELESS_LOGIN_PARTS[i], memory))
         return false;
@@ -513,7 +517,8 @@ class LinkRawWireless {
 
     if (msB32(response) != expectedResponse ||
         lsB32(response) != (u16)~memory.previousGBAData) {
-      debug("! invalid response");
+      logExpectedButReceived(
+          buildU32(expectedResponse, (u16)~memory.previousGBAData), response);
       return false;
     }
 
@@ -528,28 +533,51 @@ class LinkRawWireless {
     CommandResult result;
     u16 length = params.size();
     u32 command = buildCommand(type, length);
+    u32 r;
 
-    if (transfer(command) != LINK_RAW_WIRELESS_DATA_REQUEST)
+    debug("sending command 0x" + toHex(command));
+    if ((r = transfer(command)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
+      logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
       return result;
-
-    for (auto& param : params) {
-      if (transfer(param) != LINK_RAW_WIRELESS_DATA_REQUEST)
-        return result;
     }
 
+    u32 parameterCount = 0;
+    for (auto& param : params) {
+      debug("sending param" + std::to_string(parameterCount) + ": 0x" +
+            toHex(param));
+      if ((r = transfer(param)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
+        logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
+        return result;
+      }
+      parameterCount++;
+    }
+
+    debug("sending response request");
     u32 response = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
     u16 header = msB32(response);
     u16 data = lsB32(response);
     u8 responses = msB16(data);
     u8 ack = lsB16(data);
 
-    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER)
+    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
+      debug("! expected HEADER 0x" + toHex(header));
+      debug("! but received 0x" + toHex(header));
       return result;
-    if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK)
+    }
+    if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK) {
+      debug("! expected ACK 0x" + toHex(header));
+      debug("! but received 0x" + toHex(header));
       return result;
+    }
+    debug("ack ok! " + std::to_string(responses) + " responses");
 
-    for (u32 i = 0; i < responses; i++)
-      result.responses.push_back(transfer(LINK_RAW_WIRELESS_DATA_REQUEST));
+    for (u32 i = 0; i < responses; i++) {
+      debug("sending data request " + std::to_string(i + 1) + "/" +
+            std::to_string(responses));
+      u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+      result.responses.push_back(responseData);
+      debug("<< " + std::to_string(responseData));
+    }
 
     result.success = true;
     return result;
@@ -615,6 +643,20 @@ class LinkRawWireless {
         vCount = REG_VCOUNT;
       }
     };
+  }
+
+  void logExpectedButReceived(u32 expected, u32 received) {
+    debug("! expected 0x" + toHex(expected));
+    debug("! but received 0x" + toHex(received));
+  }
+
+  template <typename I>
+  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+      rc[i] = digits[(w >> j) & 0x0f];
+    return rc;
   }
 
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
