@@ -2,6 +2,7 @@
 
 #include <libgba-sprite-engine/background/text_stream.h>
 #include <tonc.h>
+#include <functional>
 
 #include "../../../../lib/LinkRawWireless.hpp"
 #include "utils/InputHandler.h"
@@ -197,10 +198,11 @@ void DebugScene::processKeys(u16 keys) {
 
 void DebugScene::processButtons() {
   if (aHandler->hasBeenPressedNow()) {
-    int selectedCommand = selectOption(commandMenuOptions);
-    if (selectedCommand > -1) {
-      selectOption(std::vector<std::string>{"uno", "dos", "tres"});
-    }
+    int selectedCommandIndex =
+        selectOption("Which command?", commandMenuOptions);
+    if (selectedCommandIndex > -1)
+      processCommand((u32)selectedCommandIndex);
+    print();
   }
 
   if (bHandler->hasBeenPressedNow())
@@ -244,7 +246,8 @@ void DebugScene::toggleLogLevel() {
   log("");
 }
 
-int DebugScene::selectOption(std::vector<std::string> options) {
+int DebugScene::selectOption(std::string title,
+                             std::vector<std::string> options) {
   u32 selectedOption = 0;
   bool firstTime = true;
 
@@ -272,7 +275,7 @@ int DebugScene::selectOption(std::vector<std::string> options) {
       selectedOption--;
 
     if (firstTime || selectedOption != oldOption) {
-      TextStream::instance().setText("Which command?", 0, -3);
+      TextStream::instance().setText(title, 0, -3);
       printScrollableText(selectedOption, options, true);
     }
 
@@ -287,9 +290,40 @@ int DebugScene::selectOption(std::vector<std::string> options) {
   }
 }
 
-void DebugScene::resetAdapter() {
-  log("> resetting adapter...");
-  bool success = linkRawWireless->activate();
-  log(success ? "< it worked :)" : "< it failed :(");
+void DebugScene::processCommand(u32 selectedCommandIndex) {
+  std::string selectedCommand = commandMenuOptions[selectedCommandIndex];
+
+  if (selectedCommand == "0x10 (Hello)") {
+    logSimpleCommand(selectedCommand, 0x11);
+  } else if (selectedCommand == "0x11 (SignalLevel)") {
+    logSimpleCommand(selectedCommand, 0x11);
+  } else if (selectedCommand == "0x12 (VersionStatus)") {
+    logSimpleCommand(selectedCommand, 0x12);
+  } else if (selectedCommand == "0x13 (SystemStatus)") {
+    logSimpleCommand(selectedCommand, 0x13);
+  }
+}
+
+void DebugScene::logSimpleCommand(std::string name, u32 id) {
+  logOperation("sending " + name, [id]() {
+    auto result = linkRawWireless->sendCommand(id);
+    for (u32 i = 0; i < result.responses.size(); i++) {
+      log("< [response" + std::to_string(i) + "] " +
+          linkRawWireless->toHex(result.responses[i]));
+    }
+    return result.success;
+  });
+}
+
+void DebugScene::logOperation(std::string name,
+                              std::function<bool()> operation) {
+  log("> " + name + "...");
+  bool success = operation();
+  log(success ? "< success :)" : "< failure :(");
   log("");
+}
+
+void DebugScene::resetAdapter() {
+  logOperation("resetting adapter",
+               []() { return linkRawWireless->activate(); });
 }

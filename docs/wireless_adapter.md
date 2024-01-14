@@ -465,7 +465,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Returns some information about the current connection and device state. The returned word contains:
 - Bits `0-15`: The device ID (or zero if the device is not connected nor hosting).
-- Bits `16-23`: A 4-bit array indicating which slots are being used.
+- Bits `16-23`: A 4-bit array with slots. If the console is a client, it'll have a 1 in the position assigned to that slot (e.g. the one with `clientNumber` 3 will have `0100`). The host will always have `0000` here.
 - Bits `24-31`: A number indicating the state of the adapter
     - `0` = idle
     - `1`/`2` = serving (host)

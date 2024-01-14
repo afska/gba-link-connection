@@ -76,6 +76,11 @@ class LinkRawWireless {
     CONNECTED
   };
 
+  struct CommandResult {
+    bool success = false;
+    std::vector<u32> responses = std::vector<u32>{};
+  };
+
   enum Error {
     // TODO: REPLACE lastError with logger calls
 
@@ -312,52 +317,6 @@ class LinkRawWireless {
     return true;
   }
 
-  u32 getDeviceTransferLength() {
-    return state == SERVING ? LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH
-                            : LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
-  }
-
-  State getState() { return state; }
-  bool isConnected() { return sessionState.playerCount > 1; }
-  bool isSessionActive() { return state == SERVING || state == CONNECTED; }
-  u8 playerCount() { return sessionState.playerCount; }
-  u8 currentPlayerId() { return sessionState.currentPlayerId; }
-  Error getLastError(bool clear = true) {
-    Error error = lastError;
-    if (clear)
-      lastError = NONE;
-    return error;
-  }
-
-  ~LinkRawWireless() {
-    delete linkSPI;
-    delete linkGPIO;
-  }
-
- private:
-  struct SessionState {
-    u8 playerCount = 1;
-    u8 currentPlayerId = 0;
-    u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS;
-  };
-
-  struct LoginMemory {
-    u16 previousGBAData = 0xffff;
-    u16 previousAdapterData = 0xffff;
-  };
-
-  struct CommandResult {
-    bool success = false;
-    std::vector<u32> responses = std::vector<u32>{};
-  };
-
-  SessionState sessionState;
-  LinkSPI* linkSPI = new LinkSPI();
-  LinkGPIO* linkGPIO = new LinkGPIO();
-  State state = NEEDS_RESET;
-  Error lastError = NONE;
-  volatile bool isEnabled = false;
-
   bool sendData(std::vector<u32> data) {
     if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
         data.size() > LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH)
@@ -396,6 +355,124 @@ class LinkRawWireless {
 
     return true;
   }
+
+  CommandResult sendCommand(u8 type,
+                            std::vector<u32> params = std::vector<u32>{}) {
+    CommandResult result;
+    u16 length = params.size();
+    u32 command = buildCommand(type, length);
+    u32 r;
+
+    logger("sending command 0x" + toHex(command));
+    if ((r = transfer(command)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
+      logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
+      return result;
+    }
+
+    u32 parameterCount = 0;
+    for (auto& param : params) {
+      logger("sending param" + std::to_string(parameterCount) + ": 0x" +
+             toHex(param));
+      if ((r = transfer(param)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
+        logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
+        return result;
+      }
+      parameterCount++;
+    }
+
+    logger("sending response request");
+    u32 response = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+    u16 header = msB32(response);
+    u16 data = lsB32(response);
+    u8 responses = msB16(data);
+    u8 ack = lsB16(data);
+
+    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
+      logger("! expected HEADER 0x" + toHex(header));
+      logger("! but received 0x" + toHex(header));
+      return result;
+    }
+    if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK) {
+      if (ack == 0xee && responses == 1) {
+        u8 code = (u8)transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+        logger("! error received");
+        logger(code == 1 ? "! invalid state" : "! unknown cmd");
+      } else {
+        logger("! expected ACK 0x" + toHex(header));
+        logger("! but received 0x" + toHex(header));
+      }
+      return result;
+    }
+    logger("ack ok! " + std::to_string(responses) + " responses");
+
+    for (u32 i = 0; i < responses; i++) {
+      logger("response " + std::to_string(i + 1) + "/" +
+             std::to_string(responses) + ":");
+      u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+      result.responses.push_back(responseData);
+      logger("<< " + std::to_string(responseData));
+    }
+
+    result.success = true;
+    return result;
+  }
+
+  u32 getDeviceTransferLength() {
+    return state == SERVING ? LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH
+                            : LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
+  }
+
+  State getState() { return state; }
+  bool isConnected() { return sessionState.playerCount > 1; }
+  bool isSessionActive() { return state == SERVING || state == CONNECTED; }
+  u8 playerCount() { return sessionState.playerCount; }
+  u8 currentPlayerId() { return sessionState.currentPlayerId; }
+  Error getLastError(bool clear = true) {
+    Error error = lastError;
+    if (clear)
+      lastError = NONE;
+    return error;
+  }
+
+  ~LinkRawWireless() {
+    delete linkSPI;
+    delete linkGPIO;
+  }
+
+  template <typename I>
+  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+      rc[i] = digits[(w >> j) & 0x0f];
+    return rc;
+  }
+
+  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
+  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
+  u16 msB32(u32 value) { return value >> 16; }
+  u16 lsB32(u32 value) { return value & 0xffff; }
+  u8 msB16(u16 value) { return value >> 8; }
+  u8 lsB16(u16 value) { return value & 0xff; }
+
+ private:
+  struct SessionState {
+    u8 playerCount = 1;
+    u8 currentPlayerId = 0;
+    u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS;
+  };
+
+  struct LoginMemory {
+    u16 previousGBAData = 0xffff;
+    u16 previousAdapterData = 0xffff;
+  };
+
+  SessionState sessionState;
+  LinkSPI* linkSPI = new LinkSPI();
+  LinkGPIO* linkGPIO = new LinkGPIO();
+  State state = NEEDS_RESET;
+  Error lastError = NONE;
+  volatile bool isEnabled = false;
 
   void recoverName(std::string& name,
                    u32 word,
@@ -501,67 +578,6 @@ class LinkRawWireless {
     return true;
   }
 
-  CommandResult sendCommand(u8 type,
-                            std::vector<u32> params = std::vector<u32>{}) {
-    CommandResult result;
-    u16 length = params.size();
-    u32 command = buildCommand(type, length);
-    u32 r;
-
-    logger("sending command 0x" + toHex(command));
-    if ((r = transfer(command)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
-      logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
-      return result;
-    }
-
-    u32 parameterCount = 0;
-    for (auto& param : params) {
-      logger("sending param" + std::to_string(parameterCount) + ": 0x" +
-             toHex(param));
-      if ((r = transfer(param)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
-        logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
-        return result;
-      }
-      parameterCount++;
-    }
-
-    logger("sending response request");
-    u32 response = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
-    u16 header = msB32(response);
-    u16 data = lsB32(response);
-    u8 responses = msB16(data);
-    u8 ack = lsB16(data);
-
-    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
-      logger("! expected HEADER 0x" + toHex(header));
-      logger("! but received 0x" + toHex(header));
-      return result;
-    }
-    if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK) {
-      if (ack == 0xee && responses == 1) {
-        u8 code = (u8)transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
-        logger("! error received");
-        logger(code == 1 ? "! invalid state" : "! unknown cmd");
-      } else {
-        logger("! expected ACK 0x" + toHex(header));
-        logger("! but received 0x" + toHex(header));
-      }
-      return result;
-    }
-    logger("ack ok! " + std::to_string(responses) + " responses");
-
-    for (u32 i = 0; i < responses; i++) {
-      logger("response " + std::to_string(i + 1) + "/" +
-             std::to_string(responses) + ":");
-      u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
-      result.responses.push_back(responseData);
-      logger("<< " + std::to_string(responseData));
-    }
-
-    result.success = true;
-    return result;
-  }
-
   u32 buildCommand(u8 type, u8 length = 0) {
     return buildU32(LINK_RAW_WIRELESS_COMMAND_HEADER, buildU16(length, type));
   }
@@ -636,22 +652,6 @@ class LinkRawWireless {
     logger("! expected 0x" + toHex(expected));
     logger("! but received 0x" + toHex(received));
   }
-
-  template <typename I>
-  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
-    static const char* digits = "0123456789ABCDEF";
-    std::string rc(hex_len, '0');
-    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-      rc[i] = digits[(w >> j) & 0x0f];
-    return rc;
-  }
-
-  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
-  u8 msB16(u16 value) { return value >> 8; }
-  u8 lsB16(u16 value) { return value & 0xff; }
 };
 
 extern LinkRawWireless* linkRawWireless;
