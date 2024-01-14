@@ -283,8 +283,8 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 *   The metadata contains:
     * First 2 bytes: Server ID. IDs have 16 bits.
     * 3rd byte: Next available slot. This can be used to check whether a player can join a room or not.
-      * `0b00`: If you join this room, your `clientNumber` will be 0. This can mean that no one has connected yet (just the host), or that there are connected players but the first one has disconnected, so this is the next **free** slot.
-      * `0b01`: If you join this room, your `clientNumber` will be 1. This can mean that there's one connected client, or that there are more but the second one has disconnected.
+      * `0b00`: If you join this room, your `clientNumber` will be 0.
+      * `0b01`: If you join this room, your `clientNumber` will be 1.
       * `0b10`: If you join this room, your `clientNumber` will be 2.
       * `0b11`: If you join this room, your `clientNumber` will be 3.
       * `0xff`: The server is full. You cannot join this room.
@@ -323,9 +323,11 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Send length: 0, response length: 1
     
-*   Responds with 16 bit ID as lower 16 bits if finished, otherwise responds with `0x01000000`.
+*   Responds with a 16 bit ID as lower 16 bits if finished, otherwise responds with `0x01000000`.
     
-👆 It also responds in its bits 16 and 17 a number that represents the `clientNumber` (0 to 3). Lets say our ID is `abcd`, it will respond `0x0000abcd` if we are the first client that connects to that server, `0x0001abcd` if we are the second one, `0x0002abcd` third, and `0x0003abcd` fourth. Games allow 5 simultaneous adapters at max.
+👆 It also responds in its bits 16 and 17 a number that represents the `clientNumber` (0 to 3). Lets say our ID is `abcd`, it will respond `0x0000abcd` if we are the first client that connects to that server, `0x0001abcd` if we are the second one, `0x0002abcd` third, and `0x0003abcd` fourth. Rooms allow 5 simultaneous adapters at max.
+
+💥 If the connection failed, the `clientNumber` will be a number higher than `3`.
 
 #### FinishConnection - `0x21`
 
@@ -333,7 +335,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Send length: 0, response length: 1
     
-*   Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the same ID as in that response (and zeros in its high 16 bits, like `0x0000abcd`)
+*   Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the final device ID (which tends to be equal to the ID from the previous command), the `clientNumber` in bits 16 and 17, and if all went well, zeros in its remaining bits.
 
 #### SendData - `0x24`
 
@@ -411,6 +413,9 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Bits `23-27`: # of received bytes from client 3.
 - The rest of the bits are `0`.
 
+🧱 Concatenation is done at **byte** level. So, for example, if client 3 sends 3 bytes (`0xAABBCC`) and client 1 sends 2 bytes (`0xDDEE`), the host would receive 3 words:
+  - (header) `0b0000_00011_00000_00000_00010_0_0000000`, `0xEEAABBCC`, `0x000000DD`
+
 #### Wait - `0x27`
 
 [![Image without alt text or caption](img/0x27.png)](img/0x27.png)
@@ -434,7 +439,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Send length: 0, Response length: 0
     
-*   This sets the adapter in a low power mode. Games use it when the player exits the multiplayer mode. To use the adapter again after this command, a new reset/initialization is needed.
+*   This sets the adapter in a low power consumption mode. Games use it when the player exits the multiplayer mode. To use the adapter again after this command, a new reset/initialization is needed.
 
 ### Other commands
 
@@ -458,8 +463,16 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   Send length: 0, Response length: 1
 
-*   Returns some information about the current connection and device state. The returned word contains the device ID in the lower 16 bits (or zero if the device is not connected nor hosting). For clients, it contains the `clientNumber` (0 to 3) in bits 17 and 16. For a host, bit 24 is set, but this could be more complex.
-    
+*   Returns some information about the current connection and device state. The returned word contains:
+- Bits `0-15`: The device ID (or zero if the device is not connected nor hosting).
+- Bits `16-23`: A 4-bit array indicating which slots are being used.
+- Bits `24-31`: A number indicating the state of the adapter
+    - `0` = idle
+    - `1`/`2` = serving (host)
+    - `3` = searching
+    - `4` = connecting
+    - `5` = connected (client)
+
 #### SlotStatus - `0x14`
 
 *   Send length: 0, Response length: 1+
@@ -472,12 +485,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 #### ConfigStatus - `0x15`
 
 *   Send length: 0, Response length: 7 (as client), or 8 (as host)
+*   Returns the adapter configuration.
 
 🤔 In my tests...
 - As client, it returned: `0, 0, 0, 0, 0, 0, 257`.
 - As host, it returned: `1, 2, 3, 4, 5, 6, 3933216, 257`.
   * `1, 2, 3, 4, 5, 6` would be the broadcast data.
-  * `3933216` and `257` are fixed values. No idea what this means.
+  * `3933216` is the value used in the [Setup](#setup---0x17) command (`0x003C0420`). 
+  * No idea what `257` this means.
 
 Waiting
 -------
@@ -485,12 +500,19 @@ Waiting
 [![Image without alt text or caption](img/wake-up.png)](img/wake-up.png)
 
 *   After either [SendDataWait](#senddatawait---0x25) or [Wait](#wait---0x27), clock control switches to the wireless adapter.
-*   Once the adapter has something to tell the GBA about, the _adapter_ sends a command to the GBA, `0x99660028`.
+*   Once the adapter has something to tell the GBA about, the _adapter_ sends a command to the GBA (usually `0x99660028`).
 *   These transfers are dealt with in much the same way as before but with the roles of the GBA and the adapter reversed, see the figure!
-*   The GBA then sends the response back, `0x996600A8` as `0x28` + `0x80` = `0xA8`.
+*   The GBA then sends the response back (e.g. `0x996600A8` as `0x28` + `0x80` = `0xA8`).
 *   After this, control of the clock returns to the GBA, and it can start sending commands back again. For example this might be receiving the command sent by the other device using [ReceiveData](#receivedata---0x26).
 
-This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027` instead of `0x99660028`, having the same effect and switching things back to normal.
+⌚ This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027`.
+
+✅ When there's new data available, the adapter sends to the GBA a `0x99660028`.
+
+🔗 When the adapter is disconnected from the parent, it sends a `0x99660029`.
+  - Bit 8 of the response indicates the reason: 
+    * `0` = manual disconnect (aka the host used [DisconnectClient](#disconnectclient---0x30))
+    *  `1` = the connection was lost
 
 SPI config
 ----------
