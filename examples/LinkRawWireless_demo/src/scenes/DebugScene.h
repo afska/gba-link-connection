@@ -21,14 +21,13 @@ class DebugScene : public Scene {
 
  private:
   std::vector<std::string> commandMenuOptions;
-  u32 commandMenuSelectedOption = 0;
 
   void addCommandMenuOptions();
   void processKeys(u16 keys);
   void processButtons();
   void toggleLogLevel();
+  int selectOption(std::vector<std::string> options);
   void resetAdapter();
-  void showCommandSendMenu();
 };
 
 #endif  // DEBUG_SCENE_H

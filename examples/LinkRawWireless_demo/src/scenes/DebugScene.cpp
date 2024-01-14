@@ -70,6 +70,16 @@ void scrollForward() {
   print();
 }
 
+void scrollPageUp() {
+  currentLogLine = max(currentLogLine - MAX_LINES, 0);
+  print();
+}
+
+void scrollPageDown() {
+  currentLogLine = min(currentLogLine + MAX_LINES, logLines.size() - 1);
+  print();
+}
+
 void scrollToTop() {
   currentLogLine = 0;
   print();
@@ -88,7 +98,7 @@ void clear() {
 
 void log(std::string string) {
   logLines.push_back(string);
-  scrollToBottom();
+  scrollPageDown();
 }
 
 std::vector<Background*> DebugScene::backgrounds() {
@@ -116,7 +126,8 @@ void DebugScene::load() {
   log("A: send command");
   log("B: toggle log level");
   log("UP/DOWN: scroll up/down");
-  log("L/R: scroll to top/bottom");
+  log("L/R: scroll page up/down");
+  log("UP+L/DOWN+R: scroll to top/bottom");
   log("SELECT: clear");
   log("---");
   log("");
@@ -185,17 +196,29 @@ void DebugScene::processKeys(u16 keys) {
 }
 
 void DebugScene::processButtons() {
-  if (aHandler->hasBeenPressedNow())
-    showCommandSendMenu();
+  if (aHandler->hasBeenPressedNow()) {
+    int selectedCommand = selectOption(commandMenuOptions);
+    if (selectedCommand > -1) {
+      selectOption(std::vector<std::string>{"uno", "dos", "tres"});
+    }
+  }
 
   if (bHandler->hasBeenPressedNow())
     toggleLogLevel();
 
-  if (lHandler->hasBeenPressedNow())
-    scrollToTop();
+  if (lHandler->hasBeenPressedNow()) {
+    if (upHandler->getIsPressed())
+      scrollToTop();
+    else
+      scrollPageUp();
+  }
 
-  if (rHandler->hasBeenPressedNow())
-    scrollToBottom();
+  if (rHandler->hasBeenPressedNow()) {
+    if (downHandler->getIsPressed())
+      scrollToBottom();
+    else
+      scrollPageDown();
+  }
 
   if (upHandler->getIsPressed())
     scrollBack();
@@ -221,39 +244,52 @@ void DebugScene::toggleLogLevel() {
   log("");
 }
 
-void DebugScene::resetAdapter() {
-  log("> resetting adapter...");
-  bool success = linkRawWireless->activate();
-  log(success ? "< it worked :)" : "< it failed :(");
-  log("");
-}
-
-void DebugScene::showCommandSendMenu() {
+int DebugScene::selectOption(std::vector<std::string> options) {
+  u32 selectedOption = 0;
   bool firstTime = true;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     processKeys(keys);
 
-    u32 oldOption = commandMenuSelectedOption;
+    u32 oldOption = selectedOption;
 
-    if (lHandler->hasBeenPressedNow())
-      commandMenuSelectedOption = 0;
+    if (lHandler->hasBeenPressedNow()) {
+      if (upHandler->getIsPressed())
+        selectedOption = 0;
+      else
+        selectedOption = max(selectedOption - MAX_LINES, 0);
+    }
     if (rHandler->hasBeenPressedNow()) {
-      commandMenuSelectedOption = commandMenuOptions.size() - 1;
+      if (downHandler->getIsPressed())
+        selectedOption = options.size() - 1;
+      else
+        selectedOption = min(selectedOption + MAX_LINES, options.size() - 1);
     }
-    if (downHandler->hasBeenPressedNow() &&
-        commandMenuSelectedOption < commandMenuOptions.size() - 1)
-      commandMenuSelectedOption++;
-    if (upHandler->hasBeenPressedNow() && commandMenuSelectedOption > 0)
-      commandMenuSelectedOption--;
+    if (downHandler->hasBeenPressedNow() && selectedOption < options.size() - 1)
+      selectedOption++;
+    if (upHandler->hasBeenPressedNow() && selectedOption > 0)
+      selectedOption--;
 
-    if (firstTime || commandMenuSelectedOption != oldOption) {
+    if (firstTime || selectedOption != oldOption) {
       TextStream::instance().setText("Which command?", 0, -3);
-      printScrollableText(commandMenuSelectedOption, commandMenuOptions, true);
+      printScrollableText(selectedOption, options, true);
     }
+
+    if (bHandler->hasBeenPressedNow())
+      return -1;
+
+    if (aHandler->hasBeenPressedNow())
+      return selectedOption;
 
     VBlankIntrWait();
     firstTime = false;
   }
+}
+
+void DebugScene::resetAdapter() {
+  log("> resetting adapter...");
+  bool success = linkRawWireless->activate();
+  log(success ? "< it worked :)" : "< it failed :(");
+  log("");
 }
