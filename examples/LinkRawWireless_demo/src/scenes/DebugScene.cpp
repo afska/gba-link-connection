@@ -31,6 +31,14 @@ static std::vector<std::string> logLines;
 static u32 currentLogLine = 0;
 static bool useVerboseLog = true;
 
+static const std::string CHARACTERS[] = {
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c",
+    "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
+    "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C",
+    "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P",
+    "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};
+static const u32 CHARACTERS_LEN = 62;
+
 #define MAX_LINES 18
 #define DRAW_LINE 2
 
@@ -145,6 +153,10 @@ void DebugScene::tick(u16 keys) {
 
   processKeys(keys);
   processButtons();
+
+  __qran_seed += keys;
+  __qran_seed += REG_RCNT;
+  __qran_seed += REG_SIOCNT;
 }
 
 void DebugScene::addCommandMenuOptions() {
@@ -290,6 +302,53 @@ int DebugScene::selectOption(std::string title,
   }
 }
 
+std::string DebugScene::selectString(u32 maxCharacters) {
+  std::vector<std::string> options = {"<end>"};
+  for (u32 i = 0; i < CHARACTERS_LEN; i++)
+    options.push_back(CHARACTERS[i]);
+
+again:
+  std::string str;
+  for (u32 i = 0; i < maxCharacters; i++) {
+    int characterIndex = -1;
+    if ((characterIndex =
+             selectOption("Next character? (" + str + ")", options)) == -1)
+      goto again;
+    if (characterIndex == 0)
+      break;
+    str += CHARACTERS[characterIndex - 1];
+  }
+
+  if (str == "")
+    goto again;
+
+  return str;
+}
+
+u16 DebugScene::selectU16() {
+again:
+  int lsB = selectU8("Choose lsB (0x00XX)");
+  if (lsB == -1)
+    goto again;
+  int msB = selectU8("Choose msB (0xXX" + linkRawWireless->toHex(lsB, 2) + ")");
+  if (msB == -1)
+    goto again;
+
+  u16 number = linkRawWireless->buildU16((u8)msB, (u8)lsB);
+  if (selectOption(linkRawWireless->toHex(number, 4) + "?",
+                   std::vector<std::string>{"yes", "no"}) == 1)
+    goto again;
+
+  return number;
+}
+
+int DebugScene::selectU8(std::string title) {
+  std::vector<std::string> options;
+  for (u32 i = 0; i < 1 << 8; i++)
+    options.push_back(linkRawWireless->toHex(i, 2));
+  return selectOption(title, options);
+}
+
 void DebugScene::processCommand(u32 selectedCommandIndex) {
   std::string selectedCommand = commandMenuOptions[selectedCommandIndex];
 
@@ -306,14 +365,67 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       LinkRawWireless::SlotStatusResponse response;
       bool success = linkRawWireless->getSlotStatus(response);
       log("< [next slot] " +
-          linkRawWireless->toHex(response.nextClientNumber, 1));
+          linkRawWireless->toHex(response.nextClientNumber, 2));
       for (u32 i = 0; i < response.connectedClients.size(); i++) {
         log("< [client" +
             std::to_string(response.connectedClients[i].clientNumber) + "] " +
-            linkRawWireless->toHex(response.connectedClients[i].deviceId, 2));
+            linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
       }
       return success;
     });
+  } else if (selectedCommand == "0x15 (ConfigStatus)") {
+    logSimpleCommand(selectedCommand, 0x15);
+  } else if (selectedCommand == "0x16 (Broadcast)") {
+    u16 gameId = selectGameId();
+    std::string gameName = selectGameName();
+    std::string userName = selectUserName();
+
+    logOperation("sending " + selectedCommand, [gameName, userName, gameId]() {
+      return linkRawWireless->broadcast(gameName, userName, gameId);
+    });
+  }
+}
+
+u16 DebugScene::selectGameId() {
+  switch (selectOption(
+      "GameID?",
+      std::vector<std::string>{"0x7FFF", "0x1234", "<random>", "<pick>"})) {
+    case 0: {
+      return 0x7fff;
+    }
+    case 1: {
+      return 0x1234;
+    }
+    case 2: {
+      return linkRawWireless->buildU16(qran_range(0, 256), qran_range(0, 256));
+    }
+    default: {
+      return selectU16();
+    }
+  }
+}
+
+std::string DebugScene::selectGameName() {
+  switch (selectOption("Game name?",
+                       std::vector<std::string>{"LinkConnection", "<pick>"})) {
+    case 0: {
+      return "LinkConnection";
+    }
+    default: {
+      return selectString(LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH);
+    }
+  }
+}
+
+std::string DebugScene::selectUserName() {
+  switch (
+      selectOption("User name?", std::vector<std::string>{"Demo", "<pick>"})) {
+    case 0: {
+      return "Demo";
+    }
+    default: {
+      return selectString(LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH);
+    }
   }
 }
 

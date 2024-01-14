@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+// TODO: LOGGING BUILD OPTION
+
 #define LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define LINK_RAW_WIRELESS_MIN_PLAYERS 2
 #define LINK_RAW_WIRELESS_END 0
@@ -59,8 +61,6 @@ static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v6.0.3";
 
 const u16 LINK_RAW_WIRELESS_LOGIN_PARTS[] = {
     0x494e, 0x494e, 0x544e, 0x544e, 0x4e45, 0x4e45, 0x4f44, 0x4f44, 0x8001};
-const u16 LINK_RAW_WIRELESS_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1,
-                                               IRQ_TIMER2, IRQ_TIMER3};
 
 class LinkRawWireless {
   typedef void (*Logger)(std::string);
@@ -138,9 +138,9 @@ class LinkRawWireless {
         .success;
   }
 
-  bool serve(std::string gameName = "",
-             std::string userName = "",
-             u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
+  bool broadcast(std::string gameName = "",
+                 std::string userName = "",
+                 u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
     if (gameName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
       lastError = GAME_NAME_TOO_LONG;
       return false;
@@ -154,7 +154,7 @@ class LinkRawWireless {
     userName.append(LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH - userName.length(),
                     0);
 
-    auto broadcast =
+    auto broadcastData =
         std::vector<u32>{buildU32(buildU16(gameName[1], gameName[0]),
                                   gameId & LINK_RAW_WIRELESS_MAX_GAME_ID),
                          buildU32(buildU16(gameName[5], gameName[4]),
@@ -169,11 +169,10 @@ class LinkRawWireless {
                                   buildU16(userName[5], userName[4]))};
 
     bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST, broadcast).success;
+        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST, broadcastData).success;
 
     if (!success) {
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -190,6 +189,7 @@ class LinkRawWireless {
     }
 
     wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
+    logger("state = SERVING");
     state = SERVING;
 
     return true;
@@ -249,6 +249,7 @@ class LinkRawWireless {
       return false;
     }
 
+    logger("state = SEARCHING");
     state = SEARCHING;
 
     return true;
@@ -297,6 +298,7 @@ class LinkRawWireless {
       servers.push_back(server);
     }
 
+    logger("state = AUTHENTICATED");
     state = AUTHENTICATED;
 
     return true;
@@ -313,6 +315,7 @@ class LinkRawWireless {
       return false;
     }
 
+    logger("state = CONNECTING");
     state = CONNECTING;
 
     return true;
@@ -344,6 +347,7 @@ class LinkRawWireless {
     }
 
     sessionState.currentPlayerId = assignedPlayerId;
+    logger("state = CONNECTED");
     state = CONNECTED;
 
     return true;
@@ -533,6 +537,7 @@ class LinkRawWireless {
   }
 
   void resetState() {
+    logger("state = NEEDS_RESET");
     this->state = NEEDS_RESET;
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
@@ -556,6 +561,7 @@ class LinkRawWireless {
 
     logger("setting SPI to 2Mbps");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+    logger("state = AUTHENTICATED");
     state = AUTHENTICATED;
 
     return true;
