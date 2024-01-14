@@ -27,7 +27,7 @@ class InputHandler {
  protected:
   bool isPressed = false;
   bool isNewPressEvent = false;
-  bool isNewReleaseEvent;
+  bool isNewReleaseEvent = false;
   bool handledFlag = false;
 };
 

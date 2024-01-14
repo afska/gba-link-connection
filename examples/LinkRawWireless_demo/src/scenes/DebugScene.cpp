@@ -1,6 +1,7 @@
 #include "DebugScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
+#include <tonc.h>
 
 #include "../../../../lib/LinkRawWireless.hpp"
 #include "utils/InputHandler.h"
@@ -25,54 +26,68 @@ static std::unique_ptr<InputHandler> selectHandler =
 static std::unique_ptr<InputHandler> startHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 
-static std::vector<std::string> debugLines;
-static int currentDebugLine = 0;
+static std::vector<std::string> logLines;
+static u32 currentLogLine = 0;
 static bool useVerboseLog = true;
 
-void print() {
-  u32 drawLine = 2;
-  for (int i = currentDebugLine - 18; i < currentDebugLine; i++) {
-    if (i >= 0) {
-      TextStream::instance().setText(debugLines[i], drawLine, -3);
-      drawLine++;
+#define MAX_LINES 18
+#define DRAW_LINE 2
+
+void printScrollableText(u32 currentLine,
+                         std::vector<std::string> lines,
+                         bool withCursor = false) {
+  for (u32 i = 0; i < MAX_LINES; i++) {
+    u32 lastLineIndex = MAX_LINES - 1;
+    u32 index = max(currentLine, lastLineIndex) - lastLineIndex + i;
+    if (index < lines.size()) {
+      std::string cursor = currentLine == index ? "> " : "  ";
+      TextStream::instance().setText((withCursor ? cursor : "") + lines[index],
+                                     DRAW_LINE + i, -3);
+    } else {
+      TextStream::instance().setText("                              ",
+                                     DRAW_LINE + i, -3);
     }
   }
-  for (u32 i = drawLine; i < 20; i++)
-    TextStream::instance().setText("                              ", i, -3);
+}
+
+void print() {
+  printScrollableText(currentLogLine, logLines);
 }
 
 void scrollBack() {
-  if (currentDebugLine < 19)
+  if (currentLogLine <= 0)
     return;
-  currentDebugLine--;
+  currentLogLine--;
   print();
 }
 
 void scrollForward() {
-  if (currentDebugLine == (int)debugLines.size())
+  if (currentLogLine < MAX_LINES - 1)
+    currentLogLine = min(MAX_LINES - 1, logLines.size() - 1);
+  if (currentLogLine == logLines.size() - 1)
     return;
-  currentDebugLine++;
+  currentLogLine++;
   print();
 }
 
 void scrollToTop() {
-  currentDebugLine = 18;
+  currentLogLine = 0;
   print();
 }
 
 void scrollToBottom() {
-  currentDebugLine = debugLines.size();
+  currentLogLine = logLines.size() - 1;
   print();
 }
 
 void clear() {
-  debugLines.clear();
-  currentDebugLine = 0;
+  logLines.clear();
+  currentLogLine = 0;
   print();
 }
 
 void log(std::string string) {
-  debugLines.push_back(string);
+  logLines.push_back(string);
   scrollToBottom();
 }
 
@@ -89,11 +104,10 @@ void DebugScene::load() {
   SCENE_init();
   BACKGROUND_enable(true, false, false, false);
 
-  linkRawWireless->debug = [](std::string string) {
+  linkRawWireless->logger = [](std::string string) {
     if (useVerboseLog)
       log(string);
   };
-  linkRawWireless->log = [](std::string string) { log(string); };
 
   log("---");
   log("LinkRawWireless demo");
@@ -107,18 +121,59 @@ void DebugScene::load() {
   log("---");
   log("");
   toggleLogLevel();
+
+  addCommandMenuOptions();
 }
 
 void DebugScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
-  TextStream::instance().setText("state = AUTHENTICATED   p? / ?", 0, -3);
+  TextStream::instance().setText("state = AUTHENTICATED     p?/?", 0, -3);
 
-  processButtons(keys);
+  processKeys(keys);
+  processButtons();
 }
 
-void DebugScene::processButtons(u16 keys) {
+void DebugScene::addCommandMenuOptions() {
+  commandMenuOptions.push_back("Setup+Broadcast+StartHost");
+  commandMenuOptions.push_back("Setup+BroadcastRead1+2+3");
+  commandMenuOptions.push_back("Setup+Connect+FinishConn");
+
+  commandMenuOptions.push_back("0x10 (Hello)");
+  commandMenuOptions.push_back("0x11 (SignalLevel)");
+  commandMenuOptions.push_back("0x12 (VersionStatus)");
+  commandMenuOptions.push_back("0x13 (SystemStatus)");
+  commandMenuOptions.push_back("0x14 (SlotStatus)");
+  commandMenuOptions.push_back("0x15 (ConfigStatus)");
+  commandMenuOptions.push_back("0x16 (Broadcast)");
+  commandMenuOptions.push_back("0x17 (Setup)");
+  commandMenuOptions.push_back("0x18 (?)");
+  commandMenuOptions.push_back("0x19 (StartHost)");
+  commandMenuOptions.push_back("0x1a (AcceptConnections)");
+  commandMenuOptions.push_back("0x1b (EndHost)");
+  commandMenuOptions.push_back("0x1c (BroadcastRead1)");
+  commandMenuOptions.push_back("0x1d (BroadcastRead2)");
+  commandMenuOptions.push_back("0x1e (BroadcastRead3)");
+  commandMenuOptions.push_back("0x1f (Connect)");
+  commandMenuOptions.push_back("0x20 (IsFinishedConnect)");
+  commandMenuOptions.push_back("0x21 (FinishConnection)");
+  commandMenuOptions.push_back("0x24 (SendData)");
+  commandMenuOptions.push_back("0x25 (SendDataAndWait)");
+  commandMenuOptions.push_back("0x26 (ReceiveData)");
+  commandMenuOptions.push_back("0x27 (Wait)");
+  commandMenuOptions.push_back("0x30 (DisconnectClient)");
+  commandMenuOptions.push_back("0x32 (?)");
+  commandMenuOptions.push_back("0x33 (?)");
+  commandMenuOptions.push_back("0x34 (?)");
+  commandMenuOptions.push_back("0x35 (?!)");
+  commandMenuOptions.push_back("0x37 (RetransmitAndWait)");
+  commandMenuOptions.push_back("0x38 (?)");
+  commandMenuOptions.push_back("0x39 (?)");
+  commandMenuOptions.push_back("0x3d (Bye)");
+}
+
+void DebugScene::processKeys(u16 keys) {
   aHandler->setIsPressed(keys & KEY_A);
   bHandler->setIsPressed(keys & KEY_B);
   upHandler->setIsPressed(keys & KEY_UP);
@@ -127,7 +182,9 @@ void DebugScene::processButtons(u16 keys) {
   rHandler->setIsPressed(keys & KEY_R);
   selectHandler->setIsPressed(keys & KEY_SELECT);
   startHandler->setIsPressed(keys & KEY_START);
+}
 
+void DebugScene::processButtons() {
   if (aHandler->hasBeenPressedNow())
     showCommandSendMenu();
 
@@ -172,5 +229,31 @@ void DebugScene::resetAdapter() {
 }
 
 void DebugScene::showCommandSendMenu() {
-  // TODO: IMPLEMENT
+  bool firstTime = true;
+
+  while (true) {
+    u16 keys = ~REG_KEYS & KEY_ANY;
+    processKeys(keys);
+
+    u32 oldOption = commandMenuSelectedOption;
+
+    if (lHandler->hasBeenPressedNow())
+      commandMenuSelectedOption = 0;
+    if (rHandler->hasBeenPressedNow()) {
+      commandMenuSelectedOption = commandMenuOptions.size() - 1;
+    }
+    if (downHandler->hasBeenPressedNow() &&
+        commandMenuSelectedOption < commandMenuOptions.size() - 1)
+      commandMenuSelectedOption++;
+    if (upHandler->hasBeenPressedNow() && commandMenuSelectedOption > 0)
+      commandMenuSelectedOption--;
+
+    if (firstTime || commandMenuSelectedOption != oldOption) {
+      TextStream::instance().setText("Which command?", 0, -3);
+      printScrollableText(commandMenuSelectedOption, commandMenuOptions, true);
+    }
+
+    VBlankIntrWait();
+    firstTime = false;
+  }
 }

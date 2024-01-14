@@ -7,6 +7,7 @@
 #include <libgba-sprite-engine/sprites/sprite.h>
 
 #include <string>
+#include <vector>
 
 class DebugScene : public Scene {
  public:
@@ -19,7 +20,12 @@ class DebugScene : public Scene {
   void tick(u16 keys) override;
 
  private:
-  void processButtons(u16 keys);
+  std::vector<std::string> commandMenuOptions;
+  u32 commandMenuSelectedOption = 0;
+
+  void addCommandMenuOptions();
+  void processKeys(u16 keys);
+  void processButtons();
   void toggleLogLevel();
   void resetAdapter();
   void showCommandSendMenu();
