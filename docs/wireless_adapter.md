@@ -271,7 +271,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
     
 *   This command stops host broadcast. This allows to "close" the session and stop allowing new clients, but also **keeping the existing connections alive**. Sends and Receives still work, but:
     - Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
-    - Calls to `AcceptConnections` on the host side will fail.
+    - Calls to `AcceptConnections` on the host side will fail, unless `StartHost` is called again.
     
 #### BroadcastRead - `0x1c`, `0x1d` and `0x1e`
 
@@ -493,6 +493,25 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
   * `1, 2, 3, 4, 5, 6` would be the broadcast data.
   * `3933216` is the value used in the [Setup](#setup---0x17) command (`0x003C0420`). 
   * No idea what `257` this means.
+
+#### RetransmitAndWait - `0x37`
+
+*   Send length: 0, Response length: 0
+*   Retransmits the last data from a host to all clients, with the additional effect of [Wait](#wait---0x27)
+*   See [Waiting](#waiting) for more details on this.
+
+### Unknown commands
+
+If we analyze whether a command ID throws an 'invalid command' error (`0x996601ee` with error code `2`), we can know that there are **more commands**. I don't know what these commands do.
+
+- `0x18`
+- `0x18`
+- `0x32`
+- `0x33`
+- `0x34`
+- `0x35` (puts the GBA in [Waiting](#waiting) state)
+- `0x38`
+- `0x39`
 
 Waiting
 -------
