@@ -28,13 +28,15 @@ class DebugScene : public Scene {
   void toggleLogLevel();
   int selectOption(std::string title, std::vector<std::string> options);
   std::string selectString(u32 maxCharacters);
+  int selectU32(std::string title);
   int selectU16();
   int selectU8(std::string title);
   void processCommand(u32 selectedCommandIndex);
   int selectGameId();
   std::string selectGameName();
   std::string selectUserName();
-  void logSimpleCommand(std::string name, u32 id);
+  std::vector<u32> selectData();
+  void logSimpleCommand(std::string name, u32 id, std::vector<u32> params = {});
   void logOperation(std::string name, std::function<bool()> operation);
   void resetAdapter();
 };

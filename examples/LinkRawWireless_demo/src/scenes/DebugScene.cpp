@@ -333,6 +333,39 @@ again:
   return str;
 }
 
+int DebugScene::selectU32(std::string title) {
+again0:
+  int byte0 = selectU8(title + " - Byte 0 (0x000000XX)");
+  if (byte0 == -1)
+    return -1;
+again1:
+  int byte1 = selectU8(title + " - Byte 1 (0x0000XX" +
+                       linkRawWireless->toHex(byte0, 2) + ")");
+  if (byte1 == -1)
+    goto again0;
+again2:
+  int byte2 =
+      selectU8(title + " - Byte 2 (0x00XX" + linkRawWireless->toHex(byte1, 2) +
+               linkRawWireless->toHex(byte0, 2) + ")");
+  if (byte2 == -1)
+    goto again1;
+  int byte3 =
+      selectU8(title + " - Byte 3 (0xXX" + linkRawWireless->toHex(byte2, 2) +
+               linkRawWireless->toHex(byte1, 2) +
+               linkRawWireless->toHex(byte0, 2) + ")");
+  if (byte3 == -1)
+    goto again2;
+
+  u16 numberLow = linkRawWireless->buildU16((u8)byte1, (u8)byte0);
+  u16 numberHigh = linkRawWireless->buildU16((u8)byte3, (u8)byte2);
+  u32 number = linkRawWireless->buildU32(numberHigh, numberLow);
+  if (selectOption(">> 0x" + linkRawWireless->toHex(number, 8) + "?",
+                   std::vector<std::string>{"yes", "no"}) == 1)
+    goto again0;
+
+  return number;
+}
+
 int DebugScene::selectU16() {
 again:
   int lsB = selectU8("Choose lsB (0x00XX)");
@@ -407,6 +440,9 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     logOperation("sending " + selectedCommand, [maxPlayers]() {
       return linkRawWireless->setup(5 - maxPlayers);
     });
+  } else if (selectedCommand == "0x18 (?)") {
+    auto data = selectData();
+    logSimpleCommand(selectedCommand, 0x18, data);
   }
 }
 
@@ -441,6 +477,27 @@ std::string DebugScene::selectGameName() {
   }
 }
 
+std::vector<u32> DebugScene::selectData() {
+  std::vector<u32> data;
+
+  std::vector<std::string> options;
+  for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; i++)
+    options.push_back(std::to_string(i));
+  int words = selectOption("How many words?", options);
+  if (words == -1)
+    return data;
+
+  for (u32 i = 0; i < (u32)words; i++) {
+    int word = selectU32("Word " + std::to_string(i + 1) + "/" +
+                         std::to_string(words));
+    if (word == -1)
+      return data;
+    data.push_back(word);
+  }
+
+  return data;
+}
+
 std::string DebugScene::selectUserName() {
   switch (
       selectOption("User name?", std::vector<std::string>{"Demo", "<pick>"})) {
@@ -453,9 +510,11 @@ std::string DebugScene::selectUserName() {
   }
 }
 
-void DebugScene::logSimpleCommand(std::string name, u32 id) {
-  logOperation("sending " + name, [id]() {
-    auto result = linkRawWireless->sendCommand(id);
+void DebugScene::logSimpleCommand(std::string name,
+                                  u32 id,
+                                  std::vector<u32> params) {
+  logOperation("sending " + name, [id, &params]() {
+    auto result = linkRawWireless->sendCommand(id, params);
     for (u32 i = 0; i < result.responses.size(); i++) {
       log("< [response" + std::to_string(i) + "] " +
           linkRawWireless->toHex(result.responses[i]));
