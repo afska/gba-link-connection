@@ -505,7 +505,6 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 If we analyze whether a command ID throws an 'invalid command' error (`0x996601ee` with error code `2`), we can know that there are **more commands**. I don't know what these commands do.
 
 - `0x18`
-- `0x18`
 - `0x32`
 - `0x33`
 - `0x34`
