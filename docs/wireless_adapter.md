@@ -289,7 +289,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
       * `0b11`: If you join this room, your `clientNumber` will be 3.
       * `0xff`: The server is full. You cannot join this room.
       * Although `LinkWireless` uses this to know the number of connected players, that only works because -by design- rooms are closed when a player disconnects. The hardware allows disconnecting specific clients, so if the next available slot is e.g. 2, it can mean that there are 3 connected players (1 host + 2 clients) or that there are more players, but the third client (`clientNumber` = 2) has disconnected and the slot is now free.
-      * The number of available slots depends on `maxPlayers` (see [Setup](#setup---0x17)).
+      * The number of available slots depends on `maxPlayers` (see [Setup](#setup---0x17)) and/or [EndHost](#endhost---0x1b).
     * 4th byte: Zero.
 
 🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
@@ -479,7 +479,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 *   It's returns a list of the connected adapters, similar to what `AcceptConnections` responds, but also:
 
-    - `SlotStatus` has an extra word at the start of the response, indicating the `clientNumber` that the next connection will have (or `0xFF` if there are already 4 connected clients).
+    - `SlotStatus` has an extra word at the start of the response, indicating the `clientNumber` that the next connection will have (or `0xFF` if the room is not accepting new clients).
     - `SlotStatus` can be called after `EndHost`, while `AcceptConnections` fails.
 
 #### ConfigStatus - `0x15`
