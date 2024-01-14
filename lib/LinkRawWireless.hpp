@@ -43,6 +43,7 @@
 #define LINK_RAW_WIRELESS_COMMAND_SETUP 0x17
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST 0x16
 #define LINK_RAW_WIRELESS_COMMAND_START_HOST 0x19
+#define LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS 0x14
 #define LINK_RAW_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL 0x1d
@@ -110,7 +111,7 @@ class LinkRawWireless {
     lastError = NONE;
     isEnabled = false;
 
-    bool success = reset();
+    bool success = reset(true);
 
     isEnabled = true;
     return success;
@@ -190,6 +191,37 @@ class LinkRawWireless {
 
     wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
     state = SERVING;
+
+    return true;
+  }
+
+  typedef struct {
+    u16 deviceId;
+    u8 clientNumber;
+  } ConnectedClient;
+
+  typedef struct {
+    u8 nextClientNumber;
+    std::vector<ConnectedClient> connectedClients;
+  } SlotStatusResponse;
+
+  bool getSlotStatus(SlotStatusResponse& response) {
+    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS);
+
+    if (!result.success) {
+      reset();
+      return false;
+    }
+
+    for (u32 i = 0; i < result.responses.size(); i++) {
+      if (i == 0) {
+        response.nextClientNumber = (u8)lsB32(result.responses[i]);
+      } else {
+        response.connectedClients.push_back(
+            ConnectedClient{.deviceId = lsB32(result.responses[i]),
+                            .clientNumber = (u8)msB32(result.responses[i])});
+      }
+    }
 
     return true;
   }
@@ -494,10 +526,10 @@ class LinkRawWireless {
       name.push_back(character);
   }
 
-  bool reset() {
+  bool reset(bool initialize = false) {
     resetState();
     stop();
-    return start();
+    return initialize && start();
   }
 
   void resetState() {

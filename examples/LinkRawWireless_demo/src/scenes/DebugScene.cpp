@@ -301,6 +301,19 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     logSimpleCommand(selectedCommand, 0x12);
   } else if (selectedCommand == "0x13 (SystemStatus)") {
     logSimpleCommand(selectedCommand, 0x13);
+  } else if (selectedCommand == "0x14 (SlotStatus)") {
+    logOperation("sending " + selectedCommand, []() {
+      LinkRawWireless::SlotStatusResponse response;
+      bool success = linkRawWireless->getSlotStatus(response);
+      log("< [next slot] " +
+          linkRawWireless->toHex(response.nextClientNumber, 1));
+      for (u32 i = 0; i < response.connectedClients.size(); i++) {
+        log("< [client" +
+            std::to_string(response.connectedClients[i].clientNumber) + "] " +
+            linkRawWireless->toHex(response.connectedClients[i].deviceId, 2));
+      }
+      return success;
+    });
   }
 }
 
