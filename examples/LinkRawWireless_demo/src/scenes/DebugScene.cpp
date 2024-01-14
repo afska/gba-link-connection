@@ -128,6 +128,9 @@ void DebugScene::processButtons(u16 keys) {
   selectHandler->setIsPressed(keys & KEY_SELECT);
   startHandler->setIsPressed(keys & KEY_START);
 
+  if (aHandler->hasBeenPressedNow())
+    showCommandSendMenu();
+
   if (bHandler->hasBeenPressedNow())
     toggleLogLevel();
 
@@ -160,9 +163,14 @@ void DebugScene::toggleLogLevel() {
   }
   log("");
 }
+
 void DebugScene::resetAdapter() {
   log("> resetting adapter...");
   bool success = linkRawWireless->activate();
   log(success ? "< it worked :)" : "< it failed :(");
   log("");
+}
+
+void DebugScene::showCommandSendMenu() {
+  // TODO: IMPLEMENT
 }

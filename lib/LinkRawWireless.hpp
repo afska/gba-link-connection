@@ -39,6 +39,7 @@
   (1 + LINK_RAW_WIRELESS_BROADCAST_LENGTH)
 #define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 22
 #define LINK_RAW_WIRELESS_COMMAND_HELLO 0x10
+#define LINK_RAW_WIRELESS_COMMAND_VERSION 0x11
 #define LINK_RAW_WIRELESS_COMMAND_SETUP 0x17
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST 0x16
 #define LINK_RAW_WIRELESS_COMMAND_START_HOST 0x19
@@ -608,13 +609,21 @@ class LinkRawWireless {
     u32 vCount = REG_VCOUNT;
 
     linkSPI->_setSOLow();
-    while (!linkSPI->_isSIHigh())
-      if (cmdTimeout(lines, vCount))
+    while (!linkSPI->_isSIHigh()) {
+      if (cmdTimeout(lines, vCount)) {
+        debug("! ACK 1 failed. I put SO=LOW,");
+        debug("! but SI didn't become HIGH.");
         return false;
+      }
+    }
     linkSPI->_setSOHigh();
-    while (linkSPI->_isSIHigh())
-      if (cmdTimeout(lines, vCount))
+    while (linkSPI->_isSIHigh()) {
+      if (cmdTimeout(lines, vCount)) {
+        debug("! ACK 2 failed. I put SO=HIGH,");
+        debug("! but SI didn't become LOW.");
         return false;
+      }
+    }
     linkSPI->_setSOLow();
 
     return true;

@@ -22,6 +22,7 @@ class DebugScene : public Scene {
   void processButtons(u16 keys);
   void toggleLogLevel();
   void resetAdapter();
+  void showCommandSendMenu();
 };
 
 #endif  // DEBUG_SCENE_H
