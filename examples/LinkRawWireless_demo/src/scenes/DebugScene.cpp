@@ -312,8 +312,12 @@ again:
   for (u32 i = 0; i < maxCharacters; i++) {
     int characterIndex = -1;
     if ((characterIndex =
-             selectOption("Next character? (" + str + ")", options)) == -1)
-      goto again;
+             selectOption("Next character? (" + str + ")", options)) == -1) {
+      if (i == 0)
+        return "";
+      else
+        goto again;
+    }
     if (characterIndex == 0)
       break;
     str += CHARACTERS[characterIndex - 1];
@@ -322,20 +326,24 @@ again:
   if (str == "")
     goto again;
 
+  if (selectOption(">> " + str + "?", std::vector<std::string>{"yes", "no"}) ==
+      1)
+    goto again;
+
   return str;
 }
 
-u16 DebugScene::selectU16() {
+int DebugScene::selectU16() {
 again:
   int lsB = selectU8("Choose lsB (0x00XX)");
   if (lsB == -1)
-    goto again;
+    return -1;
   int msB = selectU8("Choose msB (0xXX" + linkRawWireless->toHex(lsB, 2) + ")");
   if (msB == -1)
     goto again;
 
   u16 number = linkRawWireless->buildU16((u8)msB, (u8)lsB);
-  if (selectOption(linkRawWireless->toHex(number, 4) + "?",
+  if (selectOption(">> 0x" + linkRawWireless->toHex(number, 4) + "?",
                    std::vector<std::string>{"yes", "no"}) == 1)
     goto again;
 
@@ -376,17 +384,33 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
   } else if (selectedCommand == "0x15 (ConfigStatus)") {
     logSimpleCommand(selectedCommand, 0x15);
   } else if (selectedCommand == "0x16 (Broadcast)") {
-    u16 gameId = selectGameId();
+    int gameId = selectGameId();
+    if (gameId == -1)
+      return;
     std::string gameName = selectGameName();
+    if (gameName == "")
+      return;
     std::string userName = selectUserName();
+    if (userName == "")
+      return;
 
     logOperation("sending " + selectedCommand, [gameName, userName, gameId]() {
-      return linkRawWireless->broadcast(gameName, userName, gameId);
+      return linkRawWireless->broadcast(gameName, userName, (u16)gameId);
+    });
+  } else if (selectedCommand == "0x17 (Setup)") {
+    int maxPlayers = -1;
+    while ((maxPlayers = selectOption(
+                "Max players?",
+                std::vector<std::string>{"5", "4", "3", "2"})) == -1)
+      ;
+
+    logOperation("sending " + selectedCommand, [maxPlayers]() {
+      return linkRawWireless->setup(5 - maxPlayers);
     });
   }
 }
 
-u16 DebugScene::selectGameId() {
+int DebugScene::selectGameId() {
   switch (selectOption(
       "GameID?",
       std::vector<std::string>{"0x7FFF", "0x1234", "<random>", "<pick>"})) {

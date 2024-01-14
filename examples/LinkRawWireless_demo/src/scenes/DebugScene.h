@@ -28,10 +28,10 @@ class DebugScene : public Scene {
   void toggleLogLevel();
   int selectOption(std::string title, std::vector<std::string> options);
   std::string selectString(u32 maxCharacters);
-  u16 selectU16();
+  int selectU16();
   int selectU8(std::string title);
   void processCommand(u32 selectedCommandIndex);
-  u16 selectGameId();
+  int selectGameId();
   std::string selectGameName();
   std::string selectUserName();
   void logSimpleCommand(std::string name, u32 id);
