@@ -150,7 +150,25 @@ void DebugScene::tick(u16 keys) {
   if (engine->isTransitioning())
     return;
 
-  TextStream::instance().setText("state = AUTHENTICATED     p?/?", 0, -3);
+  std::string state =
+      linkRawWireless->getState() == LinkRawWireless::State::NEEDS_RESET
+          ? "NEEDS_RESET       "
+      : linkRawWireless->getState() == LinkRawWireless::State::AUTHENTICATED
+          ? "AUTHENTICATED     "
+      : linkRawWireless->getState() == LinkRawWireless::State::SEARCHING
+          ? "SEARCHING         "
+      : linkRawWireless->getState() == LinkRawWireless::State::SERVING
+          ? "SERVING           "
+      : linkRawWireless->getState() == LinkRawWireless::State::CONNECTING
+          ? "CONNECTING        "
+      : linkRawWireless->getState() == LinkRawWireless::State::CONNECTED
+          ? "CONNECTED         "
+          : "?                 ";
+  TextStream::instance().setText(
+      "state = " + state + "p" +
+          std::to_string(linkRawWireless->sessionState.currentPlayerId) + "/" +
+          std::to_string(linkRawWireless->sessionState.playerCount),
+      0, -3);
 
   processKeys(keys);
   processButtons();
@@ -488,6 +506,24 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     }
     case 0x18:
       goto generic;
+    case 0x19:
+      return logOperation("sending " + name,
+                          []() { return linkRawWireless->startHost(); });
+    case 0x20:
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::ConnectionStatus response;
+        bool success = linkRawWireless->keepConnecting(response);
+        log(std::string("< [phase] ") + (response.phase == 0   ? "CONNECTING"
+                                         : response.phase == 1 ? "ERROR"
+                                                               : "SUCCESS"));
+        if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
+          log(std::string("< [slot] ") +
+              std::to_string(response.assignedClientNumber));
+        return success;
+      });
+    case 0x21:
+      return logOperation("sending " + name,
+                          []() { return linkRawWireless->finishConnection(); });
     default:
       return;
   }

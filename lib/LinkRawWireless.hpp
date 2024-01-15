@@ -196,15 +196,13 @@ class LinkRawWireless {
   }
 
   typedef struct {
-    u16 deviceId;
-    u8 clientNumber;
+    u16 deviceId = 0;
+    u8 clientNumber = 0;
   } ConnectedClient;
-
   typedef struct {
-    u8 nextClientNumber;
-    std::vector<ConnectedClient> connectedClients;
+    u8 nextClientNumber = 0;
+    std::vector<ConnectedClient> connectedClients = {};
   } SlotStatusResponse;
-
   bool getSlotStatus(SlotStatusResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS);
 
@@ -321,31 +319,56 @@ class LinkRawWireless {
     return true;
   }
 
-  bool keepConnecting() {
-    auto result1 = sendCommand(LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
-    if (!result1.success || result1.responses.size() == 0) {
+  enum ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
+  typedef struct {
+    ConnectionPhase phase = STILL_CONNECTING;
+    u8 assignedClientNumber = 0;
+  } ConnectionStatus;
+  bool keepConnecting(ConnectionStatus& response) {
+    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
+    if (!result.success || result.responses.size() == 0) {
+      if (result.responses.size() == 0)
+        logger("! empty response");
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
-    if (result1.responses[0] == LINK_RAW_WIRELESS_STILL_CONNECTING)
+    if (result.responses[0] == LINK_RAW_WIRELESS_STILL_CONNECTING) {
+      response.phase = STILL_CONNECTING;
       return true;
+    }
 
-    u8 assignedPlayerId = 1 + (u8)msB32(result1.responses[0]);
+    u8 assignedPlayerId = 1 + (u8)msB32(result.responses[0]);
     if (assignedPlayerId >= LINK_RAW_WIRELESS_MAX_PLAYERS) {
+      logger("! connection failed (1)");
       reset();
-      lastError = CONNECTION_FAILED;
+      response.phase = ERROR;
       return false;
     }
 
-    auto result2 = sendCommand(LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION);
-    if (!result2.success) {
+    response.phase = SUCCESS;
+    response.assignedClientNumber = (u8)msB32(result.responses[0]);
+
+    return true;
+  }
+
+  bool finishConnection() {
+    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION);
+    if (!result.success || result.responses.size() == 0) {
+      if (result.responses.size() == 0)
+        logger("! empty response");
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
+    u16 status = msB32(result.responses[0]);
+    if ((msB16(status) & 1) == 1) {
+      logger("! connection failed (2)");
+      reset();
+      return false;
+    }
+
+    u8 assignedPlayerId = 1 + (u8)status;
     sessionState.currentPlayerId = assignedPlayerId;
     logger("state = CONNECTED");
     state = CONNECTED;
@@ -475,23 +498,6 @@ class LinkRawWireless {
     delete linkGPIO;
   }
 
-  template <typename I>
-  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
-    static const char* digits = "0123456789ABCDEF";
-    std::string rc(hex_len, '0');
-    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-      rc[i] = digits[(w >> j) & 0x0f];
-    return rc;
-  }
-
-  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
-  u8 msB16(u16 value) { return value >> 8; }
-  u8 lsB16(u16 value) { return value & 0xff; }
-
- private:
   struct SessionState {
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
@@ -532,7 +538,8 @@ class LinkRawWireless {
 
   bool reset(bool initialize = false) {
     resetState();
-    stop();
+    if (initialize)
+      stop();
     return initialize && start();
   }
 
@@ -690,6 +697,22 @@ class LinkRawWireless {
     logger("! expected 0x" + toHex(expected));
     logger("! but received 0x" + toHex(received));
   }
+
+  template <typename I>
+  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+      rc[i] = digits[(w >> j) & 0x0f];
+    return rc;
+  }
+
+  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
+  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
+  u16 msB32(u32 value) { return value >> 16; }
+  u16 lsB32(u32 value) { return value & 0xffff; }
+  u8 msB16(u16 value) { return value >> 8; }
+  u8 lsB16(u16 value) { return value & 0xff; }
 };
 
 extern LinkRawWireless* linkRawWireless;
