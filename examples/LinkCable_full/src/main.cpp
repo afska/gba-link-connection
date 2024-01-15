@@ -88,6 +88,7 @@ inline void setUpInterrupts() {
   // A+B+START+SELECT
   REG_KEYCNT = 0b1100000000001111;
   interrupt_set_handler(INTR_KEYPAD, ISR_reset);
+  interrupt_enable(INTR_KEYPAD);
 }
 
 void printTutorial() {
