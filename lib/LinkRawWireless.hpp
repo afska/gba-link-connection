@@ -115,6 +115,11 @@ class LinkRawWireless {
     u8 assignedClientNumber = 0;
   } ConnectionStatus;
 
+  typedef struct {
+    u32 sentBytes[LINK_RAW_WIRELESS_MAX_PLAYERS];
+    std::vector<u32> data = {};
+  } ReceiveDataResponse;
+
   bool isActive() { return isEnabled; }
 
   bool activate() {
@@ -420,17 +425,27 @@ class LinkRawWireless {
     return true;
   }
 
-  bool receiveData(std::vector<u32>& data) {
+  bool receiveData(ReceiveDataResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA);
-    data = result.responses;
+    response.data = result.responses;
 
     if (!result.success) {
       reset();
       return false;
     }
 
-    if (data.size() > 0)  // TODO: DON'T STRIP HEADER?
-      data.erase(data.begin());
+    for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
+      response.sentBytes[i] = 0;
+
+    if (response.data.size() > 0) {
+      u32 header = response.data[0];
+      response.data.erase(response.data.begin());
+      response.sentBytes[0] = header & 0b1111111;
+      response.sentBytes[1] = (header >> 8) & 0b11111;
+      response.sentBytes[2] = (header >> 13) & 0b11111;
+      response.sentBytes[3] = (header >> 18) & 0b11111;
+      response.sentBytes[4] = (header >> 23) & 0b11111;
+    }
 
     return true;
   }

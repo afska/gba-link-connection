@@ -521,9 +521,10 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     }
     case 0x18:
       goto generic;
-    case 0x19:
+    case 0x19: {
       return logOperation("sending " + name,
                           []() { return linkRawWireless->startHost(); });
+    }
     case 0x1a: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::AcceptConnectionsResponse response;
@@ -617,7 +618,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
-    case 0x20:
+    case 0x20: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::ConnectionStatus response;
         bool success = linkRawWireless->keepConnecting(response);
@@ -627,17 +628,18 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
                                            : response.phase == 1 ? "ERROR"
                                                                  : "SUCCESS"));
           if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
-            log(std::string("< [slot] ") +
-                std::to_string(response.assignedClientNumber));
+            log("< [slot] " + std::to_string(response.assignedClientNumber));
 
           log("NOW CALL 0x21!");
         }
 
         return success;
       });
-    case 0x21:
+    }
+    case 0x21: {
       return logOperation("sending " + name,
                           []() { return linkRawWireless->finishConnection(); });
+    }
     case 0x24: {
       auto data = selectDataToSend();
       if (data.empty())
@@ -646,6 +648,26 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       data.erase(data.begin());
       return logOperation("sending " + name, [&data, bytes]() {
         return linkRawWireless->sendData(data, bytes);
+      });
+    }
+    case 0x26: {
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::ReceiveDataResponse response;
+        bool success = linkRawWireless->receiveData(response);
+
+        if (success) {
+          log("< [bytesH] " + std::to_string(response.sentBytes[0]));
+          log("< [bytesC0] " + std::to_string(response.sentBytes[1]));
+          log("< [bytesC1] " + std::to_string(response.sentBytes[2]));
+          log("< [bytesC2] " + std::to_string(response.sentBytes[3]));
+          log("< [bytesC3] " + std::to_string(response.sentBytes[4]));
+
+          for (u32 i = 0; i < response.data.size(); i++)
+            log("< [data" + std::to_string(i) + "] " +
+                linkRawWireless->toHex(response.data[i]));
+        }
+
+        return success;
       });
     }
     default:
