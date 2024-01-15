@@ -55,7 +55,7 @@
     }                                                              \
   }
 
-static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v6.0.3";
+static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v6.1.0";
 
 class LinkRawCable {
  public:
