@@ -198,7 +198,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`. It can also be used to disconnect or reset the adapter.
 `deactivate()` | **bool** | Puts the adapter into a low consumption mode and then deactivates the library. It returns a boolean indicating whether the transition to low consumption mode was successful.
-`serve([gameName], [userName], [gameId])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters), a `userName` (max `8` characters), and a `gameId` *(0 ~ 0x7FFF)* that games will be able to read. If the adapter is already serving, this method only updates the broadcast data.
+`serve([gameName], [userName], [gameId])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters), a `userName` (max `8` characters), and a `gameId` *(0 ~ 0x7FFF)* that games will be able to read. The strings must be null-terminated character arrays.  If the adapter is already serving, this method only updates the broadcast data.
 `getServers(servers, [onWait])` | **bool** | Fills the `servers` array with all the currently broadcasting servers. This action takes 1 second to complete, but you can optionally provide an `onWait()` function which will be invoked each time VBlank starts.
 `getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
 `getServersAsyncEnd(servers)` | **bool** | Fills the `servers` array with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
@@ -228,7 +228,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/d1f49a48-6b17-4954-9
 Name | Type | Default | Description
 --- | --- | --- | ---
 `protocol` | **LinkUniversal::Protocol** | `AUTODETECT` | Specifies what protocol should be used (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
-`gameName` | **std::string** | `""` | The game name that will be broadcasted in wireless sessions. The library uses this to only connect to servers from the same game.
+`gameName` | **const char\*** | `""` | The game name that will be broadcasted in wireless sessions (max `14` characters). The string must be a null-terminated character array. The library uses this to only connect to servers from the same game.
 `cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#constructor) constructor parameters in one *struct*.
 `wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-1) constructor parameters in one *struct*.
 
