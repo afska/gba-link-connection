@@ -259,7 +259,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate(baudRate = BAUD_RATE_1)` | - | Activates the library in a specific `baudRate` (`LinkRawCable::BaudRate`).
 `deactivate()` | - | Deactivates the library.
-`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the other end. Returns the received data, including the assigned player id.
+`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the connected consoles. Returns the received data, including the assigned player id.
 `transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
 `getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
