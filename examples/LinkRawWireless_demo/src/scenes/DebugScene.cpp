@@ -259,6 +259,9 @@ void DebugScene::processKeys(u16 keys) {
 }
 
 void DebugScene::processButtons() {
+  if (bHandler->hasBeenPressedNow())
+    toggleLogLevel();
+
   if (aHandler->hasBeenPressedNow()) {
     std::vector<std::string> commandNames;
     commandNames.resize(commandMenuOptions.size());
@@ -275,9 +278,6 @@ void DebugScene::processButtons() {
 
     print();
   }
-
-  if (bHandler->hasBeenPressedNow())
-    toggleLogLevel();
 
   if (lHandler->hasBeenPressedNow()) {
     if (upHandler->getIsPressed())
