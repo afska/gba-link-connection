@@ -46,6 +46,8 @@ class DebugScene : public Scene {
   std::string selectUserName();
   std::vector<u32> selectDataToSend();
   std::vector<u32> selectData();
+  void logGenericWaitCommand(std::string name, u32 id);
+  void logGenericCommand(std::string name, u32 id);
   void logSimpleCommand(std::string name, u32 id, std::vector<u32> params = {});
   void logOperation(std::string name, std::function<bool()> operation);
   void resetAdapter();

@@ -727,12 +727,9 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     case 0x33:
     case 0x34:
       goto generic;
-    case 0x35: {
-      // TODO: IMPLEMENT
-    }
-    case 0x37: {
-      // TODO: IMPLEMENT
-    }
+    case 0x35:
+    case 0x37:
+      goto genericWait;
     case 0x38:
     case 0x39:
       goto generic;
@@ -745,8 +742,9 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
 simple:
   return logSimpleCommand(name, command);
 generic:
-  auto data = selectData();
-  return logSimpleCommand(name, command, data);
+  return logGenericCommand(name, command);
+genericWait:
+  return logGenericWaitCommand(name, command);
 }
 
 int DebugScene::selectServerId() {
@@ -869,6 +867,40 @@ std::string DebugScene::selectUserName() {
       return selectString(LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH);
     }
   }
+}
+
+void DebugScene::logGenericWaitCommand(std::string name, u32 id) {
+  auto data = selectData();
+  return logOperation("sending " + name, [id, &data]() {
+    auto result = linkRawWireless->sendCommand(id, data);
+    for (u32 i = 0; i < result.responses.size(); i++) {
+      log("< [response" + std::to_string(i) + "] " +
+          linkRawWireless->toHex(result.responses[i]));
+    }
+
+    if (!result.success)
+      return false;
+
+    log("Now WAITING...");
+
+    LinkRawWireless::RemoteCommand remoteCommand =
+        linkRawWireless->receiveCommandFromAdapter();
+
+    if (remoteCommand.success) {
+      log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
+      for (u32 i = 0; i < remoteCommand.params.size(); i++) {
+        log("< [param" + std::to_string(i) + "] " +
+            linkRawWireless->toHex(remoteCommand.params[i]));
+      }
+    }
+
+    return remoteCommand.success;
+  });
+}
+
+void DebugScene::logGenericCommand(std::string name, u32 id) {
+  auto data = selectData();
+  return logSimpleCommand(name, id, data);
 }
 
 void DebugScene::logSimpleCommand(std::string name,
