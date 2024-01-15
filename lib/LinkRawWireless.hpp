@@ -56,6 +56,7 @@
 #define LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT 0x20
 #define LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION 0x21
 #define LINK_RAW_WIRELESS_COMMAND_SEND_DATA 0x24
+#define LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT 0x25
 #define LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA 0x26
 #define LINK_RAW_WIRELESS_COMMAND_BYE 0x3d
 
@@ -82,6 +83,12 @@ class LinkRawWireless {
   struct CommandResult {
     bool success = false;
     std::vector<u32> responses = std::vector<u32>{};
+  };
+
+  struct RemoteCommand {
+    bool success = false;
+    u8 commandId = 0;
+    std::vector<u32> params = std::vector<u32>{};
   };
 
   struct Server {
@@ -425,6 +432,27 @@ class LinkRawWireless {
     return true;
   }
 
+  bool sendDataAndWait(std::vector<u32> data,
+                       RemoteCommand& remoteCommand,
+                       u32 _bytes = 0) {
+    u32 bytes = _bytes == 0 ? data.size() * 4 : _bytes;
+    u32 header = sessionState.currentPlayerId == 0
+                     ? bytes
+                     : (bytes << (3 + sessionState.currentPlayerId * 5));
+    data.insert(data.begin(), header);
+    log("using header " + toHex(header));
+
+    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT, data)
+             .success) {
+      reset();
+      return false;
+    }
+
+    remoteCommand = receiveCommandFromAdapter();
+
+    return remoteCommand.success;
+  }
+
   bool receiveData(ReceiveDataResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA);
     response.data = result.responses;
@@ -504,11 +532,77 @@ class LinkRawWireless {
           std::to_string(responses) + ":");
       u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
       result.responses.push_back(responseData);
-      log("<< " + std::to_string(responseData));
+      log("<< " + toHex(responseData));
     }
 
     result.success = true;
     return result;
+  }
+
+  RemoteCommand receiveCommandFromAdapter() {
+    RemoteCommand remoteCommand;
+
+    log("setting SPI to SLAVE");
+    linkSPI->activate(LinkSPI::Mode::SLAVE);
+
+    log("WAITING for adapter cmd");
+    u32 command = linkSPI->transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+    if (!reverseAcknowledge()) {
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      reset();
+      return remoteCommand;
+    }
+
+    u16 header = msB32(command);
+    u16 data = lsB32(command);
+    u8 params = msB16(data);
+    u8 commandId = lsB16(data);
+    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
+      log("! expected HEADER 0x9966");
+      log("! but received 0x" + toHex(header));
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      reset();
+      return remoteCommand;
+    }
+    log("received cmd: " + toHex(commandId) + " (" + std::to_string(params) +
+        " params)");
+
+    for (u32 i = 0; i < params; i++) {
+      log("param " + std::to_string(i + 1) + "/" + std::to_string(params) +
+          ":");
+      u32 paramData = linkSPI->transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+      if (!reverseAcknowledge()) {
+        linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+        reset();
+        return remoteCommand;
+      }
+      remoteCommand.params.push_back(paramData);
+      log("<< " + toHex(paramData));
+    }
+
+    log("sending ack");
+    command = linkSPI->transfer(0x99660000 | ((commandId + 0x80) & 0xff));
+    if (!reverseAcknowledge()) {
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      reset();
+      return remoteCommand;
+    }
+
+    if (command != LINK_RAW_WIRELESS_DATA_REQUEST) {
+      log("! expected cmd request");
+      log("! but received 0x" + toHex(command));
+      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      reset();
+      return remoteCommand;
+    }
+
+    log("setting SPI to 2Mbps");
+    linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+
+    remoteCommand.success = true;
+    remoteCommand.commandId = commandId;
+
+    return remoteCommand;
   }
 
   u32 getDeviceTransferLength() {
@@ -691,6 +785,21 @@ class LinkRawWireless {
       }
     }
     linkSPI->_setSOLow();
+
+    return true;
+  }
+
+  bool reverseAcknowledge() {
+    u32 lines = 0;
+    u32 vCount = REG_VCOUNT;
+
+    while (!linkSPI->_isSIHigh()) {
+      if (cmdTimeout(lines, vCount)) {
+        log("! REV_ACK failed. I put SO=HIGH,");
+        log("! but SI didn't become HIGH.");
+        return false;
+      }
+    }
 
     return true;
   }

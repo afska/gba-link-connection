@@ -503,7 +503,13 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         log("[room.game] " + gameName);
         log("[room.user] " + userName);
 
-        return linkRawWireless->broadcast(gameName, userName, (u16)gameId);
+        bool success =
+            linkRawWireless->broadcast(gameName, userName, (u16)gameId);
+
+        if (success)
+          log("NOW CALL 0x19!");
+
+        return success;
       });
     }
     case 0x17: {
@@ -599,8 +605,14 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       });
     }
     case 0x1e: {
-      return logOperation("sending " + name,
-                          []() { return linkRawWireless->broadcastReadEnd(); });
+      return logOperation("sending " + name, []() {
+        bool success = linkRawWireless->broadcastReadEnd();
+
+        if (success)
+          log("NOW CALL 0x1f!");
+
+        return success;
+      });
     }
     case 0x1f: {
       u16 serverId = selectServerId();
@@ -646,12 +658,33 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return;
       u32 bytes = data[0];
       data.erase(data.begin());
+
       return logOperation("sending " + name, [&data, bytes]() {
         return linkRawWireless->sendData(data, bytes);
       });
     }
     case 0x25: {
-      // TODO: IMPLEMENT
+      auto data = selectDataToSend();
+      if (data.empty())
+        return;
+      u32 bytes = data[0];
+      data.erase(data.begin());
+
+      return logOperation("sending " + name, [&data, bytes]() {
+        LinkRawWireless::RemoteCommand remoteCommand;
+        bool success =
+            linkRawWireless->sendDataAndWait(data, remoteCommand, bytes);
+
+        if (success) {
+          log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
+          for (u32 i = 0; i < remoteCommand.params.size(); i++) {
+            log("< [param" + std::to_string(i) + "] " +
+                linkRawWireless->toHex(remoteCommand.params[i]));
+          }
+        }
+
+        return success;
+      });
     }
     case 0x26: {
       return logOperation("sending " + name, []() {
