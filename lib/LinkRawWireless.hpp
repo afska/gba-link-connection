@@ -16,6 +16,9 @@
 #include <string>
 #include <vector>
 
+// Enable logging (set `linkRawWireless->logger`)
+#define LINK_RAW_WIRELESS_ENABLE_LOGGING true
+
 #define LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define LINK_RAW_WIRELESS_MIN_PLAYERS 2
 #define LINK_RAW_WIRELESS_END 0
@@ -147,11 +150,11 @@ class LinkRawWireless {
                  std::string userName = "",
                  u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
     if (gameName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
-      logger("! game name too long");
+      log("! game name too long");
       return false;
     }
     if (userName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
-      logger("! user name too long");
+      log("! user name too long");
       return false;
     }
     gameName.append(LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH - gameName.length(),
@@ -193,7 +196,7 @@ class LinkRawWireless {
     }
 
     wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
-    logger("state = SERVING");
+    log("state = SERVING");
     state = SERVING;
 
     return true;
@@ -237,7 +240,7 @@ class LinkRawWireless {
     u8 oldPlayerCount = sessionState.playerCount;
     sessionState.playerCount = 1 + result.responses.size();
     if (sessionState.playerCount != oldPlayerCount)
-      logger("now: " + std::to_string(sessionState.playerCount) + " players");
+      log("now: " + std::to_string(sessionState.playerCount) + " players");
 
     return true;
   }
@@ -259,7 +262,7 @@ class LinkRawWireless {
     u8 oldPlayerCount = sessionState.playerCount;
     sessionState.playerCount = 1 + result.responses.size();
     if (sessionState.playerCount != oldPlayerCount)
-      logger("now: " + std::to_string(sessionState.playerCount) + " players");
+      log("now: " + std::to_string(sessionState.playerCount) + " players");
 
     return true;
   }
@@ -273,7 +276,7 @@ class LinkRawWireless {
       return false;
     }
 
-    logger("state = SEARCHING");
+    log("state = SEARCHING");
     state = SEARCHING;
 
     return true;
@@ -312,7 +315,7 @@ class LinkRawWireless {
       servers.push_back(server);
     }
 
-    logger("state = AUTHENTICATED");
+    log("state = AUTHENTICATED");
     state = AUTHENTICATED;
 
     return true;
@@ -340,7 +343,7 @@ class LinkRawWireless {
       return false;
     }
 
-    logger("state = CONNECTING");
+    log("state = CONNECTING");
     state = CONNECTING;
 
     return true;
@@ -350,7 +353,7 @@ class LinkRawWireless {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
     if (!result.success || result.responses.size() == 0) {
       if (result.responses.size() == 0)
-        logger("! empty response");
+        log("! empty response");
       reset();
       return false;
     }
@@ -362,7 +365,7 @@ class LinkRawWireless {
 
     u8 assignedPlayerId = 1 + (u8)msB32(result.responses[0]);
     if (assignedPlayerId >= LINK_RAW_WIRELESS_MAX_PLAYERS) {
-      logger("! connection failed (1)");
+      log("! connection failed (1)");
       reset();
       response.phase = ERROR;
       return false;
@@ -378,21 +381,21 @@ class LinkRawWireless {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION);
     if (!result.success || result.responses.size() == 0) {
       if (result.responses.size() == 0)
-        logger("! empty response");
+        log("! empty response");
       reset();
       return false;
     }
 
     u16 status = msB32(result.responses[0]);
     if ((msB16(status) & 1) == 1) {
-      logger("! connection failed (2)");
+      log("! connection failed (2)");
       reset();
       return false;
     }
 
     u8 assignedPlayerId = 1 + (u8)status;
     sessionState.currentPlayerId = assignedPlayerId;
-    logger("state = CONNECTED");
+    log("state = CONNECTED");
     state = CONNECTED;
 
     return true;
@@ -442,7 +445,7 @@ class LinkRawWireless {
     u32 command = buildCommand(type, length);
     u32 r;
 
-    logger("sending command 0x" + toHex(command));
+    log("sending command 0x" + toHex(command));
     if ((r = transfer(command)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
       logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
       return result;
@@ -450,8 +453,8 @@ class LinkRawWireless {
 
     u32 parameterCount = 0;
     for (auto& param : params) {
-      logger("sending param" + std::to_string(parameterCount) + ": 0x" +
-             toHex(param));
+      log("sending param" + std::to_string(parameterCount) + ": 0x" +
+          toHex(param));
       if ((r = transfer(param)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
         logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
         return result;
@@ -459,7 +462,7 @@ class LinkRawWireless {
       parameterCount++;
     }
 
-    logger("sending response request");
+    log("sending response request");
     u32 response = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
     u16 header = msB32(response);
     u16 data = lsB32(response);
@@ -467,29 +470,29 @@ class LinkRawWireless {
     u8 ack = lsB16(data);
 
     if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
-      logger("! expected HEADER 0x" + toHex(header));
-      logger("! but received 0x" + toHex(header));
+      log("! expected HEADER 0x" + toHex(header));
+      log("! but received 0x" + toHex(header));
       return result;
     }
     if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK) {
       if (ack == 0xee && responses == 1) {
         u8 code = (u8)transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
-        logger("! error received");
-        logger(code == 1 ? "! invalid state" : "! unknown cmd");
+        log("! error received");
+        log(code == 1 ? "! invalid state" : "! unknown cmd");
       } else {
-        logger("! expected ACK 0x" + toHex(header));
-        logger("! but received 0x" + toHex(header));
+        log("! expected ACK 0x" + toHex(header));
+        log("! but received 0x" + toHex(header));
       }
       return result;
     }
-    logger("ack ok! " + std::to_string(responses) + " responses");
+    log("ack ok! " + std::to_string(responses) + " responses");
 
     for (u32 i = 0; i < responses; i++) {
-      logger("response " + std::to_string(i + 1) + "/" +
-             std::to_string(responses) + ":");
+      log("response " + std::to_string(i + 1) + "/" +
+          std::to_string(responses) + ":");
       u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
       result.responses.push_back(responseData);
-      logger("<< " + std::to_string(responseData));
+      log("<< " + std::to_string(responseData));
     }
 
     result.success = true;
@@ -556,7 +559,7 @@ class LinkRawWireless {
   }
 
   void resetState() {
-    logger("state = NEEDS_RESET");
+    log("state = NEEDS_RESET");
     this->state = NEEDS_RESET;
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
@@ -566,7 +569,7 @@ class LinkRawWireless {
 
   bool start() {
     pingAdapter();
-    logger("setting SPI to 256Kbps");
+    log("setting SPI to 256Kbps");
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 
     if (!login())
@@ -574,40 +577,40 @@ class LinkRawWireless {
 
     wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
 
-    logger("sending HELLO command");
+    log("sending HELLO command");
     if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_HELLO).success)
       return false;
 
-    logger("setting SPI to 2Mbps");
+    log("setting SPI to 2Mbps");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
-    logger("state = AUTHENTICATED");
+    log("state = AUTHENTICATED");
     state = AUTHENTICATED;
 
     return true;
   }
 
   void pingAdapter() {
-    logger("setting SO as OUTPUT");
+    log("setting SO as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
-    logger("setting SD as OUTPUT");
+    log("setting SD as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
-    logger("setting SD = HIGH");
+    log("setting SD = HIGH");
     linkGPIO->writePin(LinkGPIO::SD, true);
     wait(LINK_RAW_WIRELESS_PING_WAIT);
-    logger("setting SD = LOW");
+    log("setting SD = LOW");
     linkGPIO->writePin(LinkGPIO::SD, false);
   }
 
   bool login() {
     LoginMemory memory;
 
-    logger("sending initial login packet");
+    log("sending initial login packet");
     if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[0], 0, memory))
       return false;
 
     for (u32 i = 0; i < LINK_RAW_WIRELESS_LOGIN_STEPS; i++) {
-      logger("sending login packet " + std::to_string(i + 1) + "/" +
-             std::to_string(LINK_RAW_WIRELESS_LOGIN_STEPS));
+      log("sending login packet " + std::to_string(i + 1) + "/" +
+          std::to_string(LINK_RAW_WIRELESS_LOGIN_STEPS));
       if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[i],
                                LINK_RAW_WIRELESS_LOGIN_PARTS[i], memory))
         return false;
@@ -662,16 +665,16 @@ class LinkRawWireless {
     linkSPI->_setSOLow();
     while (!linkSPI->_isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
-        logger("! ACK 1 failed. I put SO=LOW,");
-        logger("! but SI didn't become HIGH.");
+        log("! ACK 1 failed. I put SO=LOW,");
+        log("! but SI didn't become HIGH.");
         return false;
       }
     }
     linkSPI->_setSOHigh();
     while (linkSPI->_isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
-        logger("! ACK 2 failed. I put SO=HIGH,");
-        logger("! but SI didn't become LOW.");
+        log("! ACK 2 failed. I put SO=HIGH,");
+        log("! but SI didn't become LOW.");
         return false;
       }
     }
@@ -706,8 +709,8 @@ class LinkRawWireless {
   }
 
   void logExpectedButReceived(u32 expected, u32 received) {
-    logger("! expected 0x" + toHex(expected));
-    logger("! but received 0x" + toHex(received));
+    log("! expected 0x" + toHex(expected));
+    log("! but received 0x" + toHex(received));
   }
 
   template <typename I>
@@ -717,6 +720,11 @@ class LinkRawWireless {
     for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
       rc[i] = digits[(w >> j) & 0x0f];
     return rc;
+  }
+
+  inline __attribute__((always_inline)) void log(std::string str) {
+    if (LINK_RAW_WIRELESS_ENABLE_LOGGING)
+      logger(str);
   }
 
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
