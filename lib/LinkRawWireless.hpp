@@ -58,6 +58,7 @@
 #define LINK_RAW_WIRELESS_COMMAND_SEND_DATA 0x24
 #define LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT 0x25
 #define LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA 0x26
+#define LINK_RAW_WIRELESS_COMMAND_WAIT 0x27
 #define LINK_RAW_WIRELESS_COMMAND_BYE 0x3d
 
 static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v6.0.3";
@@ -476,6 +477,17 @@ class LinkRawWireless {
     }
 
     return true;
+  }
+
+  bool wait(RemoteCommand& remoteCommand) {
+    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_WAIT).success) {
+      reset();
+      return false;
+    }
+
+    remoteCommand = receiveCommandFromAdapter();
+
+    return remoteCommand.success;
   }
 
   CommandResult sendCommand(u8 type,

@@ -707,7 +707,20 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       });
     }
     case 0x27: {
-      // TODO: IMPLEMENT
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::RemoteCommand remoteCommand;
+        bool success = linkRawWireless->wait(remoteCommand);
+
+        if (success) {
+          log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
+          for (u32 i = 0; i < remoteCommand.params.size(); i++) {
+            log("< [param" + std::to_string(i) + "] " +
+                linkRawWireless->toHex(remoteCommand.params[i]));
+          }
+        }
+
+        return success;
+      });
     }
     case 0x30:
     case 0x32:
