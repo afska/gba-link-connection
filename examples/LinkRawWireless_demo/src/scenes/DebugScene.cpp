@@ -455,7 +455,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
   auto name = selectedOption.name;
   auto command = selectedOption.command;
 
-  if (selectHandler->getIsPressed() && command < 0xfa)
+  if (selectHandler->getIsPressed())
     goto generic;
 
   switch (command) {
@@ -468,13 +468,19 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       return logOperation("sending " + name, []() {
         LinkRawWireless::SlotStatusResponse response;
         bool success = linkRawWireless->getSlotStatus(response);
-        log("< [next slot] " +
-            linkRawWireless->toHex(response.nextClientNumber, 2));
-        for (u32 i = 0; i < response.connectedClients.size(); i++) {
-          log("< [client" +
-              std::to_string(response.connectedClients[i].clientNumber) + "] " +
-              linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
+
+        if (success) {
+          log("< [next slot] " +
+              linkRawWireless->toHex(response.nextClientNumber, 2));
+          for (u32 i = 0; i < response.connectedClients.size(); i++) {
+            log("< [client" +
+                std::to_string(response.connectedClients[i].clientNumber) +
+                "] " +
+                linkRawWireless->toHex(response.connectedClients[i].deviceId,
+                                       4));
+          }
         }
+
         return success;
       });
     }
@@ -492,6 +498,11 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return;
 
       return logOperation("sending " + name, [gameName, userName, gameId]() {
+        log("setting broadcast:");
+        log("[room.gameId] " + linkRawWireless->toHex(gameId, 4));
+        log("[room.game] " + gameName);
+        log("[room.user] " + userName);
+
         return linkRawWireless->broadcast(gameName, userName, (u16)gameId);
       });
     }
@@ -503,6 +514,8 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         ;
 
       return logOperation("sending " + name, [maxPlayers]() {
+        log("maxPlayers = " + std::to_string(maxPlayers));
+
         return linkRawWireless->setup(5 - maxPlayers);
       });
     }
@@ -515,11 +528,17 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       return logOperation("sending " + name, []() {
         LinkRawWireless::AcceptConnectionsResponse response;
         bool success = linkRawWireless->acceptConnections(response);
-        for (u32 i = 0; i < response.connectedClients.size(); i++) {
-          log("< [client" +
-              std::to_string(response.connectedClients[i].clientNumber) + "] " +
-              linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
+
+        if (success) {
+          for (u32 i = 0; i < response.connectedClients.size(); i++) {
+            log("< [client" +
+                std::to_string(response.connectedClients[i].clientNumber) +
+                "] " +
+                linkRawWireless->toHex(response.connectedClients[i].deviceId,
+                                       4));
+          }
         }
+
         return success;
       });
     }
@@ -527,17 +546,28 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       return logOperation("sending " + name, []() {
         LinkRawWireless::AcceptConnectionsResponse response;
         bool success = linkRawWireless->endHost(response);
-        for (u32 i = 0; i < response.connectedClients.size(); i++) {
-          log("< [client" +
-              std::to_string(response.connectedClients[i].clientNumber) + "] " +
-              linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
+
+        if (success) {
+          for (u32 i = 0; i < response.connectedClients.size(); i++) {
+            log("< [client" +
+                std::to_string(response.connectedClients[i].clientNumber) +
+                "] " +
+                linkRawWireless->toHex(response.connectedClients[i].deviceId,
+                                       4));
+          }
         }
+
         return success;
       });
     }
     case 0x1c: {
       return logOperation("sending " + name, []() {
-        return linkRawWireless->broadcastReadStart();
+        bool success = linkRawWireless->broadcastReadStart();
+
+        if (success)
+          log("NOW CALL 0x1d!");
+
+        return success;
       });
     }
     case 0x1d: {
@@ -545,20 +575,24 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         std::vector<LinkRawWireless::Server> servers;
         bool success = linkRawWireless->broadcastReadPoll(servers);
 
-        for (u32 i = 0; i < servers.size(); i++) {
-          serverIds[i] = servers[i].id;
+        if (success) {
+          for (u32 i = 0; i < servers.size(); i++) {
+            serverIds[i] = servers[i].id;
 
-          log("< [room" + std::to_string(i) + ".id] " +
-              linkRawWireless->toHex(servers[i].id, 4));
-          log("< [room" + std::to_string(i) + ".gameid] " +
-              linkRawWireless->toHex(servers[i].gameId, 4));
-          log("< [room" + std::to_string(i) + ".game] " + servers[i].gameName);
-          log("< [room" + std::to_string(i) + ".user] " + servers[i].userName);
-          log("< [room" + std::to_string(i) + ".nextSlot] " +
-              linkRawWireless->toHex(servers[i].nextClientNumber, 2));
+            log("< [room" + std::to_string(i) + ".id] " +
+                linkRawWireless->toHex(servers[i].id, 4));
+            log("< [room" + std::to_string(i) + ".gameId] " +
+                linkRawWireless->toHex(servers[i].gameId, 4));
+            log("< [room" + std::to_string(i) + ".game] " +
+                servers[i].gameName);
+            log("< [room" + std::to_string(i) + ".user] " +
+                servers[i].userName);
+            log("< [room" + std::to_string(i) + ".nextSlot] " +
+                linkRawWireless->toHex(servers[i].nextClientNumber, 2));
+          }
+
+          log("NOW CALL 0x1e!");
         }
-
-        log("NOW CALL 0x1e!");
 
         return success;
       });
@@ -573,27 +607,47 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return;
 
       return logOperation("sending " + name, [serverId]() {
-        return linkRawWireless->connect(serverId);
+        log("connecting to " + linkRawWireless->toHex(serverId, 4));
+
+        bool success = linkRawWireless->connect(serverId);
+
+        if (success)
+          log("NOW CALL 0x20!");
+
+        return success;
       });
     }
     case 0x20:
       return logOperation("sending " + name, []() {
         LinkRawWireless::ConnectionStatus response;
         bool success = linkRawWireless->keepConnecting(response);
-        log(std::string("< [phase] ") + (response.phase == 0   ? "CONNECTING"
-                                         : response.phase == 1 ? "ERROR"
-                                                               : "SUCCESS"));
-        if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
-          log(std::string("< [slot] ") +
-              std::to_string(response.assignedClientNumber));
 
-        log("NOW CALL 0x21!");
+        if (success) {
+          log(std::string("< [phase] ") + (response.phase == 0   ? "CONNECTING"
+                                           : response.phase == 1 ? "ERROR"
+                                                                 : "SUCCESS"));
+          if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
+            log(std::string("< [slot] ") +
+                std::to_string(response.assignedClientNumber));
+
+          log("NOW CALL 0x21!");
+        }
 
         return success;
       });
     case 0x21:
       return logOperation("sending " + name,
                           []() { return linkRawWireless->finishConnection(); });
+    case 0x24: {
+      auto data = selectDataToSend();
+      if (data.empty())
+        return;
+      u32 bytes = data[0];
+      data.erase(data.begin());
+      return logOperation("sending " + name, [&data, bytes]() {
+        return linkRawWireless->sendData(data, bytes);
+      });
+    }
     default:
       return;
   }
@@ -668,6 +722,30 @@ std::string DebugScene::selectGameName() {
       return selectString(LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH);
     }
   }
+}
+
+std::vector<u32> DebugScene::selectDataToSend() {
+  std::vector<u32> data;
+  std::vector<std::string> options;
+
+  for (u32 i = 0; i < 87; i++)
+    options.push_back(std::to_string(i));
+  int bytes = selectOption("How many BYTES?", options);
+  if (bytes == -1)
+    return data;
+
+  data.push_back(bytes);
+
+  u32 words = (bytes + 3) / 4;
+  for (u32 i = 0; i < (u32)words; i++) {
+    int word = selectU32("Word " + std::to_string(i + 1) + "/" +
+                         std::to_string(words));
+    if (word == -1)
+      return data;
+    data.push_back(word);
+  }
+
+  return data;
 }
 
 std::vector<u32> DebugScene::selectData() {

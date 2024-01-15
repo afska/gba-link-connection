@@ -401,16 +401,13 @@ class LinkRawWireless {
     return true;
   }
 
-  bool sendData(std::vector<u32> data) {
-    if ((state != SERVING && state != CONNECTED) || data.size() == 0 ||
-        data.size() > LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH)
-      return false;
-
-    u32 bytes = data.size() * 4;
+  bool sendData(std::vector<u32> data, u32 _bytes = 0) {
+    u32 bytes = _bytes == 0 ? data.size() * 4 : _bytes;
     u32 header = sessionState.currentPlayerId == 0
                      ? bytes
                      : (bytes << (3 + sessionState.currentPlayerId * 5));
     data.insert(data.begin(), header);
+    logger("using header " + toHex(header));
 
     bool success =
         sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA, data).success;
