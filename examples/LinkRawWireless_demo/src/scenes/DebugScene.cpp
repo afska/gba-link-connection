@@ -650,6 +650,9 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return linkRawWireless->sendData(data, bytes);
       });
     }
+    case 0x25: {
+      // TODO: IMPLEMENT
+    }
     case 0x26: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::ReceiveDataResponse response;
@@ -670,6 +673,25 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
+    case 0x27: {
+      // TODO: IMPLEMENT
+    }
+    case 0x30:
+    case 0x32:
+    case 0x33:
+    case 0x34:
+      goto generic;
+    case 0x35: {
+      // TODO: IMPLEMENT
+    }
+    case 0x37: {
+      // TODO: IMPLEMENT
+    }
+    case 0x38:
+    case 0x39:
+      goto generic;
+    case 0x3d:
+      goto simple;
     default:
       return;
   }
