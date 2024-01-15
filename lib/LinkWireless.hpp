@@ -244,6 +244,7 @@ class LinkWireless {
   }
 
   bool deactivate() {
+    activate();
     bool success = sendCommand(LINK_WIRELESS_COMMAND_BYE).success;
 
     lastError = NONE;
