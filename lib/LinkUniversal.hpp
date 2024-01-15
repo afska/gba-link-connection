@@ -489,7 +489,7 @@ class LinkUniversal {
   }
 
   u32 safeStoi(const char* str) {
-    uint32_t num = 0;
+    u32 num = 0;
 
     while (*str != '\0') {
       char ch = *str;
