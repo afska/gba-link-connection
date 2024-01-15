@@ -47,6 +47,7 @@
 #define LINK_RAW_WIRELESS_COMMAND_START_HOST 0x19
 #define LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS 0x14
 #define LINK_RAW_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
+#define LINK_RAW_WIRELESS_COMMAND_END_HOST 0x1b
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL 0x1d
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_END 0x1e
@@ -224,7 +225,10 @@ class LinkRawWireless {
     return true;
   }
 
-  bool acceptConnections() {
+  typedef struct {
+    std::vector<ConnectedClient> connectedClients = {};
+  } AcceptConnectionsResponse;
+  bool acceptConnections(AcceptConnectionsResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
 
     if (!result.success) {
@@ -232,12 +236,42 @@ class LinkRawWireless {
       return false;
     }
 
+    for (u32 i = 0; i < result.responses.size(); i++) {
+      response.connectedClients.push_back(
+          ConnectedClient{.deviceId = lsB32(result.responses[i]),
+                          .clientNumber = (u8)msB32(result.responses[i])});
+    }
+
+    u8 oldPlayerCount = sessionState.playerCount;
     sessionState.playerCount = 1 + result.responses.size();
+    if (sessionState.playerCount != oldPlayerCount)
+      logger("now: " + std::to_string(sessionState.playerCount) + " players");
+
+    return true;
+  }
+  bool endHost(AcceptConnectionsResponse& response) {
+    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_END_HOST);
+
+    if (!result.success) {
+      reset();
+      return false;
+    }
+
+    for (u32 i = 0; i < result.responses.size(); i++) {
+      response.connectedClients.push_back(
+          ConnectedClient{.deviceId = lsB32(result.responses[i]),
+                          .clientNumber = (u8)msB32(result.responses[i])});
+    }
+
+    u8 oldPlayerCount = sessionState.playerCount;
+    sessionState.playerCount = 1 + result.responses.size();
+    if (sessionState.playerCount != oldPlayerCount)
+      logger("now: " + std::to_string(sessionState.playerCount) + " players");
 
     return true;
   }
 
-  bool getServersAsyncStart() {
+  bool broadcastReadStart() {
     bool success =
         sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_START).success;
 
@@ -253,23 +287,14 @@ class LinkRawWireless {
     return true;
   }
 
-  bool getServersAsyncEnd(std::vector<Server>& servers) {
+  bool broadcastReadPoll(std::vector<Server>& servers) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL);
-    bool success1 =
+    bool success =
         result.success &&
         result.responses.size() % LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH ==
             0;
 
-    if (!success1) {
-      reset();
-      lastError = COMMAND_FAILED;
-      return false;
-    }
-
-    bool success2 =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_END).success;
-
-    if (!success2) {
+    if (!success) {
       reset();
       lastError = COMMAND_FAILED;
       return false;
@@ -298,6 +323,18 @@ class LinkRawWireless {
 
     logger("state = AUTHENTICATED");
     state = AUTHENTICATED;
+
+    return true;
+  }
+
+  bool broadcastReadEnd() {
+    bool success =
+        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_END).success;
+
+    if (!success) {
+      reset();
+      return false;
+    }
 
     return true;
   }

@@ -25,17 +25,22 @@ class DebugScene : public Scene {
     u8 command;
   };
   std::vector<CommandMenuOption> commandMenuOptions;
+  u16 serverIds[4];
+  int lastSelectedCommandIndex = 0;
 
   void addCommandMenuOptions();
   void processKeys(u16 keys);
   void processButtons();
   void toggleLogLevel();
-  int selectOption(std::string title, std::vector<std::string> options);
+  int selectOption(std::string title,
+                   std::vector<std::string> options,
+                   u32 cursor);
   std::string selectString(u32 maxCharacters);
   int selectU32(std::string title);
   int selectU16();
   int selectU8(std::string title);
   void processCommand(u32 selectedCommandIndex);
+  int selectServerId();
   int selectGameId();
   std::string selectGameName();
   std::string selectUserName();

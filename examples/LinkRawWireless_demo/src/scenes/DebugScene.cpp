@@ -144,6 +144,8 @@ void DebugScene::load() {
   toggleLogLevel();
 
   addCommandMenuOptions();
+  for (u32 i = 0; i < 4; i++)
+    serverIds[i] = 0;
 }
 
 void DebugScene::tick(u16 keys) {
@@ -166,8 +168,10 @@ void DebugScene::tick(u16 keys) {
           : "?                 ";
   TextStream::instance().setText(
       "state = " + state + "p" +
-          std::to_string(linkRawWireless->sessionState.currentPlayerId) + "/" +
-          std::to_string(linkRawWireless->sessionState.playerCount),
+          std::to_string(linkRawWireless->sessionState.currentPlayerId) +
+          (linkRawWireless->getState() == LinkRawWireless::State::SERVING
+               ? "/" + std::to_string(linkRawWireless->sessionState.playerCount)
+               : ""),
       0, -3);
 
   processKeys(keys);
@@ -179,13 +183,6 @@ void DebugScene::tick(u16 keys) {
 }
 
 void DebugScene::addCommandMenuOptions() {
-  commandMenuOptions.push_back(
-      CommandMenuOption{.name = "Setup+Broadcast+StartHost", .command = 0});
-  commandMenuOptions.push_back(
-      CommandMenuOption{.name = "Setup+BroadcastRead1+2+3", .command = 0});
-  commandMenuOptions.push_back(
-      CommandMenuOption{.name = "Setup+Connect+FinishConn", .command = 0});
-
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x10 (Hello)", .command = 0x10});
   commandMenuOptions.push_back(
@@ -269,9 +266,13 @@ void DebugScene::processButtons() {
                    commandNames.begin(),
                    [](CommandMenuOption x) { return x.name; });
 
-    int selectedCommandIndex = selectOption("Which command?", commandNames);
-    if (selectedCommandIndex > -1)
+    int selectedCommandIndex =
+        selectOption("Which command?", commandNames, lastSelectedCommandIndex);
+    if (selectedCommandIndex > -1) {
+      lastSelectedCommandIndex = selectedCommandIndex;
       processCommand((u32)selectedCommandIndex);
+    }
+
     print();
   }
 
@@ -317,8 +318,9 @@ void DebugScene::toggleLogLevel() {
 }
 
 int DebugScene::selectOption(std::string title,
-                             std::vector<std::string> options) {
-  u32 selectedOption = 0;
+                             std::vector<std::string> options,
+                             u32 cursor = 0) {
+  u32 selectedOption = cursor;
   bool firstTime = true;
 
   while (true) {
@@ -453,7 +455,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
   auto name = selectedOption.name;
   auto command = selectedOption.command;
 
-  if (selectHandler->getIsPressed() && command != 0)
+  if (selectHandler->getIsPressed() && command < 0xfa)
     goto generic;
 
   switch (command) {
@@ -509,6 +511,71 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     case 0x19:
       return logOperation("sending " + name,
                           []() { return linkRawWireless->startHost(); });
+    case 0x1a: {
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::AcceptConnectionsResponse response;
+        bool success = linkRawWireless->acceptConnections(response);
+        for (u32 i = 0; i < response.connectedClients.size(); i++) {
+          log("< [client" +
+              std::to_string(response.connectedClients[i].clientNumber) + "] " +
+              linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
+        }
+        return success;
+      });
+    }
+    case 0x1b: {
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::AcceptConnectionsResponse response;
+        bool success = linkRawWireless->endHost(response);
+        for (u32 i = 0; i < response.connectedClients.size(); i++) {
+          log("< [client" +
+              std::to_string(response.connectedClients[i].clientNumber) + "] " +
+              linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
+        }
+        return success;
+      });
+    }
+    case 0x1c: {
+      return logOperation("sending " + name, []() {
+        return linkRawWireless->broadcastReadStart();
+      });
+    }
+    case 0x1d: {
+      return logOperation("sending " + name, [this]() {
+        std::vector<LinkRawWireless::Server> servers;
+        bool success = linkRawWireless->broadcastReadPoll(servers);
+
+        for (u32 i = 0; i < servers.size(); i++) {
+          serverIds[i] = servers[i].id;
+
+          log("< [room" + std::to_string(i) + ".id] " +
+              linkRawWireless->toHex(servers[i].id, 4));
+          log("< [room" + std::to_string(i) + ".gameid] " +
+              linkRawWireless->toHex(servers[i].gameId, 4));
+          log("< [room" + std::to_string(i) + ".game] " + servers[i].gameName);
+          log("< [room" + std::to_string(i) + ".user] " + servers[i].userName);
+          log("< [room" + std::to_string(i) + ".nextSlot] " +
+              linkRawWireless->toHex(servers[i].nextClientNumber, 2));
+        }
+
+        log("NOW CALL 0x1e!");
+
+        return success;
+      });
+    }
+    case 0x1e: {
+      return logOperation("sending " + name,
+                          []() { return linkRawWireless->broadcastReadEnd(); });
+    }
+    case 0x1f: {
+      u16 serverId = selectServerId();
+      if (serverId == -1)
+        return;
+
+      return logOperation("sending " + name, [serverId]() {
+        return linkRawWireless->connect(serverId);
+      });
+    }
     case 0x20:
       return logOperation("sending " + name, []() {
         LinkRawWireless::ConnectionStatus response;
@@ -519,6 +586,9 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
           log(std::string("< [slot] ") +
               std::to_string(response.assignedClientNumber));
+
+        log("NOW CALL 0x21!");
+
         return success;
       });
     case 0x21:
@@ -533,6 +603,40 @@ simple:
 generic:
   auto data = selectData();
   return logSimpleCommand(name, command, data);
+}
+
+int DebugScene::selectServerId() {
+  switch (selectOption("Which server id?", std::vector<std::string>{
+                                               "<first>", "<second>", "<third>",
+                                               "<fourth>", "<pick>"})) {
+    case 0: {
+      if (serverIds[0] == 0)
+        return -1;
+
+      return serverIds[0];
+    }
+    case 1: {
+      if (serverIds[1] == 0)
+        return -1;
+
+      return serverIds[1];
+    }
+    case 2: {
+      if (serverIds[2] == 0)
+        return -1;
+
+      return serverIds[2];
+    }
+    case 3: {
+      if (serverIds[3] == 0)
+        return -1;
+
+      return serverIds[3];
+    }
+    default: {
+      return selectU16();
+    }
+  }
 }
 
 int DebugScene::selectGameId() {
