@@ -5,7 +5,10 @@
 
 class InputHandler {
  public:
-  InputHandler() { this->isPressed = false; }
+  InputHandler() {
+    this->isPressed = false;
+    this->isWaiting = true;
+  }
 
   inline bool getIsPressed() { return isPressed; }
 
@@ -16,9 +19,10 @@ class InputHandler {
   inline void setHandledFlag(bool value) { handledFlag = value; }
 
   inline void setIsPressed(bool isPressed) {
-    bool isNewPressEvent = !this->isPressed && isPressed;
-    bool isNewReleaseEvent = this->isPressed && !isPressed;
+    bool isNewPressEvent = !this->isWaiting && !this->isPressed && isPressed;
+    bool isNewReleaseEvent = !this->isWaiting && this->isPressed && !isPressed;
     this->isPressed = isPressed;
+    this->isWaiting = this->isWaiting && isPressed;
 
     this->isNewPressEvent = isNewPressEvent;
     this->isNewReleaseEvent = isNewReleaseEvent;
@@ -29,6 +33,7 @@ class InputHandler {
   bool isNewPressEvent = false;
   bool isNewReleaseEvent = false;
   bool handledFlag = false;
+  bool isWaiting = false;
 };
 
 #endif  // INPUT_HANDLER_H
