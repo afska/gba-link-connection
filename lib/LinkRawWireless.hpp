@@ -412,7 +412,7 @@ class LinkRawWireless {
                      ? bytes
                      : (bytes << (3 + sessionState.currentPlayerId * 5));
     data.insert(data.begin(), header);
-    logger("using header " + toHex(header));
+    log("using header " + toHex(header));
 
     bool success =
         sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA, data).success;
@@ -482,7 +482,7 @@ class LinkRawWireless {
     u8 ack = lsB16(data);
 
     if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
-      log("! expected HEADER 0x" + toHex(header));
+      log("! expected HEADER 0x9966");
       log("! but received 0x" + toHex(header));
       return result;
     }
@@ -492,8 +492,8 @@ class LinkRawWireless {
         log("! error received");
         log(code == 1 ? "! invalid state" : "! unknown cmd");
       } else {
-        log("! expected ACK 0x" + toHex(header));
-        log("! but received 0x" + toHex(header));
+        log("! expected ACK 0x" + toHex(type + LINK_RAW_WIRELESS_RESPONSE_ACK));
+        log("! but received 0x" + toHex(ack));
       }
       return result;
     }
