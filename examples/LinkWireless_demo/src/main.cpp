@@ -211,10 +211,10 @@ void connect() {
                                  " online]") +
           "\n";
       str += " -> gameID: " + std::to_string(server.gameId) + "\n";
-      if (server.gameName.length() > 0)
-        str += " -> game: " + server.gameName + "\n";
-      if (server.userName.length() > 0)
-        str += " -> user: " + server.userName + "\n";
+      if (std::strlen(server.gameName) > 0)
+        str += " -> game: " + std::string(server.gameName) + "\n";
+      if (std::strlen(server.userName) > 0)
+        str += " -> user: " + std::string(server.userName) + "\n";
       str += "\n";
     }
     log(str);

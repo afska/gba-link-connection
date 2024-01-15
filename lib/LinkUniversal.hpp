@@ -41,6 +41,7 @@
 #include <tonc_bios.h>
 #include <tonc_core.h>
 #include <tonc_math.h>
+#include <cstdio>
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
@@ -55,7 +56,7 @@
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.1.0";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.1.1";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
 void LINK_UNIVERSAL_ISR_SERIAL();
@@ -93,7 +94,7 @@ class LinkUniversal {
 
   explicit LinkUniversal(
       Protocol protocol = AUTODETECT,
-      std::string gameName = "",
+      const char* gameName = "",
       CableOptions cableOptions =
           CableOptions{
               LinkCable::BaudRate::BAUD_RATE_1, LINK_CABLE_DEFAULT_TIMEOUT,
@@ -296,7 +297,7 @@ class LinkUniversal {
  private:
   struct Config {
     Protocol protocol;
-    std::string gameName;
+    const char* gameName;
   };
 
   LinkCable::U16Queue incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
@@ -383,7 +384,8 @@ class LinkUniversal {
       if (server.id == LINK_WIRELESS_END)
         break;
 
-      if (!server.isFull() && server.gameName == config.gameName) {
+      if (!server.isFull() &&
+          std::strcmp(server.gameName, config.gameName) == 0) {
         u32 randomNumber = safeStoi(server.userName);
         if (randomNumber > maxRandomNumber &&
             randomNumber < LINK_UNIVERSAL_MAX_ROOM_NUMBER) {
@@ -404,7 +406,10 @@ class LinkUniversal {
       serveWait = LINK_UNIVERSAL_SERVE_WAIT_FRAMES +
                   qran_range(1, LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM);
       u32 randomNumber = qran_range(1, LINK_UNIVERSAL_MAX_ROOM_NUMBER);
-      if (!linkWireless->serve(config.gameName, std::to_string(randomNumber)))
+      char randomNumberStr[6];
+      std::snprintf(randomNumberStr, sizeof(randomNumberStr), "%d",
+                    randomNumber);
+      if (!linkWireless->serve(config.gameName, randomNumberStr))
         return false;
     }
 
@@ -483,13 +488,15 @@ class LinkUniversal {
       incomingMessages[i].clear();
   }
 
-  u32 safeStoi(const std::string& str) {
+  u32 safeStoi(const char* str) {
     uint32_t num = 0;
 
-    for (char ch : str) {
+    while (*str != '\0') {
+      char ch = *str;
       if (ch < '0' || ch > '9')
         return 0;
       num = num * 10 + (ch - '0');
+      str++;
     }
 
     return num;
