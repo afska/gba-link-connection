@@ -20,7 +20,11 @@ class DebugScene : public Scene {
   void tick(u16 keys) override;
 
  private:
-  std::vector<std::string> commandMenuOptions;
+  struct CommandMenuOption {
+    std::string name;
+    u8 command;
+  };
+  std::vector<CommandMenuOption> commandMenuOptions;
 
   void addCommandMenuOptions();
   void processKeys(u16 keys);

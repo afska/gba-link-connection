@@ -2,6 +2,7 @@
 
 #include <libgba-sprite-engine/background/text_stream.h>
 #include <tonc.h>
+#include <algorithm>
 #include <functional>
 
 #include "../../../../lib/LinkRawWireless.hpp"
@@ -160,41 +161,75 @@ void DebugScene::tick(u16 keys) {
 }
 
 void DebugScene::addCommandMenuOptions() {
-  commandMenuOptions.push_back("Setup+Broadcast+StartHost");
-  commandMenuOptions.push_back("Setup+BroadcastRead1+2+3");
-  commandMenuOptions.push_back("Setup+Connect+FinishConn");
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "Setup+Broadcast+StartHost", .command = 0});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "Setup+BroadcastRead1+2+3", .command = 0});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "Setup+Connect+FinishConn", .command = 0});
 
-  commandMenuOptions.push_back("0x10 (Hello)");
-  commandMenuOptions.push_back("0x11 (SignalLevel)");
-  commandMenuOptions.push_back("0x12 (VersionStatus)");
-  commandMenuOptions.push_back("0x13 (SystemStatus)");
-  commandMenuOptions.push_back("0x14 (SlotStatus)");
-  commandMenuOptions.push_back("0x15 (ConfigStatus)");
-  commandMenuOptions.push_back("0x16 (Broadcast)");
-  commandMenuOptions.push_back("0x17 (Setup)");
-  commandMenuOptions.push_back("0x18 (?)");
-  commandMenuOptions.push_back("0x19 (StartHost)");
-  commandMenuOptions.push_back("0x1a (AcceptConnections)");
-  commandMenuOptions.push_back("0x1b (EndHost)");
-  commandMenuOptions.push_back("0x1c (BroadcastRead1)");
-  commandMenuOptions.push_back("0x1d (BroadcastRead2)");
-  commandMenuOptions.push_back("0x1e (BroadcastRead3)");
-  commandMenuOptions.push_back("0x1f (Connect)");
-  commandMenuOptions.push_back("0x20 (IsFinishedConnect)");
-  commandMenuOptions.push_back("0x21 (FinishConnection)");
-  commandMenuOptions.push_back("0x24 (SendData)");
-  commandMenuOptions.push_back("0x25 (SendDataAndWait)");
-  commandMenuOptions.push_back("0x26 (ReceiveData)");
-  commandMenuOptions.push_back("0x27 (Wait)");
-  commandMenuOptions.push_back("0x30 (DisconnectClient)");
-  commandMenuOptions.push_back("0x32 (?)");
-  commandMenuOptions.push_back("0x33 (?)");
-  commandMenuOptions.push_back("0x34 (?)");
-  commandMenuOptions.push_back("0x35 (?!)");
-  commandMenuOptions.push_back("0x37 (RetransmitAndWait)");
-  commandMenuOptions.push_back("0x38 (?)");
-  commandMenuOptions.push_back("0x39 (?)");
-  commandMenuOptions.push_back("0x3d (Bye)");
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x10 (Hello)", .command = 0x10});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x11 (SignalLevel)", .command = 0x11});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x12 (VersionStatus)", .command = 0x12});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x13 (SystemStatus)", .command = 0x13});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x14 (SlotStatus)", .command = 0x14});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x15 (ConfigStatus)", .command = 0x15});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x16 (Broadcast)", .command = 0x16});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x17 (Setup)", .command = 0x17});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x18 (?)", .command = 0x18});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x19 (StartHost)", .command = 0x19});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x1a (AcceptConnections)", .command = 0x1a});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x1b (EndHost)", .command = 0x1b});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x1c (BroadcastRead1)", .command = 0x1c});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x1d (BroadcastRead2)", .command = 0x1d});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x1e (BroadcastRead3)", .command = 0x1e});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x1f (Connect)", .command = 0x1f});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x20 (IsFinishedConnect)", .command = 0x20});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x21 (FinishConnection)", .command = 0x21});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x24 (SendData)", .command = 0x24});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x25 (SendDataAndWait)", .command = 0x25});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x26 (ReceiveData)", .command = 0x26});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x27 (Wait)", .command = 0x27});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x30 (DisconnectClient)", .command = 0x30});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x32 (?)", .command = 0x32});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x33 (?)", .command = 0x33});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x34 (?)", .command = 0x34});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x35 (?!)", .command = 0x35});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x37 (RetransmitAndWait)", .command = 0x37});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x38 (?)", .command = 0x38});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x39 (?)", .command = 0x39});
+  commandMenuOptions.push_back(
+      CommandMenuOption{.name = "0x3d (Bye)", .command = 0x3d});
 }
 
 void DebugScene::processKeys(u16 keys) {
@@ -210,8 +245,13 @@ void DebugScene::processKeys(u16 keys) {
 
 void DebugScene::processButtons() {
   if (aHandler->hasBeenPressedNow()) {
-    int selectedCommandIndex =
-        selectOption("Which command?", commandMenuOptions);
+    std::vector<std::string> commandNames;
+    commandNames.resize(commandMenuOptions.size());
+    std::transform(commandMenuOptions.begin(), commandMenuOptions.end(),
+                   commandNames.begin(),
+                   [](CommandMenuOption x) { return x.name; });
+
+    int selectedCommandIndex = selectOption("Which command?", commandNames);
     if (selectedCommandIndex > -1)
       processCommand((u32)selectedCommandIndex);
     print();
@@ -391,59 +431,72 @@ int DebugScene::selectU8(std::string title) {
 }
 
 void DebugScene::processCommand(u32 selectedCommandIndex) {
-  std::string selectedCommand = commandMenuOptions[selectedCommandIndex];
+  CommandMenuOption selectedOption = commandMenuOptions[selectedCommandIndex];
+  auto name = selectedOption.name;
+  auto command = selectedOption.command;
 
-  if (selectedCommand == "0x10 (Hello)") {
-    logSimpleCommand(selectedCommand, 0x11);
-  } else if (selectedCommand == "0x11 (SignalLevel)") {
-    logSimpleCommand(selectedCommand, 0x11);
-  } else if (selectedCommand == "0x12 (VersionStatus)") {
-    logSimpleCommand(selectedCommand, 0x12);
-  } else if (selectedCommand == "0x13 (SystemStatus)") {
-    logSimpleCommand(selectedCommand, 0x13);
-  } else if (selectedCommand == "0x14 (SlotStatus)") {
-    logOperation("sending " + selectedCommand, []() {
-      LinkRawWireless::SlotStatusResponse response;
-      bool success = linkRawWireless->getSlotStatus(response);
-      log("< [next slot] " +
-          linkRawWireless->toHex(response.nextClientNumber, 2));
-      for (u32 i = 0; i < response.connectedClients.size(); i++) {
-        log("< [client" +
-            std::to_string(response.connectedClients[i].clientNumber) + "] " +
-            linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
-      }
-      return success;
-    });
-  } else if (selectedCommand == "0x15 (ConfigStatus)") {
-    logSimpleCommand(selectedCommand, 0x15);
-  } else if (selectedCommand == "0x16 (Broadcast)") {
-    int gameId = selectGameId();
-    if (gameId == -1)
-      return;
-    std::string gameName = selectGameName();
-    if (gameName == "")
-      return;
-    std::string userName = selectUserName();
-    if (userName == "")
-      return;
+  if (selectHandler->getIsPressed() && command != 0)
+    goto generic;
 
-    logOperation("sending " + selectedCommand, [gameName, userName, gameId]() {
-      return linkRawWireless->broadcast(gameName, userName, (u16)gameId);
-    });
-  } else if (selectedCommand == "0x17 (Setup)") {
-    int maxPlayers = -1;
-    while ((maxPlayers = selectOption(
-                "Max players?",
-                std::vector<std::string>{"5", "4", "3", "2"})) == -1)
-      ;
+  switch (command) {
+    case 0x10:
+    case 0x11:
+    case 0x12:
+    case 0x13:
+      goto simple;
+    case 0x14: {
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::SlotStatusResponse response;
+        bool success = linkRawWireless->getSlotStatus(response);
+        log("< [next slot] " +
+            linkRawWireless->toHex(response.nextClientNumber, 2));
+        for (u32 i = 0; i < response.connectedClients.size(); i++) {
+          log("< [client" +
+              std::to_string(response.connectedClients[i].clientNumber) + "] " +
+              linkRawWireless->toHex(response.connectedClients[i].deviceId, 4));
+        }
+        return success;
+      });
+    }
+    case 0x15:
+      goto simple;
+    case 0x16: {
+      int gameId = selectGameId();
+      if (gameId == -1)
+        return;
+      std::string gameName = selectGameName();
+      if (gameName == "")
+        return;
+      std::string userName = selectUserName();
+      if (userName == "")
+        return;
 
-    logOperation("sending " + selectedCommand, [maxPlayers]() {
-      return linkRawWireless->setup(5 - maxPlayers);
-    });
-  } else if (selectedCommand == "0x18 (?)") {
-    auto data = selectData();
-    logSimpleCommand(selectedCommand, 0x18, data);
+      return logOperation("sending " + name, [gameName, userName, gameId]() {
+        return linkRawWireless->broadcast(gameName, userName, (u16)gameId);
+      });
+    }
+    case 0x17: {
+      int maxPlayers = -1;
+      while ((maxPlayers = selectOption(
+                  "Max players?",
+                  std::vector<std::string>{"5", "4", "3", "2"})) == -1)
+        ;
+
+      return logOperation("sending " + name, [maxPlayers]() {
+        return linkRawWireless->setup(5 - maxPlayers);
+      });
+    }
+    case 0x18:
+      goto generic;
+    default:
+      return;
   }
+
+simple:
+  return logSimpleCommand(name, command);
+generic:
+  auto data = selectData();
+  return logSimpleCommand(name, command, data);
 }
 
 int DebugScene::selectGameId() {
