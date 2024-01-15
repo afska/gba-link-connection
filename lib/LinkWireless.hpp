@@ -139,7 +139,7 @@
     if (!reset())                     \
       return false;
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.0.3";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v6.1.0";
 
 void LINK_WIRELESS_ISR_VBLANK();
 void LINK_WIRELESS_ISR_SERIAL();
@@ -184,7 +184,7 @@ class LinkWireless {
     BUFFER_IS_FULL = 4,
     // Communication errors
     COMMAND_FAILED = 5,
-    WEIRD_PLAYER_ID = 6,
+    CONNECTION_FAILED = 6,
     SEND_DATA_FAILED = 7,
     RECEIVE_DATA_FAILED = 8,
     ACKNOWLEDGE_FAILED = 9,
@@ -441,7 +441,7 @@ class LinkWireless {
     u8 assignedPlayerId = 1 + (u8)msB32(result1.responses[0]);
     if (assignedPlayerId >= LINK_WIRELESS_MAX_PLAYERS) {
       reset();
-      lastError = WEIRD_PLAYER_ID;
+      lastError = CONNECTION_FAILED;
       return false;
     }
 

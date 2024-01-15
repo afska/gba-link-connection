@@ -15,15 +15,15 @@
 //       linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 //       // (use LinkSPI::Mode::SLAVE on the other end)
 // - 4) Exchange 32-bit data with the other end:
-//       u32 data = linkSPI->transfer(0x1234);
+//       u32 data = linkSPI->transfer(0x12345678);
 //       // (this blocks the console indefinitely)
 // - 5) Exchange data with a cancellation callback:
-//       u32 data = linkSPI->transfer(0x1234, []() {
+//       u32 data = linkSPI->transfer(0x12345678, []() {
 //         u16 keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
 // - 6) Exchange data asynchronously:
-//       linkSPI->transferAsync(0x1234);
+//       linkSPI->transferAsync(0x12345678);
 //       // ...
 //       if (linkSPI->getAsyncState() == LinkSPI::AsyncState::READY) {
 //         u32 data = linkSPI->getAsyncData();
@@ -49,7 +49,7 @@
 #define LINK_SPI_BIT_GENERAL_PURPOSE_LOW 14
 #define LINK_SPI_BIT_GENERAL_PURPOSE_HIGH 15
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.0.3";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.1.0";
 
 class LinkSPI {
  public:

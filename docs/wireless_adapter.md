@@ -505,7 +505,6 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 If we analyze whether a command ID throws an 'invalid command' error (`0x996601ee` with error code `2`), we can know that there are **more commands**. I don't know what these commands do.
 
 - `0x18`
-- `0x18`
 - `0x32`
 - `0x33`
 - `0x34`
@@ -524,7 +523,7 @@ Waiting
 *   The GBA then sends the response back (e.g. `0x996600A8` as `0x28` + `0x80` = `0xA8`).
 *   After this, control of the clock returns to the GBA, and it can start sending commands back again. For example this might be receiving the command sent by the other device using [ReceiveData](#receivedata---0x26).
 
-⌚ This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027`.
+⌚ This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027`. **This is only true if the console has used the Setup command before**. The value that most games use (`0x003C0420`) seems to contain this timeout value, but the default is zero (no timeout).
 
 ✅ When there's new data available, the adapter sends to the GBA a `0x99660028`.
 

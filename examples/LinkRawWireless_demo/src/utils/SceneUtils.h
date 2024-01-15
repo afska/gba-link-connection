@@ -8,15 +8,8 @@
 
 const u32 TEXT_MIDDLE_COL = 12;
 
-extern int DEBULOG_LINE;
-void DEBULOG(std::string string);
-
 inline std::string asStr(u16 data) {
   return std::to_string(data);
-}
-
-inline bool isBitHigh(u16 data, u8 bit) {
-  return (data >> bit) & 1;
 }
 
 inline void BACKGROUND_enable(bool bg0, bool bg1, bool bg2, bool bg3) {
