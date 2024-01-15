@@ -250,6 +250,8 @@ Name | Return type | Description
 - It doesn't include any of the features of [👾 LinkCable](#-LinkCable), so it's not well suited for games.
 - Its demo (`LinkRawCable_demo`) can help emulator developers in enhancing accuracy.
 
+![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/29a25bf7-211e-49d6-a32a-566c72a44973)
+
 ## Methods
 
 Name | Return type | Description
@@ -274,6 +276,9 @@ Name | Return type | Description
 - This is a minimal hardware wrapper designed for the *Wireless Adapter*.
 - It doesn't include any of the features of [📻 LinkWireless](#-LinkWireless), so it's not well suited for games.
 - Its demo (`LinkRawWireless_demo`) can help emulator developers in enhancing accuracy.
+
+![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/bc7e5a7d-a1bd-46a5-8318-98160c1229ae)
+
 
 ## Methods
 
