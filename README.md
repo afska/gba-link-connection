@@ -3,11 +3,12 @@
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games.
 
 - [👾](#-LinkCable) [LinkCable.hpp](lib/LinkCable.hpp): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
-  - [🔧👾](#-LinkRawCable) [LinkRawCable.hpp](lib/LinkRawCable.hpp): A **minimal** low-level API for the 16-bit multiplayer mode.
+  - [🔧👾](#-LinkRawCable) [LinkRawCable.hpp](lib/LinkRawCable.hpp): A **minimal** low-level API for the 16-bit Multi-Play mode.
 - [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
 - [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
+  - [🔧📻](#-LinkRawWireless) [LinkRawWireless.hpp](lib/LinkRawWireless.hpp): A **minimal** low-level API for the Wireless Adapter.
 - [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
 
 *(click on the emojis for documentation)*
@@ -77,31 +78,6 @@ Name | Return type | Description
 `send(data)` | - | Sends `data` to all connected players.
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
-
-# 🔧👾 LinkRawCable
-
-- This is a minimal hardware wrapper designed for the *multiplayer mode*.
-- It doesn't include any of the features of [👾 LinkCable](#-LinkCable), so it's not well suited for games.
-- Its demo (`LinkRawCable_demo`) can help emulator developers in enhancing accuracy.
-
-## Methods
-
-Name | Return type | Description
---- | --- | ---
-`isActive()` | **bool** | Returns whether the library is active or not.
-`activate(baudRate = BAUD_RATE_1)` | - | Activates the library in a specific `baudRate` (`LinkRawCable::BaudRate`).
-`deactivate()` | - | Deactivates the library.
-`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the other end. Returns the received data, including the assigned player id.
-`transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
-`transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
-`getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
-`getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
-`isMaster()` | **bool** | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.
-`isReady()` | **bool** | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.
-`getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.
-
-- don't send `0xFFFF`, it's a reserved value that means *disconnected client*
-- only `transfer(...)` if `isReady()`
 
 # 💻 LinkCableMultiboot
 
@@ -267,3 +243,39 @@ Name | Return type | Description
 `getProtocol()` | **LinkUniversal::Protocol** | Returns the active protocol (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `setProtocol(protocol)` | - | Sets the active `protocol`.
 `getWirelessState()` | **LinkWireless::State** | Returns the wireless state (same as [📻 LinkWireless](#methods-4)'s `getState()`).
+
+# 🔧👾 LinkRawCable
+
+- This is a minimal hardware wrapper designed for the *Multi-Play mode*.
+- It doesn't include any of the features of [👾 LinkCable](#-LinkCable), so it's not well suited for games.
+- Its demo (`LinkRawCable_demo`) can help emulator developers in enhancing accuracy.
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate(baudRate = BAUD_RATE_1)` | - | Activates the library in a specific `baudRate` (`LinkRawCable::BaudRate`).
+`deactivate()` | - | Deactivates the library.
+`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the other end. Returns the received data, including the assigned player id.
+`transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
+`getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
+`getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`isMaster()` | **bool** | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.
+`isReady()` | **bool** | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.
+`getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.
+
+- don't send `0xFFFF`, it's a reserved value that means *disconnected client*
+- only `transfer(...)` if `isReady()`
+
+# 🔧📻 LinkRawWireless
+
+- This is a minimal hardware wrapper designed for the *Wireless Adapter*.
+- It doesn't include any of the features of [📻 LinkWireless](#-LinkWireless), so it's not well suited for games.
+- Its demo (`LinkRawWireless_demo`) can help emulator developers in enhancing accuracy.
+
+## Methods
+
+- There's one method for every supported wireless adapter command.
+- Use `sendCommand(...)` to send arbitrary commands.

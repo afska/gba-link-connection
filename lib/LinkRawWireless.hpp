@@ -4,7 +4,7 @@
 // --------------------------------------------------------------------------
 // A low level driver for the GBA Wireless Adapter.
 // --------------------------------------------------------------------------
-// - Advanced usage only (check out the documentation).
+// - Advanced usage only!
 // - If you're building a game, use `LinkWireless`.
 // --------------------------------------------------------------------------
 
@@ -15,8 +15,6 @@
 
 #include <string>
 #include <vector>
-
-// TODO: LOGGING BUILD OPTION
 
 #define LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define LINK_RAW_WIRELESS_MIN_PLAYERS 2
@@ -83,19 +81,6 @@ class LinkRawWireless {
     std::vector<u32> responses = std::vector<u32>{};
   };
 
-  enum Error {
-    // TODO: REPLACE lastError with logger calls
-
-    // User errors
-    NONE = 0,
-    GAME_NAME_TOO_LONG = 1,
-    USER_NAME_TOO_LONG = 2,
-    // Communication errors
-    COMMAND_FAILED = 5,
-    CONNECTION_FAILED = 6,
-    ACKNOWLEDGE_FAILED = 9,
-  };
-
   struct Server {
     u16 id = 0;
     u16 gameId;
@@ -106,10 +91,30 @@ class LinkRawWireless {
     bool isFull() { return nextClientNumber == 0xff; }
   };
 
+  typedef struct {
+    u16 deviceId = 0;
+    u8 clientNumber = 0;
+  } ConnectedClient;
+
+  typedef struct {
+    u8 nextClientNumber = 0;
+    std::vector<ConnectedClient> connectedClients = {};
+  } SlotStatusResponse;
+
+  typedef struct {
+    std::vector<ConnectedClient> connectedClients = {};
+  } AcceptConnectionsResponse;
+
+  enum ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
+
+  typedef struct {
+    ConnectionPhase phase = STILL_CONNECTING;
+    u8 assignedClientNumber = 0;
+  } ConnectionStatus;
+
   bool isActive() { return isEnabled; }
 
   bool activate() {
-    lastError = NONE;
     isEnabled = false;
 
     bool success = reset(true);
@@ -121,7 +126,6 @@ class LinkRawWireless {
   bool deactivate() {
     bool success = sendCommand(LINK_RAW_WIRELESS_COMMAND_BYE).success;
 
-    lastError = NONE;
     isEnabled = false;
     resetState();
     stop();
@@ -143,11 +147,11 @@ class LinkRawWireless {
                  std::string userName = "",
                  u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
     if (gameName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
-      lastError = GAME_NAME_TOO_LONG;
+      logger("! game name too long");
       return false;
     }
     if (userName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
-      lastError = USER_NAME_TOO_LONG;
+      logger("! user name too long");
       return false;
     }
     gameName.append(LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH - gameName.length(),
@@ -185,7 +189,6 @@ class LinkRawWireless {
 
     if (!success) {
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -196,14 +199,6 @@ class LinkRawWireless {
     return true;
   }
 
-  typedef struct {
-    u16 deviceId = 0;
-    u8 clientNumber = 0;
-  } ConnectedClient;
-  typedef struct {
-    u8 nextClientNumber = 0;
-    std::vector<ConnectedClient> connectedClients = {};
-  } SlotStatusResponse;
   bool getSlotStatus(SlotStatusResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS);
 
@@ -225,9 +220,6 @@ class LinkRawWireless {
     return true;
   }
 
-  typedef struct {
-    std::vector<ConnectedClient> connectedClients = {};
-  } AcceptConnectionsResponse;
   bool acceptConnections(AcceptConnectionsResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
 
@@ -249,6 +241,7 @@ class LinkRawWireless {
 
     return true;
   }
+
   bool endHost(AcceptConnectionsResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_END_HOST);
 
@@ -277,7 +270,6 @@ class LinkRawWireless {
 
     if (!success) {
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -296,7 +288,6 @@ class LinkRawWireless {
 
     if (!success) {
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -346,7 +337,6 @@ class LinkRawWireless {
 
     if (!success) {
       reset();
-      lastError = COMMAND_FAILED;
       return false;
     }
 
@@ -356,11 +346,6 @@ class LinkRawWireless {
     return true;
   }
 
-  enum ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
-  typedef struct {
-    ConnectionPhase phase = STILL_CONNECTING;
-    u8 assignedClientNumber = 0;
-  } ConnectionStatus;
   bool keepConnecting(ConnectionStatus& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
     if (!result.success || result.responses.size() == 0) {
@@ -429,7 +414,6 @@ class LinkRawWireless {
 
     if (!success) {
       reset();
-      // TODO: ERRORS?
       return false;
     }
 
@@ -442,7 +426,6 @@ class LinkRawWireless {
 
     if (!result.success) {
       reset();
-      // TODO: ERRORS?
       return false;
     }
 
@@ -523,12 +506,6 @@ class LinkRawWireless {
   bool isSessionActive() { return state == SERVING || state == CONNECTED; }
   u8 playerCount() { return sessionState.playerCount; }
   u8 currentPlayerId() { return sessionState.currentPlayerId; }
-  Error getLastError(bool clear = true) {
-    Error error = lastError;
-    if (clear)
-      lastError = NONE;
-    return error;
-  }
 
   ~LinkRawWireless() {
     delete linkSPI;
@@ -538,7 +515,6 @@ class LinkRawWireless {
   struct SessionState {
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
-    u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS;
   };
 
   struct LoginMemory {
@@ -550,7 +526,6 @@ class LinkRawWireless {
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
   State state = NEEDS_RESET;
-  Error lastError = NONE;
   volatile bool isEnabled = false;
 
   void recoverName(std::string& name,
