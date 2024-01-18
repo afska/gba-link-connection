@@ -7,7 +7,7 @@
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkSPI* linkSPI = new LinkSPI();
-// - 2) (Optional) Add the interrupt service routines:
+// - 2) (Optional) Add the interrupt service routines: (*)
 //       irq_init(NULL);
 //       irq_add(II_SERIAL, LINK_SPI_ISR_SERIAL);
 //       // (this is only required for `transferAsync`)
@@ -29,6 +29,10 @@
 //         u32 data = linkSPI->getAsyncData();
 //         // ...
 //       }
+// --------------------------------------------------------------------------
+// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//     That causes packet loss. You REALLY want to use libugba's instead.
+//     (see examples)
 // --------------------------------------------------------------------------
 // considerations:
 // - when using Normal Mode between two GBAs, use a GBC Link Cable!

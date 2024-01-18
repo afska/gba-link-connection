@@ -47,7 +47,7 @@
 //       // (resets the adapter)
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
-//     That can cause packet loss. You might want to use libugba's instead.
+//     That causes packet loss. You REALLY want to use libugba's instead.
 //     (see examples)
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:

@@ -30,7 +30,7 @@
 //       }
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
-//     That can cause packet loss. You might want to use libugba's instead.
+//     That causes packet loss. You REALLY want to use libugba's instead.
 //     (see examples)
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
@@ -45,7 +45,9 @@
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
+// Max players. Default = 4 (LinkCable's limit), but can be increased to 5
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
+
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
@@ -311,7 +313,7 @@ class LinkUniversal {
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
-    for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
+    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       while (linkCable->canRead(i))
         incomingMessages[i].push(linkCable->read(i));
     }

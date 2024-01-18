@@ -232,6 +232,9 @@ Name | Type | Default | Description
 `cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#constructor) constructor parameters in one *struct*.
 `wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-1) constructor parameters in one *struct*.
 
+You can also change these compile-time constants:
+- `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `4` (LinkCable's limit) but can be increased to `5` to support larger wireless rooms.
+
 ## Methods
 
 The interface is the same as [👾 LinkCable](#methods). Additionally, it supports these methods:
