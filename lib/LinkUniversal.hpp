@@ -29,9 +29,15 @@
 //         // ...
 //       }
 // --------------------------------------------------------------------------
-// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
-//     That causes packet loss. You REALLY want to use libugba's instead.
-//     (see examples)
+// (*1) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//      That causes packet loss. You REALLY want to use libugba's instead.
+//      (see examples)
+// --------------------------------------------------------------------------
+// (*2) For CABLE mode:
+//     The hardware is very sensitive to timing. Make sure your interrupt
+//     handlers are short, so `LINK_UNIVERSAL_ISR_SERIAL()` is called on time.
+//     Another option would be activating nested interrupts by setting
+//     `REG_IME=1` at the start of your interrupt handler.
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
 // - 0xFFFF and 0x0 are reserved values, so don't use them!
