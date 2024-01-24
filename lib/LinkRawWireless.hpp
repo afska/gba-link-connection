@@ -172,8 +172,7 @@ class LinkRawWireless {
                     0);
 
     auto broadcastData =
-        std::vector<u32>{buildU32(buildU16(gameName[1], gameName[0]),
-                                  gameId & LINK_RAW_WIRELESS_MAX_GAME_ID),
+        std::vector<u32>{buildU32(buildU16(gameName[1], gameName[0]), gameId),
                          buildU32(buildU16(gameName[5], gameName[4]),
                                   buildU16(gameName[3], gameName[2])),
                          buildU32(buildU16(gameName[9], gameName[8]),
