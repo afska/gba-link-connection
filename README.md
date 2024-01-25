@@ -9,7 +9,8 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
   - [🔧📻](#-LinkRawWireless) [LinkRawWireless.hpp](lib/LinkRawWireless.hpp): A **minimal** low-level API for the Wireless Adapter.
-- [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
+- [📡](#-LinkWirelessMultiboot) [LinkWirelessMultiboot.hpp](lib/LinkWirelessMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs **over the air**!
+- [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**!
 
 *(click on the emojis for documentation)*
 
@@ -214,6 +215,20 @@ Name | Return type | Description
 `getLastError([clear])` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared if `clear` is `true` (default behavior).
 
 ⚠️ `0xFFFF` is a reserved value, so don't send it!
+
+# 💻 LinkWirelessMultiboot
+
+*(aka Multiboot through Wireless Adapter)*
+
+This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 4 slaves, wirelessly, using a single cartridge.
+
+// TODO: Photo
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`sendRom(rom, romSize, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
 
 # 🌎 LinkUniversal
 
