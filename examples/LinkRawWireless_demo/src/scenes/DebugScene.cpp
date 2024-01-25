@@ -131,6 +131,7 @@ void DebugScene::load() {
 
   log("---");
   log("LinkRawWireless demo");
+  log("  (v6.2.0)");
   log("");
   log("START: reset wireless adapter");
   log("A: send command");

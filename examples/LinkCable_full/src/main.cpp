@@ -93,10 +93,10 @@ inline void setUpInterrupts() {
 
 void printTutorial() {
 #ifndef USE_LINK_UNIVERSAL
-  DEBULOG("LinkCable demo");
+  DEBULOG("LinkCable_full (v6.2.0)");
 #endif
 #ifdef USE_LINK_UNIVERSAL
-  DEBULOG("LinkUniversal demo");
+  DEBULOG("LinkUniversal_full (v6.2.0)");
 #endif
 
   DEBULOG("");

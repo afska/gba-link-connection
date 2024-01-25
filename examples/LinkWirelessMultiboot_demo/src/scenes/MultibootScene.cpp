@@ -122,6 +122,7 @@ void MultibootScene::load() {
 
   log("---");
   log("LinkWirelessMultiboot demo");
+  log("  (v6.2.0)");
   log("");
   log("A: send ROM");
   log("B: toggle log level");

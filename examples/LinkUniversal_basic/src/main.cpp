@@ -21,10 +21,11 @@ void init() {
 int main() {
   init();
 
-  log("Press A to start\n\n\n\n\nhold LEFT on start:\n -> force "
-      "cable\n\nhold RIGHT on start:\n -> force wireless\n\nhold UP on "
-      "start:\n -> force wireless server\n\nhold DOWN on start:\n -> force "
-      "wireless client\n\nhold B on start:\n -> set 2 players (wireless)");
+  log("LinkUniversal_basic (v6.2.0)\n\n\nPress A to start\n\n\nhold LEFT on "
+      "start:\n -> force cable\n\nhold RIGHT on start:\n -> force "
+      "wireless\n\nhold UP on start:\n -> force wireless server\n\nhold DOWN "
+      "on start:\n -> force wireless client\n\nhold B on start:\n -> set 2 "
+      "players (wireless)");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;

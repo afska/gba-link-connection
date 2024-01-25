@@ -32,7 +32,7 @@ int main() {
   u32 counter = 0;
 
   while (true) {
-    std::string output = "";
+    std::string output = "LinkSPI_demo (v6.2.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkSPI->isActive()) {
