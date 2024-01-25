@@ -86,3 +86,8 @@ mv backup.gba LinkWireless_demo.gba
 sed -i -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 sed -i -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 cd ..
+
+cd LinkWirelessMultiboot_demo/
+make rebuild
+cp LinkWirelessMultiboot_demo.gba ../
+cd ..
