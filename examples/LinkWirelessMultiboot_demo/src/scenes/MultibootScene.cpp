@@ -9,6 +9,14 @@
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
+extern "C" {
+#include "utils/gbfs/gbfs.h"
+}
+
+static const GBFS_FILE* fs = find_first_gbfs_file(0);
+
+const char* ROM_FILE_NAME = "rom-to-transfer.gba";
+
 MultibootScene::MultibootScene(std::shared_ptr<GBAEngine> engine)
     : Scene(engine) {}
 
@@ -124,6 +132,16 @@ void MultibootScene::load() {
   log("LinkWirelessMultiboot demo");
   log("  (v6.2.0)");
   log("");
+  if (fs == NULL) {
+    log("! GBFS file not found");
+    while (true)
+      ;
+  } else if (gbfs_get_obj(fs, ROM_FILE_NAME, NULL) == NULL) {
+    log("! File not found in GBFS:");
+    log("  " + std::string(ROM_FILE_NAME));
+    while (true)
+      ;
+  }
   log("A: send ROM");
   log("B: toggle log level");
   log("UP/DOWN: scroll up/down");

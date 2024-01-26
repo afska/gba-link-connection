@@ -125,7 +125,8 @@ LIBS		:= -ltonc -lugba -lgba-sprite-engine
 BUILD		:= build
 SRCDIRS		:= src ../_lib ../../lib \
 						 src/scenes \
-						 src/utils
+						 src/utils \
+						 src/utils/gbfs
 
 DATADIRS	:=
 INCDIRS		:= src
@@ -279,10 +280,13 @@ endif		# End BUILD switch
 
 .PHONY: clean rebuild start
 
-rebuild: clean $(BUILD)
+rebuild: clean $(BUILD) package
 
-start:
-	start "$(TARGET).gba"
+package: $(BUILD)
+	./scripts/package.sh
+
+start: package
+	start "$(TARGET).out.gba"
 
 restart: rebuild start
 

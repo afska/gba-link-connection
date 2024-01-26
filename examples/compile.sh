@@ -89,5 +89,5 @@ cd ..
 
 cd LinkWirelessMultiboot_demo/
 make rebuild
-cp LinkWirelessMultiboot_demo.gba ../
+cp LinkWirelessMultiboot_demo.out.gba ../LinkWirelessMultiboot_demo.gba
 cd ..
