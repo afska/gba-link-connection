@@ -116,8 +116,6 @@ class LinkSPI {
       setInterruptsOff();
     }
 
-    enableTransfer();
-
     while (isMaster() && waitMode && !isSlaveReady())
       if (cancel()) {
         disableTransfer();
@@ -126,6 +124,7 @@ class LinkSPI {
         return LINK_SPI_NO_DATA;
       }
 
+    enableTransfer();  // TODO: TEST THIS (moved)
     startTransfer();
 
     if (_async)

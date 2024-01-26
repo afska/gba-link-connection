@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <functional>
 
-#include "../../../../lib/LinkRawWireless.hpp"
+#include "../../../../lib/LinkWirelessMultiboot.hpp"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
@@ -123,7 +123,11 @@ void MultibootScene::load() {
   SCENE_init();
   BACKGROUND_enable(true, false, false, false);
 
-  linkRawWireless->logger = [](std::string string) {
+  linkWirelessMultiboot->logger = [](std::string string) {
+    // if (useVerboseLog) // TODO: RESTORE
+    log(string);
+  };
+  linkWirelessMultiboot->link->logger = [](std::string string) {
     if (useVerboseLog)
       log(string);
   };
@@ -180,7 +184,11 @@ void MultibootScene::processButtons() {
     toggleLogLevel();
 
   if (aHandler->hasBeenPressedNow()) {
-    // TODO: IMPLEMENT
+    u32 fileLength;
+    const void* romToSend = gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
+
+    linkWirelessMultiboot->sendRom(romToSend, fileLength,
+                                   []() { return false; });
     print();
   }
 

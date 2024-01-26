@@ -1,6 +1,6 @@
 #include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
-#include "../../../lib/LinkRawWireless.hpp"
+#include "../../../lib/LinkWirelessMultiboot.hpp"
 #include "../../_lib/interrupt.h"
 #include "scenes/MultibootScene.h"
 #include "utils/SceneUtils.h"
@@ -11,7 +11,7 @@ static std::shared_ptr<GBAEngine> engine{new GBAEngine()};
 static std::unique_ptr<MultibootScene> multibootScene{
     new MultibootScene(engine)};
 
-LinkRawWireless* linkRawWireless = new LinkRawWireless();
+LinkWirelessMultiboot* linkWirelessMultiboot = new LinkWirelessMultiboot();
 
 int main() {
   setUpInterrupts();

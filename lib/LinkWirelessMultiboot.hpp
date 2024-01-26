@@ -32,8 +32,37 @@ static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v6.2.0";
 
 class LinkWirelessMultiboot {
+  typedef void (*Logger)(std::string);
+
  public:
+  Logger logger = [](std::string str) {};
   enum Result { SUCCESS, INVALID_SIZE, CANCELED, FAILURE };
+
+  struct ServerSDKHeader {
+    unsigned int payloadSize : 7;
+    unsigned int _unused_ : 2;
+    unsigned int phase : 2;
+    unsigned int n : 2;
+    unsigned int isACK : 1;
+    unsigned int slotState : 4;
+    unsigned int targetSlots : 4;
+  };
+  union ServerSDKHeaderSerializer {
+    ServerSDKHeader asStruct;
+    u32 asInt;
+  };
+
+  struct ClientSDKHeader {
+    unsigned int payloadSize : 5;
+    unsigned int phase : 2;
+    unsigned int n : 2;
+    unsigned int isACK : 1;
+    unsigned int slotState : 4;
+  };
+  union ClientSDKHeaderSerializer {
+    ClientSDKHeader asStruct;
+    u16 asInt;
+  };
 
   template <typename F>
   Result sendRom(const void* rom, u32 romSize, F cancel) {
@@ -44,12 +73,170 @@ class LinkWirelessMultiboot {
     // if ((romSize % 0x10) != 0)
     //   return INVALID_SIZE;
 
-    // TODO: IMPLEMENT
+    bool success = true;
+    success = link->activate();
+    if (!success) {
+      logger("cannot activate");
+      return FAILURE;
+    }
+    logger("activated");
+
+    success = link->sendCommand(LINK_RAW_WIRELESS_COMMAND_SETUP,
+                                std::vector<u32>{0x003F0120})
+                  .success;  // TODO: IMPLEMENT SETUP
+    if (!success) {
+      logger("setup failed");
+      return FAILURE;
+    }
+    logger("setup ok");
+
+    success = link->broadcast("Multi", "Test", 0b1111111111111111);
+    if (!success) {
+      logger("broadcast failed");
+      return FAILURE;
+    }
+    logger("broadcast set");
+
+    success = link->startHost();
+    if (!success) {
+      logger("start host failed");
+      return FAILURE;
+    }
+    logger("host started");
+
+    LinkRawWireless::AcceptConnectionsResponse acceptResponse;
+    while (link->playerCount() == 1) {
+      link->acceptConnections(acceptResponse);
+    }
+
+    logger("connected!");
+    linkRawWireless->wait(228 * 20);  // ~300ms
+
+    bool hasData = false;
+    LinkRawWireless::ReceiveDataResponse response;
+    while (!hasData) {
+      if (!sendAndExpectData(std::vector<u32>{}, 1, response))
+        return FAILURE;
+      hasData = response.data.size() > 0;
+    }
+
+    logger("data received");
+    ClientSDKHeader clientHeader = parseClientHeader(response.data[0]);
+    logger("client size: " + std::to_string(clientHeader.payloadSize));
+    logger("n: " + std::to_string(clientHeader.n));
+    logger("phase: " + std::to_string(clientHeader.phase));
+    logger("ack: " + std::to_string(clientHeader.isACK));
+    logger("slotState:" + std::to_string(clientHeader.slotState));
+
+    logger("sending ACK");
+  firstack:
+    ServerSDKHeader serverHeader;
+    serverHeader = createACKFor(clientHeader);
+    u32 sndHeader = serializeServerHeader(serverHeader);
+
+    if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+      return FAILURE;
+
+    if (response.data.size() == 0) {
+      goto firstack;
+    }
+    clientHeader = parseClientHeader(response.data[0]);
+    if (clientHeader.n == 1)
+      goto firstack;
+
+    if (clientHeader.n == 2 && clientHeader.slotState == 1) {
+      logger("N IS NOW 2, slotstate = 1");
+    } else {
+      logger("Error: weird packet");
+      return FAILURE;
+    }
+
+  secondack:
+    serverHeader = createACKFor(clientHeader);
+    sndHeader = serializeServerHeader(serverHeader);
+    if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+      return FAILURE;
+
+    if (response.data.size() == 0) {
+      goto secondack;
+    }
+    clientHeader = parseClientHeader(response.data[0]);
+    if (clientHeader.n == 2 && clientHeader.slotState == 1)
+      goto secondack;
+
+    if (clientHeader.n == 1 && clientHeader.slotState == 2) {
+      logger("NI STARTED");
+    } else {
+      logger("NI DIDN'T START");
+      return FAILURE;
+    }
+
+    while (clientHeader.slotState > 0) {
+      link->wait(228);
+      serverHeader = createACKFor(clientHeader);
+      sndHeader = serializeServerHeader(serverHeader);
+      if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+        return FAILURE;
+
+      clientHeader = parseClientHeader(response.data[0]);
+    }
+
+    logger("slotState IS NOW 0");
 
     return SUCCESS;
   }
 
+  LinkRawWireless* link = new LinkRawWireless();
+
+  ClientSDKHeader lastACK;
+
  private:
+  bool sendAndExpectData(std::vector<u32> data,
+                         u32 _bytes,
+                         LinkRawWireless::ReceiveDataResponse& response) {
+    LinkRawWireless::RemoteCommand remoteCommand;
+    bool success = false;
+    success = link->sendDataAndWait(data, remoteCommand, _bytes);
+    if (!success) {
+      logger("senddatawait no");
+      return false;
+    }
+    if (remoteCommand.commandId != 0x28) {
+      logger("expected response 0x28");
+      logger("but got " + link->toHex(remoteCommand.commandId));
+      return false;
+    }
+    success = link->receiveData(response);
+    if (!success) {
+      logger("receive data failed");
+      return false;
+    }
+    return true;
+  }
+
+  ServerSDKHeader createACKFor(ClientSDKHeader clientHeader) {
+    ServerSDKHeader serverHeader;
+    serverHeader.isACK = 1;
+    serverHeader.targetSlots = 0b0001;  //  TODO: Implement
+    serverHeader.payloadSize = 0;
+    serverHeader.n = clientHeader.n;
+    serverHeader.phase = clientHeader.phase;
+    serverHeader.slotState = clientHeader.slotState;
+
+    return serverHeader;
+  }
+
+  ClientSDKHeader parseClientHeader(u32 clientHeaderInt) {
+    ClientSDKHeaderSerializer clientSerializer;
+    clientSerializer.asInt = clientHeaderInt;
+    return clientSerializer.asStruct;
+  }
+
+  u32 serializeServerHeader(ServerSDKHeader serverHeader) {
+    ServerSDKHeaderSerializer serverSerializer;
+    serverSerializer.asStruct = serverHeader;
+    return serverSerializer.asInt;
+  }
 };
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
