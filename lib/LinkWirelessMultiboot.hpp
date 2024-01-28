@@ -214,8 +214,6 @@ class LinkWirelessMultiboot {
     u32 phase = 0;
     while (transferredBytes < romSize) {
     retry:
-      link->wait(228);
-
       serverHeader.isACK = 0;
       serverHeader.targetSlots = 0b0001;  //  TODO: Implement
       serverHeader.payloadSize = 84;      // 87 - 3 (serversdkheader)
@@ -231,8 +229,18 @@ class LinkWirelessMultiboot {
             (rom[transferredBytes + i + 2] << 16) |
             (rom[transferredBytes + i + 3] << 24));  // TODO: CHECK BOUNDS
       }
-      if (!sendAndExpectData(data, 87, response))
+      if (!link->sendData(data, 87)) {
+        logger("SendData failed!");
         return FAILURE;
+      }
+      LinkRawWireless::ReceiveDataResponse response;
+      if (!link->receiveData(response)) {
+        logger("ReceiveData failed!");
+        return FAILURE;
+      }
+      if (response.data.size() == 0)
+        goto retry;
+
       clientHeader = parseClientHeader(response.data[0]);
       if (clientHeader.isACK && clientHeader.n == n &&
           clientHeader.phase == phase) {
