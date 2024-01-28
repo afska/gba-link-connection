@@ -65,7 +65,7 @@ class LinkWirelessMultiboot {
   };
 
   template <typename F>
-  Result sendRom(const void* rom, u32 romSize, F cancel) {
+  Result sendRom(const u8* rom, u32 romSize, F cancel) {
     // if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
     //   return INVALID_SIZE;
     // if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
@@ -190,7 +190,6 @@ class LinkWirelessMultiboot {
     while (!didClientRespond) {
       link->wait(228);
 
-      ServerSDKHeader serverHeader;
       serverHeader.isACK = 0;
       serverHeader.targetSlots = 0b0001;  //  TODO: Implement
       serverHeader.payloadSize = 7;
@@ -208,6 +207,93 @@ class LinkWirelessMultiboot {
     }
 
     logger("READY TO SEND ROM!");
+
+    // ROM START
+    u32 transferredBytes = 0;
+    u32 n = 1;
+    u32 phase = 0;
+    while (transferredBytes < romSize) {
+    retry:
+      link->wait(228);
+
+      serverHeader.isACK = 0;
+      serverHeader.targetSlots = 0b0001;  //  TODO: Implement
+      serverHeader.payloadSize = 84;      // 87 - 3 (serversdkheader)
+      serverHeader.n = n;
+      serverHeader.phase = phase;
+      serverHeader.slotState = 2;
+      sndHeader = serializeServerHeader(serverHeader);
+      std::vector<u32> data;
+      data.push_back(sndHeader | (rom[transferredBytes] << 24));
+      for (u32 i = 1; i < 84; i += 4) {
+        data.push_back(
+            rom[transferredBytes + i] | (rom[transferredBytes + i + 1] << 8) |
+            (rom[transferredBytes + i + 2] << 16) |
+            (rom[transferredBytes + i + 3] << 24));  // TODO: CHECK BOUNDS
+      }
+      if (!sendAndExpectData(data, 87, response))
+        return FAILURE;
+      clientHeader = parseClientHeader(response.data[0]);
+      if (clientHeader.isACK && clientHeader.n == n &&
+          clientHeader.phase == phase) {
+        phase++;
+        if (phase == 4) {
+          phase = 0;
+          n++;
+          if (n == 4)
+            n = 0;
+        }
+        logger("-> " + std::to_string(transferredBytes * 100 / romSize));
+        transferredBytes += 84;
+      } else
+        goto retry;
+    }
+
+    logger("SEND FINISHED! Confirming...");
+
+    // ROM END COMMAND
+    didClientRespond = false;
+    while (!didClientRespond) {
+      link->wait(228);
+
+      serverHeader.isACK = 0;
+      serverHeader.targetSlots = 0b0001;  //  TODO: Implement
+      serverHeader.payloadSize = 0;
+      serverHeader.n = 0;
+      serverHeader.phase = 0;
+      serverHeader.slotState = 3;
+      sndHeader = serializeServerHeader(serverHeader);
+      if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+        return FAILURE;
+      clientHeader = parseClientHeader(response.data[0]);
+      if (clientHeader.isACK == 1 && clientHeader.n == 0 &&
+          clientHeader.phase == 0 && clientHeader.slotState == 3)
+        didClientRespond = true;
+    }
+
+    logger("Reconfirming...");
+
+    // ROM END 2 COMMAND
+    didClientRespond = false;
+    while (!didClientRespond) {
+      link->wait(228);
+
+      serverHeader.isACK = 0;
+      serverHeader.targetSlots = 0b0001;  //  TODO: Implement
+      serverHeader.payloadSize = 0;
+      serverHeader.n = 1;
+      serverHeader.phase = 0;
+      serverHeader.slotState = 0;
+      sndHeader = serializeServerHeader(serverHeader);
+      if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+        return FAILURE;
+      clientHeader = parseClientHeader(response.data[0]);
+      if (clientHeader.isACK == 1 && clientHeader.n == 1 &&
+          clientHeader.phase == 0 && clientHeader.slotState == 0)
+        didClientRespond = true;
+    }
+
+    logger("SUCCESS!");
 
     return SUCCESS;
   }

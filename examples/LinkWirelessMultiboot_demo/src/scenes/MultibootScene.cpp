@@ -185,7 +185,8 @@ void MultibootScene::processButtons() {
 
   if (aHandler->hasBeenPressedNow()) {
     u32 fileLength;
-    const void* romToSend = gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
+    const u8* romToSend =
+        (const u8*)gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
 
     linkWirelessMultiboot->sendRom(romToSend, fileLength,
                                    []() { return false; });
