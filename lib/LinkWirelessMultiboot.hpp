@@ -112,6 +112,8 @@ class LinkWirelessMultiboot {
     logger("connected!");
     linkRawWireless->wait(228 * 20);  // ~300ms
 
+    // HANDSHAKE
+
     bool hasData = false;
     LinkRawWireless::ReceiveDataResponse response;
     while (!hasData) {
@@ -182,6 +184,30 @@ class LinkWirelessMultiboot {
     }
 
     logger("slotState IS NOW 0");
+
+    // ROM START COMMAND
+    bool didClientRespond = false;
+    while (!didClientRespond) {
+      link->wait(228);
+
+      ServerSDKHeader serverHeader;
+      serverHeader.isACK = 0;
+      serverHeader.targetSlots = 0b0001;  //  TODO: Implement
+      serverHeader.payloadSize = 7;
+      serverHeader.n = 1;
+      serverHeader.phase = 0;
+      serverHeader.slotState = 1;
+      sndHeader = serializeServerHeader(serverHeader);
+      if (!sendAndExpectData(std::vector<u32>{sndHeader, 0x54, 0x02}, 10,
+                             response))
+        return FAILURE;
+      clientHeader = parseClientHeader(response.data[0]);
+      if (clientHeader.isACK == 1 && clientHeader.n == 1 &&
+          clientHeader.phase == 0 && clientHeader.slotState == 1)
+        didClientRespond = true;
+    }
+
+    logger("READY TO SEND ROM!");
 
     return SUCCESS;
   }
