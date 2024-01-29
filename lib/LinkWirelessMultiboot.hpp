@@ -73,6 +73,18 @@ class LinkWirelessMultiboot {
     // if ((romSize % 0x10) != 0)
     //   return INVALID_SIZE;
 
+    u32 asd = 0;
+    ServerSDKHeader serverHeaderr;
+    serverHeaderr.isACK = 0;
+    serverHeaderr.targetSlots = 0b0001;  //  TODO: Implement
+    serverHeaderr.payloadSize = 84;      // 87 - 3 (serversdkheader)
+    serverHeaderr.n = 1;
+    serverHeaderr.phase = 0;
+    serverHeaderr.slotState = 2;
+    u32 sndHeaderr = serializeServerHeader(serverHeaderr);
+    asd = sndHeaderr | (rom[0] << 24);
+    logger("first byte is " + link->toHex(asd));
+
     bool success = true;
     success = link->activate();
     if (!success) {
@@ -224,10 +236,16 @@ class LinkWirelessMultiboot {
       std::vector<u32> data;
       data.push_back(sndHeader | (rom[transferredBytes] << 24));
       for (u32 i = 1; i < 84; i += 4) {
-        data.push_back(
-            rom[transferredBytes + i] | (rom[transferredBytes + i + 1] << 8) |
-            (rom[transferredBytes + i + 2] << 16) |
-            (rom[transferredBytes + i + 3] << 24));  // TODO: CHECK BOUNDS
+        u32 d = 0;
+        if (transferredBytes + i < romSize)
+          d |= rom[transferredBytes + i];
+        if (transferredBytes + i + 1 < romSize)
+          d |= rom[transferredBytes + i + 1] << 8;
+        if (transferredBytes + i + 2 < romSize)
+          d |= rom[transferredBytes + i + 2] << 16;
+        if (transferredBytes + i + 3 < romSize)
+          d |= rom[transferredBytes + i + 3] << 24;
+        data.push_back(d);
       }
       if (!link->sendData(data, 87)) {
         logger("SendData failed!");
@@ -251,8 +269,8 @@ class LinkWirelessMultiboot {
           if (n == 4)
             n = 0;
         }
-        logger("-> " + std::to_string(transferredBytes * 100 / romSize));
         transferredBytes += 84;
+        logger("-> " + std::to_string(transferredBytes * 100 / romSize));
       } else
         goto retry;
     }
@@ -296,9 +314,8 @@ class LinkWirelessMultiboot {
       if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
         return FAILURE;
       clientHeader = parseClientHeader(response.data[0]);
-      if (clientHeader.isACK == 1 && clientHeader.n == 1 &&
-          clientHeader.phase == 0 && clientHeader.slotState == 0)
-        didClientRespond = true;
+      // if (clientHeader.slotState == 0)
+      didClientRespond = true;
     }
 
     logger("SUCCESS!");
