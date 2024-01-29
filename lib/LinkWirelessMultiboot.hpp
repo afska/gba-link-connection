@@ -73,17 +73,7 @@ class LinkWirelessMultiboot {
     // if ((romSize % 0x10) != 0)
     //   return INVALID_SIZE;
 
-    u32 asd = 0;
-    ServerSDKHeader serverHeaderr;
-    serverHeaderr.isACK = 0;
-    serverHeaderr.targetSlots = 0b0001;  //  TODO: Implement
-    serverHeaderr.payloadSize = 84;      // 87 - 3 (serversdkheader)
-    serverHeaderr.n = 1;
-    serverHeaderr.phase = 0;
-    serverHeaderr.slotState = 2;
-    u32 sndHeaderr = serializeServerHeader(serverHeaderr);
-    asd = sndHeaderr | (rom[0] << 24);
-    logger("first byte is " + link->toHex(asd));
+    // std::vector<u8> bytes = {};
 
     bool success = true;
     success = link->activate();
@@ -224,7 +214,9 @@ class LinkWirelessMultiboot {
     u32 transferredBytes = 0;
     u32 n = 1;
     u32 phase = 0;
+    bool isRetry = false;
     while (transferredBytes < romSize) {
+      isRetry = false;
     retry:
       serverHeader.isACK = 0;
       serverHeader.targetSlots = 0b0001;  //  TODO: Implement
@@ -235,16 +227,18 @@ class LinkWirelessMultiboot {
       sndHeader = serializeServerHeader(serverHeader);
       std::vector<u32> data;
       data.push_back(sndHeader | (rom[transferredBytes] << 24));
+      // if (!isRetry)
+      //   bytes.push_back(rom[transferredBytes]);
       for (u32 i = 1; i < 84; i += 4) {
         u32 d = 0;
-        if (transferredBytes + i < romSize)
-          d |= rom[transferredBytes + i];
-        if (transferredBytes + i + 1 < romSize)
-          d |= rom[transferredBytes + i + 1] << 8;
-        if (transferredBytes + i + 2 < romSize)
-          d |= rom[transferredBytes + i + 2] << 16;
-        if (transferredBytes + i + 3 < romSize)
-          d |= rom[transferredBytes + i + 3] << 24;
+        for (u32 j = 0; j < 4; j++) {
+          if (transferredBytes + i + j < romSize && i + j < 84) {
+            u8 byte = rom[transferredBytes + i + j];
+            d |= byte << (j * 8);
+            // if (!isRetry)
+            //   bytes.push_back(byte);
+          }
+        }
         data.push_back(d);
       }
       if (!link->sendData(data, 87)) {
@@ -256,8 +250,10 @@ class LinkWirelessMultiboot {
         logger("ReceiveData failed!");
         return FAILURE;
       }
-      if (response.data.size() == 0)
+      if (response.data.size() == 0) {
+        isRetry = true;
         goto retry;
+      }
 
       clientHeader = parseClientHeader(response.data[0]);
       if (clientHeader.isACK && clientHeader.n == n &&
@@ -271,8 +267,10 @@ class LinkWirelessMultiboot {
         }
         transferredBytes += 84;
         logger("-> " + std::to_string(transferredBytes * 100 / romSize));
-      } else
+      } else {
+        isRetry = true;
         goto retry;
+      }
     }
 
     logger("SEND FINISHED! Confirming...");
@@ -319,6 +317,20 @@ class LinkWirelessMultiboot {
     }
 
     logger("SUCCESS!");
+
+    // u32 diffs = 0;
+    // for (u32 i = 0; i < romSize; i++) {
+    //   if (rom[i] != bytes[i]) {
+    //     logger("DIFF AT " + std::to_string(i) + ": " + link->toHex(bytes[i])
+    //     +
+    //            " vs " + link->toHex(rom[i]));
+    //     diffs++;
+    //   }
+    //   if (diffs > 100)
+    //     break;
+    // }
+
+    // logger("??");
 
     return SUCCESS;
   }
@@ -372,7 +384,7 @@ class LinkWirelessMultiboot {
   u32 serializeServerHeader(ServerSDKHeader serverHeader) {
     ServerSDKHeaderSerializer serverSerializer;
     serverSerializer.asStruct = serverHeader;
-    return serverSerializer.asInt;
+    return serverSerializer.asInt & 0xffffff;
   }
 };
 
