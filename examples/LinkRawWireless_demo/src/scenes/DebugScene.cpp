@@ -504,8 +504,8 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         log("[room.game] " + gameName);
         log("[room.user] " + userName);
 
-        bool success =
-            linkRawWireless->broadcast(gameName, userName, (u16)gameId);
+        bool success = linkRawWireless->broadcast(
+            gameName.c_str(), userName.c_str(), (u16)gameId);
 
         if (success)
           log("NOW CALL 0x19!");

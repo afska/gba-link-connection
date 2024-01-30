@@ -10,16 +10,16 @@
 
 #include <tonc_core.h>
 #include <tonc_math.h>
+#include <cstring>
+#include <vector>  // TODO: ARRAY
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
-
-#include <string>
-#include <vector>
 
 // Enable logging (set `linkRawWireless->logger` and uncomment to enable)
 // #define LINK_RAW_WIRELESS_ENABLE_LOGGING
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+#include <string>
 #define LRWLOG(str) logger(str)
 #else
 #define LRWLOG(str)
@@ -97,8 +97,8 @@ class LinkRawWireless {
   struct Server {
     u16 id = 0;
     u16 gameId;
-    std::string gameName;
-    std::string userName;
+    char gameName[LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
+    char userName[LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1];
     u8 nextClientNumber;
 
     bool isFull() { return nextClientNumber == 0xff; }
@@ -162,34 +162,35 @@ class LinkRawWireless {
         .success;
   }
 
-  bool broadcast(std::string gameName = "",
-                 std::string userName = "",
+  bool broadcast(const char* gameName = "",
+                 const char* userName = "",
                  u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
-    if (gameName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
+    if (std::strlen(gameName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
       LRWLOG("! game name too long");
       return false;
     }
-    if (userName.length() > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
+    if (std::strlen(userName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
       LRWLOG("! user name too long");
       return false;
     }
-    gameName.append(LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH - gameName.length(),
-                    0);
-    userName.append(LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH - userName.length(),
-                    0);
 
-    auto broadcastData =
-        std::vector<u32>{buildU32(buildU16(gameName[1], gameName[0]), gameId),
-                         buildU32(buildU16(gameName[5], gameName[4]),
-                                  buildU16(gameName[3], gameName[2])),
-                         buildU32(buildU16(gameName[9], gameName[8]),
-                                  buildU16(gameName[7], gameName[6])),
-                         buildU32(buildU16(gameName[13], gameName[12]),
-                                  buildU16(gameName[11], gameName[10])),
-                         buildU32(buildU16(userName[3], userName[2]),
-                                  buildU16(userName[1], userName[0])),
-                         buildU32(buildU16(userName[7], userName[6]),
-                                  buildU16(userName[5], userName[4]))};
+    char finalGameName[LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
+    char finalUserName[LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1];
+    copyName(finalGameName, gameName, LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH);
+    copyName(finalUserName, userName, LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH);
+
+    auto broadcastData = std::vector<u32>{
+        buildU32(buildU16(finalGameName[1], finalGameName[0]), gameId),
+        buildU32(buildU16(finalGameName[5], finalGameName[4]),
+                 buildU16(finalGameName[3], finalGameName[2])),
+        buildU32(buildU16(finalGameName[9], finalGameName[8]),
+                 buildU16(finalGameName[7], finalGameName[6])),
+        buildU32(buildU16(finalGameName[13], finalGameName[12]),
+                 buildU16(finalGameName[11], finalGameName[10])),
+        buildU32(buildU16(finalUserName[3], finalUserName[2]),
+                 buildU16(finalUserName[1], finalUserName[0])),
+        buildU32(buildU16(finalUserName[7], finalUserName[6]),
+                 buildU16(finalUserName[5], finalUserName[4]))};
 
     bool success =
         sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST, broadcastData).success;
@@ -319,12 +320,15 @@ class LinkRawWireless {
       server.id = (u16)result.responses[start];
       server.gameId =
           result.responses[start + 1] & LINK_RAW_WIRELESS_MAX_GAME_ID;
-      recoverName(server.gameName, result.responses[start + 1], false);
-      recoverName(server.gameName, result.responses[start + 2]);
-      recoverName(server.gameName, result.responses[start + 3]);
-      recoverName(server.gameName, result.responses[start + 4]);
-      recoverName(server.userName, result.responses[start + 5]);
-      recoverName(server.userName, result.responses[start + 6]);
+      u32 gameI = 0, userI = 0;
+      recoverName(server.gameName, gameI, result.responses[start + 1], false);
+      recoverName(server.gameName, gameI, result.responses[start + 2]);
+      recoverName(server.gameName, gameI, result.responses[start + 3]);
+      recoverName(server.gameName, gameI, result.responses[start + 4]);
+      recoverName(server.userName, userI, result.responses[start + 5]);
+      recoverName(server.userName, userI, result.responses[start + 6]);
+      server.gameName[gameI] = '\0';
+      server.userName[userI] = '\0';
       server.nextClientNumber = (result.responses[start] >> 16) & 0xff;
 
       servers.push_back(server);
@@ -653,24 +657,35 @@ class LinkRawWireless {
   State state = NEEDS_RESET;
   volatile bool isEnabled = false;
 
-  void recoverName(std::string& name,
+  void copyName(char* target, const char* source, u32 length) {
+    u32 len = std::strlen(source);
+
+    for (u32 i = 0; i < length + 1; i++)
+      if (i < len)
+        target[i] = source[i];
+      else
+        target[i] = '\0';
+  }
+
+  void recoverName(char* name,
+                   u32& nameCursor,
                    u32 word,
                    bool includeFirstTwoBytes = true) {
     u32 character = 0;
     if (includeFirstTwoBytes) {
       character = lsB16(lsB32(word));
       if (character > 0)
-        name.push_back(character);
+        name[nameCursor++] = character;
       character = msB16(lsB32(word));
       if (character > 0)
-        name.push_back(character);
+        name[nameCursor++] = character;
     }
     character = lsB16(msB32(word));
     if (character > 0)
-      name.push_back(character);
+      name[nameCursor++] = character;
     character = msB16(msB32(word));
     if (character > 0)
-      name.push_back(character);
+      name[nameCursor++] = character;
   }
 
   bool reset(bool initialize = false) {
