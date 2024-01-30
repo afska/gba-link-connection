@@ -31,7 +31,9 @@ cp LinkRawCable_demo.gba ../
 cd ..
 
 cd LinkRawWireless_demo/
+sed -i -e "s/\/\/ #define LINK_RAW_WIRELESS_ENABLE_LOGGING/#define LINK_RAW_WIRELESS_ENABLE_LOGGING/g" ../../lib/LinkRawWireless.hpp
 make rebuild
+sed -i -e "s/#define LINK_RAW_WIRELESS_ENABLE_LOGGING/\/\/ #define LINK_RAW_WIRELESS_ENABLE_LOGGING/g" ../../lib/LinkRawWireless.hpp
 cp LinkRawWireless_demo.gba ../
 cd ..
 
