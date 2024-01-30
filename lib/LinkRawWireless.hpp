@@ -20,7 +20,7 @@
 // #define LINK_RAW_WIRELESS_ENABLE_LOGGING
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
-#define LRWLOG(str) log(str)
+#define LRWLOG(str) logger(str)
 #else
 #define LRWLOG(str)
 #endif
@@ -856,10 +856,6 @@ class LinkRawWireless {
     for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
       rc[i] = digits[(w >> j) & 0x0f];
     return rc;
-  }
-
-  inline __attribute__((always_inline)) void log(std::string str) {
-    logger(str);
   }
 
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }

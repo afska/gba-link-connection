@@ -24,6 +24,15 @@
 #include <tonc_core.h>
 #include "LinkRawWireless.hpp"
 
+// Enable logging (set `linkWirelessMultiboot->logger` and uncomment to enable)
+// #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+
+#ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#define LWMLOG(str) logger(str)
+#else
+#define LWMLOG(str)
+#endif
+
 #define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
 #define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
@@ -66,52 +75,51 @@ class LinkWirelessMultiboot {
 
   template <typename F>
   Result sendRom(const u8* rom, u32 romSize, F cancel) {
-    // if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
-    //   return INVALID_SIZE;
-    // if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
-    //   return INVALID_SIZE;
-    // if ((romSize % 0x10) != 0)
-    //   return INVALID_SIZE;
+    if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
+      return INVALID_SIZE;
+    if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
+      return INVALID_SIZE;
+    // TODO: Document no 0x10 boundary limit
 
     // std::vector<u8> bytes = {};
 
     bool success = true;
     success = link->activate();
     if (!success) {
-      logger("cannot activate");
+      LWMLOG("cannot activate");
       return FAILURE;
     }
-    logger("activated");
+    LWMLOG("activated");
 
     success = link->sendCommand(LINK_RAW_WIRELESS_COMMAND_SETUP,
                                 std::vector<u32>{0x003F0120})
                   .success;  // TODO: IMPLEMENT SETUP
     if (!success) {
-      logger("setup failed");
+      LWMLOG("setup failed");
       return FAILURE;
     }
-    logger("setup ok");
+    LWMLOG("setup ok");
 
     success = link->broadcast("Multi", "Test", 0b1111111111111111);
     if (!success) {
-      logger("broadcast failed");
+      LWMLOG("broadcast failed");
       return FAILURE;
     }
-    logger("broadcast set");
+    LWMLOG("broadcast set");
 
     success = link->startHost();
     if (!success) {
-      logger("start host failed");
+      LWMLOG("start host failed");
       return FAILURE;
     }
-    logger("host started");
+    LWMLOG("host started");
 
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
     while (link->playerCount() == 1) {
       link->acceptConnections(acceptResponse);
     }
 
-    logger("connected!");
+    LWMLOG("connected!");
     linkRawWireless->wait(228 * 20);  // ~300ms
 
     // HANDSHAKE
@@ -124,15 +132,15 @@ class LinkWirelessMultiboot {
       hasData = response.data.size() > 0;
     }
 
-    logger("data received");
+    LWMLOG("data received");
     ClientSDKHeader clientHeader = parseClientHeader(response.data[0]);
-    logger("client size: " + std::to_string(clientHeader.payloadSize));
-    logger("n: " + std::to_string(clientHeader.n));
-    logger("phase: " + std::to_string(clientHeader.phase));
-    logger("ack: " + std::to_string(clientHeader.isACK));
-    logger("slotState:" + std::to_string(clientHeader.slotState));
+    LWMLOG("client size: " + std::to_string(clientHeader.payloadSize));
+    LWMLOG("n: " + std::to_string(clientHeader.n));
+    LWMLOG("phase: " + std::to_string(clientHeader.phase));
+    LWMLOG("ack: " + std::to_string(clientHeader.isACK));
+    LWMLOG("slotState:" + std::to_string(clientHeader.slotState));
 
-    logger("sending ACK");
+    LWMLOG("sending ACK");
   firstack:
     ServerSDKHeader serverHeader;
     serverHeader = createACKFor(clientHeader);
@@ -149,9 +157,9 @@ class LinkWirelessMultiboot {
       goto firstack;
 
     if (clientHeader.n == 2 && clientHeader.slotState == 1) {
-      logger("N IS NOW 2, slotstate = 1");
+      LWMLOG("N IS NOW 2, slotstate = 1");
     } else {
-      logger("Error: weird packet");
+      LWMLOG("Error: weird packet");
       return FAILURE;
     }
 
@@ -169,9 +177,9 @@ class LinkWirelessMultiboot {
       goto secondack;
 
     if (clientHeader.n == 1 && clientHeader.slotState == 2) {
-      logger("NI STARTED");
+      LWMLOG("NI STARTED");
     } else {
-      logger("NI DIDN'T START");
+      LWMLOG("NI DIDN'T START");
       return FAILURE;
     }
 
@@ -185,7 +193,7 @@ class LinkWirelessMultiboot {
       clientHeader = parseClientHeader(response.data[0]);
     }
 
-    logger("slotState IS NOW 0");
+    LWMLOG("slotState IS NOW 0");
 
     // ROM START COMMAND
     bool didClientRespond = false;
@@ -208,7 +216,7 @@ class LinkWirelessMultiboot {
         didClientRespond = true;
     }
 
-    logger("READY TO SEND ROM!");
+    LWMLOG("READY TO SEND ROM!");
 
     // ROM START
     u32 transferredBytes = 0;
@@ -244,7 +252,7 @@ class LinkWirelessMultiboot {
       }
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(data, 87, response)) {
-        logger("SendData failed!");
+        LWMLOG("SendData failed!");
         return FAILURE;
       }
       if (response.data.size() == 0) {
@@ -266,7 +274,7 @@ class LinkWirelessMultiboot {
         u32 newProgress = transferredBytes * 100 / romSize;
         if (newProgress != progress) {
           progress = newProgress;
-          logger("-> " + std::to_string(transferredBytes * 100 / romSize));
+          LWMLOG("-> " + std::to_string(transferredBytes * 100 / romSize));
         }
       } else {
         isRetry = true;
@@ -274,7 +282,7 @@ class LinkWirelessMultiboot {
       }
     }
 
-    logger("SEND FINISHED! Confirming...");
+    LWMLOG("SEND FINISHED! Confirming...");
 
     // ROM END COMMAND
     didClientRespond = false;
@@ -296,7 +304,7 @@ class LinkWirelessMultiboot {
         didClientRespond = true;
     }
 
-    logger("Reconfirming...");
+    LWMLOG("Reconfirming...");
 
     // ROM END 2 COMMAND
     didClientRespond = false;
@@ -317,12 +325,12 @@ class LinkWirelessMultiboot {
       didClientRespond = true;
     }
 
-    logger("SUCCESS!");
+    LWMLOG("SUCCESS!");
 
     // u32 diffs = 0;
     // for (u32 i = 0; i < romSize; i++) {
     //   if (rom[i] != bytes[i]) {
-    //     logger("DIFF AT " + std::to_string(i) + ": " + link->toHex(bytes[i])
+    //     LWMLOG("DIFF AT " + std::to_string(i) + ": " + link->toHex(bytes[i])
     //     +
     //            " vs " + link->toHex(rom[i]));
     //     diffs++;
@@ -331,7 +339,7 @@ class LinkWirelessMultiboot {
     //     break;
     // }
 
-    // logger("??");
+    // LWMLOG("??");
 
     return SUCCESS;
   }
@@ -348,17 +356,17 @@ class LinkWirelessMultiboot {
     bool success = false;
     success = link->sendDataAndWait(data, remoteCommand, _bytes);
     if (!success) {
-      logger("senddatawait no");
+      LWMLOG("senddatawait no");
       return false;
     }
     if (remoteCommand.commandId != 0x28) {
-      logger("expected response 0x28");
-      logger("but got " + link->toHex(remoteCommand.commandId));
+      LWMLOG("expected response 0x28");
+      LWMLOG("but got " + link->toHex(remoteCommand.commandId));
       return false;
     }
     success = link->receiveData(response);
     if (!success) {
-      logger("receive data failed");
+      LWMLOG("receive data failed");
       return false;
     }
     return true;
@@ -390,5 +398,7 @@ class LinkWirelessMultiboot {
 };
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
+
+#undef LWMLOG
 
 #endif  // LINK_WIRELESS_MULTIBOOT_H
