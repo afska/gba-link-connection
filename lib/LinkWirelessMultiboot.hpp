@@ -39,6 +39,9 @@
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
 #define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
 #define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003F0120
+#define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG 0b1000000000000000
+#define LINK_WIRELESS_MULTIBOOT_FRAME_LINES 228
+#define LINK_WIRELESS_MULTIBOOT_FRAMES_BEFORE_HANDSHAKE 20  // ~300ms
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v6.2.0";
@@ -88,6 +91,7 @@ class LinkWirelessMultiboot {
                  u32 romSize,
                  const char* gameName,
                  const char* userName,
+                 const u16 gameId,
                  u8 players,
                  F cancel) {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
@@ -98,49 +102,33 @@ class LinkWirelessMultiboot {
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
 
-    if (!link->activate()) {
-      LWMLOG("! adapter not detected");
+    if (!activate())
       return ADAPTER_NOT_DETECTED;
-    }
-    LWMLOG("activated");
 
-    if (!link->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
-      LWMLOG("! setup failed");
+    if (!initialize(gameName, userName, gameId, players))
       return FAILURE;
-    }
-    LWMLOG("setup ok");
-
-    bool success;  // TODO: REMOVE
-    success = link->broadcast("Multi", "Test", 0b1111111111111111);
-    if (!success) {
-      LWMLOG("broadcast failed");
-      return FAILURE;
-    }
-    LWMLOG("broadcast set");
-
-    success = link->startHost();
-    if (!success) {
-      LWMLOG("start host failed");
-      return FAILURE;
-    }
-    LWMLOG("host started");
 
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
-    while (link->playerCount() == 1) {
+    while (link->playerCount() < players) {
       link->acceptConnections(acceptResponse);
+      if (cancel(players)) {
+        link->deactivate();
+        return CANCELED;
+      }
     }
 
-    LWMLOG("connected!");
-    linkRawWireless->wait(228 * 20);  // ~300ms
+    LWMLOG("connected!");  // TODO: MOVE HANDSHAKE TO WHILE
+    linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES *
+                          LINK_WIRELESS_MULTIBOOT_FRAMES_BEFORE_HANDSHAKE);
 
     // HANDSHAKE
 
     bool hasData = false;
     LinkRawWireless::ReceiveDataResponse response;
     while (!hasData) {
-      if (!sendAndExpectData(std::vector<u32>{}, 1, response))
+      if (!sendAndExpectData(toArray(), 0, 1, response))
         return FAILURE;
-      hasData = response.data.size() > 0;
+      hasData = response.dataSize > 0;
     }
 
     LWMLOG("data received");
@@ -157,10 +145,10 @@ class LinkWirelessMultiboot {
     serverHeader = createACKFor(clientHeader);
     u32 sndHeader = serializeServerHeader(serverHeader);
 
-    if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+    if (!sendAndExpectData(toArray(sndHeader), 1, 3, response))
       return FAILURE;
 
-    if (response.data.size() == 0) {
+    if (response.dataSize == 0) {
       goto firstack;
     }
     clientHeader = parseClientHeader(response.data[0]);
@@ -177,10 +165,10 @@ class LinkWirelessMultiboot {
   secondack:
     serverHeader = createACKFor(clientHeader);
     sndHeader = serializeServerHeader(serverHeader);
-    if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+    if (!sendAndExpectData(toArray(sndHeader), 1, 3, response))
       return FAILURE;
 
-    if (response.data.size() == 0) {
+    if (response.dataSize == 0) {
       goto secondack;
     }
     clientHeader = parseClientHeader(response.data[0]);
@@ -198,7 +186,7 @@ class LinkWirelessMultiboot {
       link->wait(228);
       serverHeader = createACKFor(clientHeader);
       sndHeader = serializeServerHeader(serverHeader);
-      if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+      if (!sendAndExpectData(toArray(sndHeader), 1, 3, response))
         return FAILURE;
 
       clientHeader = parseClientHeader(response.data[0]);
@@ -218,8 +206,7 @@ class LinkWirelessMultiboot {
       serverHeader.phase = 0;
       serverHeader.slotState = 1;
       sndHeader = serializeServerHeader(serverHeader);
-      if (!sendAndExpectData(std::vector<u32>{sndHeader, 0x54, 0x02}, 10,
-                             response))
+      if (!sendAndExpectData(toArray(sndHeader, 0x54, 0x02), 3, 10, response))
         return FAILURE;
       clientHeader = parseClientHeader(response.data[0]);
       if (clientHeader.isACK == 1 && clientHeader.n == 1 &&
@@ -233,10 +220,10 @@ class LinkWirelessMultiboot {
     u32 transferredBytes = 0;
     u32 n = 1;
     u32 phase = 0;
-    bool isRetry = false;
+    // bool isRetry = false;
     u32 progress = 0;
     while (transferredBytes < romSize) {
-      isRetry = false;
+      // isRetry = false;
     retry:
       serverHeader.isACK = 0;
       serverHeader.targetSlots = 0b0001;  //  TODO: Implement
@@ -245,8 +232,9 @@ class LinkWirelessMultiboot {
       serverHeader.phase = phase;
       serverHeader.slotState = 2;
       sndHeader = serializeServerHeader(serverHeader);
-      std::vector<u32> data;
-      data.push_back(sndHeader | (rom[transferredBytes] << 24));
+      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data;
+      u32 dataSize = 0;
+      data[dataSize++] = sndHeader | (rom[transferredBytes] << 24);
       // if (!isRetry)
       //   bytes.push_back(rom[transferredBytes]);
       for (u32 i = 1; i < 84; i += 4) {
@@ -259,15 +247,15 @@ class LinkWirelessMultiboot {
             //   bytes.push_back(byte);
           }
         }
-        data.push_back(d);
+        data[dataSize++] = d;
       }
       LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData(data, 87, response)) {
+      if (!sendAndExpectData(data, 22, 87, response)) {
         LWMLOG("SendData failed!");
         return FAILURE;
       }
-      if (response.data.size() == 0) {
-        isRetry = true;
+      if (response.dataSize == 0) {
+        // isRetry = true;
         goto retry;
       }
 
@@ -288,7 +276,7 @@ class LinkWirelessMultiboot {
           LWMLOG("-> " + std::to_string(transferredBytes * 100 / romSize));
         }
       } else {
-        isRetry = true;
+        // isRetry = true;
         goto retry;
       }
     }
@@ -307,7 +295,7 @@ class LinkWirelessMultiboot {
       serverHeader.phase = 0;
       serverHeader.slotState = 3;
       sndHeader = serializeServerHeader(serverHeader);
-      if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+      if (!sendAndExpectData(toArray(sndHeader), 1, 3, response))
         return FAILURE;
       clientHeader = parseClientHeader(response.data[0]);
       if (clientHeader.isACK == 1 && clientHeader.n == 0 &&
@@ -329,7 +317,7 @@ class LinkWirelessMultiboot {
       serverHeader.phase = 0;
       serverHeader.slotState = 0;
       sndHeader = serializeServerHeader(serverHeader);
-      if (!sendAndExpectData(std::vector<u32>{sndHeader}, 3, response))
+      if (!sendAndExpectData(toArray(sndHeader), 1, 3, response))
         return FAILURE;
       clientHeader = parseClientHeader(response.data[0]);
       // if (clientHeader.slotState == 0)
@@ -362,12 +350,51 @@ class LinkWirelessMultiboot {
   ClientSDKHeader lastACK;
 
  private:
-  bool sendAndExpectData(std::vector<u32> data,
-                         u32 _bytes,
-                         LinkRawWireless::ReceiveDataResponse& response) {
+  bool activate() {
+    if (!link->activate()) {
+      LWMLOG("! adapter not detected");
+      return false;
+    }
+    LWMLOG("activated");
+
+    return true;
+  }
+
+  bool initialize(const char* gameName,
+                  const char* userName,
+                  const u16 gameId,
+                  u8 players) {
+    if (!link->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
+      LWMLOG("! setup failed");
+      return false;
+    }
+    LWMLOG("setup ok");
+
+    if (!link->broadcast(
+            gameName, userName,
+            gameId | LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG)) {
+      LWMLOG("! broadcast failed");
+      return false;
+    }
+    LWMLOG("broadcast data set");
+
+    if (!link->startHost()) {
+      LWMLOG("! start host failed");
+      return false;
+    }
+    LWMLOG("host started");
+
+    return true;
+  }
+
+  bool sendAndExpectData(
+      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
+      u32 dataSize,
+      u32 _bytes,
+      LinkRawWireless::ReceiveDataResponse& response) {
     LinkRawWireless::RemoteCommand remoteCommand;
     bool success = false;
-    success = link->sendDataAndWait(data, remoteCommand, _bytes);
+    success = link->sendDataAndWait(data, dataSize, remoteCommand, _bytes);
     if (!success) {
       LWMLOG("senddatawait no");
       return false;
@@ -407,6 +434,12 @@ class LinkWirelessMultiboot {
     ServerSDKHeaderSerializer serverSerializer;
     serverSerializer.asStruct = serverHeader;
     return serverSerializer.asInt & 0xffffff;
+  }
+
+  template <typename... Args>
+  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(
+      Args... args) {
+    return {static_cast<u32>(args)...};
   }
 };
 

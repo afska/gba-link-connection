@@ -10,8 +10,8 @@
 
 #include <tonc_core.h>
 #include <tonc_math.h>
+#include <array>
 #include <cstring>
-#include <vector>  // TODO: ARRAY
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
@@ -29,6 +29,7 @@
 #define LINK_RAW_WIRELESS_PING_WAIT 50
 #define LINK_RAW_WIRELESS_TRANSFER_WAIT 15
 #define LINK_RAW_WIRELESS_CMD_TIMEOUT 100
+#define LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
 #define LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 #define LINK_RAW_WIRELESS_MAX_GAME_ID 0x7fff
 #define LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
@@ -43,7 +44,10 @@
 #define LINK_RAW_WIRELESS_BROADCAST_LENGTH 6
 #define LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH \
   (1 + LINK_RAW_WIRELESS_BROADCAST_LENGTH)
-#define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 22
+#define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
+#define LINK_RAW_WIRELESS_MAX_SERVERS              \
+  (LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
+   LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH)
 #define LINK_RAW_WIRELESS_COMMAND_HELLO 0x10
 #define LINK_RAW_WIRELESS_COMMAND_SETUP 0x17
 #define LINK_RAW_WIRELESS_COMMAND_BROADCAST 0x16
@@ -85,13 +89,16 @@ class LinkRawWireless {
 
   struct CommandResult {
     bool success = false;
-    std::vector<u32> responses = std::vector<u32>{};
+    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH> responses =
+        {};
+    u32 responsesSize = 0;
   };
 
   struct RemoteCommand {
     bool success = false;
     u8 commandId = 0;
-    std::vector<u32> params = std::vector<u32>{};
+    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params = {};
+    u32 paramsSize = 0;
   };
 
   struct Server {
@@ -111,12 +118,21 @@ class LinkRawWireless {
 
   typedef struct {
     u8 nextClientNumber = 0;
-    std::vector<ConnectedClient> connectedClients = {};
+    std::array<ConnectedClient, LINK_RAW_WIRELESS_MAX_PLAYERS>
+        connectedClients = {};
+    u32 connectedClientsSize = 0;
   } SlotStatusResponse;
 
   typedef struct {
-    std::vector<ConnectedClient> connectedClients = {};
+    std::array<ConnectedClient, LINK_RAW_WIRELESS_MAX_PLAYERS>
+        connectedClients = {};
+    u32 connectedClientsSize = 0;
   } AcceptConnectionsResponse;
+
+  typedef struct {
+    std::array<Server, LINK_RAW_WIRELESS_MAX_SERVERS> servers;
+    u32 serversSize = 0;
+  } BroadcastReadPollResponse;
 
   enum ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
 
@@ -127,7 +143,8 @@ class LinkRawWireless {
 
   typedef struct {
     u32 sentBytes[LINK_RAW_WIRELESS_MAX_PLAYERS];
-    std::vector<u32> data = {};
+    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data = {};
+    u32 dataSize = 0;
   } ReceiveDataResponse;
 
   bool isActive() { return isEnabled; }
@@ -155,10 +172,10 @@ class LinkRawWireless {
              u32 magic = LINK_RAW_WIRELESS_SETUP_MAGIC) {
     return sendCommand(
                LINK_RAW_WIRELESS_COMMAND_SETUP,
-               std::vector<u32>{
-                   (u32)(magic |
-                         (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
-                          << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT))})
+               {(u32)(magic |
+                      (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
+                       << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT))},
+               1)
         .success;
   }
 
@@ -179,21 +196,22 @@ class LinkRawWireless {
     copyName(finalGameName, gameName, LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH);
     copyName(finalUserName, userName, LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH);
 
-    auto broadcastData = std::vector<u32>{
-        buildU32(buildU16(finalGameName[1], finalGameName[0]), gameId),
-        buildU32(buildU16(finalGameName[5], finalGameName[4]),
-                 buildU16(finalGameName[3], finalGameName[2])),
-        buildU32(buildU16(finalGameName[9], finalGameName[8]),
-                 buildU16(finalGameName[7], finalGameName[6])),
-        buildU32(buildU16(finalGameName[13], finalGameName[12]),
-                 buildU16(finalGameName[11], finalGameName[10])),
-        buildU32(buildU16(finalUserName[3], finalUserName[2]),
-                 buildU16(finalUserName[1], finalUserName[0])),
-        buildU32(buildU16(finalUserName[7], finalUserName[6]),
-                 buildU16(finalUserName[5], finalUserName[4]))};
-
     bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST, broadcastData).success;
+        sendCommand(
+            LINK_RAW_WIRELESS_COMMAND_BROADCAST,
+            {buildU32(buildU16(finalGameName[1], finalGameName[0]), gameId),
+             buildU32(buildU16(finalGameName[5], finalGameName[4]),
+                      buildU16(finalGameName[3], finalGameName[2])),
+             buildU32(buildU16(finalGameName[9], finalGameName[8]),
+                      buildU16(finalGameName[7], finalGameName[6])),
+             buildU32(buildU16(finalGameName[13], finalGameName[12]),
+                      buildU16(finalGameName[11], finalGameName[10])),
+             buildU32(buildU16(finalUserName[3], finalUserName[2]),
+                      buildU16(finalUserName[1], finalUserName[0])),
+             buildU32(buildU16(finalUserName[7], finalUserName[6]),
+                      buildU16(finalUserName[5], finalUserName[4]))},
+            LINK_RAW_WIRELESS_BROADCAST_LENGTH)
+            .success;
 
     if (!success) {
       reset();
@@ -226,13 +244,13 @@ class LinkRawWireless {
       return false;
     }
 
-    for (u32 i = 0; i < result.responses.size(); i++) {
+    for (u32 i = 0; i < result.responsesSize; i++) {
       if (i == 0) {
         response.nextClientNumber = (u8)lsB32(result.responses[i]);
       } else {
-        response.connectedClients.push_back(
+        response.connectedClients[response.connectedClientsSize++] =
             ConnectedClient{.deviceId = lsB32(result.responses[i]),
-                            .clientNumber = (u8)msB32(result.responses[i])});
+                            .clientNumber = (u8)msB32(result.responses[i])};
       }
     }
 
@@ -247,14 +265,14 @@ class LinkRawWireless {
       return false;
     }
 
-    for (u32 i = 0; i < result.responses.size(); i++) {
-      response.connectedClients.push_back(
+    for (u32 i = 0; i < result.responsesSize; i++) {
+      response.connectedClients[response.connectedClientsSize++] =
           ConnectedClient{.deviceId = lsB32(result.responses[i]),
-                          .clientNumber = (u8)msB32(result.responses[i])});
+                          .clientNumber = (u8)msB32(result.responses[i])};
     }
 
     u8 oldPlayerCount = sessionState.playerCount;
-    sessionState.playerCount = 1 + result.responses.size();
+    sessionState.playerCount = 1 + result.responsesSize;
     if (sessionState.playerCount != oldPlayerCount)
       LRWLOG("now: " + std::to_string(sessionState.playerCount) + " players");
 
@@ -269,14 +287,14 @@ class LinkRawWireless {
       return false;
     }
 
-    for (u32 i = 0; i < result.responses.size(); i++) {
-      response.connectedClients.push_back(
+    for (u32 i = 0; i < result.responsesSize; i++) {
+      response.connectedClients[response.connectedClientsSize++] =
           ConnectedClient{.deviceId = lsB32(result.responses[i]),
-                          .clientNumber = (u8)msB32(result.responses[i])});
+                          .clientNumber = (u8)msB32(result.responses[i])};
     }
 
     u8 oldPlayerCount = sessionState.playerCount;
-    sessionState.playerCount = 1 + result.responses.size();
+    sessionState.playerCount = 1 + result.responsesSize;
     if (sessionState.playerCount != oldPlayerCount)
       LRWLOG("now: " + std::to_string(sessionState.playerCount) + " players");
 
@@ -298,12 +316,11 @@ class LinkRawWireless {
     return true;
   }
 
-  bool broadcastReadPoll(std::vector<Server>& servers) {
+  bool broadcastReadPoll(BroadcastReadPollResponse response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL);
     bool success =
         result.success &&
-        result.responses.size() % LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH ==
-            0;
+        result.responsesSize % LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
 
     if (!success) {
       reset();
@@ -311,7 +328,7 @@ class LinkRawWireless {
     }
 
     u32 totalBroadcasts =
-        result.responses.size() / LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH;
+        result.responsesSize / LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH;
 
     for (u32 i = 0; i < totalBroadcasts; i++) {
       u32 start = LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH * i;
@@ -331,7 +348,7 @@ class LinkRawWireless {
       server.userName[userI] = '\0';
       server.nextClientNumber = (result.responses[start] >> 16) & 0xff;
 
-      servers.push_back(server);
+      response.servers[response.serversSize++] = server;
     }
 
     LRWLOG("state = AUTHENTICATED");
@@ -353,9 +370,8 @@ class LinkRawWireless {
   }
 
   bool connect(u16 serverId) {
-    bool success = sendCommand(LINK_RAW_WIRELESS_COMMAND_CONNECT,
-                               std::vector<u32>{serverId})
-                       .success;
+    bool success =
+        sendCommand(LINK_RAW_WIRELESS_COMMAND_CONNECT, {serverId}, 1).success;
 
     if (!success) {
       reset();
@@ -370,8 +386,8 @@ class LinkRawWireless {
 
   bool keepConnecting(ConnectionStatus& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
-    if (!result.success || result.responses.size() == 0) {
-      if (result.responses.size() == 0)
+    if (!result.success || result.responsesSize == 0) {
+      if (result.responsesSize == 0)
         LRWLOG("! empty response");
       reset();
       return false;
@@ -398,8 +414,8 @@ class LinkRawWireless {
 
   bool finishConnection() {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION);
-    if (!result.success || result.responses.size() == 0) {
-      if (result.responses.size() == 0)
+    if (!result.success || result.responsesSize == 0) {
+      if (result.responsesSize == 0)
         LRWLOG("! empty response");
       reset();
       return false;
@@ -420,16 +436,23 @@ class LinkRawWireless {
     return true;
   }
 
-  bool sendData(std::vector<u32> data, u32 _bytes = 0) {
-    u32 bytes = _bytes == 0 ? data.size() * 4 : _bytes;
+  bool sendData(
+      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
+      u32 dataSize,
+      u32 _bytes = 0) {
+    u32 bytes = _bytes == 0 ? dataSize * 4 : _bytes;
     u32 header = sessionState.currentPlayerId == 0
                      ? bytes
                      : (bytes << (3 + sessionState.currentPlayerId * 5));
-    data.insert(data.begin(), header);
+    for (u32 i = dataSize; i > 0; i--)
+      data[i] = data[i - 1];
+    data[0] = header;
+    dataSize++;
     LRWLOG("using header " + toHex(header));
 
     bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA, data).success;
+        sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA, data, dataSize)
+            .success;
 
     if (!success) {
       reset();
@@ -439,17 +462,23 @@ class LinkRawWireless {
     return true;
   }
 
-  bool sendDataAndWait(std::vector<u32> data,
-                       RemoteCommand& remoteCommand,
-                       u32 _bytes = 0) {
-    u32 bytes = _bytes == 0 ? data.size() * 4 : _bytes;
+  bool sendDataAndWait(
+      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
+      u32 dataSize,
+      RemoteCommand& remoteCommand,
+      u32 _bytes = 0) {
+    u32 bytes = _bytes == 0 ? dataSize * 4 : _bytes;
     u32 header = sessionState.currentPlayerId == 0
                      ? bytes
                      : (bytes << (3 + sessionState.currentPlayerId * 5));
-    data.insert(data.begin(), header);
+    for (u32 i = dataSize; i > 0; i--)
+      data[i] = data[i - 1];
+    data[0] = header;
+    dataSize++;
     LRWLOG("using header " + toHex(header));
 
-    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT, data)
+    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT, data,
+                     dataSize)
              .success) {
       reset();
       return false;
@@ -462,7 +491,9 @@ class LinkRawWireless {
 
   bool receiveData(ReceiveDataResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA);
-    response.data = result.responses;
+    for (u32 i = 0; i < result.responsesSize; i++)
+      response.data[i] = result.responses[i];
+    response.dataSize = result.responsesSize;
 
     if (!result.success) {
       reset();
@@ -472,9 +503,11 @@ class LinkRawWireless {
     for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
       response.sentBytes[i] = 0;
 
-    if (response.data.size() > 0) {
+    if (response.dataSize > 0) {
       u32 header = response.data[0];
-      response.data.erase(response.data.begin());
+      for (u32 i = 1; i < response.dataSize; i++)
+        response.data[i - 1] = response.data[i];
+      response.dataSize--;
       response.sentBytes[0] = header & 0b1111111;
       response.sentBytes[1] = (header >> 8) & 0b11111;
       response.sentBytes[2] = (header >> 13) & 0b11111;
@@ -496,10 +529,12 @@ class LinkRawWireless {
     return remoteCommand.success;
   }
 
-  CommandResult sendCommand(u8 type,
-                            std::vector<u32> params = std::vector<u32>{}) {
+  CommandResult sendCommand(
+      u8 type,
+      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params =
+          {},
+      u16 length = 0) {
     CommandResult result;
-    u16 length = params.size();
     u32 command = buildCommand(type, length);
     u32 r;
 
@@ -510,7 +545,8 @@ class LinkRawWireless {
     }
 
     u32 parameterCount = 0;
-    for (auto& param : params) {
+    for (u32 i = 0; i < length; i++) {
+      u32 param = params[i];
       LRWLOG("sending param" + std::to_string(parameterCount) + ": 0x" +
              toHex(param));
       if ((r = transfer(param)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
@@ -551,7 +587,7 @@ class LinkRawWireless {
       LRWLOG("response " + std::to_string(i + 1) + "/" +
              std::to_string(responses) + ":");
       u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
-      result.responses.push_back(responseData);
+      result.responses[result.responsesSize++] = responseData;
       LRWLOG("<< " + toHex(responseData));
     }
 
@@ -596,7 +632,7 @@ class LinkRawWireless {
         reset();
         return remoteCommand;
       }
-      remoteCommand.params.push_back(paramData);
+      remoteCommand.params[remoteCommand.paramsSize++] = paramData;
       LRWLOG("<< " + toHex(paramData));
     }
 

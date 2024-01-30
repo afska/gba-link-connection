@@ -2,7 +2,6 @@
 
 #include <libgba-sprite-engine/background/text_stream.h>
 #include <tonc.h>
-#include <algorithm>
 #include <functional>
 
 #include "../../../../lib/LinkWirelessMultiboot.hpp"
@@ -188,8 +187,9 @@ void MultibootScene::processButtons() {
     const u8* romToSend =
         (const u8*)gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
 
-    linkWirelessMultiboot->sendRom(romToSend, fileLength, "Multi", "Test", 2,
-                                   []() { return false; });
+    linkWirelessMultiboot->sendRom(romToSend, fileLength, "Multi", "Test",
+                                   0xffff, 2,
+                                   [](int connectedPlayers) { return false; });
     print();
   }
 

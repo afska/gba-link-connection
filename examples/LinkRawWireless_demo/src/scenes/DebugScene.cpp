@@ -111,6 +111,14 @@ void log(std::string string) {
   scrollPageDown();
 }
 
+std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(
+    std::vector<u32> vector) {
+  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> array;
+  for (u32 i = 0; i < vector.size(); i++)
+    array[i] = vector[i];
+  return array;
+}
+
 std::vector<Background*> DebugScene::backgrounds() {
   return {};
 }
@@ -473,7 +481,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         if (success) {
           log("< [next slot] " +
               linkRawWireless->toHex(response.nextClientNumber, 2));
-          for (u32 i = 0; i < response.connectedClients.size(); i++) {
+          for (u32 i = 0; i < response.connectedClientsSize; i++) {
             log("< [client" +
                 std::to_string(response.connectedClients[i].clientNumber) +
                 "] " +
@@ -538,7 +546,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         bool success = linkRawWireless->acceptConnections(response);
 
         if (success) {
-          for (u32 i = 0; i < response.connectedClients.size(); i++) {
+          for (u32 i = 0; i < response.connectedClientsSize; i++) {
             log("< [client" +
                 std::to_string(response.connectedClients[i].clientNumber) +
                 "] " +
@@ -556,7 +564,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         bool success = linkRawWireless->endHost(response);
 
         if (success) {
-          for (u32 i = 0; i < response.connectedClients.size(); i++) {
+          for (u32 i = 0; i < response.connectedClientsSize; i++) {
             log("< [client" +
                 std::to_string(response.connectedClients[i].clientNumber) +
                 "] " +
@@ -580,11 +588,12 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     }
     case 0x1d: {
       return logOperation("sending " + name, [this]() {
-        std::vector<LinkRawWireless::Server> servers;
-        bool success = linkRawWireless->broadcastReadPoll(servers);
+        LinkRawWireless::BroadcastReadPollResponse response;
+        bool success = linkRawWireless->broadcastReadPoll(response);
 
         if (success) {
-          for (u32 i = 0; i < servers.size(); i++) {
+          auto servers = response.servers;
+          for (u32 i = 0; i < response.serversSize; i++) {
             serverIds[i] = servers[i].id;
 
             log("< [room" + std::to_string(i) + ".id] " +
@@ -661,7 +670,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       data.erase(data.begin());
 
       return logOperation("sending " + name, [&data, bytes]() {
-        return linkRawWireless->sendData(data, bytes);
+        return linkRawWireless->sendData(toArray(data), data.size(), bytes);
       });
     }
     case 0x25: {
@@ -673,12 +682,12 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
 
       return logOperation("sending " + name, [&data, bytes]() {
         LinkRawWireless::RemoteCommand remoteCommand;
-        bool success =
-            linkRawWireless->sendDataAndWait(data, remoteCommand, bytes);
+        bool success = linkRawWireless->sendDataAndWait(
+            toArray(data), data.size(), remoteCommand, bytes);
 
         if (success) {
           log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
-          for (u32 i = 0; i < remoteCommand.params.size(); i++) {
+          for (u32 i = 0; i < remoteCommand.paramsSize; i++) {
             log("< [param" + std::to_string(i) + "] " +
                 linkRawWireless->toHex(remoteCommand.params[i]));
           }
@@ -699,7 +708,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
           log("< [bytesC2] " + std::to_string(response.sentBytes[3]));
           log("< [bytesC3] " + std::to_string(response.sentBytes[4]));
 
-          for (u32 i = 0; i < response.data.size(); i++)
+          for (u32 i = 0; i < response.dataSize; i++)
             log("< [data" + std::to_string(i) + "] " +
                 linkRawWireless->toHex(response.data[i]));
         }
@@ -714,7 +723,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
 
         if (success) {
           log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
-          for (u32 i = 0; i < remoteCommand.params.size(); i++) {
+          for (u32 i = 0; i < remoteCommand.paramsSize; i++) {
             log("< [param" + std::to_string(i) + "] " +
                 linkRawWireless->toHex(remoteCommand.params[i]));
           }
@@ -873,8 +882,8 @@ std::string DebugScene::selectUserName() {
 void DebugScene::logGenericWaitCommand(std::string name, u32 id) {
   auto data = selectData();
   return logOperation("sending " + name, [id, &data]() {
-    auto result = linkRawWireless->sendCommand(id, data);
-    for (u32 i = 0; i < result.responses.size(); i++) {
+    auto result = linkRawWireless->sendCommand(id, toArray(data), data.size());
+    for (u32 i = 0; i < result.responsesSize; i++) {
       log("< [response" + std::to_string(i) + "] " +
           linkRawWireless->toHex(result.responses[i]));
     }
@@ -889,7 +898,7 @@ void DebugScene::logGenericWaitCommand(std::string name, u32 id) {
 
     if (remoteCommand.success) {
       log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
-      for (u32 i = 0; i < remoteCommand.params.size(); i++) {
+      for (u32 i = 0; i < remoteCommand.paramsSize; i++) {
         log("< [param" + std::to_string(i) + "] " +
             linkRawWireless->toHex(remoteCommand.params[i]));
       }
@@ -908,8 +917,9 @@ void DebugScene::logSimpleCommand(std::string name,
                                   u32 id,
                                   std::vector<u32> params) {
   logOperation("sending " + name, [id, &params]() {
-    auto result = linkRawWireless->sendCommand(id, params);
-    for (u32 i = 0; i < result.responses.size(); i++) {
+    auto result =
+        linkRawWireless->sendCommand(id, toArray(params), params.size());
+    for (u32 i = 0; i < result.responsesSize; i++) {
       log("< [response" + std::to_string(i) + "] " +
           linkRawWireless->toHex(result.responses[i]));
     }
