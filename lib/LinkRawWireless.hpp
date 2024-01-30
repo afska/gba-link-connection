@@ -151,11 +151,12 @@ class LinkRawWireless {
     return success;
   }
 
-  bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS) {
+  bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS,
+             u32 magic = LINK_RAW_WIRELESS_SETUP_MAGIC) {
     return sendCommand(
                LINK_RAW_WIRELESS_COMMAND_SETUP,
                std::vector<u32>{
-                   (u32)(LINK_RAW_WIRELESS_SETUP_MAGIC |
+                   (u32)(magic |
                          (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
                           << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT))})
         .success;

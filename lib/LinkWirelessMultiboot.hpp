@@ -35,7 +35,10 @@
 
 #define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
+#define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
+#define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
 #define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
+#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003F0120
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v6.2.0";
@@ -45,7 +48,14 @@ class LinkWirelessMultiboot {
 
  public:
   Logger logger = [](std::string str) {};
-  enum Result { SUCCESS, INVALID_SIZE, CANCELED, FAILURE };
+  enum Result {
+    SUCCESS,
+    INVALID_SIZE,
+    INVALID_PLAYERS,
+    CANCELED,
+    ADAPTER_NOT_DETECTED,
+    FAILURE
+  };
 
   struct ServerSDKHeader {
     unsigned int payloadSize : 7;
@@ -74,32 +84,33 @@ class LinkWirelessMultiboot {
   };
 
   template <typename F>
-  Result sendRom(const u8* rom, u32 romSize, F cancel) {
+  Result sendRom(const u8* rom,
+                 u32 romSize,
+                 const char* gameName,
+                 const char* userName,
+                 u8 players,
+                 F cancel) {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
-      return INVALID_SIZE;
-    // TODO: Document no 0x10 boundary limit
+      return INVALID_SIZE;  // TODO: Document no 0x10 boundary limit
+    if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
+        players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
+      return INVALID_PLAYERS;
 
-    // std::vector<u8> bytes = {};
-
-    bool success = true;
-    success = link->activate();
-    if (!success) {
-      LWMLOG("cannot activate");
-      return FAILURE;
+    if (!link->activate()) {
+      LWMLOG("! adapter not detected");
+      return ADAPTER_NOT_DETECTED;
     }
     LWMLOG("activated");
 
-    success = link->sendCommand(LINK_RAW_WIRELESS_COMMAND_SETUP,
-                                std::vector<u32>{0x003F0120})
-                  .success;  // TODO: IMPLEMENT SETUP
-    if (!success) {
-      LWMLOG("setup failed");
+    if (!link->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
+      LWMLOG("! setup failed");
       return FAILURE;
     }
     LWMLOG("setup ok");
 
+    bool success;  // TODO: REMOVE
     success = link->broadcast("Multi", "Test", 0b1111111111111111);
     if (!success) {
       LWMLOG("broadcast failed");
@@ -343,6 +354,8 @@ class LinkWirelessMultiboot {
 
     return SUCCESS;
   }
+
+  ~LinkWirelessMultiboot() { delete link; }
 
   LinkRawWireless* link = new LinkRawWireless();
 
