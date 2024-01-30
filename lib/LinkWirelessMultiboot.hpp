@@ -215,6 +215,7 @@ class LinkWirelessMultiboot {
     u32 n = 1;
     u32 phase = 0;
     bool isRetry = false;
+    u32 progress = 0;
     while (transferredBytes < romSize) {
       isRetry = false;
     retry:
@@ -241,13 +242,9 @@ class LinkWirelessMultiboot {
         }
         data.push_back(d);
       }
-      if (!link->sendData(data, 87)) {
-        logger("SendData failed!");
-        return FAILURE;
-      }
       LinkRawWireless::ReceiveDataResponse response;
-      if (!link->receiveData(response)) {
-        logger("ReceiveData failed!");
+      if (!sendAndExpectData(data, 87, response)) {
+        logger("SendData failed!");
         return FAILURE;
       }
       if (response.data.size() == 0) {
@@ -266,7 +263,11 @@ class LinkWirelessMultiboot {
             n = 0;
         }
         transferredBytes += 84;
-        logger("-> " + std::to_string(transferredBytes * 100 / romSize));
+        u32 newProgress = transferredBytes * 100 / romSize;
+        if (newProgress != progress) {
+          progress = newProgress;
+          logger("-> " + std::to_string(transferredBytes * 100 / romSize));
+        }
       } else {
         isRetry = true;
         goto retry;
