@@ -23,9 +23,10 @@
 
 #include <tonc_core.h>
 #include "LinkRawWireless.hpp"
+#include "LinkWirelessOpenSDK.hpp"
 
 // Enable logging (set `linkWirelessMultiboot->logger` and uncomment to enable)
-// #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING  // TODO: DISABLE
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #define LWMLOG(str) logger(str)
@@ -58,32 +59,6 @@ class LinkWirelessMultiboot {
     CANCELED,
     ADAPTER_NOT_DETECTED,
     FAILURE
-  };
-
-  struct ServerSDKHeader {
-    unsigned int payloadSize : 7;
-    unsigned int _unused_ : 2;
-    unsigned int phase : 2;
-    unsigned int n : 2;
-    unsigned int isACK : 1;
-    unsigned int slotState : 4;
-    unsigned int targetSlots : 4;
-  };
-  union ServerSDKHeaderSerializer {
-    ServerSDKHeader asStruct;
-    u32 asInt;
-  };
-
-  struct ClientSDKHeader {
-    unsigned int payloadSize : 5;
-    unsigned int phase : 2;
-    unsigned int n : 2;
-    unsigned int isACK : 1;
-    unsigned int slotState : 4;
-  };
-  union ClientSDKHeaderSerializer {
-    ClientSDKHeader asStruct;
-    u16 asInt;
   };
 
   template <typename F>
@@ -132,7 +107,8 @@ class LinkWirelessMultiboot {
     }
 
     LWMLOG("data received");
-    ClientSDKHeader clientHeader = parseClientHeader(response.data[0]);
+    LinkWirelessOpenSDK::ClientSDKHeader clientHeader =
+        parseClientHeader(response.data[0]);
     LWMLOG("client size: " + std::to_string(clientHeader.payloadSize));
     LWMLOG("n: " + std::to_string(clientHeader.n));
     LWMLOG("phase: " + std::to_string(clientHeader.phase));
@@ -141,7 +117,7 @@ class LinkWirelessMultiboot {
 
     LWMLOG("sending ACK");
   firstack:
-    ServerSDKHeader serverHeader;
+    LinkWirelessOpenSDK::ServerSDKHeader serverHeader;
     serverHeader = createACKFor(clientHeader);
     u32 sndHeader = serializeServerHeader(serverHeader);
 
@@ -225,32 +201,11 @@ class LinkWirelessMultiboot {
     while (transferredBytes < romSize) {
       // isRetry = false;
     retry:
-      serverHeader.isACK = 0;
-      serverHeader.targetSlots = 0b0001;  //  TODO: Implement
-      serverHeader.payloadSize = 84;      // 87 - 3 (serversdkheader)
-      serverHeader.n = n;
-      serverHeader.phase = phase;
-      serverHeader.slotState = 2;
-      sndHeader = serializeServerHeader(serverHeader);
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data;
-      u32 dataSize = 0;
-      data[dataSize++] = sndHeader | (rom[transferredBytes] << 24);
-      // if (!isRetry)
-      //   bytes.push_back(rom[transferredBytes]);
-      for (u32 i = 1; i < 84; i += 4) {
-        u32 d = 0;
-        for (u32 j = 0; j < 4; j++) {
-          if (transferredBytes + i + j < romSize && i + j < 84) {
-            u8 byte = rom[transferredBytes + i + j];
-            d |= byte << (j * 8);
-            // if (!isRetry)
-            //   bytes.push_back(byte);
-          }
-        }
-        data[dataSize++] = d;
-      }
+      auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
+          rom, romSize, n, phase, 2, transferredBytes, 0b0001);
       LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData(data, 22, 87, response)) {
+      if (!sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
+                             sendBuffer.totalByteCount, response)) {
         LWMLOG("SendData failed!");
         return FAILURE;
       }
@@ -343,11 +298,15 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  ~LinkWirelessMultiboot() { delete link; }
+  ~LinkWirelessMultiboot() {
+    delete link;
+    delete linkWirelessOpenSDK;
+  }
 
   LinkRawWireless* link = new LinkRawWireless();
+  LinkWirelessOpenSDK* linkWirelessOpenSDK = new LinkWirelessOpenSDK();
 
-  ClientSDKHeader lastACK;
+  LinkWirelessOpenSDK::ClientSDKHeader lastACK;
 
  private:
   bool activate() {
@@ -412,8 +371,9 @@ class LinkWirelessMultiboot {
     return true;
   }
 
-  ServerSDKHeader createACKFor(ClientSDKHeader clientHeader) {
-    ServerSDKHeader serverHeader;
+  LinkWirelessOpenSDK::ServerSDKHeader createACKFor(
+      LinkWirelessOpenSDK::ClientSDKHeader clientHeader) {
+    LinkWirelessOpenSDK::ServerSDKHeader serverHeader;
     serverHeader.isACK = 1;
     serverHeader.targetSlots = 0b0001;  //  TODO: Implement
     serverHeader.payloadSize = 0;
@@ -424,16 +384,12 @@ class LinkWirelessMultiboot {
     return serverHeader;
   }
 
-  ClientSDKHeader parseClientHeader(u32 clientHeaderInt) {
-    ClientSDKHeaderSerializer clientSerializer;
-    clientSerializer.asInt = clientHeaderInt;
-    return clientSerializer.asStruct;
+  LinkWirelessOpenSDK::ClientSDKHeader parseClientHeader(u32 clientHeaderInt) {
+    return linkWirelessOpenSDK->parseClientHeader(clientHeaderInt);
   }
 
-  u32 serializeServerHeader(ServerSDKHeader serverHeader) {
-    ServerSDKHeaderSerializer serverSerializer;
-    serverSerializer.asStruct = serverHeader;
-    return serverSerializer.asInt & 0xffffff;
+  u32 serializeServerHeader(LinkWirelessOpenSDK::ServerSDKHeader serverHeader) {
+    return linkWirelessOpenSDK->serializeServerHeader(serverHeader);
   }
 
   template <typename... Args>
