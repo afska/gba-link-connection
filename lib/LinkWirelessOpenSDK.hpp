@@ -45,6 +45,7 @@ class LinkWirelessOpenSDK {
     u32 dataSize = 0;
     u32 totalByteCount = 0;
   };
+  // TODO: SlotState enum
 
   struct ServerSDKHeader {
     unsigned int payloadSize : 7;
@@ -94,12 +95,39 @@ class LinkWirelessOpenSDK {
     ClientResponse responses[4];
   };
 
-  // ChildrenData getChildrenData(LinkRawWireless::ReceiveDataResponse response)
-  // {
-  //   for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS) {
-  //     u32 packets = 0;
-  //   }
-  // }
+  ChildrenData getChildrenData(LinkRawWireless::ReceiveDataResponse response) {
+    u8* buffer = (u8*)response.data;
+    u32 bufferSize = response.dataSize * 4;
+
+    u32 cursor = 0;
+    ChildrenData childrenData;
+
+    for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS) {
+      ClientResponse* clientResponse = childrenData.responses[i - 1];
+      u32 remainingBytes = response.sentBytes[i];
+
+      while (remainingBytes >= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT) {
+        ClientPacket* packet =
+            &clientResponse->packets[clientResponse->packetsSize];
+
+        packet->header = parseClientHeader(*((u16*)(buffer + cursor)));
+        cursor += LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
+        remainingBytes -= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
+
+        if (header.payloadSize > 0 &&
+            header.payloadSize <= LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_CLIENT &&
+            remainingBytes >= packet->header.payloadSize) {
+          for (u32 j = 0; j < header.payloadSize; j++)
+            packet->payload[j] = buffer[cursor++];
+          remainingBytes -= header.payloadSize;
+        }
+
+        clientResponse->packetsSize++;
+      }
+    }
+
+    return childrenData;
+  }
 
   SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
