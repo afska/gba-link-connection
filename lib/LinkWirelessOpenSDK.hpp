@@ -9,6 +9,7 @@
 
 #include <tonc_core.h>
 #include <tonc_math.h>
+#include "LinkRawWireless.hpp"
 
 #define LINK_WIRELESS_OPEN_SDK_MAX_TRANSFER_WORDS 23
 #define LINK_WIRELESS_OPEN_SDK_MAX_TRANSFER_BYTES_SERVER 87
@@ -36,7 +37,7 @@ static volatile char LINK_WIRELESS_OPEN_SDK_VERSION[] =
     "LinkWirelessOpenSDK/v6.2.0";
 
 class LinkWirelessOpenSDK {
- public:
+ public:  // TODO: Build some private methods
   template <class T>
   struct SendBuffer {
     T header;
@@ -93,13 +94,20 @@ class LinkWirelessOpenSDK {
     ClientResponse responses[4];
   };
 
+  // ChildrenData getChildrenData(LinkRawWireless::ReceiveDataResponse response)
+  // {
+  //   for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS) {
+  //     u32 packets = 0;
+  //   }
+  // }
+
   SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
                                                  u8 n,
                                                  u8 phase,
                                                  u8 slotState,
-                                                 u32 offset,
-                                                 u8 targetSlots) {
+                                                 u32 offset = 0,
+                                                 u8 targetSlots = 0b1111) {
     SendBuffer<ServerSDKHeader> buffer;
     u32 payloadSize =
         min(fullPayloadSize, LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER);
@@ -110,21 +118,22 @@ class LinkWirelessOpenSDK {
     buffer.header.n = n;
     buffer.header.phase = phase;
     buffer.header.slotState = slotState;
-    u32 sndHeader = serializeServerHeader(buffer.header);
+    u32 headerInt = serializeServerHeader(buffer.header);
 
-    if (offset < fullPayloadSize)
-      buffer.data[buffer.dataSize++] = (fullPayload[offset] << 24) | sndHeader;
+    buffer.data[buffer.dataSize++] =
+        offset < fullPayloadSize ? (fullPayload[offset] << 24) | headerInt
+                                 : headerInt;
 
     for (u32 i = 1; i < payloadSize; i += 4) {
-      u32 d = 0;
+      u32 word = 0;
       for (u32 j = 0; j < 4; j++) {
         if (offset + i + j < fullPayloadSize &&
             i + j < LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER) {
           u8 byte = fullPayload[offset + i + j];
-          d |= byte << (j * 8);
+          word |= byte << (j * 8);
         }
       }
-      buffer.data[buffer.dataSize++] = d;
+      buffer.data[buffer.dataSize++] = word;
     }
 
     buffer.totalByteCount =
@@ -133,7 +142,42 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
-  ServerSDKHeader createACKFor(ClientSDKHeader clientHeader, u8 clientNumber) {
+  SendBuffer<ServerSDKHeader> createServerACKBuffer(
+      ClientSDKHeader clientHeader) {
+    SendBuffer<ServerSDKHeader> buffer;
+
+    buffer.header = createACKHeaderFor(clientHeader, 0);
+    u32 headerInt = serializeServerHeader(buffer.header);
+
+    buffer.data[buffer.dataSize++] = headerInt;
+    buffer.totalByteCount = LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_SERVER;
+
+    return buffer;
+  }
+
+  // SendBuffer<ClientSDKHeader> createClientBuffer(const u8* fullPayload,
+  //                                                u32 fullPayloadSize,
+  //                                                u8 n,
+  //                                                u8 phase,
+  //                                                u8 slotState,
+  //                                                u32 offset = 0) {}
+  // TODO: IMPLEMENT
+
+  SendBuffer<ClientSDKHeader> createClientACKBuffer(
+      ServerSDKHeader serverHeader) {
+    SendBuffer<ClientSDKHeader> buffer;
+
+    buffer.header = createACKHeaderFor(serverHeader);
+    u16 headerInt = serializeClientHeader(buffer.header);
+
+    buffer.data[buffer.dataSize++] = headerInt;
+    buffer.totalByteCount = LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
+
+    return buffer;
+  }
+
+  ServerSDKHeader createACKHeaderFor(ClientSDKHeader clientHeader,
+                                     u8 clientNumber) {
     ServerSDKHeader serverHeader;
     serverHeader.isACK = 1;
     serverHeader.targetSlots = (1 << clientNumber);
@@ -145,7 +189,7 @@ class LinkWirelessOpenSDK {
     return serverHeader;
   }
 
-  ClientSDKHeader createACKFor(ServerSDKHeader serverHeader) {
+  ClientSDKHeader createACKHeaderFor(ServerSDKHeader serverHeader) {
     ClientSDKHeader clientHeader;
     clientHeader.isACK = 1;
     clientHeader.payloadSize = 0;
