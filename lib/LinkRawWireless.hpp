@@ -89,15 +89,14 @@ class LinkRawWireless {
 
   struct CommandResult {
     bool success = false;
-    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH> responses =
-        {};
+    u32 responses[LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
     u32 responsesSize = 0;
   };
 
   struct RemoteCommand {
     bool success = false;
     u8 commandId = 0;
-    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params = {};
+    u32 params[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
     u32 paramsSize = 0;
   };
 
@@ -143,7 +142,7 @@ class LinkRawWireless {
 
   struct ReceiveDataResponse {
     u32 sentBytes[LINK_RAW_WIRELESS_MAX_PLAYERS];
-    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data = {};
+    u32 data[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
     u32 dataSize = 0;
   };
 
