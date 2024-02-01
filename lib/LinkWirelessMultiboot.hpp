@@ -100,104 +100,122 @@ class LinkWirelessMultiboot {
     linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES *
                           LINK_WIRELESS_MULTIBOOT_FRAMES_BEFORE_HANDSHAKE);
 
-    // HANDSHAKE
-
     bool hasData = false;
-    LinkRawWireless::ReceiveDataResponse response;
+    LinkWirelessOpenSDK::ChildrenData childrenData;
+    LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
+
+    // HANDSHAKE
     while (!hasData) {
+      LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(toArray(), 0, 1, response))
         return FAILURE;
-      hasData = response.dataSize > 0;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      hasData = childrenData.responses[0].packetsSize > 0;
     }
-
     LWMLOG("handshake received");
-    LinkWirelessOpenSDK::ClientSDKHeader clientHeader =
-        parseClientHeader(response.data[0]);
-    LWMLOG("client size: " + std::to_string(clientHeader.payloadSize));
-    LWMLOG("n: " + std::to_string(clientHeader.n));
-    LWMLOG("phase: " + std::to_string(clientHeader.phase));
-    LWMLOG("ack: " + std::to_string(clientHeader.isACK));
-    LWMLOG("slotState:" + std::to_string(clientHeader.slotState));
-
     LWMLOG("sending ACK");
-  firstack:
-    if (!sendAndExpectData(
-            linkWirelessOpenSDK->createServerACKBuffer(clientHeader), response))
-      return FAILURE;
+    lastValidHeader = childrenData.responses[0]
+                          .packets[childrenData.responses[0].packetsSize - 1]
+                          .header;
 
-    if (response.dataSize == 0) {
-      goto firstack;
-    }
-    clientHeader = parseClientHeader(response.data[0]);
-    if (clientHeader.n == 1)
-      goto firstack;
-
-    if (clientHeader.n == 2 && clientHeader.slotState == 1) {
-      LWMLOG("N IS NOW 2, slotstate = 1");
-    } else {
-      LWMLOG("Error: weird packet");
-      return FAILURE;
-    }
-
-  secondack:
-    if (!sendAndExpectData(
-            linkWirelessOpenSDK->createServerACKBuffer(clientHeader), response))
-      return FAILURE;
-
-    if (response.dataSize == 0) {
-      goto secondack;
-    }
-    clientHeader = parseClientHeader(response.data[0]);
-    if (clientHeader.n == 2 && clientHeader.slotState == 1)
-      goto secondack;
-
-    if (clientHeader.n == 1 && clientHeader.slotState == 2) {
-      LWMLOG("NI STARTED");
-    } else {
-      LWMLOG("NI DIDN'T START");
-      return FAILURE;
-    }
-
-    while (clientHeader.slotState > 0) {
-      link->wait(228);
+    // ACK 1
+    hasData = false;
+    while (!hasData) {
+      LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
-              linkWirelessOpenSDK->createServerACKBuffer(clientHeader),
+              linkWirelessOpenSDK->createServerACKBuffer(lastValidHeader),
               response))
         return FAILURE;
 
-      clientHeader = parseClientHeader(response.data[0]);
-    }
+      if (response.dataSize == 0)
+        continue;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
 
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.n == 2 && header.slotState == 1) {
+          hasData = true;
+          lastValidHeader = header;
+          break;
+        }
+      }
+    }
+    LWMLOG("N IS NOW 2, slotState = 1");
+
+    // ACK 2
+    hasData = false;
+    while (!hasData) {
+      LinkRawWireless::ReceiveDataResponse response;
+      if (!sendAndExpectData(
+              linkWirelessOpenSDK->createServerACKBuffer(lastValidHeader),
+              response))
+        return FAILURE;
+
+      if (response.dataSize == 0)
+        continue;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.n == 1 && header.slotState == 2) {
+          hasData = true;
+          lastValidHeader = header;
+          break;
+        }
+      }
+    }
+    LWMLOG("NI STARTED");
+
+    // RECEIVE NAME
+    while (lastValidHeader.slotState > 0) {
+      link->wait(228);
+
+      LinkRawWireless::ReceiveDataResponse response;
+      if (!sendAndExpectData(
+              linkWirelessOpenSDK->createServerACKBuffer(lastValidHeader),
+              response))
+        return FAILURE;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      lastValidHeader = childrenData.responses[0]
+                            .packets[childrenData.responses[0].packetsSize - 1]
+                            .header;
+    }
     LWMLOG("slotState IS NOW 0");
 
     // ROM START COMMAND
-    bool didClientRespond = false;
-    while (!didClientRespond) {
+    hasData = false;
+    while (!hasData) {
       link->wait(228);
 
+      LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
                   LINK_WIRELESS_MULTIBOOT_CMD_START,
                   LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, 1, 0, 1, 0, 0b0001),
               response))
         return FAILURE;
-      clientHeader = parseClientHeader(response.data[0]);
-      if (clientHeader.isACK == 1 && clientHeader.n == 1 &&
-          clientHeader.phase == 0 && clientHeader.slotState == 1)
-        didClientRespond = true;
-    }
 
+      if (response.dataSize == 0)
+        continue;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.isACK == 1 && header.n == 1 && header.phase == 0 &&
+            header.slotState == 1) {
+          hasData = true;
+          break;
+        }
+      }
+    }
     LWMLOG("READY TO SEND ROM!");
 
     // ROM START
     u32 transferredBytes = 0;
     u32 n = 1;
     u32 phase = 0;
-    // bool isRetry = false;
     u32 progress = 0;
     while (transferredBytes < romSize) {
-      // isRetry = false;
-    retry:
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
           rom, romSize, n, phase, 2, transferredBytes, 0b0001);
       LinkRawWireless::ReceiveDataResponse response;
@@ -206,81 +224,70 @@ class LinkWirelessMultiboot {
         LWMLOG("SendData failed!");
         return FAILURE;
       }
-      if (response.dataSize == 0) {
-        // isRetry = true;
-        goto retry;
-      }
+      if (response.dataSize == 0)
+        continue;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
 
-      clientHeader = parseClientHeader(response.data[0]);
-      if (clientHeader.isACK && clientHeader.n == n &&
-          clientHeader.phase == phase) {
-        phase++;
-        if (phase == 4) {
-          phase = 0;
-          n++;
-          if (n == 4)
-            n = 0;
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.isACK && header.n == n && header.phase == phase) {
+          phase++;
+          if (phase == 4) {
+            phase = 0;
+            n++;
+            if (n == 4)
+              n = 0;
+          }
+          transferredBytes += 84;  // TODO: Use sendBuffer
+          u32 newProgress = transferredBytes * 100 / romSize;
+          if (newProgress != progress) {
+            progress = newProgress;
+            LWMLOG("-> " + std::to_string(transferredBytes * 100 / romSize));
+          }
         }
-        transferredBytes += 84;
-        u32 newProgress = transferredBytes * 100 / romSize;
-        if (newProgress != progress) {
-          progress = newProgress;
-          LWMLOG("-> " + std::to_string(transferredBytes * 100 / romSize));
-        }
-      } else {
-        // isRetry = true;
-        goto retry;
       }
     }
-
     LWMLOG("SEND FINISHED! Confirming...");
 
     // ROM END COMMAND
-    didClientRespond = false;
-    while (!didClientRespond) {
+    hasData = false;
+    while (!hasData) {
       link->wait(228);
 
+      LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(linkWirelessOpenSDK->createServerBuffer(
                                  {}, 0, 0, 0, 3, 0, 0b0001),
                              response))
         return FAILURE;
-      clientHeader = parseClientHeader(response.data[0]);
-      if (clientHeader.isACK == 1 && clientHeader.n == 0 &&
-          clientHeader.phase == 0 && clientHeader.slotState == 3)
-        didClientRespond = true;
-    }
+      if (response.dataSize == 0)
+        continue;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
 
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.isACK == 1 && header.n == 0 && header.phase == 0 &&
+            header.slotState == 3) {
+          hasData = true;
+          break;
+        }
+      }
+    }
     LWMLOG("Reconfirming...");
 
     // ROM END 2 COMMAND
-    didClientRespond = false;
-    while (!didClientRespond) {
+    hasData = false;
+    while (!hasData) {
       link->wait(228);
 
+      LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(linkWirelessOpenSDK->createServerBuffer(
                                  {}, 0, 1, 0, 0, 0, 0b0001),
                              response))
         return FAILURE;
-      clientHeader = parseClientHeader(response.data[0]);
-      // if (clientHeader.slotState == 0)
-      didClientRespond = true;
+      hasData = true;
     }
 
     LWMLOG("SUCCESS!");
-
-    // u32 diffs = 0;
-    // for (u32 i = 0; i < romSize; i++) {
-    //   if (rom[i] != bytes[i]) {
-    //     LWMLOG("DIFF AT " + std::to_string(i) + ": " + link->toHex(bytes[i])
-    //     +
-    //            " vs " + link->toHex(rom[i]));
-    //     diffs++;
-    //   }
-    //   if (diffs > 100)
-    //     break;
-    // }
-
-    // LWMLOG("??");
 
     return SUCCESS;
   }

@@ -97,13 +97,12 @@ class LinkWirelessOpenSDK {
 
   ChildrenData getChildrenData(LinkRawWireless::ReceiveDataResponse response) {
     u8* buffer = (u8*)response.data;
-    u32 bufferSize = response.dataSize * 4;
 
     u32 cursor = 0;
     ChildrenData childrenData;
 
-    for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS) {
-      ClientResponse* clientResponse = childrenData.responses[i - 1];
+    for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++) {
+      ClientResponse* clientResponse = &childrenData.responses[i - 1];
       u32 remainingBytes = response.sentBytes[i];
 
       while (remainingBytes >= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT) {
@@ -114,12 +113,13 @@ class LinkWirelessOpenSDK {
         cursor += LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
         remainingBytes -= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
 
-        if (header.payloadSize > 0 &&
-            header.payloadSize <= LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_CLIENT &&
+        if (packet->header.payloadSize > 0 &&
+            packet->header.payloadSize <=
+                LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_CLIENT &&
             remainingBytes >= packet->header.payloadSize) {
-          for (u32 j = 0; j < header.payloadSize; j++)
+          for (u32 j = 0; j < packet->header.payloadSize; j++)
             packet->payload[j] = buffer[cursor++];
-          remainingBytes -= header.payloadSize;
+          remainingBytes -= packet->header.payloadSize;
         }
 
         clientResponse->packetsSize++;
