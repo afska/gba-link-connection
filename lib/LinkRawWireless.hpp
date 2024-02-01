@@ -111,41 +111,41 @@ class LinkRawWireless {
     bool isFull() { return nextClientNumber == 0xff; }
   };
 
-  typedef struct {
+  struct ConnectedClient {
     u16 deviceId = 0;
     u8 clientNumber = 0;
-  } ConnectedClient;
+  };
 
-  typedef struct {
+  struct SlotStatusResponse {
     u8 nextClientNumber = 0;
     std::array<ConnectedClient, LINK_RAW_WIRELESS_MAX_PLAYERS>
         connectedClients = {};
     u32 connectedClientsSize = 0;
-  } SlotStatusResponse;
+  };
 
-  typedef struct {
+  struct AcceptConnectionsResponse {
     std::array<ConnectedClient, LINK_RAW_WIRELESS_MAX_PLAYERS>
         connectedClients = {};
     u32 connectedClientsSize = 0;
-  } AcceptConnectionsResponse;
+  };
 
-  typedef struct {
+  struct BroadcastReadPollResponse {
     std::array<Server, LINK_RAW_WIRELESS_MAX_SERVERS> servers;
     u32 serversSize = 0;
-  } BroadcastReadPollResponse;
+  };
 
   enum ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
 
-  typedef struct {
+  struct ConnectionStatus {
     ConnectionPhase phase = STILL_CONNECTING;
     u8 assignedClientNumber = 0;
-  } ConnectionStatus;
+  };
 
-  typedef struct {
+  struct ReceiveDataResponse {
     u32 sentBytes[LINK_RAW_WIRELESS_MAX_PLAYERS];
     std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data = {};
     u32 dataSize = 0;
-  } ReceiveDataResponse;
+  };
 
   bool isActive() { return isEnabled; }
 
