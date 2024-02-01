@@ -97,9 +97,13 @@ class LinkWirelessOpenSDK {
 
   ChildrenData getChildrenData(LinkRawWireless::ReceiveDataResponse response) {
     u8* buffer = (u8*)response.data;
-
     u32 cursor = 0;
     ChildrenData childrenData;
+
+    if (response.sentBytes[1] + response.sentBytes[2] + response.sentBytes[3] +
+            response.sentBytes[4] >
+        response.dataSize * 4)
+      return childrenData;
 
     for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++) {
       ClientResponse* clientResponse = &childrenData.responses[i - 1];

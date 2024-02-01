@@ -204,6 +204,7 @@ class LinkWirelessMultiboot {
         if (header.isACK == 1 && header.n == 1 && header.phase == 0 &&
             header.slotState == 1) {
           hasData = true;
+          // TODO: LOG CHILDRENDATA AND DEBUG WITH LONGER DISTANCES
           break;
         }
       }
@@ -224,8 +225,6 @@ class LinkWirelessMultiboot {
         LWMLOG("SendData failed!");
         return FAILURE;
       }
-      if (response.dataSize == 0)
-        continue;
       childrenData = linkWirelessOpenSDK->getChildrenData(response);
 
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
@@ -244,6 +243,7 @@ class LinkWirelessMultiboot {
             progress = newProgress;
             LWMLOG("-> " + std::to_string(transferredBytes * 100 / romSize));
           }
+          break;
         }
       }
     }
