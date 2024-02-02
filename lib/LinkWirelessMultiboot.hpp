@@ -39,10 +39,11 @@
 #define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
 #define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
-#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003F0120
+#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003F0000
+#define LINK_WIRELESS_MULTIBOOT_SETUP_TX 1
+#define LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT 32
 #define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG 0b1000000000000000
 #define LINK_WIRELESS_MULTIBOOT_FRAME_LINES 228
-#define LINK_WIRELESS_MULTIBOOT_FRAMES_BEFORE_HANDSHAKE 20  // ~300ms
 
 const u8 LINK_WIRELESS_MULTIBOOT_CMD_START[] = {0x00, 0x54, 0x00, 0x00,
                                                 0x00, 0x02, 0x00};
@@ -200,7 +201,7 @@ class LinkWirelessMultiboot {
     }
     LWMLOG("ready to send start command");
 
-    wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
+    linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
 
     // ROM START COMMAND
     hasData = false;
@@ -335,7 +336,9 @@ class LinkWirelessMultiboot {
                   const char* userName,
                   const u16 gameId,
                   u8 players) {
-    if (!link->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
+    if (!link->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_TX,
+                     LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT,
+                     LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
       LWMLOG("! setup failed");
       return false;
     }

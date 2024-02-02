@@ -527,12 +527,22 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
                   "Max players?",
                   std::vector<std::string>{"5", "4", "3", "2"})) == -1)
         ;
+      int maxTransmissions = -1;
+      while ((maxTransmissions = selectU8("Max transmissions?")) == -1)
+        ;
+      int waitTimeout = -1;
+      while ((waitTimeout = selectU8("Wait timeout?")) == -1)
+        ;
 
-      return logOperation("sending " + name, [maxPlayers]() {
-        log("maxPlayers = " + std::to_string(maxPlayers));
+      return logOperation(
+          "sending " + name, [maxPlayers, maxTransmissions, waitTimeout]() {
+            log("maxPlayers = " + std::to_string(maxPlayers));
+            log("maxTransmissions = " + std::to_string(maxTransmissions));
+            log("waitTimeout = " + std::to_string(waitTimeout));
 
-        return linkRawWireless->setup(5 - maxPlayers);
-      });
+            return linkRawWireless->setup(5 - maxPlayers, maxTransmissions,
+                                          waitTimeout);
+          });
     }
     case 0x18:
       goto generic;

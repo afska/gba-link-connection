@@ -38,7 +38,7 @@
 #define LINK_RAW_WIRELESS_COMMAND_HEADER 0x9966
 #define LINK_RAW_WIRELESS_RESPONSE_ACK 0x80
 #define LINK_RAW_WIRELESS_DATA_REQUEST 0x80000000
-#define LINK_RAW_WIRELESS_SETUP_MAGIC 0x003c0420
+#define LINK_RAW_WIRELESS_SETUP_MAGIC 0x003c0000
 #define LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT 16
 #define LINK_RAW_WIRELESS_STILL_CONNECTING 0x01000000
 #define LINK_RAW_WIRELESS_BROADCAST_LENGTH 6
@@ -168,14 +168,14 @@ class LinkRawWireless {
   }
 
   bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS,
+             u8 maxTransmissions = 4,
+             u8 waitTimeout = 32,
              u32 magic = LINK_RAW_WIRELESS_SETUP_MAGIC) {
-    return sendCommand(
-               LINK_RAW_WIRELESS_COMMAND_SETUP,
-               {(u32)(magic |
-                      (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
-                       << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT))},
-               1)
-        .success;
+    u32 config = (u32)(magic |
+                       (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
+                        << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT) |
+                       (maxTransmissions << 8) | waitTimeout);
+    return sendCommand(LINK_RAW_WIRELESS_COMMAND_SETUP, {config}, 1).success;
   }
 
   bool broadcast(const char* gameName = "",
