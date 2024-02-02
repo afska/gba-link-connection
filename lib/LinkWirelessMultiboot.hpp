@@ -91,41 +91,33 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY(initialize(gameName, userName, gameId, players))
     LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, cancel))
 
-    bool hasData = false;
-    LinkWirelessOpenSDK::ChildrenData childrenData;
-
-    LWMLOG("ready to send start command");
-
+    LWMLOG("all players are connected");
     linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
 
-    // ROM START COMMAND
-    hasData = false;
-    while (!hasData) {
-      LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
-          linkWirelessOpenSDK->createServerBuffer(
-              LINK_WIRELESS_MULTIBOOT_CMD_START,
-              LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, {1, 0},
-              LinkWirelessOpenSDK::CommState::STARTING, 0, 0b0001),
-          response))
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+    LWMLOG("rom start command...");
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
+        [this](LinkRawWireless::ReceiveDataResponse& response) {
+          return sendAndExpectData(
+              linkWirelessOpenSDK->createServerBuffer(
+                  LINK_WIRELESS_MULTIBOOT_CMD_START,
+                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, {1, 0},
+                  LinkWirelessOpenSDK::CommState::STARTING, 0, 0b0001),
+              response);
+        },
+        [](LinkWirelessOpenSDK::ClientPacket packet) {
+          auto header = packet.header;
+          return header.isACK == 1 && header.n == 1 && header.phase == 0 &&
+                 header.commState == LinkWirelessOpenSDK::CommState::STARTING;
+        },
+        cancel))
 
-      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-        auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK == 1 && header.n == 1 && header.phase == 0 &&
-            header.commState == LinkWirelessOpenSDK::CommState::STARTING) {
-          hasData = true;
-          break;
-        }
-      }
-    }
-    LWMLOG("READY TO SEND ROM!");
-
-    // ROM START
-    u32 transferredBytes = 0;
+    LWMLOG("SENDING ROM!");
+    LinkWirelessOpenSDK::ChildrenData childrenData;
     LinkWirelessOpenSDK::SequenceNumber sequence = {.n = 1, .phase = 0};
+    u32 transferredBytes = 0;
     u32 progress = 0;
     while (transferredBytes < romSize) {
+      // TODO: Check cancel
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
           rom, romSize, sequence, LinkWirelessOpenSDK::CommState::COMMUNICATING,
           transferredBytes, 0b0001);
@@ -149,30 +141,24 @@ class LinkWirelessMultiboot {
         }
       }
     }
-    LWMLOG("SEND FINISHED! Confirming...");
 
-    // ROM END COMMAND
-    hasData = false;
-    while (!hasData) {
-      LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
-          linkWirelessOpenSDK->createServerBuffer(
-              {}, 0, {0, 0}, LinkWirelessOpenSDK::CommState::ENDING, 0, 0b0001),
-          response))
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+    LWMLOG("confirming (1/2)...");
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
+        [this](LinkRawWireless::ReceiveDataResponse& response) {
+          return sendAndExpectData(
+              linkWirelessOpenSDK->createServerBuffer(
+                  {}, 0, {0, 0}, LinkWirelessOpenSDK::CommState::ENDING, 0,
+                  0b0001),
+              response);
+        },
+        [](LinkWirelessOpenSDK::ClientPacket packet) {
+          auto header = packet.header;
+          return header.isACK == 1 && header.n == 0 && header.phase == 0 &&
+                 header.commState == LinkWirelessOpenSDK::CommState::ENDING;
+        },
+        cancel))
 
-      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-        auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK == 1 && header.n == 0 && header.phase == 0 &&
-            header.commState == LinkWirelessOpenSDK::CommState::ENDING) {
-          hasData = true;
-          break;
-        }
-      }
-    }
-    LWMLOG("Reconfirming...");
-
-    // ROM END 2 COMMAND
+    LWMLOG("confirming (2/2)...");
     LinkRawWireless::ReceiveDataResponse response;
     LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
         linkWirelessOpenSDK->createServerBuffer(
@@ -272,9 +258,9 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACK(
         clientNumber,
         [](LinkWirelessOpenSDK::ClientPacket packet) {
-          return packet.header.n == 2 &&
-                 packet.header.commState ==
-                     LinkWirelessOpenSDK::CommState::STARTING;
+          auto header = packet.header;
+          return header.n == 2 &&
+                 header.commState == LinkWirelessOpenSDK::CommState::STARTING;
         },
         cancel))
     // n = 2, commState = 1
@@ -283,8 +269,9 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACK(
         clientNumber,
         [](LinkWirelessOpenSDK::ClientPacket packet) {
-          return packet.header.n == 1 &&
-                 packet.header.commState ==
+          auto header = packet.header;
+          return header.n == 1 &&
+                 header.commState ==
                      LinkWirelessOpenSDK::CommState::COMMUNICATING;
         },
         cancel))
