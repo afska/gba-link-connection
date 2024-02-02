@@ -143,7 +143,8 @@ class LinkWirelessOpenSDK {
         ClientPacket* packet =
             &clientResponse->packets[clientResponse->packetsSize];
 
-        packet->header = parseClientHeader(*((u16*)(buffer + cursor)));
+        u32 headerInt = *((u16*)(buffer + cursor));
+        packet->header = parseClientHeader(headerInt);
         cursor += LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
         remainingBytes -= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT;
 
@@ -161,6 +162,42 @@ class LinkWirelessOpenSDK {
     }
 
     return childrenData;
+  }
+
+  ParentData getParentData(LinkRawWireless::ReceiveDataResponse response) {
+    u8* buffer = (u8*)response.data;
+    u32 cursor = 0;
+    ParentData parentData;
+
+    if (response.sentBytes[0] > response.dataSize * 4)
+      return parentData;
+
+    ServerResponse* serverResponse = &parentData.response;
+    u32 remainingBytes = response.sentBytes[0];
+
+    while (remainingBytes >= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_SERVER) {
+      ServerPacket* packet =
+          &serverResponse->packets[serverResponse->packetsSize];
+
+      u32 headerInt = (*((u16*)(buffer + cursor))) |
+                      (((*((u8*)(buffer + cursor + 2)))) << 16);
+      packet->header = parseServerHeader(headerInt);
+      cursor += LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_SERVER;
+      remainingBytes -= LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_SERVER;
+
+      if (packet->header.payloadSize > 0 &&
+          packet->header.payloadSize <=
+              LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER &&
+          remainingBytes >= packet->header.payloadSize) {
+        for (u32 j = 0; j < packet->header.payloadSize; j++)
+          packet->payload[j] = buffer[cursor++];
+        remainingBytes -= packet->header.payloadSize;
+      }
+
+      serverResponse->packetsSize++;
+    }
+
+    return parentData;
   }
 
   SendBuffer<ServerSDKHeader> createServerBuffer(
@@ -217,13 +254,46 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
-  // SendBuffer<ClientSDKHeader> createClientBuffer(const u8* fullPayload,
-  //                                                u32 fullPayloadSize,
-  //                                                u8 n,
-  //                                                u8 phase,
-  //                                                u8 commState,
-  //                                                u32 offset = 0) {}
-  // TODO: IMPLEMENT
+  SendBuffer<ClientSDKHeader> createClientBuffer(
+      const u8* fullPayload,
+      u32 fullPayloadSize,
+      SequenceNumber sequence,
+      CommState commState = CommState::COMMUNICATING,
+      u32 offset = 0) {
+    SendBuffer<ClientSDKHeader> buffer;
+    u32 payloadSize =
+        min(fullPayloadSize, LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_CLIENT);
+
+    buffer.header.isACK = 0;
+    buffer.header.payloadSize = payloadSize;
+    buffer.header.n = sequence.n;
+    buffer.header.phase = sequence.phase;
+    buffer.header.commState = commState;
+    u16 headerInt = serializeClientHeader(buffer.header);
+
+    buffer.data[buffer.dataSize++] = headerInt;
+    if (offset < fullPayloadSize)
+      offset |= fullPayload[offset] << 16;
+    if (offset + 1 < fullPayloadSize)
+      offset |= fullPayload[offset + 1] << 24;
+
+    for (u32 i = 2; i < payloadSize; i += 4) {
+      u32 word = 0;
+      for (u32 j = 0; j < 4; j++) {
+        if (offset + i + j < fullPayloadSize &&
+            i + j < LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_CLIENT) {
+          u8 byte = fullPayload[offset + i + j];
+          word |= byte << (j * 8);
+        }
+      }
+      buffer.data[buffer.dataSize++] = word;
+    }
+
+    buffer.totalByteCount =
+        LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT + payloadSize;
+
+    return buffer;
+  }
 
   SendBuffer<ClientSDKHeader> createClientACKBuffer(
       ServerSDKHeader serverHeader) {
