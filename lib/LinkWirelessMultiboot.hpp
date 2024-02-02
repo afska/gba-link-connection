@@ -410,7 +410,8 @@ class LinkWirelessMultiboot {
 
   Result finish(Result result) {
     linkRawWireless->deactivate();
-    progress = MultibootProgress{};
+    progress.state = STOPPED;
+    progress.connectedPlayers = 1;
     return result;
   }
 
