@@ -133,14 +133,15 @@ class LinkWirelessMultiboot {
 
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
         auto header = childrenData.responses[0].packets[i].header;
-        if (header.n == 2 && header.slotState == 1) {
+        if (header.n == 2 &&
+            header.commState == LinkWirelessOpenSDK::CommState::STARTING) {
           hasData = true;
           lastValidHeader = header;
           break;
         }
       }
     }
-    LWMLOG("N IS NOW 2, slotState = 1");
+    LWMLOG("N IS NOW 2, commState = 1");
 
     // ACK 2
     hasData = false;
@@ -157,7 +158,8 @@ class LinkWirelessMultiboot {
 
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
         auto header = childrenData.responses[0].packets[i].header;
-        if (header.n == 1 && header.slotState == 2) {
+        if (header.n == 1 &&
+            header.commState == LinkWirelessOpenSDK::CommState::COMMUNICATING) {
           hasData = true;
           lastValidHeader = header;
           break;
@@ -183,13 +185,13 @@ class LinkWirelessMultiboot {
 
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
         auto header = childrenData.responses[0].packets[i].header;
-        if (header.slotState == 0) {
+        if (header.commState == LinkWirelessOpenSDK::CommState::OFF) {
           hasData = true;
           break;
         }
       }
     }
-    LWMLOG("slotState IS NOW 0");
+    LWMLOG("commState IS NOW 0");
 
     // WAITING DATA STOP
     hasData = false;
@@ -212,7 +214,8 @@ class LinkWirelessMultiboot {
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
                   LINK_WIRELESS_MULTIBOOT_CMD_START,
-                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, 1, 0, 1, 0, 0b0001),
+                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, 1, 0,
+                  LinkWirelessOpenSDK::CommState::STARTING, 0, 0b0001),
               response))
         return FAILURE;
 
@@ -223,7 +226,7 @@ class LinkWirelessMultiboot {
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
         auto header = childrenData.responses[0].packets[i].header;
         if (header.isACK == 1 && header.n == 1 && header.phase == 0 &&
-            header.slotState == 1) {
+            header.commState == LinkWirelessOpenSDK::CommState::STARTING) {
           hasData = true;
           break;
         }
@@ -237,7 +240,7 @@ class LinkWirelessMultiboot {
       LWMLOG("n: " + std::to_string(header.n));
       LWMLOG("phase: " + std::to_string(header.phase));
       LWMLOG("size: " + std::to_string(header.payloadSize));
-      LWMLOG("slotState: " + std::to_string(header.slotState));
+      LWMLOG("commState: " + std::to_string(header.commState));
       LWMLOG("---");
     }
 
@@ -248,7 +251,8 @@ class LinkWirelessMultiboot {
     u32 progress = 0;
     while (transferredBytes < romSize) {
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, n, phase, 2, transferredBytes, 0b0001);
+          rom, romSize, n, phase, LinkWirelessOpenSDK::CommState::COMMUNICATING,
+          transferredBytes, 0b0001);
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
                              sendBuffer.totalByteCount, response)) {
@@ -267,7 +271,7 @@ class LinkWirelessMultiboot {
             if (n == 4)
               n = 0;
           }
-          transferredBytes += 84;  // TODO: Use sendBuffer
+          transferredBytes += sendBuffer.header.payloadSize;
           u32 newProgress = transferredBytes * 100 / romSize;
           if (newProgress != progress) {
             progress = newProgress;
@@ -285,9 +289,11 @@ class LinkWirelessMultiboot {
       link->wait(228);
 
       LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData(linkWirelessOpenSDK->createServerBuffer(
-                                 {}, 0, 0, 0, 3, 0, 0b0001),
-                             response))
+      if (!sendAndExpectData(
+              linkWirelessOpenSDK->createServerBuffer(
+                  {}, 0, 0, 0, LinkWirelessOpenSDK::CommState::ENDING, 0,
+                  0b0001),
+              response))
         return FAILURE;
       if (response.dataSize == 0)
         continue;
@@ -296,7 +302,7 @@ class LinkWirelessMultiboot {
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
         auto header = childrenData.responses[0].packets[i].header;
         if (header.isACK == 1 && header.n == 0 && header.phase == 0 &&
-            header.slotState == 3) {
+            header.commState == LinkWirelessOpenSDK::CommState::ENDING) {
           hasData = true;
           break;
         }
@@ -310,9 +316,10 @@ class LinkWirelessMultiboot {
       link->wait(228);
 
       LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData(linkWirelessOpenSDK->createServerBuffer(
-                                 {}, 0, 1, 0, 0, 0, 0b0001),
-                             response))
+      if (!sendAndExpectData(
+              linkWirelessOpenSDK->createServerBuffer(
+                  {}, 0, 1, 0, LinkWirelessOpenSDK::CommState::OFF, 0, 0b0001),
+              response))
         return FAILURE;
       hasData = true;
     }

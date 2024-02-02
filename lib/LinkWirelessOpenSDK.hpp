@@ -45,7 +45,14 @@ class LinkWirelessOpenSDK {
     u32 dataSize = 0;
     u32 totalByteCount = 0;
   };
-  // TODO: SlotState enum
+
+  enum CommState : unsigned int {
+    OFF = 0,
+    STARTING = 1,
+    COMMUNICATING = 2,
+    ENDING = 3,
+    DIRECT = 4
+  };
 
   struct ServerSDKHeader {
     unsigned int payloadSize : 7;
@@ -53,7 +60,7 @@ class LinkWirelessOpenSDK {
     unsigned int phase : 2;
     unsigned int n : 2;
     unsigned int isACK : 1;
-    unsigned int slotState : 4;
+    CommState commState : 4;
     unsigned int targetSlots : 4;
   };
   union ServerSDKHeaderSerializer {
@@ -77,7 +84,7 @@ class LinkWirelessOpenSDK {
     unsigned int phase : 2;
     unsigned int n : 2;
     unsigned int isACK : 1;
-    unsigned int slotState : 4;
+    CommState commState : 4;
   };
   union ClientSDKHeaderSerializer {
     ClientSDKHeader asStruct;
@@ -137,7 +144,7 @@ class LinkWirelessOpenSDK {
                                                  u32 fullPayloadSize,
                                                  u8 n,
                                                  u8 phase,
-                                                 u8 slotState,
+                                                 CommState commState,
                                                  u32 offset = 0,
                                                  u8 targetSlots = 0b1111) {
     SendBuffer<ServerSDKHeader> buffer;
@@ -149,7 +156,7 @@ class LinkWirelessOpenSDK {
     buffer.header.payloadSize = payloadSize;
     buffer.header.n = n;
     buffer.header.phase = phase;
-    buffer.header.slotState = slotState;
+    buffer.header.commState = commState;
     u32 headerInt = serializeServerHeader(buffer.header);
 
     buffer.data[buffer.dataSize++] =
@@ -191,7 +198,7 @@ class LinkWirelessOpenSDK {
   //                                                u32 fullPayloadSize,
   //                                                u8 n,
   //                                                u8 phase,
-  //                                                u8 slotState,
+  //                                                u8 commState,
   //                                                u32 offset = 0) {}
   // TODO: IMPLEMENT
 
@@ -216,7 +223,7 @@ class LinkWirelessOpenSDK {
     serverHeader.payloadSize = 0;
     serverHeader.n = clientHeader.n;
     serverHeader.phase = clientHeader.phase;
-    serverHeader.slotState = clientHeader.slotState;
+    serverHeader.commState = clientHeader.commState;
 
     return serverHeader;
   }
@@ -227,7 +234,7 @@ class LinkWirelessOpenSDK {
     clientHeader.payloadSize = 0;
     clientHeader.n = serverHeader.n;
     clientHeader.phase = serverHeader.phase;
-    clientHeader.slotState = serverHeader.slotState;
+    clientHeader.commState = serverHeader.commState;
 
     return clientHeader;
   }
