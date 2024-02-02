@@ -167,7 +167,8 @@ class LinkWirelessMultiboot {
     LWMLOG("NI STARTED");
 
     // RECEIVE NAME
-    while (lastValidHeader.slotState > 0) {
+    hasData = false;
+    while (!hasData) {
       link->wait(228);
 
       LinkRawWireless::ReceiveDataResponse response;
@@ -179,8 +180,28 @@ class LinkWirelessMultiboot {
       lastValidHeader = childrenData.responses[0]
                             .packets[childrenData.responses[0].packetsSize - 1]
                             .header;
+
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.slotState == 0) {
+          hasData = true;
+          break;
+        }
+      }
     }
     LWMLOG("slotState IS NOW 0");
+
+    // WAITING DATA STOP
+    hasData = false;
+    while (!hasData) {
+      link->wait(228);
+      LinkRawWireless::ReceiveDataResponse response;
+      if (!sendAndExpectData(toArray(), 0, 1, response))
+        return FAILURE;
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      hasData = childrenData.responses[0].packetsSize == 0;
+    }
+    LWMLOG("ready to send start command");
 
     // ROM START COMMAND
     hasData = false;
@@ -204,12 +225,21 @@ class LinkWirelessMultiboot {
         if (header.isACK == 1 && header.n == 1 && header.phase == 0 &&
             header.slotState == 1) {
           hasData = true;
-          // TODO: LOG CHILDRENDATA AND DEBUG WITH LONGER DISTANCES
           break;
         }
       }
     }
     LWMLOG("READY TO SEND ROM!");
+    LWMLOG("really?");
+    for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+      auto header = childrenData.responses[0].packets[i].header;
+      LWMLOG("ack: " + std::to_string(header.isACK));
+      LWMLOG("n: " + std::to_string(header.n));
+      LWMLOG("phase: " + std::to_string(header.phase));
+      LWMLOG("size: " + std::to_string(header.payloadSize));
+      LWMLOG("slotState: " + std::to_string(header.slotState));
+      LWMLOG("---");
+    }
 
     // ROM START
     u32 transferredBytes = 0;

@@ -37,7 +37,7 @@ static volatile char LINK_WIRELESS_OPEN_SDK_VERSION[] =
     "LinkWirelessOpenSDK/v6.2.0";
 
 class LinkWirelessOpenSDK {
- public:  // TODO: Build some private methods
+ public:
   template <class T>
   struct SendBuffer {
     T header;
