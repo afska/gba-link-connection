@@ -401,6 +401,13 @@ class LinkWirelessMultiboot {
       LWMLOG("but got " + link->toHex(remoteCommand.commandId));
       return false;
     }
+    if (remoteCommand.paramsSize > 0) {
+      if (((remoteCommand.params[0] >> 8) & 0b0001) == 0) {
+        // TODO: MUPLTIPLE CHILDREN
+        LWMLOG("timeout, children disconnected");
+        return false;
+      }
+    }
     success = link->receiveData(response);
     if (!success) {
       LWMLOG("receive data failed");
