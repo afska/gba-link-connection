@@ -163,12 +163,13 @@ class LinkWirelessOpenSDK {
     return childrenData;
   }
 
-  SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
-                                                 u32 fullPayloadSize,
-                                                 SequenceNumber sequence,
-                                                 CommState commState,
-                                                 u32 offset = 0,
-                                                 u8 targetSlots = 0b1111) {
+  SendBuffer<ServerSDKHeader> createServerBuffer(
+      const u8* fullPayload,
+      u32 fullPayloadSize,
+      SequenceNumber sequence,
+      CommState commState = CommState::COMMUNICATING,
+      u32 offset = 0,
+      u8 targetSlots = 0b1111) {
     SendBuffer<ServerSDKHeader> buffer;
     u32 payloadSize =
         min(fullPayloadSize, LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER);
@@ -181,9 +182,9 @@ class LinkWirelessOpenSDK {
     buffer.header.commState = commState;
     u32 headerInt = serializeServerHeader(buffer.header);
 
-    buffer.data[buffer.dataSize++] =
-        offset < fullPayloadSize ? (fullPayload[offset] << 24) | headerInt
-                                 : headerInt;
+    buffer.data[buffer.dataSize++] = headerInt;
+    if (offset < fullPayloadSize)
+      offset |= fullPayload[offset] << 24;
 
     for (u32 i = 1; i < payloadSize; i += 4) {
       u32 word = 0;
