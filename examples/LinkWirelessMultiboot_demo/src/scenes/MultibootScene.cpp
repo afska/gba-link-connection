@@ -187,9 +187,10 @@ void MultibootScene::processButtons() {
     const u8* romToSend =
         (const u8*)gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
 
-    linkWirelessMultiboot->sendRom(romToSend, fileLength, "Multi", "Test",
-                                   0xffff, 2,
-                                   [](int connectedPlayers) { return false; });
+    auto result = linkWirelessMultiboot->sendRom(
+        romToSend, fileLength, "Multiboot", "Test", 0xffff, 2,
+        [](int connectedPlayers) { return false; });
+    log("-> result: " + std::to_string(result));
     print();
   }
 

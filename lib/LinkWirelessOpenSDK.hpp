@@ -242,10 +242,11 @@ class LinkWirelessOpenSDK {
   }
 
   SendBuffer<ServerSDKHeader> createServerACKBuffer(
-      ClientSDKHeader clientHeader) {
+      ClientSDKHeader clientHeader,
+      u8 clientNumber) {
     SendBuffer<ServerSDKHeader> buffer;
 
-    buffer.header = createACKHeaderFor(clientHeader, 0);
+    buffer.header = createACKHeaderFor(clientHeader, clientNumber);
     u32 headerInt = serializeServerHeader(buffer.header);
 
     buffer.data[buffer.dataSize++] = headerInt;
