@@ -98,7 +98,6 @@ class LinkWirelessMultiboot {
 
     linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
 
-    /*
     // ROM START COMMAND
     hasData = false;
     while (!hasData) {
@@ -181,106 +180,6 @@ class LinkWirelessMultiboot {
         response))
 
     LWMLOG("SUCCESS!");
-    */
-
-    // ROM START COMMAND
-    hasData = false;
-    while (!hasData) {
-      LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData2(
-              linkWirelessOpenSDK->createServerBuffer(
-                  LINK_WIRELESS_MULTIBOOT_CMD_START,
-                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, {1, 0},
-                  LinkWirelessOpenSDK::CommState::STARTING, 0, 0b0001),
-              response))
-        return FAILURE;
-
-      if (response.dataSize == 0)
-        continue;
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
-
-      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-        auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK == 1 && header.n == 1 && header.phase == 0 &&
-            header.commState == LinkWirelessOpenSDK::CommState::STARTING) {
-          hasData = true;
-          break;
-        }
-      }
-    }
-    LWMLOG("READY TO SEND ROM!");
-
-    // ROM START
-    u32 transferredBytes = 0;
-    LinkWirelessOpenSDK::SequenceNumber sequence = {.n = 1, .phase = 0};
-    u32 progress = 0;
-    while (transferredBytes < romSize) {
-      auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, sequence, LinkWirelessOpenSDK::CommState::COMMUNICATING,
-          transferredBytes, 0b0001);
-      LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData2(sendBuffer.data, sendBuffer.dataSize,
-                              sendBuffer.totalByteCount, response)) {
-        LWMLOG("SendData failed!");
-        return FAILURE;
-      }
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
-
-      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-        auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK && header.sequence() == sequence) {
-          sequence.inc();
-          transferredBytes += sendBuffer.header.payloadSize;
-          u32 newProgress = transferredBytes * 100 / romSize;
-          if (newProgress != progress) {
-            progress = newProgress;
-            LWMLOG("-> " + std::to_string(transferredBytes * 100 / romSize));
-          }
-          break;
-        }
-      }
-    }
-    LWMLOG("SEND FINISHED! Confirming...");
-
-    // ROM END COMMAND
-    hasData = false;
-    while (!hasData) {
-      LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData2(
-              linkWirelessOpenSDK->createServerBuffer(
-                  {}, 0, {0, 0}, LinkWirelessOpenSDK::CommState::ENDING, 0,
-                  0b0001),
-              response))
-        return FAILURE;
-      if (response.dataSize == 0)
-        continue;
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
-
-      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-        auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK == 1 && header.n == 0 && header.phase == 0 &&
-            header.commState == LinkWirelessOpenSDK::CommState::ENDING) {
-          hasData = true;
-          break;
-        }
-      }
-    }
-    LWMLOG("Reconfirming...");
-
-    // ROM END 2 COMMAND
-    hasData = false;
-    while (!hasData) {
-      LinkRawWireless::ReceiveDataResponse response;
-      if (!sendAndExpectData2(
-              linkWirelessOpenSDK->createServerBuffer(
-                  {}, 0, {1, 0}, LinkWirelessOpenSDK::CommState::OFF, 0,
-                  0b0001),
-              response))
-        return FAILURE;
-      hasData = true;
-    }
-
-    LWMLOG("SUCCESS!");
 
     return SUCCESS;
   }
@@ -290,6 +189,7 @@ class LinkWirelessMultiboot {
     delete linkWirelessOpenSDK;
   }
 
+  // TODO: CLEANUP
   LinkRawWireless* link = new LinkRawWireless();
   LinkWirelessOpenSDK* linkWirelessOpenSDK = new LinkWirelessOpenSDK();
   LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
@@ -297,46 +197,6 @@ class LinkWirelessMultiboot {
   Result lastResult;
 
  private:
-  // TODO: CLEAN UP
-  bool sendAndExpectData2(LinkWirelessOpenSDK::SendBuffer<
-                              LinkWirelessOpenSDK::ServerSDKHeader> sendBuffer,
-                          LinkRawWireless::ReceiveDataResponse& response) {
-    return sendAndExpectData2(sendBuffer.data, sendBuffer.dataSize,
-                              sendBuffer.totalByteCount, response);
-  }
-
-  bool sendAndExpectData2(
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
-      u32 dataSize,
-      u32 _bytes,
-      LinkRawWireless::ReceiveDataResponse& response) {
-    LinkRawWireless::RemoteCommand remoteCommand;
-    bool success = false;
-    success = link->sendDataAndWait(data, dataSize, remoteCommand, _bytes);
-    if (!success) {
-      LWMLOG("! sendDataAndWait failed");
-      return false;
-    }
-    if (remoteCommand.commandId != 0x28) {
-      LWMLOG("! expected EVENT 0x28");
-      LWMLOG("! but got " + link->toHex(remoteCommand.commandId));
-      return false;
-    }
-    if (remoteCommand.paramsSize > 0) {
-      if (((remoteCommand.params[0] >> 8) & 0b0001) == 0) {
-        // TODO: MULTIPLE CHILDREN
-        LWMLOG("! child timeout");
-        return false;
-      }
-    }
-    success = link->receiveData(response);
-    if (!success) {
-      LWMLOG("! receiveData failed");
-      return false;
-    }
-    return true;
-  }
-
   Result activate() {
     if (!link->activate()) {
       LWMLOG("! adapter not detected");
@@ -448,6 +308,7 @@ class LinkWirelessMultiboot {
 
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(toArray(), 0, 1, response))
+      auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
       hasFinished = childrenData.responses[0].packetsSize == 0;
     }
     LWMLOG("client " + std::to_string(clientNumber) + " accepted");

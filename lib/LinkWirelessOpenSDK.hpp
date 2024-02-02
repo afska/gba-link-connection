@@ -221,7 +221,7 @@ class LinkWirelessOpenSDK {
 
     buffer.data[buffer.dataSize++] = headerInt;
     if (offset < fullPayloadSize)
-      offset |= fullPayload[offset] << 24;
+      buffer.data[0] |= fullPayload[offset] << 24;
 
     for (u32 i = 1; i < payloadSize; i += 4) {
       u32 word = 0;
@@ -274,9 +274,9 @@ class LinkWirelessOpenSDK {
 
     buffer.data[buffer.dataSize++] = headerInt;
     if (offset < fullPayloadSize)
-      offset |= fullPayload[offset] << 16;
+      buffer.data[0] |= fullPayload[offset] << 16;
     if (offset + 1 < fullPayloadSize)
-      offset |= fullPayload[offset + 1] << 24;
+      buffer.data[0] |= fullPayload[offset + 1] << 24;
 
     for (u32 i = 2; i < payloadSize; i += 4) {
       u32 word = 0;
