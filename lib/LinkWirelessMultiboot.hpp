@@ -97,8 +97,6 @@ class LinkWirelessMultiboot {
     }
 
     LWMLOG("new client");  // TODO: MOVE HANDSHAKE TO WHILE
-    linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES *
-                          LINK_WIRELESS_MULTIBOOT_FRAMES_BEFORE_HANDSHAKE);
 
     bool hasData = false;
     LinkWirelessOpenSDK::ChildrenData childrenData;
@@ -171,8 +169,6 @@ class LinkWirelessMultiboot {
     // RECEIVE NAME
     hasData = false;
     while (!hasData) {
-      link->wait(228);
-
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerACKBuffer(lastValidHeader),
@@ -196,7 +192,6 @@ class LinkWirelessMultiboot {
     // WAITING DATA STOP
     hasData = false;
     while (!hasData) {
-      link->wait(228);
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(toArray(), 0, 1, response))
         return FAILURE;
@@ -205,11 +200,11 @@ class LinkWirelessMultiboot {
     }
     LWMLOG("ready to send start command");
 
+    wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
+
     // ROM START COMMAND
     hasData = false;
     while (!hasData) {
-      link->wait(228);
-
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
@@ -233,16 +228,6 @@ class LinkWirelessMultiboot {
       }
     }
     LWMLOG("READY TO SEND ROM!");
-    LWMLOG("really?");
-    for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-      auto header = childrenData.responses[0].packets[i].header;
-      LWMLOG("ack: " + std::to_string(header.isACK));
-      LWMLOG("n: " + std::to_string(header.n));
-      LWMLOG("phase: " + std::to_string(header.phase));
-      LWMLOG("size: " + std::to_string(header.payloadSize));
-      LWMLOG("commState: " + std::to_string(header.commState));
-      LWMLOG("---");
-    }
 
     // ROM START
     u32 transferredBytes = 0;
@@ -286,8 +271,6 @@ class LinkWirelessMultiboot {
     // ROM END COMMAND
     hasData = false;
     while (!hasData) {
-      link->wait(228);
-
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
@@ -313,8 +296,6 @@ class LinkWirelessMultiboot {
     // ROM END 2 COMMAND
     hasData = false;
     while (!hasData) {
-      link->wait(228);
-
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
@@ -403,7 +384,7 @@ class LinkWirelessMultiboot {
     }
     if (remoteCommand.paramsSize > 0) {
       if (((remoteCommand.params[0] >> 8) & 0b0001) == 0) {
-        // TODO: MUPLTIPLE CHILDREN
+        // TODO: MULTIPLE CHILDREN
         LWMLOG("timeout, children disconnected");
         return false;
       }
