@@ -54,6 +54,25 @@ class LinkWirelessOpenSDK {
     DIRECT = 4
   };
 
+  struct SequenceNumber {
+    u32 n = 0;
+    u32 phase = 0;
+
+    void inc() {
+      phase++;
+      if (phase == 4) {
+        phase = 0;
+        n++;
+        if (n == 4)
+          n = 0;
+      }
+    }
+
+    bool operator==(const SequenceNumber& other) {
+      return n == other.n && phase == other.phase;
+    }
+  };
+
   struct ServerSDKHeader {
     unsigned int payloadSize : 7;
     unsigned int _unused_ : 2;
@@ -62,6 +81,8 @@ class LinkWirelessOpenSDK {
     unsigned int isACK : 1;
     CommState commState : 4;
     unsigned int targetSlots : 4;
+
+    SequenceNumber sequence() { return SequenceNumber{.n = n, .phase = phase}; }
   };
   union ServerSDKHeaderSerializer {
     ServerSDKHeader asStruct;
@@ -85,6 +106,8 @@ class LinkWirelessOpenSDK {
     unsigned int n : 2;
     unsigned int isACK : 1;
     CommState commState : 4;
+
+    SequenceNumber sequence() { return SequenceNumber{.n = n, .phase = phase}; }
   };
   union ClientSDKHeaderSerializer {
     ClientSDKHeader asStruct;
@@ -142,8 +165,7 @@ class LinkWirelessOpenSDK {
 
   SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
-                                                 u8 n,
-                                                 u8 phase,
+                                                 SequenceNumber sequence,
                                                  CommState commState,
                                                  u32 offset = 0,
                                                  u8 targetSlots = 0b1111) {
@@ -154,8 +176,8 @@ class LinkWirelessOpenSDK {
     buffer.header.isACK = 0;
     buffer.header.targetSlots = targetSlots;
     buffer.header.payloadSize = payloadSize;
-    buffer.header.n = n;
-    buffer.header.phase = phase;
+    buffer.header.n = sequence.n;
+    buffer.header.phase = sequence.phase;
     buffer.header.commState = commState;
     u32 headerInt = serializeServerHeader(buffer.header);
 

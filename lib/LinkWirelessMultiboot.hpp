@@ -210,7 +210,7 @@ class LinkWirelessMultiboot {
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
                   LINK_WIRELESS_MULTIBOOT_CMD_START,
-                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, 1, 0,
+                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, {1, 0},
                   LinkWirelessOpenSDK::CommState::STARTING, 0, 0b0001),
               response))
         return FAILURE;
@@ -232,12 +232,11 @@ class LinkWirelessMultiboot {
 
     // ROM START
     u32 transferredBytes = 0;
-    u32 n = 1;
-    u32 phase = 0;
+    LinkWirelessOpenSDK::SequenceNumber sequence = {.n = 1, .phase = 0};
     u32 progress = 0;
     while (transferredBytes < romSize) {
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, n, phase, LinkWirelessOpenSDK::CommState::COMMUNICATING,
+          rom, romSize, sequence, LinkWirelessOpenSDK::CommState::COMMUNICATING,
           transferredBytes, 0b0001);
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
@@ -249,14 +248,8 @@ class LinkWirelessMultiboot {
 
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
         auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK && header.n == n && header.phase == phase) {
-          phase++;
-          if (phase == 4) {
-            phase = 0;
-            n++;
-            if (n == 4)
-              n = 0;
-          }
+        if (header.isACK && header.sequence() == sequence) {
+          sequence.inc();
           transferredBytes += sendBuffer.header.payloadSize;
           u32 newProgress = transferredBytes * 100 / romSize;
           if (newProgress != progress) {
@@ -275,7 +268,7 @@ class LinkWirelessMultiboot {
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
-                  {}, 0, 0, 0, LinkWirelessOpenSDK::CommState::ENDING, 0,
+                  {}, 0, {0, 0}, LinkWirelessOpenSDK::CommState::ENDING, 0,
                   0b0001),
               response))
         return FAILURE;
@@ -300,7 +293,8 @@ class LinkWirelessMultiboot {
       LinkRawWireless::ReceiveDataResponse response;
       if (!sendAndExpectData(
               linkWirelessOpenSDK->createServerBuffer(
-                  {}, 0, 1, 0, LinkWirelessOpenSDK::CommState::OFF, 0, 0b0001),
+                  {}, 0, {1, 0}, LinkWirelessOpenSDK::CommState::OFF, 0,
+                  0b0001),
               response))
         return FAILURE;
       hasData = true;
