@@ -394,14 +394,6 @@ class LinkWirelessMultiboot {
     return true;
   }
 
-  LinkWirelessOpenSDK::ClientSDKHeader parseClientHeader(u32 clientHeaderInt) {
-    return linkWirelessOpenSDK->parseClientHeader(clientHeaderInt);
-  }
-
-  u32 serializeServerHeader(LinkWirelessOpenSDK::ServerSDKHeader serverHeader) {
-    return linkWirelessOpenSDK->serializeServerHeader(serverHeader);
-  }
-
   template <typename... Args>
   std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(
       Args... args) {
