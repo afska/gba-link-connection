@@ -644,7 +644,7 @@ class LinkRawWireless {
     }
 
     if (command != LINK_RAW_WIRELESS_DATA_REQUEST) {
-      LRWLOG("! expected cmd request");
+      LRWLOG("! expected CMD request");
       LRWLOG("! but received 0x" + toHex(command));
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();

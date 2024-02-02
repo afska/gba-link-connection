@@ -374,24 +374,24 @@ class LinkWirelessMultiboot {
     bool success = false;
     success = link->sendDataAndWait(data, dataSize, remoteCommand, _bytes);
     if (!success) {
-      LWMLOG("senddatawait no");
+      LWMLOG("! sendDataAndWait failed");
       return false;
     }
     if (remoteCommand.commandId != 0x28) {
-      LWMLOG("expected response 0x28");
-      LWMLOG("but got " + link->toHex(remoteCommand.commandId));
+      LWMLOG("! expected EVENT 0x28");
+      LWMLOG("! but got " + link->toHex(remoteCommand.commandId));
       return false;
     }
     if (remoteCommand.paramsSize > 0) {
       if (((remoteCommand.params[0] >> 8) & 0b0001) == 0) {
         // TODO: MULTIPLE CHILDREN
-        LWMLOG("timeout, children disconnected");
+        LWMLOG("! child timeout");
         return false;
       }
     }
     success = link->receiveData(response);
     if (!success) {
-      LWMLOG("receive data failed");
+      LWMLOG("! receiveData failed");
       return false;
     }
     return true;
