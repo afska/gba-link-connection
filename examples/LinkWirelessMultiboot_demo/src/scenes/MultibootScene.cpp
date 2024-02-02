@@ -126,7 +126,7 @@ void MultibootScene::load() {
     // if (useVerboseLog) // TODO: RESTORE
     log(string);
   };
-  linkWirelessMultiboot->link->logger = [](std::string string) {
+  linkWirelessMultiboot->linkRawWireless->logger = [](std::string string) {
     if (useVerboseLog)
       log(string);
   };
@@ -189,7 +189,9 @@ void MultibootScene::processButtons() {
 
     auto result = linkWirelessMultiboot->sendRom(
         romToSend, fileLength, "Multiboot", "Test", 0xffff, 2,
-        [](int connectedPlayers) { return false; });
+        [](LinkWirelessMultiboot::MultibootProgress progress) {
+          return false;
+        });
     log("-> result: " + std::to_string(result));
     print();
   }
