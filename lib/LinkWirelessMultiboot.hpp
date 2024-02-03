@@ -52,21 +52,28 @@
 const u8 LINK_WIRELESS_MULTIBOOT_CMD_START[] = {0x00, 0x54, 0x00, 0x00,
                                                 0x00, 0x02, 0x00};
 const u8 LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE = 7;
+const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[][6] = {
+    {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
+    {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
+const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE = 6;
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v6.2.0";
 
 class LinkWirelessMultiboot {
-  typedef void (*Logger)(std::string);
-
  public:
+#ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+  typedef void (*Logger)(std::string);
   Logger logger = [](std::string str) {};
+#endif
+
   enum Result {
     SUCCESS,
     INVALID_SIZE,
     INVALID_PLAYERS,
     CANCELED,
     ADAPTER_NOT_DETECTED,
+    BAD_HANDSHAKE,
     FAILURE
   };
   enum State { STOPPED, INITIALIZING, WAITING, PREPARING, SENDING, CONFIRMING };
@@ -92,6 +99,9 @@ class LinkWirelessMultiboot {
     if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
+
+    lastWaitCNT = REG_WAITCNT;
+    REG_WAITCNT = 1 << 14;
 
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
     progress.state = INITIALIZING;
@@ -179,6 +189,7 @@ class LinkWirelessMultiboot {
   MultibootProgress progress;
   Result lastResult;
   LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
+  u16 lastWaitCNT;
 
   Result activate() {
     if (!linkRawWireless->activate()) {
@@ -243,6 +254,9 @@ class LinkWirelessMultiboot {
 
   template <typename C>
   Result handshakeClient(u8 clientNumber, C cancel) {
+    LinkWirelessOpenSDK::ClientPacket handshakePackets[2];
+    bool hasReceivedName = false;
+
     LWMLOG("new client: " + std::to_string(clientNumber));
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
@@ -266,11 +280,14 @@ class LinkWirelessMultiboot {
     LWMLOG("handshake (2/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
-        [](LinkWirelessOpenSDK::ClientPacket packet) {
+        [&handshakePackets](LinkWirelessOpenSDK::ClientPacket packet) {
           auto header = packet.header;
-          return header.n == 1 &&
-                 header.commState ==
-                     LinkWirelessOpenSDK::CommState::COMMUNICATING;
+          bool isValid =
+              header.n == 1 && header.phase == 0 &&
+              header.commState == LinkWirelessOpenSDK::CommState::COMMUNICATING;
+          if (isValid)
+            handshakePackets[0] = packet;
+          return isValid;
         },
         cancel))
     // (n = 1, commState = 2)
@@ -278,12 +295,34 @@ class LinkWirelessMultiboot {
     LWMLOG("receiving name...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
-        [this](LinkWirelessOpenSDK::ClientPacket packet) {
-          lastValidHeader = packet.header;
-          return packet.header.commState == LinkWirelessOpenSDK::CommState::OFF;
+        [this, &handshakePackets,
+         &hasReceivedName](LinkWirelessOpenSDK::ClientPacket packet) {
+          auto header = packet.header;
+          lastValidHeader = header;
+          if (header.n == 1 && header.phase == 1 &&
+              header.commState ==
+                  LinkWirelessOpenSDK::CommState::COMMUNICATING) {
+            handshakePackets[1] = packet;
+            hasReceivedName = true;
+          }
+          return header.commState == LinkWirelessOpenSDK::CommState::OFF;
         },
         cancel))
     // (commState = 0)
+
+    LWMLOG("validating name...");
+    for (u32 i = 0; i < 2; i++) {
+      auto receivedPayload = handshakePackets[i].payload;
+      auto expectedPayload = LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[i];
+
+      for (u32 j = 0; j < LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE;
+           j++) {
+        if (!hasReceivedName || receivedPayload[j] != expectedPayload[j]) {
+          LWMLOG("! bad payload");
+          return finish(BAD_HANDSHAKE);
+        }
+      }
+    }
 
     LWMLOG("draining queue...");
     bool hasFinished = false;
@@ -394,7 +433,7 @@ class LinkWirelessMultiboot {
 
     if (remoteCommand.commandId != 0x28) {
       LWMLOG("! expected EVENT 0x28");
-      LWMLOG("! but got " + linkRawWireless->toHex(remoteCommand.commandId));
+      LWMLOG("! but got " + toHex(remoteCommand.commandId));
       return FAILURE;
     }
 
@@ -420,8 +459,20 @@ class LinkWirelessMultiboot {
     progress.state = STOPPED;
     progress.connectedPlayers = 1;
     progress.percentage = 0;
+    REG_WAITCNT = lastWaitCNT;
     return result;
   }
+
+#ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+  template <typename I>
+  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+      rc[i] = digits[(w >> j) & 0x0f];
+    return rc;
+  }
+#endif
 
   template <typename... Args>
   std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(

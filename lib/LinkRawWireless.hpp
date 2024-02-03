@@ -73,10 +73,9 @@ const u16 LINK_RAW_WIRELESS_LOGIN_PARTS[] = {
     0x494e, 0x494e, 0x544e, 0x544e, 0x4e45, 0x4e45, 0x4f44, 0x4f44, 0x8001};
 
 class LinkRawWireless {
-  typedef void (*Logger)(std::string);
-
  public:
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+  typedef void (*Logger)(std::string);
   Logger logger = [](std::string str) {};
 #endif
 
@@ -899,12 +898,12 @@ class LinkRawWireless {
     };
   }
 
-#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   void logExpectedButReceived(u32 expected, u32 received) {
     LRWLOG("! expected 0x" + toHex(expected));
     LRWLOG("! but received 0x" + toHex(received));
   }
 
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   template <typename I>
   std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
     static const char* digits = "0123456789ABCDEF";
