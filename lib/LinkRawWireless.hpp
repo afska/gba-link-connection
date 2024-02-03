@@ -76,7 +76,9 @@ class LinkRawWireless {
   typedef void (*Logger)(std::string);
 
  public:
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   Logger logger = [](std::string str) {};
+#endif
 
   enum State {
     NEEDS_RESET,
@@ -897,6 +899,7 @@ class LinkRawWireless {
     };
   }
 
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   void logExpectedButReceived(u32 expected, u32 received) {
     LRWLOG("! expected 0x" + toHex(expected));
     LRWLOG("! but received 0x" + toHex(received));
@@ -910,6 +913,7 @@ class LinkRawWireless {
       rc[i] = digits[(w >> j) & 0x0f];
     return rc;
   }
+#endif
 
   u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
   u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
