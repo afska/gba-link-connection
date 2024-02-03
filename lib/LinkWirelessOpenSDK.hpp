@@ -57,6 +57,7 @@ class LinkWirelessOpenSDK {
   struct SequenceNumber {
     u32 n = 0;
     u32 phase = 0;
+    CommState commState = OFF;
 
     void inc() {
       phase++;
@@ -69,7 +70,8 @@ class LinkWirelessOpenSDK {
     }
 
     bool operator==(const SequenceNumber& other) {
-      return n == other.n && phase == other.phase;
+      return n == other.n && phase == other.phase &&
+             commState == other.commState;
     }
   };
 
@@ -82,7 +84,9 @@ class LinkWirelessOpenSDK {
     CommState commState : 4;
     unsigned int targetSlots : 4;
 
-    SequenceNumber sequence() { return SequenceNumber{.n = n, .phase = phase}; }
+    SequenceNumber sequence() {
+      return SequenceNumber{.n = n, .phase = phase, .commState = commState};
+    }
   };
   union ServerSDKHeaderSerializer {
     ServerSDKHeader asStruct;
@@ -107,7 +111,9 @@ class LinkWirelessOpenSDK {
     unsigned int isACK : 1;
     CommState commState : 4;
 
-    SequenceNumber sequence() { return SequenceNumber{.n = n, .phase = phase}; }
+    SequenceNumber sequence() {
+      return SequenceNumber{.n = n, .phase = phase, .commState = commState};
+    }
   };
   union ClientSDKHeaderSerializer {
     ClientSDKHeader asStruct;
@@ -200,13 +206,12 @@ class LinkWirelessOpenSDK {
     return parentData;
   }
 
-  SendBuffer<ServerSDKHeader> createServerBuffer(
-      const u8* fullPayload,
-      u32 fullPayloadSize,
-      SequenceNumber sequence,
-      CommState commState = CommState::COMMUNICATING,
-      u32 offset = 0,
-      u8 targetSlots = 0b1111) {
+  // TODO: MOVE OFFSET TO END
+  SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
+                                                 u32 fullPayloadSize,
+                                                 SequenceNumber sequence,
+                                                 u32 offset = 0,
+                                                 u8 targetSlots = 0b1111) {
     SendBuffer<ServerSDKHeader> buffer;
     u32 payloadSize =
         min(fullPayloadSize, LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER);
@@ -216,7 +221,7 @@ class LinkWirelessOpenSDK {
     buffer.header.payloadSize = payloadSize;
     buffer.header.n = sequence.n;
     buffer.header.phase = sequence.phase;
-    buffer.header.commState = commState;
+    buffer.header.commState = sequence.commState;
     u32 headerInt = serializeServerHeader(buffer.header);
 
     buffer.data[buffer.dataSize++] = headerInt;
@@ -255,12 +260,11 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
-  SendBuffer<ClientSDKHeader> createClientBuffer(
-      const u8* fullPayload,
-      u32 fullPayloadSize,
-      SequenceNumber sequence,
-      CommState commState = CommState::COMMUNICATING,
-      u32 offset = 0) {
+  // TODO: MOVE OFFSET TO END
+  SendBuffer<ClientSDKHeader> createClientBuffer(const u8* fullPayload,
+                                                 u32 fullPayloadSize,
+                                                 SequenceNumber sequence,
+                                                 u32 offset = 0) {
     SendBuffer<ClientSDKHeader> buffer;
     u32 payloadSize =
         min(fullPayloadSize, LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_CLIENT);
@@ -269,7 +273,7 @@ class LinkWirelessOpenSDK {
     buffer.header.payloadSize = payloadSize;
     buffer.header.n = sequence.n;
     buffer.header.phase = sequence.phase;
-    buffer.header.commState = commState;
+    buffer.header.commState = sequence.commState;
     u16 headerInt = serializeClientHeader(buffer.header);
 
     buffer.data[buffer.dataSize++] = headerInt;

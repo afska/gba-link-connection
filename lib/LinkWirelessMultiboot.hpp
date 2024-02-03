@@ -42,11 +42,11 @@
 #define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003F0000
 #define LINK_WIRELESS_MULTIBOOT_SETUP_TX 1
 #define LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT 32
-#define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG 0b1000000000000000
+#define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG (1 << 15)
 #define LINK_WIRELESS_MULTIBOOT_FRAME_LINES 228
-#define LINK_WIRELESS_MULTIBOOT_TRY(CALL)        \
-  if ((progress.lastResult = CALL) != SUCCESS) { \
-    return finish(progress.lastResult);          \
+#define LINK_WIRELESS_MULTIBOOT_TRY(CALL) \
+  if ((lastResult = CALL) != SUCCESS) {   \
+    return finish(lastResult);            \
   }
 
 const u8 LINK_WIRELESS_MULTIBOOT_CMD_START[] = {0x00, 0x54, 0x00, 0x00,
@@ -74,9 +74,7 @@ class LinkWirelessMultiboot {
   struct MultibootProgress {
     State state = STOPPED;
     u32 connectedPlayers = 1;
-
-    Result lastResult;
-    LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
+    u32 percentage = 0;
   };
 
   template <typename C>
@@ -106,41 +104,32 @@ class LinkWirelessMultiboot {
     linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
 
     LWMLOG("rom start command...");
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
-        0,
-        [this](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData(
-              linkWirelessOpenSDK->createServerBuffer(
-                  LINK_WIRELESS_MULTIBOOT_CMD_START,
-                  LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE, {1, 0},
-                  LinkWirelessOpenSDK::CommState::STARTING, 0, 0b0001),
-              response);
-        },
-        [](LinkWirelessOpenSDK::ClientPacket packet) {
-          auto header = packet.header;
-          return header.isACK == 1 && header.n == 1 && header.phase == 0 &&
-                 header.commState == LinkWirelessOpenSDK::CommState::STARTING;
-        },
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
+        0,  // TODO: Multiple clients
+        linkWirelessOpenSDK->createServerBuffer(
+            LINK_WIRELESS_MULTIBOOT_CMD_START,
+            LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE,
+            {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 0, 0b0001),
         cancel))
 
     LWMLOG("SENDING ROM!");
     progress.state = SENDING;
     LinkWirelessOpenSDK::ChildrenData childrenData;
-    LinkWirelessOpenSDK::SequenceNumber sequence = {.n = 1, .phase = 0};
+    LinkWirelessOpenSDK::SequenceNumber sequence = {
+        .n = 1,
+        .phase = 0,
+        .commState = LinkWirelessOpenSDK::CommState::COMMUNICATING};
     u32 transferredBytes = 0;
-    u32 percent = 0;
+    progress.percentage = 0;
     while (transferredBytes < romSize) {
       if (cancel(progress))
         return finish(CANCELED);
 
       // TODO: Multiple clients
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, sequence, LinkWirelessOpenSDK::CommState::COMMUNICATING,
-          transferredBytes, 0b0001);
+          rom, romSize, sequence, transferredBytes, 0b0001);
       LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY(
-          sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
-                            sendBuffer.totalByteCount, response))
+      LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(sendBuffer, response))
       childrenData = linkWirelessOpenSDK->getChildrenData(response);
 
       for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
@@ -148,10 +137,10 @@ class LinkWirelessMultiboot {
         if (header.isACK && header.sequence() == sequence) {
           sequence.inc();
           transferredBytes += sendBuffer.header.payloadSize;
-          u32 newPercent = transferredBytes * 100 / romSize;
-          if (newPercent != percent) {
-            percent = newPercent;
-            LWMLOG("-> " + std::to_string(percent));
+          u32 newPercentage = transferredBytes * 100 / romSize;
+          if (newPercentage != progress.percentage) {
+            progress.percentage = newPercentage;
+            LWMLOG("-> " + std::to_string(newPercentage));
           }
           break;
         }
@@ -160,27 +149,18 @@ class LinkWirelessMultiboot {
 
     LWMLOG("confirming (1/2)...");
     progress.state = CONFIRMING;
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
-        0,
-        [this](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData(
-              linkWirelessOpenSDK->createServerBuffer(
-                  {}, 0, {0, 0}, LinkWirelessOpenSDK::CommState::ENDING, 0,
-                  0b0001),
-              response);
-        },
-        [](LinkWirelessOpenSDK::ClientPacket packet) {
-          auto header = packet.header;
-          return header.isACK == 1 && header.n == 0 && header.phase == 0 &&
-                 header.commState == LinkWirelessOpenSDK::CommState::ENDING;
-        },
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
+        0,  // TODO: Multiple clients
+        linkWirelessOpenSDK->createServerBuffer(
+            {}, 0, {0, 0, LinkWirelessOpenSDK::CommState::ENDING}, 0, 0b0001),
         cancel))
 
     LWMLOG("confirming (2/2)...");
+    // TODO: Multiple clients
     LinkRawWireless::ReceiveDataResponse response;
     LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
         linkWirelessOpenSDK->createServerBuffer(
-            {}, 0, {1, 0}, LinkWirelessOpenSDK::CommState::OFF, 0, 0b0001),
+            {}, 0, {1, 0, LinkWirelessOpenSDK::CommState::OFF}, 0, 0b0001),
         response))
 
     LWMLOG("SUCCESS!");
@@ -197,6 +177,8 @@ class LinkWirelessMultiboot {
 
  private:
   MultibootProgress progress;
+  Result lastResult;
+  LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
 
   Result activate() {
     if (!linkRawWireless->activate()) {
@@ -271,7 +253,7 @@ class LinkWirelessMultiboot {
     // initial packet received
 
     LWMLOG("handshake (1/2)...");
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeACK(
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
         [](LinkWirelessOpenSDK::ClientPacket packet) {
           auto header = packet.header;
@@ -282,7 +264,7 @@ class LinkWirelessMultiboot {
     // n = 2, commState = 1
 
     LWMLOG("handshake (2/2)...");
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeACK(
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
         [](LinkWirelessOpenSDK::ClientPacket packet) {
           auto header = packet.header;
@@ -294,10 +276,10 @@ class LinkWirelessMultiboot {
     // n = 1, commState = 2
 
     LWMLOG("receiving name...");
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeACK(
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
         [this](LinkWirelessOpenSDK::ClientPacket packet) {
-          progress.lastValidHeader = packet.header;
+          lastValidHeader = packet.header;
           return packet.header.commState == LinkWirelessOpenSDK::CommState::OFF;
         },
         cancel))
@@ -320,13 +302,36 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
+  template <typename C>
+  __attribute__((noinline)) Result exchangeNewData(
+      u8 clientNumber,
+      LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>
+          sendBuffer,
+      C cancel) {
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
+        clientNumber,
+        [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
+          return sendAndExpectData(sendBuffer, response);
+        },
+        [&sendBuffer](LinkWirelessOpenSDK::ClientPacket packet) {
+          auto header = packet.header;
+          return header.isACK == 1 &&
+                 header.sequence() == sendBuffer.header.sequence();
+        },
+        cancel))
+
+    return SUCCESS;
+  }
+
   template <typename V, typename C>
-  Result exchangeACK(u8 clientNumber, V validatePacket, C cancel) {
+  __attribute__((noinline)) Result exchangeACKData(u8 clientNumber,
+                                                   V validatePacket,
+                                                   C cancel) {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
           return sendAndExpectData(linkWirelessOpenSDK->createServerACKBuffer(
-                                       progress.lastValidHeader, clientNumber),
+                                       lastValidHeader, clientNumber),
                                    response);
         },
         validatePacket, cancel))
@@ -335,10 +340,10 @@ class LinkWirelessMultiboot {
   }
 
   template <typename F, typename V, typename C>
-  Result exchangeData(u8 clientNumber,
-                      F sendAction,
-                      V validatePacket,
-                      C cancel) {
+  __attribute__((noinline)) Result exchangeData(u8 clientNumber,
+                                                F sendAction,
+                                                V validatePacket,
+                                                C cancel) {
     bool hasFinished = false;
     while (!hasFinished) {
       if (cancel(progress))
@@ -354,7 +359,7 @@ class LinkWirelessMultiboot {
         auto header = packet.header;
         if (validatePacket(packet)) {
           hasFinished = true;
-          progress.lastValidHeader = header;
+          lastValidHeader = header;
           break;
         }
       }
@@ -363,14 +368,15 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  Result sendAndExpectData(LinkWirelessOpenSDK::SendBuffer<
-                               LinkWirelessOpenSDK::ServerSDKHeader> sendBuffer,
-                           LinkRawWireless::ReceiveDataResponse& response) {
+  __attribute__((noinline)) Result sendAndExpectData(
+      LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>
+          sendBuffer,
+      LinkRawWireless::ReceiveDataResponse& response) {
     return sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
                              sendBuffer.totalByteCount, response);
   }
 
-  Result sendAndExpectData(
+  __attribute__((noinline)) Result sendAndExpectData(
       std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
       u32 dataSize,
       u32 _bytes,
@@ -408,10 +414,11 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  Result finish(Result result) {
+  __attribute__((noinline)) Result finish(Result result) {
     linkRawWireless->deactivate();
     progress.state = STOPPED;
     progress.connectedPlayers = 1;
+    progress.percentage = 0;
     return result;
   }
 
