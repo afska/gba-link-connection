@@ -39,7 +39,7 @@
 #define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
 #define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
-#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003F0000
+#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003c0000
 #define LINK_WIRELESS_MULTIBOOT_SETUP_TX 1
 #define LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT 32
 #define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG (1 << 15)
@@ -103,9 +103,12 @@ class LinkWirelessMultiboot {
     lastWaitCNT = REG_WAITCNT;
     REG_WAITCNT = 1 << 14;
 
+    LWMLOG("starting...");
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
     progress.state = INITIALIZING;
     LINK_WIRELESS_MULTIBOOT_TRY(initialize(gameName, userName, gameId, players))
+
+    LWMLOG("waiting for connections...");
     progress.state = WAITING;
     LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, cancel))
 
