@@ -80,7 +80,7 @@ class LinkWirelessMultiboot {
 
   struct MultibootProgress {
     State state = STOPPED;
-    u32 connectedPlayers = 1;
+    u32 connectedClients = 0;
     u32 percentage = 0;
   };
 
@@ -187,15 +187,16 @@ class LinkWirelessMultiboot {
   Result waitForClients(u8 players, C cancel) {
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
 
-    progress.connectedPlayers = 1;
+    u32 currentPlayers = 1;
     while (linkRawWireless->playerCount() < players) {
       if (cancel(progress))
         return finish(CANCELED);
 
       linkRawWireless->acceptConnections(acceptResponse);
 
-      if (linkRawWireless->playerCount() > progress.connectedPlayers) {
-        progress.connectedPlayers = linkRawWireless->playerCount();
+      if (linkRawWireless->playerCount() > currentPlayers) {
+        currentPlayers = linkRawWireless->playerCount();
+        progress.connectedClients = currentPlayers - 1;
 
         u8 lastClientNumber =
             acceptResponse
@@ -466,8 +467,14 @@ class LinkWirelessMultiboot {
 
     if (remoteCommand.paramsSize > 0) {
       u8 activeChildren = (remoteCommand.params[0] >> 8) & 0b1111;
-      if (activeChildren == 0) {
-        LWMLOG("! timeout");
+      u8 expectedActiveChildren = 0;
+      for (u32 i = 0; i < progress.connectedClients; i++)
+        expectedActiveChildren |= 1 << i;
+
+      if (activeChildren != expectedActiveChildren) {
+        LWMLOG("! client timeout [" + std::to_string(activeChildren) + "]");
+        LWMLOG("! vs expected: [" + std::to_string(expectedActiveChildren) +
+               "]");
         return FAILURE;
       }
     }
@@ -484,7 +491,7 @@ class LinkWirelessMultiboot {
   __attribute__((noinline)) Result finish(Result result) {
     linkRawWireless->deactivate();
     progress.state = STOPPED;
-    progress.connectedPlayers = 1;
+    progress.connectedClients = 0;
     progress.percentage = 0;
     REG_WAITCNT = lastWaitCNT;
     return result;
