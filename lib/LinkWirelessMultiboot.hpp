@@ -10,12 +10,18 @@
 //         new LinkWirelessMultiboot();
 // - 2) Send the ROM:
 //       LinkWirelessMultiboot::Result result = linkWirelessMultiboot->sendRom(
-//         romBytes, // for current ROM, use: ((const void*)MEM_EWRAM)
-//         romLength, // should be multiple of 0x10
-//         []() {
+//         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
+//         romLength, // in bytes
+//         Multiboot", // game name
+//         "Test", // user name
+//         0xffff, // game id
+//         2, // number of players
+//         [](LinkWirelessMultiboot::MultibootProgress progress) {
+//           // check progress.[state,connectedClients,percentage]
+//
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
-//           // (when this returns true, transfer will be canceled)
+//           // (when this returns true, the transfer will be canceled)
 //         }
 //       );
 //       // `result` should be LinkWirelessMultiboot::Result::SUCCESS
@@ -95,7 +101,7 @@ class LinkWirelessMultiboot {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
-      return INVALID_SIZE;  // TODO: Document no 0x10 boundary limit
+      return INVALID_SIZE;
     if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;

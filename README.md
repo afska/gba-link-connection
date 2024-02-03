@@ -228,7 +228,7 @@ This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM
 
 Name | Return type | Description
 --- | --- | ---
-`sendRom(rom, romSize, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
+`sendRom(rom, romSize, gameName, userName, gameId, players, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. The `players` must be the exact number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. During the process, the library will continuously invoke `cancel` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, as this also ensures compatibility with Multiboot via Link Cable. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
 
 # 🌎 LinkUniversal
 

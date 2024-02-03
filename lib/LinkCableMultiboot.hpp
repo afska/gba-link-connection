@@ -9,12 +9,12 @@
 //       LinkCableMultiboot* linkCableMultiboot = new LinkCableMultiboot();
 // - 2) Send the ROM:
 //       LinkCableMultiboot::Result result = linkCableMultiboot->sendRom(
-//         romBytes, // for current ROM, use: ((const void*)MEM_EWRAM)
-//         romLength, // should be multiple of 0x10
+//         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
+//         romLength, // in bytes, should be multiple of 0x10
 //         []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
-//           // (when this returns true, transfer will be canceled)
+//           // (when this returns true, the transfer will be canceled)
 //         }
 //       );
 //       // `result` should be LinkCableMultiboot::Result::SUCCESS
@@ -73,7 +73,7 @@ class LinkCableMultiboot {
   };
 
   template <typename F>
-  Result sendRom(const void* rom, u32 romSize, F cancel) {
+  Result sendRom(const u8* rom, u32 romSize, F cancel) {
     if (romSize < LINK_CABLE_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE)
@@ -179,7 +179,7 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult sendHeader(const void* rom, F cancel) {
+  PartialResult sendHeader(const u8* rom, F cancel) {
     u16* headerOut = (u16*)rom;
 
     for (int i = 0; i < LINK_CABLE_MULTIBOOT_HEADER_SIZE; i += 2) {

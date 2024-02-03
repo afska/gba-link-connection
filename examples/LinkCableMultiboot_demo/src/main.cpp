@@ -58,7 +58,7 @@ int main() {
 
         // (3) Send the ROM
         result =
-            linkCableMultiboot->sendRom((const void*)MEM_EWRAM, romSize, []() {
+            linkCableMultiboot->sendRom((const u8*)MEM_EWRAM, romSize, []() {
               u16 keys = ~REG_KEYS & KEY_ANY;
               return keys & KEY_SELECT;
             });
