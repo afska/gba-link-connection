@@ -654,6 +654,8 @@ class LinkRawWireless {
     LRWLOG("setting SPI to 2Mbps");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
 
+    wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
+
     remoteCommand.success = true;
     remoteCommand.commandId = commandId;
 
