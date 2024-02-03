@@ -114,64 +114,14 @@ class LinkWirelessMultiboot {
     linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
 
     LWMLOG("rom start command...");
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
-        0,  // TODO: Multiple clients
-        linkWirelessOpenSDK->createServerBuffer(
-            LINK_WIRELESS_MULTIBOOT_CMD_START,
-            LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE,
-            {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 0b0001),
-        cancel))
+    LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(cancel))
 
     LWMLOG("SENDING ROM!");
     progress.state = SENDING;
-    LinkWirelessOpenSDK::ChildrenData childrenData;
-    LinkWirelessOpenSDK::SequenceNumber sequence = {
-        .n = 1,
-        .phase = 0,
-        .commState = LinkWirelessOpenSDK::CommState::COMMUNICATING};
-    u32 transferredBytes = 0;
-    progress.percentage = 0;
-    while (transferredBytes < romSize) {
-      if (cancel(progress))
-        return finish(CANCELED);
+    LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, cancel))
 
-      // TODO: Multiple clients
-      auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, sequence, 0b0001, transferredBytes);
-      LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(sendBuffer, response))
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
-
-      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
-        auto header = childrenData.responses[0].packets[i].header;
-        if (header.isACK && header.sequence() == sequence) {
-          sequence.inc();
-          transferredBytes += sendBuffer.header.payloadSize;
-          u32 newPercentage = transferredBytes * 100 / romSize;
-          if (newPercentage != progress.percentage) {
-            progress.percentage = newPercentage;
-            LWMLOG("-> " + std::to_string(newPercentage));
-          }
-          break;
-        }
-      }
-    }
-
-    LWMLOG("confirming (1/2)...");
     progress.state = CONFIRMING;
-    LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
-        0,  // TODO: Multiple clients
-        linkWirelessOpenSDK->createServerBuffer(
-            {}, 0, {0, 0, LinkWirelessOpenSDK::CommState::ENDING}, 0b0001),
-        cancel))
-
-    LWMLOG("confirming (2/2)...");
-    // TODO: Multiple clients
-    LinkRawWireless::ReceiveDataResponse response;
-    LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
-        linkWirelessOpenSDK->createServerBuffer(
-            {}, 0, {1, 0, LinkWirelessOpenSDK::CommState::OFF}, 0b0001),
-        response))
+    LINK_WIRELESS_MULTIBOOT_TRY(confirm(cancel))
 
     LWMLOG("SUCCESS!");
     return finish(SUCCESS);
@@ -338,6 +288,77 @@ class LinkWirelessMultiboot {
     // (no more client packets)
 
     LWMLOG("client " + std::to_string(clientNumber) + " accepted");
+
+    return SUCCESS;
+  }
+
+  template <typename C>
+  Result sendRomStartCommand(C cancel) {
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
+        0,  // TODO: Multiple clients
+        linkWirelessOpenSDK->createServerBuffer(
+            LINK_WIRELESS_MULTIBOOT_CMD_START,
+            LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE,
+            {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 0b0001),
+        cancel))
+
+    return SUCCESS;
+  }
+
+  template <typename C>
+  Result sendRomBytes(const u8* rom, u32 romSize, C cancel) {
+    LinkWirelessOpenSDK::ChildrenData childrenData;
+    LinkWirelessOpenSDK::SequenceNumber sequence = {
+        .n = 1,
+        .phase = 0,
+        .commState = LinkWirelessOpenSDK::CommState::COMMUNICATING};
+    u32 transferredBytes = 0;
+    progress.percentage = 0;
+    while (transferredBytes < romSize) {
+      if (cancel(progress))
+        return finish(CANCELED);
+
+      // TODO: Multiple clients
+      auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
+          rom, romSize, sequence, 0b0001, transferredBytes);
+      LinkRawWireless::ReceiveDataResponse response;
+      LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(sendBuffer, response))
+      childrenData = linkWirelessOpenSDK->getChildrenData(response);
+
+      for (u32 i = 0; i < childrenData.responses[0].packetsSize; i++) {
+        auto header = childrenData.responses[0].packets[i].header;
+        if (header.isACK && header.sequence() == sequence) {
+          sequence.inc();
+          transferredBytes += sendBuffer.header.payloadSize;
+          u32 newPercentage = transferredBytes * 100 / romSize;
+          if (newPercentage != progress.percentage) {
+            progress.percentage = newPercentage;
+            LWMLOG("-> " + std::to_string(newPercentage));
+          }
+          break;
+        }
+      }
+    }
+
+    return SUCCESS;
+  }
+
+  template <typename C>
+  Result confirm(C cancel) {
+    LWMLOG("confirming (1/2)...");
+    LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
+        0,  // TODO: Multiple clients
+        linkWirelessOpenSDK->createServerBuffer(
+            {}, 0, {0, 0, LinkWirelessOpenSDK::CommState::ENDING}, 0b0001),
+        cancel))
+
+    LWMLOG("confirming (2/2)...");
+    // TODO: Multiple clients
+    LinkRawWireless::ReceiveDataResponse response;
+    LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
+        linkWirelessOpenSDK->createServerBuffer(
+            {}, 0, {1, 0, LinkWirelessOpenSDK::CommState::OFF}, 0b0001),
+        response))
 
     return SUCCESS;
   }
