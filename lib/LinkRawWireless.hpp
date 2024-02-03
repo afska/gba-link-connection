@@ -39,7 +39,6 @@
 #define LINK_RAW_WIRELESS_RESPONSE_ACK 0x80
 #define LINK_RAW_WIRELESS_DATA_REQUEST 0x80000000
 #define LINK_RAW_WIRELESS_SETUP_MAGIC 0x003c0000
-#define LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT 16
 #define LINK_RAW_WIRELESS_STILL_CONNECTING 0x01000000
 #define LINK_RAW_WIRELESS_BROADCAST_LENGTH 6
 #define LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH \
@@ -172,10 +171,10 @@ class LinkRawWireless {
              u8 maxTransmissions = 4,
              u8 waitTimeout = 32,
              u32 magic = LINK_RAW_WIRELESS_SETUP_MAGIC) {
-    u32 config = (u32)(magic |
-                       (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11)
-                        << LINK_RAW_WIRELESS_SETUP_MAX_PLAYERS_BIT) |
-                       (maxTransmissions << 8) | waitTimeout);
+    u32 config =
+        (u32)(magic |
+              (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11) << 16) |
+              (maxTransmissions << 8) | waitTimeout);
     return sendCommand(LINK_RAW_WIRELESS_COMMAND_SETUP, {config}, 1).success;
   }
 
@@ -244,6 +243,7 @@ class LinkRawWireless {
       return false;
     }
 
+    response.connectedClientsSize = 0;
     for (u32 i = 0; i < result.responsesSize; i++) {
       if (i == 0) {
         response.nextClientNumber = (u8)lsB32(result.responses[i]);
@@ -265,6 +265,7 @@ class LinkRawWireless {
       return false;
     }
 
+    response.connectedClientsSize = 0;
     for (u32 i = 0; i < result.responsesSize; i++) {
       response.connectedClients[response.connectedClientsSize++] =
           ConnectedClient{.deviceId = lsB32(result.responses[i]),
@@ -287,6 +288,7 @@ class LinkRawWireless {
       return false;
     }
 
+    response.connectedClientsSize = 0;
     for (u32 i = 0; i < result.responsesSize; i++) {
       response.connectedClients[response.connectedClientsSize++] =
           ConnectedClient{.deviceId = lsB32(result.responses[i]),
@@ -330,6 +332,7 @@ class LinkRawWireless {
     u32 totalBroadcasts =
         result.responsesSize / LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH;
 
+    response.serversSize = 0;
     for (u32 i = 0; i < totalBroadcasts; i++) {
       u32 start = LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH * i;
 

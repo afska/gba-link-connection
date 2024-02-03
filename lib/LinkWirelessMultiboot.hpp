@@ -197,7 +197,10 @@ class LinkWirelessMultiboot {
       if (linkRawWireless->playerCount() > progress.connectedPlayers) {
         progress.connectedPlayers = linkRawWireless->playerCount();
 
-        u8 lastClientNumber = acceptResponse.connectedClientsSize - 1;
+        u8 lastClientNumber =
+            acceptResponse
+                .connectedClients[acceptResponse.connectedClientsSize - 1]
+                .clientNumber;
         LINK_WIRELESS_MULTIBOOT_TRY(handshakeClient(lastClientNumber, cancel))
       }
     }
