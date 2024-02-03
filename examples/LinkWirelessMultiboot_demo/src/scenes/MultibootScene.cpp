@@ -36,7 +36,7 @@ static std::unique_ptr<InputHandler> selectHandler =
 
 static std::vector<std::string> logLines;
 static u32 currentLogLine = 0;
-static bool useVerboseLog = true;
+static u32 players = 5;
 
 #define MAX_LINES 20
 #define DRAW_LINE 0
@@ -122,14 +122,12 @@ void MultibootScene::load() {
   SCENE_init();
   BACKGROUND_enable(true, false, false, false);
 
-  linkWirelessMultiboot->logger = [](std::string string) {
-    // if (useVerboseLog) // TODO: RESTORE
+  linkWirelessMultiboot->logger = [](std::string string) { log(string); };
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+  linkWirelessMultiboot->linkRawWireless->logger = [](std::string string) {
     log(string);
   };
-  linkWirelessMultiboot->linkRawWireless->logger = [](std::string string) {
-    if (useVerboseLog)
-      log(string);
-  };
+#endif
 
   log("---");
   log("LinkWirelessMultiboot demo");
@@ -146,14 +144,14 @@ void MultibootScene::load() {
       ;
   }
   log("A: send ROM");
-  log("B: toggle log level");
+  log("B: toggle players");
   log("UP/DOWN: scroll up/down");
   log("L/R: scroll page up/down");
   log("UP+L/DOWN+R: scroll to top/bottom");
   log("SELECT: clear");
   log("---");
   log("");
-  toggleLogLevel();
+  togglePlayers();
 }
 
 void MultibootScene::tick(u16 keys) {
@@ -180,7 +178,7 @@ void MultibootScene::processKeys(u16 keys) {
 
 void MultibootScene::processButtons() {
   if (bHandler->hasBeenPressedNow())
-    toggleLogLevel();
+    togglePlayers();
 
   if (aHandler->hasBeenPressedNow()) {
     u32 fileLength;
@@ -188,7 +186,7 @@ void MultibootScene::processButtons() {
         (const u8*)gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
 
     auto result = linkWirelessMultiboot->sendRom(
-        romToSend, fileLength, "Multiboot", "Test", 0xffff, 2,
+        romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
         [](LinkWirelessMultiboot::MultibootProgress progress) {
           return false;
         });
@@ -220,15 +218,12 @@ void MultibootScene::processButtons() {
     clear();
 }
 
-void MultibootScene::toggleLogLevel() {
-  if (useVerboseLog) {
-    useVerboseLog = false;
-    log("! setting log level to NORMAL");
-  } else {
-    useVerboseLog = true;
-    log("! setting log level to VERBOSE");
-  }
-  log("");
+void MultibootScene::togglePlayers() {
+  players++;
+  if (players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
+    players = LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS;
+
+  log("! setting players: " + std::to_string(players));
 }
 
 void MultibootScene::logOperation(std::string name,

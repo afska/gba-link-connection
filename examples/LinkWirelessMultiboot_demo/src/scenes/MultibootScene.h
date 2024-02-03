@@ -28,7 +28,7 @@ class MultibootScene : public Scene {
 
   void processKeys(u16 keys);
   void processButtons();
-  void toggleLogLevel();
+  void togglePlayers();
   void logOperation(std::string name, std::function<bool()> operation);
 };
 
