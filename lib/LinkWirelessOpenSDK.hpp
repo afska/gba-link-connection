@@ -206,12 +206,11 @@ class LinkWirelessOpenSDK {
     return parentData;
   }
 
-  // TODO: MOVE OFFSET TO END
   SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
                                                  SequenceNumber sequence,
-                                                 u32 offset = 0,
-                                                 u8 targetSlots = 0b1111) {
+                                                 u8 targetSlots = 0b1111,
+                                                 u32 offset = 0) {
     SendBuffer<ServerSDKHeader> buffer;
     u32 payloadSize =
         min(fullPayloadSize, LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER);
@@ -260,7 +259,6 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
-  // TODO: MOVE OFFSET TO END
   SendBuffer<ClientSDKHeader> createClientBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
                                                  SequenceNumber sequence,

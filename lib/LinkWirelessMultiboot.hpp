@@ -109,7 +109,7 @@ class LinkWirelessMultiboot {
         linkWirelessOpenSDK->createServerBuffer(
             LINK_WIRELESS_MULTIBOOT_CMD_START,
             LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE,
-            {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 0, 0b0001),
+            {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 0b0001),
         cancel))
 
     LWMLOG("SENDING ROM!");
@@ -127,7 +127,7 @@ class LinkWirelessMultiboot {
 
       // TODO: Multiple clients
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, sequence, transferredBytes, 0b0001);
+          rom, romSize, sequence, 0b0001, transferredBytes);
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(sendBuffer, response))
       childrenData = linkWirelessOpenSDK->getChildrenData(response);
@@ -152,7 +152,7 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
         0,  // TODO: Multiple clients
         linkWirelessOpenSDK->createServerBuffer(
-            {}, 0, {0, 0, LinkWirelessOpenSDK::CommState::ENDING}, 0, 0b0001),
+            {}, 0, {0, 0, LinkWirelessOpenSDK::CommState::ENDING}, 0b0001),
         cancel))
 
     LWMLOG("confirming (2/2)...");
@@ -160,7 +160,7 @@ class LinkWirelessMultiboot {
     LinkRawWireless::ReceiveDataResponse response;
     LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
         linkWirelessOpenSDK->createServerBuffer(
-            {}, 0, {1, 0, LinkWirelessOpenSDK::CommState::OFF}, 0, 0b0001),
+            {}, 0, {1, 0, LinkWirelessOpenSDK::CommState::OFF}, 0b0001),
         response))
 
     LWMLOG("SUCCESS!");
@@ -250,7 +250,7 @@ class LinkWirelessMultiboot {
           return sendAndExpectData(toArray(), 0, 1, response);
         },
         [](LinkWirelessOpenSDK::ClientPacket packet) { return true; }, cancel))
-    // initial packet received
+    // (initial client packet received)
 
     LWMLOG("handshake (1/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
@@ -261,7 +261,7 @@ class LinkWirelessMultiboot {
                  header.commState == LinkWirelessOpenSDK::CommState::STARTING;
         },
         cancel))
-    // n = 2, commState = 1
+    // (n = 2, commState = 1)
 
     LWMLOG("handshake (2/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
@@ -273,7 +273,7 @@ class LinkWirelessMultiboot {
                      LinkWirelessOpenSDK::CommState::COMMUNICATING;
         },
         cancel))
-    // n = 1, commState = 2
+    // (n = 1, commState = 2)
 
     LWMLOG("receiving name...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
@@ -283,7 +283,7 @@ class LinkWirelessMultiboot {
           return packet.header.commState == LinkWirelessOpenSDK::CommState::OFF;
         },
         cancel))
-    // commState = 0
+    // (commState = 0)
 
     LWMLOG("draining queue...");
     bool hasFinished = false;
@@ -296,6 +296,7 @@ class LinkWirelessMultiboot {
       auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
       hasFinished = childrenData.responses[clientNumber].packetsSize == 0;
     }
+    // (no more client packets)
 
     LWMLOG("client " + std::to_string(clientNumber) + " accepted");
 
