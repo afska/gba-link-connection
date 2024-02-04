@@ -1,6 +1,9 @@
 #ifndef LINK_WIRELESS_MULTIBOOT_H
 #define LINK_WIRELESS_MULTIBOOT_H
 
+#pragma GCC push_options
+#pragma GCC optimize("O2")
+
 // --------------------------------------------------------------------------
 // A Wireless Multiboot tool to send small ROMs from a GBA to up to 4 slaves.
 // --------------------------------------------------------------------------
@@ -739,5 +742,7 @@ class LinkWirelessMultiboot {
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
 
 #undef LWMLOG
+
+#pragma GCC pop_options
 
 #endif  // LINK_WIRELESS_MULTIBOOT_H
