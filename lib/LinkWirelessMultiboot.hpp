@@ -669,10 +669,11 @@ class LinkWirelessMultiboot {
     }
 
     if (remoteCommand.paramsSize > 0) {
-      u8 activeChildren = (remoteCommand.params[0] >> 8) & 0b1111;
       u8 expectedActiveChildren = 0;
       for (u32 i = 0; i < progress.connectedClients; i++)
         expectedActiveChildren |= 1 << i;
+      u8 activeChildren =
+          (remoteCommand.params[0] >> 8) & expectedActiveChildren;
 
       if (activeChildren != expectedActiveChildren) {
         LWMLOG("! client timeout [" + std::to_string(activeChildren) + "]");
