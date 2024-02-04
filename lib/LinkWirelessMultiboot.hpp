@@ -35,6 +35,7 @@
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#include <string>
 #define LWMLOG(str) logger(str)
 #else
 #define LWMLOG(str)
@@ -63,6 +64,10 @@ const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[][6] = {
     {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
     {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
 const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE = 6;
+const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH[] = {
+    0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42, 0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00};
+const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET = 4;
+const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE = 12;
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v6.2.0";
@@ -462,6 +467,16 @@ class LinkWirelessMultiboot {
                                                 C cancel) {
     LinkWirelessOpenSDK::ChildrenData childrenData;
     std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1> transfers;
+    u8 firstPagePatch[LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER];
+    for (u32 i = 0; i < LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER; i++) {
+      firstPagePatch[i] =
+          i >= LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET &&
+                  i < LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET +
+                          LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE
+              ? LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH
+                    [i - LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET]
+              : rom[i];
+    }
 
     progress.percentage = 0;
     u32 minClient = 0;
@@ -474,9 +489,10 @@ class LinkWirelessMultiboot {
       u32 cursor = findMinCursor(transfers);
       u32 offset = cursor * LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER;
       auto sequence = LinkWirelessOpenSDK::SequenceNumber::fromPacketId(cursor);
+      const u8* bufferToSend = cursor == 0 ? (const u8*)firstPagePatch : rom;
 
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
-          rom, romSize, sequence, 0b1111, offset);
+          bufferToSend, romSize, sequence, 0b1111, offset);
 
       for (u32 i = 0; i < progress.connectedClients; i++)
         transfers[i].addIfNeeded(cursor);
@@ -499,9 +515,10 @@ class LinkWirelessMultiboot {
       }
 
       u32 newPercentage =
-          transfers[findMinClient(transfers)].transferred() * 100 / romSize;
+          min(transfers[findMinClient(transfers)].transferred() * 100 / romSize,
+              100);
       if (newPercentage != progress.percentage) {
-        progress.percentage = min(newPercentage, 100);
+        progress.percentage = newPercentage;
         LWMLOG("-> " + std::to_string(newPercentage));
       }
     }
