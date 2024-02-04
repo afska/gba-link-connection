@@ -59,14 +59,10 @@ class LinkWirelessOpenSDK {
     u32 phase = 0;
     CommState commState = OFF;
 
-    void inc() {
-      phase++;
-      if (phase == 4) {
-        phase = 0;
-        n++;
-        if (n == 4)
-          n = 0;
-      }
+    static SequenceNumber fromPacketId(u32 packetId) {
+      return SequenceNumber{.n = ((packetId + 4) / 4) % 4,
+                            packetId % 4,
+                            .commState = COMMUNICATING};
     }
 
     bool operator==(const SequenceNumber& other) {
