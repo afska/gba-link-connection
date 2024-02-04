@@ -112,6 +112,9 @@ class LinkWirelessMultiboot {
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
 
+    lastWaitCNT = REG_WAITCNT;
+    REG_WAITCNT = 1 << 14;
+
     LWMLOG("starting...");
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
     progress.state = INITIALIZING;
@@ -290,6 +293,7 @@ class LinkWirelessMultiboot {
   MultibootProgress progress;
   Result lastResult;
   LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
+  u16 lastWaitCNT;
 
   __attribute__((noinline)) Result activate() {
     if (!linkRawWireless->activate()) {
@@ -665,12 +669,35 @@ class LinkWirelessMultiboot {
       u32 dataSize,
       u32 _bytes,
       LinkRawWireless::ReceiveDataResponse& response) {
+    LinkRawWireless::RemoteCommand remoteCommand;
     bool success = false;
 
-    success = linkRawWireless->sendData(data, dataSize, _bytes);
+    success =
+        linkRawWireless->sendDataAndWait(data, dataSize, remoteCommand, _bytes);
     if (!success) {
-      LWMLOG("! sendData failed");
+      LWMLOG("! sendDataAndWait failed");
       return FAILURE;
+    }
+
+    if (remoteCommand.commandId != 0x28) {
+      LWMLOG("! expected EVENT 0x28");
+      LWMLOG("! but got " + toHex(remoteCommand.commandId));
+      return FAILURE;
+    }
+
+    if (remoteCommand.paramsSize > 0) {
+      u8 expectedActiveChildren = 0;
+      for (u32 i = 0; i < progress.connectedClients; i++)
+        expectedActiveChildren |= 1 << i;
+      u8 activeChildren =
+          (remoteCommand.params[0] >> 8) & expectedActiveChildren;
+
+      if (activeChildren != expectedActiveChildren) {
+        LWMLOG("! client timeout [" + std::to_string(activeChildren) + "]");
+        LWMLOG("! vs expected: [" + std::to_string(expectedActiveChildren) +
+               "]");
+        return FAILURE;
+      }
     }
 
     success = linkRawWireless->receiveData(response);
@@ -687,6 +714,7 @@ class LinkWirelessMultiboot {
     progress.state = STOPPED;
     progress.connectedClients = 0;
     progress.percentage = 0;
+    REG_WAITCNT = lastWaitCNT;
     return result;
   }
 
