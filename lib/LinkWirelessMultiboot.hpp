@@ -115,9 +115,6 @@ class LinkWirelessMultiboot {
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
 
-    lastWaitCNT = REG_WAITCNT;
-    REG_WAITCNT = 1 << 14;
-
     LWMLOG("starting...");
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
     progress.state = INITIALIZING;
@@ -296,7 +293,6 @@ class LinkWirelessMultiboot {
   MultibootProgress progress;
   Result lastResult;
   LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
-  u16 lastWaitCNT;
 
   __attribute__((noinline)) Result activate() {
     if (!linkRawWireless->activate()) {
@@ -717,7 +713,6 @@ class LinkWirelessMultiboot {
     progress.state = STOPPED;
     progress.connectedClients = 0;
     progress.percentage = 0;
-    REG_WAITCNT = lastWaitCNT;
     return result;
   }
 
