@@ -203,15 +203,6 @@ Commands are how you tell the adapter to do things. When in command mode the clo
 
 ⌛ If this acknowledge procedure doesn't complete, the adapter "gives up" after ~800μs and start listening again for commands. That means that if a game doesn't implement this logic, it has to wait almost 1 millisecond between transfers (vs ~40μs in normal scenarios).
 
-🔀 Also, the ACK protocol is reversed after a [Wait](#waiting) command (when the clock is reversed):
-
-    1.  The adapter goes low as soon as it can.
-    1.  The GBA goes high.
-    2.  The adapter goes high.
-    3.  The GBA goes low _when it’s ready_.
-    3.  The adapter goes low when it's ready.
-    4.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
-
 Whenever either side expects something to be sent from the other (as SPI is always dual direction, although one side is often not used), the value `0x80000000` is used.
 
 ### List of commands
@@ -541,6 +532,28 @@ Waiting
   - Bit 8 of the response indicates the reason: 
     * `0` = manual disconnect (aka the host used [DisconnectClient](#disconnectclient---0x30))
     *  `1` = the connection was lost
+
+◀ **Inverted ACKs**
+
+The ACK protocol changes while the clock is inverted.
+
+Right after the adapter responds to a `0x9966xx25` with `0x996600A5`, it behaves like this:
+
+    1.  The adapter stays high until the GBA goes high
+    2.  The adapter goes low
+    3.  The GBA goes low
+
+[![Image without alt text or caption](img/clock-inversion-ack-start.png)](img/clock-inversion-ack-start.png)
+
+Then, when the adapter issues commands to the GBA, the acknowledge procedure is 'standard', but with the inverted roles:
+
+    1.  The adapter goes low as soon as it can.
+    2.  The GBA goes high.
+    3.  The adapter goes high.
+    4.  The GBA goes low _when it’s ready_.
+    5.  The adapter goes low when it's ready.
+    6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+
 
 SPI config
 ----------
