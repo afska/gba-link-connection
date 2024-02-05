@@ -93,5 +93,5 @@ cd LinkWirelessMultiboot_demo/
 sed -i -e "s/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
 make rebuild
 cp LinkWirelessMultiboot_demo.out.gba ../LinkWirelessMultiboot_demo.gba
-sed -i -e "s/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
+sed -i -e "s/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
 cd ..
