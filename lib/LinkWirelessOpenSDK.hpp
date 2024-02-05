@@ -4,7 +4,7 @@
 // --------------------------------------------------------------------------
 // An open-source implementation of the "official" Wireless Adapter protocol.
 // --------------------------------------------------------------------------
-// TODO: Document
+// - Check out README.md for documentation.
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>
