@@ -237,7 +237,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 🛰️ Bits `8-15` specify the number of times the adapter would perform a transmission. The default is `0`, which means infinite retransmissions. Setting a value of `3` means: transmit once, and only retry two times if the other console didn't receive data. After the maximum number of transmissions is reached, the client is marked as _inactive_ and will appear on the extra parameter that the adapter sends (`0x99660128`) in the [waiting commands](#waiting).
 
-⏲️ Bits `0-7` represent the timeout of the [waiting commands](#waiting)(#waiting). The default is _no timeout_ (`0`), but if this is set, the adapter will issue a `0x99660027` command after the timeout is reached. It's expressed in _frames_ (units of 16.6 ms).
+⏲️ Bits `0-7` represent the timeout of the [waiting commands](#waiting). The default is _no timeout_ (`0`), but if this is set, the adapter will issue a `0x99660027` command after the timeout is reached. It's expressed in _frames_ (units of 16.6 ms).
 
 #### Broadcast - `0x16`
 
@@ -539,17 +539,7 @@ Waiting
 
 ◀ **Inverted ACKs**
 
-The ACK protocol changes while the clock is inverted.
-
-Right after the adapter responds to a `0x9966xx25` with `0x996600A5`, it behaves like this:
-
-    1.  The adapter stays high until the GBA goes high
-    2.  The adapter goes low
-    3.  The GBA goes low
-
-[![Image without alt text or caption](img/clock-inversion-ack-start.png)](img/clock-inversion-ack-start.png)
-
-Then, when the adapter issues commands to the GBA, the acknowledge procedure is 'standard', but with the inverted roles:
+While the clock is inverted, the acknowledge procedure is 'standard' but with the inverted roles
 
     1.  The adapter goes low as soon as it can.
     2.  The GBA goes high.
@@ -575,17 +565,19 @@ To host a 'multiboot' room, a host sets the **multiboot flag** (bit 15) in its g
 
 ### Valid header
 
-The bootloader will only accept ROMs with valid headers: they must contain this in its bytes `4-15`:
+The bootloader will only accept ROMs with valid headers: they must contain this in their bytes `4-15`:
 
 `0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42, 0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00`
 
-(this represents the string `RFU-MB-DL` and zeros)
+(this represents the string `RFU-MBOOT` and zeros)
 
-### Custom protocol
+When the bootloader accepts the ROM, it will run the jump instruction located at the first byte. No extra headers are required apart from these 16 bytes.
+
+### Official protocol
 
 > You can learn more details by reading [LinkWirelessOpenSDK.hpp](../lib/LinkWirelessOpenSDK.hpp)'s code.
 
-All this communication uses a custom software-layer protocol made by Nintendo, the same one used by first-party games.
+All this communication uses an 'official' software-layer protocol made by Nintendo, the same one used by first-party games.
 
 Server buffers use a 3-byte header:
 
@@ -674,6 +666,7 @@ enum CommState : unsigned int {
 - Client: sends `0x00000080`
     - Header: `0x0080` (`size=0, n=1, ph=0, ack=0, commState=0`) (`0 = OFF`)
     - No payload
+- Server: ACKs the packet
 
 ## (2) ROM start command
 
