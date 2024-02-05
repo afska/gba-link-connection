@@ -618,7 +618,10 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
                 linkRawWireless->toHex(servers[i].nextClientNumber, 2));
           }
 
-          log("NOW CALL 0x1e!");
+          if (response.serversSize > 0)
+            log("NOW CALL 0x1e!");
+          else
+            log("No rooms? NOW CALL 0x1e!");
         }
 
         return success;

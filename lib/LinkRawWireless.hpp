@@ -318,7 +318,7 @@ class LinkRawWireless {
     return true;
   }
 
-  bool broadcastReadPoll(BroadcastReadPollResponse response) {
+  bool broadcastReadPoll(BroadcastReadPollResponse& response) {
     auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL);
     bool success =
         result.success &&
@@ -354,9 +354,6 @@ class LinkRawWireless {
       response.servers[response.serversSize++] = server;
     }
 
-    LRWLOG("state = AUTHENTICATED");
-    state = AUTHENTICATED;
-
     return true;
   }
 
@@ -368,6 +365,9 @@ class LinkRawWireless {
       reset();
       return false;
     }
+
+    LRWLOG("state = AUTHENTICATED");
+    state = AUTHENTICATED;
 
     return true;
   }
