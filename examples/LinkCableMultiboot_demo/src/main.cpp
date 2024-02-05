@@ -31,7 +31,7 @@ int main() {
   // Hardcoded ROM length
   // This is optional, you could also use `LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE`
   // (but the transfer will be painfully slow)
-  u32 romSize = 64880;
+  u32 romSize = 39264;
   // Note that this project's Makefile pads the ROM to a 0x10 boundary
   // (as required for Multiboot).
 
