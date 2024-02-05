@@ -481,7 +481,7 @@ class LinkRawWireless {
     LRWLOG("using header " + toHex(header));
 
     if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT, data,
-                     dataSize)
+                     dataSize, true)
              .success) {
       reset();
       return false;
@@ -522,7 +522,7 @@ class LinkRawWireless {
   }
 
   bool wait(RemoteCommand& remoteCommand) {
-    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_WAIT).success) {
+    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_WAIT, {}, 0, true).success) {
       reset();
       return false;
     }
@@ -536,7 +536,8 @@ class LinkRawWireless {
       u8 type,
       std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params =
           {},
-      u16 length = 0) {
+      u16 length = 0,
+      bool invertsClock = false) {
     CommandResult result;
     u32 command = buildCommand(type, length);
     u32 r;
@@ -560,7 +561,10 @@ class LinkRawWireless {
     }
 
     LRWLOG("sending response request");
-    u32 response = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+    u32 response =
+        invertsClock
+            ? transferAndStartClockInversionACK(LINK_RAW_WIRELESS_DATA_REQUEST)
+            : transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
     u16 header = msB32(response);
     u16 data = lsB32(response);
     u8 responses = msB16(data);
@@ -572,7 +576,7 @@ class LinkRawWireless {
       return result;
     }
     if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK) {
-      if (ack == 0xee && responses == 1) {
+      if (ack == 0xee && responses == 1 && !invertsClock) {
         u8 __attribute__((unused)) code =
             (u8)transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
         LRWLOG("! error received");
@@ -586,12 +590,14 @@ class LinkRawWireless {
     }
     LRWLOG("ack ok! " + std::to_string(responses) + " responses");
 
-    for (u32 i = 0; i < responses; i++) {
-      LRWLOG("response " + std::to_string(i + 1) + "/" +
-             std::to_string(responses) + ":");
-      u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
-      result.responses[result.responsesSize++] = responseData;
-      LRWLOG("<< " + toHex(responseData));
+    if (!invertsClock) {
+      for (u32 i = 0; i < responses; i++) {
+        LRWLOG("response " + std::to_string(i + 1) + "/" +
+               std::to_string(responses) + ":");
+        u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+        result.responses[result.responsesSize++] = responseData;
+        LRWLOG("<< " + toHex(responseData));
+      }
     }
 
     result.success = true;
@@ -605,7 +611,8 @@ class LinkRawWireless {
     linkSPI->activate(LinkSPI::Mode::SLAVE);
 
     LRWLOG("WAITING for adapter cmd");
-    u32 command = linkSPI->transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+    u32 command = linkSPI->transfer(
+        LINK_RAW_WIRELESS_DATA_REQUEST, []() { return false; }, false, true);
     if (!reverseAcknowledge()) {
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
@@ -629,7 +636,8 @@ class LinkRawWireless {
     for (u32 i = 0; i < params; i++) {
       LRWLOG("param " + std::to_string(i + 1) + "/" + std::to_string(params) +
              ":");
-      u32 paramData = linkSPI->transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+      u32 paramData = linkSPI->transfer(
+          LINK_RAW_WIRELESS_DATA_REQUEST, []() { return false; }, false, true);
       if (!reverseAcknowledge()) {
         linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
         reset();
@@ -640,8 +648,10 @@ class LinkRawWireless {
     }
 
     LRWLOG("sending ack");
-    command = linkSPI->transfer(0x99660000 | ((commandId + 0x80) & 0xff));
-    if (!reverseAcknowledge()) {
+    command = linkSPI->transfer(
+        0x99660000 | ((commandId + 0x80) & 0xff), []() { return false; }, false,
+        true);
+    if (!reverseAcknowledge(true)) {
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
       return remoteCommand;
@@ -836,6 +846,19 @@ class LinkRawWireless {
     return receivedData;
   }
 
+  u32 transferAndStartClockInversionACK(u32 data) {
+    u32 lines = 0;
+    u32 vCount = REG_VCOUNT;
+    u32 receivedData = linkSPI->transfer(
+        data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); },
+        false, true);
+
+    if (!reverseAcknowledgeStart())
+      return LINK_SPI_NO_DATA;
+
+    return receivedData;
+  }
+
   bool acknowledge() {
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
@@ -861,15 +884,55 @@ class LinkRawWireless {
     return true;
   }
 
-  bool reverseAcknowledge() {
+  bool reverseAcknowledgeStart() {
     u32 lines = 0;
     u32 vCount = REG_VCOUNT;
 
+    linkSPI->_setSOLow();
+    wait(1);
+    linkSPI->_setSOHigh();
+    while (linkSPI->_isSIHigh()) {
+      if (cmdTimeout(lines, vCount)) {
+        LRWLOG("! Rev0 failed. I put SO=HIGH,");
+        LRWLOG("! but SI didn't become LOW.");
+        return false;
+      }
+    }
+    linkSPI->_setSOLow();
+
+    return true;
+  }
+
+  bool reverseAcknowledge(bool isLastPart = false) {
+    u32 lines = 0;
+    u32 vCount = REG_VCOUNT;
+
+    linkSPI->_setSOLow();
+    while (linkSPI->_isSIHigh()) {
+      if (cmdTimeout(lines, vCount)) {
+        LRWLOG("! RevAck0 failed. I put SO=LOW,");
+        LRWLOG("! but SI didn't become LOW.");
+        return false;
+      }
+    }
+
+    linkSPI->_setSOHigh();
     while (!linkSPI->_isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
-        LRWLOG("! REV_ACK failed. I put SO=HIGH,");
+        LRWLOG("! RevAck1 failed. I put SO=HIGH,");
         LRWLOG("! but SI didn't become HIGH.");
         return false;
+      }
+    }
+    // (normally, this occurs on the next linkSPI->transfer(...) call)
+    if (isLastPart) {
+      linkSPI->_setSOLow();
+      while (linkSPI->_isSIHigh()) {
+        if (cmdTimeout(lines, vCount)) {
+          LRWLOG("! RevAck2 failed. I put SO=LOW,");
+          LRWLOG("! but SI didn't become LOW.");
+          return false;
+        }
       }
     }
 

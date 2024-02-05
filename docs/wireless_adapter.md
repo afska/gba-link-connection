@@ -203,13 +203,14 @@ Commands are how you tell the adapter to do things. When in command mode the clo
 
 ⌛ If this acknowledge procedure doesn't complete, the adapter "gives up" after ~800μs and start listening again for commands. That means that if a game doesn't implement this logic, it has to wait almost 1 millisecond between transfers (vs ~40μs in normal scenarios).
 
-🔀 Also, the ACK protocol is different after a [Wait](#waiting) command:
+🔀 Also, the ACK protocol is reversed after a [Wait](#waiting) command (when the clock is reversed):
 
-    1.  The GBA goes high as soon as it can.
+    1.  The adapter goes low as soon as it can.
+    1.  The GBA goes high.
     2.  The adapter goes high.
     3.  The GBA goes low _when it’s ready_.
-    4.  The adapter goes low when it’s ready.
-    5.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+    3.  The adapter goes low when it's ready.
+    4.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
 
 Whenever either side expects something to be sent from the other (as SPI is always dual direction, although one side is often not used), the value `0x80000000` is used.
 

@@ -892,7 +892,8 @@ std::string DebugScene::selectUserName() {
 void DebugScene::logGenericWaitCommand(std::string name, u32 id) {
   auto data = selectData();
   return logOperation("sending " + name, [id, &data]() {
-    auto result = linkRawWireless->sendCommand(id, toArray(data), data.size());
+    auto result =
+        linkRawWireless->sendCommand(id, toArray(data), data.size(), true);
     for (u32 i = 0; i < result.responsesSize; i++) {
       log("< [response" + std::to_string(i) + "] " +
           linkRawWireless->toHex(result.responses[i]));
