@@ -4,6 +4,8 @@ Game Boy Advance Wireless Adapter
 - 🌎 **Original post**: https://blog.kuiper.dev/gba-wireless-adapter 🌎
 - ✏️ **Updates**: [@davidgfnet](https://github.com/davidgfnet) and I were discovering new things and we added them here!
 
+> You can learn more details by reading [LinkRawWireless.hpp](../lib/LinkRawWireless.hpp)'s code.
+
 The Wireless Adapter
 ====================
 
@@ -251,7 +253,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 (if you read from right to left, it says `ICE CLIMBER` - `NINTENDO`)
 
-🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection.
+🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection (unless `LINK_UNIVERSAL_GAME_ID_FILTER` is set).
 
 🔥 This command can be called to update the broadcast data even when the server has already started using `StartHost`. Some games include metadata in the game/user name fields, such as the player's gender or a busy flag.
 
@@ -378,7 +380,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
     - **Host**: `ReceiveData`
         - Receives `{rcvHeader}`, 20
 
-🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet.
+🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet. Until we have a better name, we'll call this **ghost sends**.
 
 #### SendDataWait - `0x25`
 
@@ -554,6 +556,143 @@ Then, when the adapter issues commands to the GBA, the acknowledge procedure is 
     5.  The adapter goes low when it's ready.
     6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
 
+Wireless Multiboot
+------------------
+
+> You can learn more details by reading [LinkWirelessMultiboot.hpp](../lib/LinkWirelessMultiboot.hpp)'s code.
+
+To host a 'multiboot' room, a host sets the **multiboot flag** (bit 15) in its game ID (inside broadcast data) and starts serving.
+
+- 1) For each new client that connects, it runs a small handshake where the client sends their 'game name' and 'player name'. The bootloader always sends `RFU-MB-DL` as game name and `PLAYER A` (or `B`, `C`, `D`) as player name.
+
+- 2) When the host player confirms that all players are ready, it sends a 'rom start' command.
+
+- 3) The host sends the rom bytes in 84-byte chunks.
+
+- 4) The host sends a 'rom end' command and the games boot.
+
+### Valid header
+
+The bootloader will only accept ROMs with valid headers: they must contain this in its bytes `4-15`:
+
+`0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42, 0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00`
+
+(this represents the string `RFU-MB-DL` and zeros)
+
+### Custom protocol
+
+> You can learn more details by reading [LinkWirelessOpenSDK.hpp](../lib/LinkWirelessOpenSDK.hpp)'s code.
+
+All this communication uses a custom software-layer protocol made by Nintendo, the same one used by first-party games.
+
+Server buffers use a 3-byte header:
+
+```c++
+struct ServerSDKHeader {
+  unsigned int payloadSize : 7;
+  unsigned int _unused_ : 2;
+  unsigned int phase : 2;
+  unsigned int n : 2;
+  unsigned int isACK : 1;
+  CommState commState : 4;
+  unsigned int targetSlots : 4;
+}
+```
+
+Clients use a 2-byte header:
+
+```c++
+struct ClientSDKHeader {
+  unsigned int payloadSize : 5;
+  unsigned int phase : 2;
+  unsigned int n : 2;
+  unsigned int isACK : 1;
+  CommState commState : 4;
+}
+```
+
+...and `CommState` is:
+
+```c++
+enum CommState : unsigned int {
+  OFF = 0,
+  STARTING = 1,
+  COMMUNICATING = 2,
+  ENDING = 3,
+  DIRECT = 4
+};
+```
+
+- All transfers have sequence numbers (`n` and `phase`) unless `commState` is `DIRECT` (a sort of UDP).
+- There's a short initialization ritual until reaching the `COMMUNICATING` state.
+- Once the `COMMUNICATING` state is reached, the initial sequence is `n=1, phase=0`.
+- After each packet, the other node responds with a packet containing the same `n`, `phase` and `commState`, but with the `isACK` bit set.
+- The sequence continues: `n=1,ph=1` | `n=1,ph=2` | `n=1,ph=3` | `n=2,ph=0` | `n=2,ph=1` | `n=2,ph=2` | `n=2,ph=3` | `n=3,ph=0` | `n=3,ph=1` | `n=3,ph=2` | `n=3,ph=3` | `n=0,ph=0` | `n=0,ph=1` | `n=0,ph=2` | `n=0,ph=3` | `n=1,ph=0` | `n=0,ph=1` | etc.
+- Repeated or old sequence numbers are ignored, that's how they handle retransmission.
+- Transfers can contain more than one packet.
+- As the maximum transfer lengths are `87` (server) and `16` (client), based on header sizes, the maximum payload lengths are `84` and `14`.
+- The `targetSlots` field inside the server header is a bit array that indicates which clients the message is directed to. E.g. `0b0100` means 'client 2 only' and `0b1111` means 'all clients'.
+
+### (1) Client handshake
+
+- Server: repeatedly performs _ghost sends_ (see [SendData](#senddata---0x24)) until the client talks.
+- Client: sends `0x06010486`, `0x00001A00`.
+  - Header: `0x0486` (`size=6, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
+  - Payload: `0x01`, `0x06`, `0x00`, `0x1A`, `0x00`, `0x00`
+- Server: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
+- Client: sends `0x00000501`.
+    - Header: `0x0501` (`size=1, n=2, ph=0, ack=0, commState=1`)
+    - Payload: `0x00`
+- Server: ACKs the packet
+- Client: sends `0x00000886`, `0x2D554652`.
+    - Header: `0x0886` (`size=6, n=1, ph=0, ack=0, commState=2`) (`2 = COMMUNICATING`)
+    - Payload: `0x00`, `0x00`, `0x52`, `0x46`, `0x55`, `0x2D`
+      - => `RFU-`
+- Server: ACKs the packet
+- Client: sends `0x424D08A6`, `0x004C442D`.
+    - Header: `0x08A6` (`size=6, n=1, ph=1, ack=0, commState=2`)
+    - Payload: `MB-DL`
+- Server: ACKs the packet
+- Client: sends `0x000008C6`, `0x50000000`.
+    - Header: `0x08C6` (`size=6, n=1, ph=2, ack=0, commState=2`)
+    - Payload: `P`
+- Server: ACKs the packet
+- Client: sends `0x414C08E6`, `0x20524559`.
+    - Header: `0x08E6` (`size=6, n=1, ph=3, ack=0, commState=2`)
+    - Payload: `LAYER`
+- Server: ACKs the packet
+- Client: sends `0x00410902`.
+    - Header: `0x0902` (`size=2, n=2, ph=0, ack=0, commState=2`)
+    - Payload: `A`
+- Server: ACKs the packet
+- Client: sends `0x00000C00`.
+    - Header: `0x0C00` (`size=0, n=0, ph=0, ack=0, commState=3`) (`3 = ENDING`)
+    - No payload
+- Server: ACKs the packet
+- Client: sends `0x00000080`.
+    - Header: `0x0080` (`size=0, n=1, ph=0, ack=0, commState=0`) (`0 = OFF`)
+    - No payload
+
+## (2) ROM start command
+
+- Server: sends `0x00044807`, `0x00000054`, `0x00000002`.
+  - Header: `0x044807` (`size=7, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
+  - Payload: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
+- Client: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
+
+## (3) ROM bytes
+
+- At this stage, `commState` is already `2` (`COMMUNICATING`) and the ROM bytes are sent in 84-byte chunks.
+- The last transfer is also `84` bytes, no matter the ROM size (it's padded with zeros).
+- A number (2~4) of 'inflight packets' is allowed to speed up transfers.
+- Packets without an ACK are retransmitted.
+
+## (4) ROM end command
+
+After all ROM chunks are ACK'd, the last transfers are:
+
+- `size=0, n=0, ph=0, ack=0, commState=3` (`3 = ENDING`)
+- `size=0, n=1, ph=0, ack=0, commState=0` (`0 = OFF`)
 
 SPI config
 ----------
