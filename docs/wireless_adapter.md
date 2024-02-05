@@ -637,47 +637,47 @@ enum CommState : unsigned int {
 
 ### (1) Client handshake
 
-- Server: repeatedly performs _ghost sends_ (see [SendData](#senddata---0x24)) until the client talks.
-- Client: sends `0x06010486`, `0x00001A00`.
+- Server: repeatedly performs _ghost sends_ (see [SendData](#senddata---0x24)) until the client talks
+- Client: sends `0x06010486`, `0x00001A00`
   - Header: `0x0486` (`size=6, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
   - Payload: `0x01`, `0x06`, `0x00`, `0x1A`, `0x00`, `0x00`
 - Server: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
-- Client: sends `0x00000501`.
+- Client: sends `0x00000501`
     - Header: `0x0501` (`size=1, n=2, ph=0, ack=0, commState=1`)
     - Payload: `0x00`
 - Server: ACKs the packet
-- Client: sends `0x00000886`, `0x2D554652`.
+- Client: sends `0x00000886`, `0x2D554652`
     - Header: `0x0886` (`size=6, n=1, ph=0, ack=0, commState=2`) (`2 = COMMUNICATING`)
     - Payload: `0x00`, `0x00`, `0x52`, `0x46`, `0x55`, `0x2D`
       - => `RFU-`
 - Server: ACKs the packet
-- Client: sends `0x424D08A6`, `0x004C442D`.
+- Client: sends `0x424D08A6`, `0x004C442D`
     - Header: `0x08A6` (`size=6, n=1, ph=1, ack=0, commState=2`)
     - Payload: `MB-DL`
 - Server: ACKs the packet
-- Client: sends `0x000008C6`, `0x50000000`.
+- Client: sends `0x000008C6`, `0x50000000`
     - Header: `0x08C6` (`size=6, n=1, ph=2, ack=0, commState=2`)
     - Payload: `P`
 - Server: ACKs the packet
-- Client: sends `0x414C08E6`, `0x20524559`.
+- Client: sends `0x414C08E6`, `0x20524559`
     - Header: `0x08E6` (`size=6, n=1, ph=3, ack=0, commState=2`)
     - Payload: `LAYER`
 - Server: ACKs the packet
-- Client: sends `0x00410902`.
+- Client: sends `0x00410902`
     - Header: `0x0902` (`size=2, n=2, ph=0, ack=0, commState=2`)
     - Payload: `A`
 - Server: ACKs the packet
-- Client: sends `0x00000C00`.
+- Client: sends `0x00000C00`
     - Header: `0x0C00` (`size=0, n=0, ph=0, ack=0, commState=3`) (`3 = ENDING`)
     - No payload
 - Server: ACKs the packet
-- Client: sends `0x00000080`.
+- Client: sends `0x00000080`
     - Header: `0x0080` (`size=0, n=1, ph=0, ack=0, commState=0`) (`0 = OFF`)
     - No payload
 
 ## (2) ROM start command
 
-- Server: sends `0x00044807`, `0x00000054`, `0x00000002`.
+- Server: sends `0x00044807`, `0x00000054`, `0x00000002`
   - Header: `0x044807` (`size=7, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
   - Payload: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
 - Client: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)

@@ -89,7 +89,7 @@ Name | Return type | Description
 
 This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
 
-![photo](https://user-images.githubusercontent.com/1631752/213667130-fafcbdb1-767f-4f74-98cb-d7e36c4d7e4e.jpg)
+![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/6ff55944-5437-436f-bcc7-a89b05dc5486)
 
 ## Methods
 
@@ -272,7 +272,7 @@ Name | Return type | Description
 
 This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
 
-![photo](https://user-images.githubusercontent.com/1631752/212867547-e0a795aa-da00-4b2c-8640-8db7ea857e19.jpg)
+![photo](https://github.com/afska/gba-link-connection/assets/1631752/b53ddc3d-46c5-441b-9036-489150d9de9f)
 
 ## Methods
 
