@@ -525,12 +525,14 @@ Waiting
 
 ✅ When there's new data available, the adapter sends to the GBA a `0x99660028`.
 
-⚠️ If some children didn't receive the data, the adapter sends to the GBA a `0x99660128`.
+💨 Clients receive the `0x28` when new data from the host is available, but the host receives it immediately (well, after the transfer completes), as it can be used to know which clients received data or are disconnected.
+
+⚠️ If some children didn't receive the data, the adapter sends to the host GBA a `0x99660128`.
   - The extra parameter has two bitarrays:
     * Bits `0-4`: The clients that _received_ data.
     * Bits `8-11`: The clients marked as _inactive_. This depends on the # of maximum transmissions configured with the [Setup](#setup---0x17) command.
 
-🔗 When the adapter is disconnected from the parent, it sends a `0x99660029`.
+🔗 When the adapter is disconnected from the host, it sends a `0x99660029`.
   - Bit 8 of the response indicates the reason: 
     * `0` = manual disconnect (aka the host used [DisconnectClient](#disconnectclient---0x30))
     *  `1` = the connection was lost
