@@ -291,7 +291,7 @@ Name | Return type | Description
 
 *(aka Normal Mode)*
 
-This is the GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
+This is the GBA's implementation of SPI. You can use this to interact with other GBAs or computers that know SPI. By default, it uses 32-bit packets, but you can switch to 8-bit by enabling the compile-time constant `LINK_SPI_8BIT_MODE`.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 

@@ -42,7 +42,30 @@
 
 #include <tonc_core.h>
 
+// 8-bit mode (uncomment to enable)
+// #define LINK_SPI_8BIT_MODE
+
+#ifdef LINK_SPI_8BIT_MODE
+#define LINK_SPI_DATA_TYPE u8
+#endif
+#ifndef LINK_SPI_8BIT_MODE
+#define LINK_SPI_DATA_TYPE u32
+#endif
+
+#ifdef LINK_SPI_8BIT_MODE
+#define LINK_SPI_DATA_REG REG_SIODATA8
+#endif
+#ifndef LINK_SPI_8BIT_MODE
+#define LINK_SPI_DATA_REG REG_SIODATA32
+#endif
+
+#ifdef LINK_SPI_8BIT_MODE
+#define LINK_SPI_NO_DATA 0xff
+#endif
+#ifndef LINK_SPI_8BIT_MODE
 #define LINK_SPI_NO_DATA 0xffffffff
+#endif
+
 #define LINK_SPI_BIT_CLOCK 0
 #define LINK_SPI_BIT_CLOCK_SPEED 1
 #define LINK_SPI_BIT_SI 2
@@ -98,15 +121,15 @@ class LinkSPI {
     asyncData = 0;
   }
 
-  u32 transfer(u32 data) {
+  LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data) {
     return transfer(data, []() { return false; });
   }
 
   template <typename F>
-  u32 transfer(u32 data,
-               F cancel,
-               bool _async = false,
-               bool _customAck = false) {
+  LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data,
+                              F cancel,
+                              bool _async = false,
+                              bool _customAck = false) {
     if (asyncState != IDLE)
       return LINK_SPI_NO_DATA;
 
@@ -160,21 +183,21 @@ class LinkSPI {
     return getData();
   }
 
-  void transferAsync(u32 data) {
+  void transferAsync(LINK_SPI_DATA_TYPE data) {
     transfer(
         data, []() { return false; }, true);
   }
 
   template <typename F>
-  void transferAsync(u32 data, F cancel) {
+  void transferAsync(LINK_SPI_DATA_TYPE data, F cancel) {
     transfer(data, cancel, true);
   }
 
-  u32 getAsyncData() {
+  LINK_SPI_DATA_TYPE getAsyncData() {
     if (asyncState != READY)
       return LINK_SPI_NO_DATA;
 
-    u32 data = asyncData;
+    LINK_SPI_DATA_TYPE data = asyncData;
     asyncState = IDLE;
     return data;
   }
@@ -204,12 +227,17 @@ class LinkSPI {
   Mode mode = Mode::SLAVE;
   bool waitMode = false;
   AsyncState asyncState = IDLE;
-  u32 asyncData = 0;
+  LINK_SPI_DATA_TYPE asyncData = 0;
   volatile bool isEnabled = false;
 
   void setNormalMode32Bit() {
     REG_RCNT = REG_RCNT & ~(1 << LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
+#ifdef LINK_SPI_8BIT_MODE
+    REG_SIOCNT = 0;
+#endif
+#ifndef LINK_SPI_8BIT_MODE
     REG_SIOCNT = 1 << LINK_SPI_BIT_LENGTH;
+#endif
   }
 
   void setGeneralPurposeMode() {
@@ -217,8 +245,8 @@ class LinkSPI {
                (1 << LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
   }
 
-  void setData(u32 data) { REG_SIODATA32 = data; }
-  u32 getData() { return REG_SIODATA32; }
+  void setData(LINK_SPI_DATA_TYPE data) { LINK_SPI_DATA_REG = data; }
+  LINK_SPI_DATA_TYPE getData() { return LINK_SPI_DATA_REG; }
 
   void enableTransfer() { _setSOLow(); }
   void disableTransfer() { _setSOHigh(); }
