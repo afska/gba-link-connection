@@ -4,6 +4,8 @@ Game Boy Advance Wireless Adapter
 - 🌎 **Original post**: https://blog.kuiper.dev/gba-wireless-adapter 🌎
 - ✏️ **Updates**: [@davidgfnet](https://github.com/davidgfnet) and I were discovering new things and we added them here!
 
+> You can learn more details by reading [LinkRawWireless.hpp](../lib/LinkRawWireless.hpp)'s code.
+
 The Wireless Adapter
 ====================
 
@@ -203,14 +205,6 @@ Commands are how you tell the adapter to do things. When in command mode the clo
 
 ⌛ If this acknowledge procedure doesn't complete, the adapter "gives up" after ~800μs and start listening again for commands. That means that if a game doesn't implement this logic, it has to wait almost 1 millisecond between transfers (vs ~40μs in normal scenarios).
 
-🔀 Also, the ACK protocol is different after a [Wait](#waiting) command:
-
-    1.  The GBA goes high as soon as it can.
-    2.  The adapter goes high.
-    3.  The GBA goes low _when it’s ready_.
-    4.  The adapter goes low when it’s ready.
-    5.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
-
 Whenever either side expects something to be sent from the other (as SPI is always dual direction, although one side is often not used), the value `0x80000000` is used.
 
 ### List of commands
@@ -241,6 +235,10 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 ⚠️ Clients must always set `maxPlayers` to `00`.
 
+🛰️ Bits `8-15` specify the number of times the adapter would perform a transmission. The default is `0`, which means infinite retransmissions. Setting a value of `3` means: transmit once, and only retry two times if the other console didn't receive data. After the maximum number of transmissions is reached, the client is marked as _inactive_ and will appear on the extra parameter that the adapter sends (`0x99660128`) in the [waiting commands](#waiting).
+
+⏲️ Bits `0-7` represent the timeout of the [waiting commands](#waiting)(#waiting). The default is _no timeout_ (`0`), but if this is set, the adapter will issue a `0x99660027` command after the timeout is reached. It's expressed in _frames_ (units of 16.6 ms).
+
 #### Broadcast - `0x16`
 
 [![Image without alt text or caption](img/0x16.png)](img/0x16.png)
@@ -255,7 +253,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 (if you read from right to left, it says `ICE CLIMBER` - `NINTENDO`)
 
-🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection.
+🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection (unless `LINK_UNIVERSAL_GAME_ID_FILTER` is set).
 
 🔥 This command can be called to update the broadcast data even when the server has already started using `StartHost`. Some games include metadata in the game/user name fields, such as the player's gender or a busy flag.
 
@@ -382,7 +380,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
     - **Host**: `ReceiveData`
         - Receives `{rcvHeader}`, 20
 
-🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet.
+🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet. Until we have a better name, we'll call this **ghost sends**.
 
 #### SendDataWait - `0x25`
 
@@ -523,14 +521,180 @@ Waiting
 *   The GBA then sends the response back (e.g. `0x996600A8` as `0x28` + `0x80` = `0xA8`).
 *   After this, control of the clock returns to the GBA, and it can start sending commands back again. For example this might be receiving the command sent by the other device using [ReceiveData](#receivedata---0x26).
 
-⌚ This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027`. **This is only true if the console has used the Setup command before**. The value that most games use (`0x003C0420`) seems to contain this timeout value, but the default is zero (no timeout).
+⌚ This timeouts after 500ms of the adapter not having anything to tell the GBA about. In this case, the adapter sends `0x99660027`. **This is only true if the console has used the [Setup](#setup---0x17) command before**. The value that most games use (`0x003C0420`) contains this timeout value, but the default is zero (no timeout).
 
 ✅ When there's new data available, the adapter sends to the GBA a `0x99660028`.
 
-🔗 When the adapter is disconnected from the parent, it sends a `0x99660029`.
+💨 Clients receive the `0x28` when new data from the host is available, but the host receives it immediately (well, after the transfer completes), as it can be used to know which clients received data or are disconnected.
+
+⚠️ If some children didn't receive the data, the adapter sends to the host GBA a `0x99660128`.
+  - The extra parameter has two bitarrays:
+    * Bits `0-4`: The clients that _received_ data.
+    * Bits `8-11`: The clients marked as _inactive_. This depends on the # of maximum transmissions configured with the [Setup](#setup---0x17) command.
+
+🔗 When the adapter is disconnected from the host, it sends a `0x99660029`.
   - Bit 8 of the response indicates the reason: 
     * `0` = manual disconnect (aka the host used [DisconnectClient](#disconnectclient---0x30))
     *  `1` = the connection was lost
+
+◀ **Inverted ACKs**
+
+The ACK protocol changes while the clock is inverted.
+
+Right after the adapter responds to a `0x9966xx25` with `0x996600A5`, it behaves like this:
+
+    1.  The adapter stays high until the GBA goes high
+    2.  The adapter goes low
+    3.  The GBA goes low
+
+[![Image without alt text or caption](img/clock-inversion-ack-start.png)](img/clock-inversion-ack-start.png)
+
+Then, when the adapter issues commands to the GBA, the acknowledge procedure is 'standard', but with the inverted roles:
+
+    1.  The adapter goes low as soon as it can.
+    2.  The GBA goes high.
+    3.  The adapter goes high.
+    4.  The GBA goes low _when it’s ready_.
+    5.  The adapter goes low when it's ready.
+    6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+
+Wireless Multiboot
+------------------
+
+> You can learn more details by reading [LinkWirelessMultiboot.hpp](../lib/LinkWirelessMultiboot.hpp)'s code.
+
+To host a 'multiboot' room, a host sets the **multiboot flag** (bit 15) in its game ID (inside broadcast data) and starts serving.
+
+- 1) For each new client that connects, it runs a small handshake where the client sends their 'game name' and 'player name'. The bootloader always sends `RFU-MB-DL` as game name and `PLAYER A` (or `B`, `C`, `D`) as player name.
+
+- 2) When the host player confirms that all players are ready, it sends a 'rom start' command.
+
+- 3) The host sends the rom bytes in 84-byte chunks.
+
+- 4) The host sends a 'rom end' command and the games boot.
+
+### Valid header
+
+The bootloader will only accept ROMs with valid headers: they must contain this in its bytes `4-15`:
+
+`0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42, 0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00`
+
+(this represents the string `RFU-MB-DL` and zeros)
+
+### Custom protocol
+
+> You can learn more details by reading [LinkWirelessOpenSDK.hpp](../lib/LinkWirelessOpenSDK.hpp)'s code.
+
+All this communication uses a custom software-layer protocol made by Nintendo, the same one used by first-party games.
+
+Server buffers use a 3-byte header:
+
+```c++
+struct ServerSDKHeader {
+  unsigned int payloadSize : 7;
+  unsigned int _unused_ : 2;
+  unsigned int phase : 2;
+  unsigned int n : 2;
+  unsigned int isACK : 1;
+  CommState commState : 4;
+  unsigned int targetSlots : 4;
+}
+```
+
+Clients use a 2-byte header:
+
+```c++
+struct ClientSDKHeader {
+  unsigned int payloadSize : 5;
+  unsigned int phase : 2;
+  unsigned int n : 2;
+  unsigned int isACK : 1;
+  CommState commState : 4;
+}
+```
+
+...and `CommState` is:
+
+```c++
+enum CommState : unsigned int {
+  OFF = 0,
+  STARTING = 1,
+  COMMUNICATING = 2,
+  ENDING = 3,
+  DIRECT = 4
+};
+```
+
+- All transfers have sequence numbers (`n` and `phase`) unless `commState` is `DIRECT` (a sort of UDP).
+- There's a short initialization ritual until reaching the `COMMUNICATING` state.
+- Once the `COMMUNICATING` state is reached, the initial sequence is `n=1, phase=0`.
+- After each packet, the other node responds with a packet containing the same `n`, `phase` and `commState`, but with the `isACK` bit set.
+- The sequence continues: `n=1,ph=1` | `n=1,ph=2` | `n=1,ph=3` | `n=2,ph=0` | `n=2,ph=1` | `n=2,ph=2` | `n=2,ph=3` | `n=3,ph=0` | `n=3,ph=1` | `n=3,ph=2` | `n=3,ph=3` | `n=0,ph=0` | `n=0,ph=1` | `n=0,ph=2` | `n=0,ph=3` | `n=1,ph=0` | `n=0,ph=1` | etc.
+- Repeated or old sequence numbers are ignored, that's how they handle retransmission.
+- Transfers can contain more than one packet.
+- As the maximum transfer lengths are `87` (server) and `16` (client), based on header sizes, the maximum payload lengths are `84` and `14`.
+- The `targetSlots` field inside the server header is a bit array that indicates which clients the message is directed to. E.g. `0b0100` means 'client 2 only' and `0b1111` means 'all clients'.
+
+### (1) Client handshake
+
+- Server: repeatedly performs _ghost sends_ (see [SendData](#senddata---0x24)) until the client talks
+- Client: sends `0x06010486`, `0x00001A00`
+  - Header: `0x0486` (`size=6, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
+  - Payload: `0x01`, `0x06`, `0x00`, `0x1A`, `0x00`, `0x00`
+- Server: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
+- Client: sends `0x00000501`
+    - Header: `0x0501` (`size=1, n=2, ph=0, ack=0, commState=1`)
+    - Payload: `0x00`
+- Server: ACKs the packet
+- Client: sends `0x00000886`, `0x2D554652`
+    - Header: `0x0886` (`size=6, n=1, ph=0, ack=0, commState=2`) (`2 = COMMUNICATING`)
+    - Payload: `0x00`, `0x00`, `0x52`, `0x46`, `0x55`, `0x2D`
+      - => `RFU-`
+- Server: ACKs the packet
+- Client: sends `0x424D08A6`, `0x004C442D`
+    - Header: `0x08A6` (`size=6, n=1, ph=1, ack=0, commState=2`)
+    - Payload: `MB-DL`
+- Server: ACKs the packet
+- Client: sends `0x000008C6`, `0x50000000`
+    - Header: `0x08C6` (`size=6, n=1, ph=2, ack=0, commState=2`)
+    - Payload: `P`
+- Server: ACKs the packet
+- Client: sends `0x414C08E6`, `0x20524559`
+    - Header: `0x08E6` (`size=6, n=1, ph=3, ack=0, commState=2`)
+    - Payload: `LAYER`
+- Server: ACKs the packet
+- Client: sends `0x00410902`
+    - Header: `0x0902` (`size=2, n=2, ph=0, ack=0, commState=2`)
+    - Payload: `A`
+- Server: ACKs the packet
+- Client: sends `0x00000C00`
+    - Header: `0x0C00` (`size=0, n=0, ph=0, ack=0, commState=3`) (`3 = ENDING`)
+    - No payload
+- Server: ACKs the packet
+- Client: sends `0x00000080`
+    - Header: `0x0080` (`size=0, n=1, ph=0, ack=0, commState=0`) (`0 = OFF`)
+    - No payload
+
+## (2) ROM start command
+
+- Server: sends `0x00044807`, `0x00000054`, `0x00000002`
+  - Header: `0x044807` (`size=7, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
+  - Payload: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
+- Client: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
+
+## (3) ROM bytes
+
+- At this stage, `commState` is already `2` (`COMMUNICATING`) and the ROM bytes are sent in 84-byte chunks.
+- The last transfer is also `84` bytes, no matter the ROM size (it's padded with zeros).
+- A number (2~4) of 'inflight packets' is allowed to speed up transfers.
+- Packets without an ACK are retransmitted.
+
+## (4) ROM end command
+
+After all ROM chunks are ACK'd, the last transfers are:
+
+- `size=0, n=0, ph=0, ack=0, commState=3` (`3 = ENDING`)
+- `size=0, n=1, ph=0, ack=0, commState=0` (`0 = OFF`)
 
 SPI config
 ----------

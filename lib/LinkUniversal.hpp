@@ -54,6 +54,9 @@
 // Max players. Default = 4 (LinkCable's limit), but can be increased to 5
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
 
+// Game ID Filter. Default = 0 (no filter)
+#define LINK_UNIVERSAL_GAME_ID_FILTER 0
+
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 #define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
@@ -64,7 +67,7 @@
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.1.1";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.2.0";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
 void LINK_UNIVERSAL_ISR_SERIAL();
@@ -393,7 +396,9 @@ class LinkUniversal {
         break;
 
       if (!server.isFull() &&
-          std::strcmp(server.gameName, config.gameName) == 0) {
+          std::strcmp(server.gameName, config.gameName) == 0 &&
+          (LINK_UNIVERSAL_GAME_ID_FILTER == 0 ||
+           server.gameId == LINK_UNIVERSAL_GAME_ID_FILTER)) {
         u32 randomNumber = safeStoi(server.userName);
         if (randomNumber > maxRandomNumber &&
             randomNumber < LINK_UNIVERSAL_MAX_ROOM_NUMBER) {
@@ -417,7 +422,10 @@ class LinkUniversal {
       char randomNumberStr[6];
       std::snprintf(randomNumberStr, sizeof(randomNumberStr), "%d",
                     randomNumber);
-      if (!linkWireless->serve(config.gameName, randomNumberStr))
+      if (!linkWireless->serve(config.gameName, randomNumberStr,
+                               LINK_UNIVERSAL_GAME_ID_FILTER > 0
+                                   ? LINK_UNIVERSAL_GAME_ID_FILTER
+                                   : LINK_WIRELESS_MAX_GAME_ID))
         return false;
     }
 

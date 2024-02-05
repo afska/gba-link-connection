@@ -3,13 +3,15 @@
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games.
 
 - [👾](#-LinkCable) [LinkCable.hpp](lib/LinkCable.hpp): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
+  - [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
   - [🔧👾](#-LinkRawCable) [LinkRawCable.hpp](lib/LinkRawCable.hpp): A **minimal** low-level API for the 16-bit Multi-Play mode.
-- [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
+- [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
+  - [📡](#-LinkWirelessMultiboot) [LinkWirelessMultiboot.hpp](lib/LinkWirelessMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs **over the air**!
+  - [🔧📻](#-LinkRawWireless) [LinkRawWireless.hpp](lib/LinkRawWireless.hpp): A **minimal** low-level API for the Wireless Adapter.
+  - [🔧🏛️](#-LinkWirelessOpenSDK) [LinkWirelessOpenSDK.hpp](lib/LinkWirelessOpenSDK.hpp): An abstraction of the **official** software level protocol of the Wireless Adapter.
+- [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**!
 - [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
-- [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
-  - [🔧📻](#-LinkRawWireless) [LinkRawWireless.hpp](lib/LinkRawWireless.hpp): A **minimal** low-level API for the Wireless Adapter.
-- [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**.
 
 *(click on the emojis for documentation)*
 
@@ -20,8 +22,10 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - Include the library you want (e.g. [LinkCable.hpp](lib/LinkCable.hpp)) in your game code, and refer to its comments for instructions. Most of these libraries are provided as single header files for simplicity. The only external dependency is **libtonc**, which comes preinstalled with *devkitPro*.
 - Check out the [examples](examples) folder.
 	* Builds are available in [Releases](https://github.com/afska/gba-link-connection/releases).
-	* They can be tested on real GBAs or using emulators (*mGBA*, *NO$GBA*, or *VBA-M*).
+	* They can be tested on real GBAs or using emulators.
 	* For `LinkCable`/`LinkWireless`/`LinkUniversal` there are stress tests that you can use to tweak your configuration.
+
+To learn implementation details, you might also want to check out the [docs](docs) folder, which contains important documentation.
 
 ### Makefile actions (for all examples)
 
@@ -85,7 +89,7 @@ Name | Return type | Description
 
 This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
 
-![photo](https://user-images.githubusercontent.com/1631752/213667130-fafcbdb1-767f-4f74-98cb-d7e36c4d7e4e.jpg)
+![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/6ff55944-5437-436f-bcc7-a89b05dc5486)
 
 ## Methods
 
@@ -95,66 +99,38 @@ Name | Return type | Description
 
 ⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
-# 🔌 LinkGPIO
+# 🔧👾 LinkRawCable
 
-*(aka General Purpose Mode)*
+- This is a minimal hardware wrapper designed for the *Multi-Play mode*.
+- It doesn't include any of the features of [👾 LinkCable](#-LinkCable), so it's not well suited for games.
+- Its demo (`LinkRawCable_demo`) can help emulator developers in enhancing accuracy.
 
-This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
-
-![photo](https://user-images.githubusercontent.com/1631752/212867547-e0a795aa-da00-4b2c-8640-8db7ea857e19.jpg)
-
-## Methods
-
-Name | Return type | Description
---- | --- | ---
-`reset()` | - | Resets communication mode to General Purpose. **Required to initialize the library!**
-`setMode(pin, direction)` | - | Configures a `pin` to use a `direction` (input or output).
-`getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
-`readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
-`writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
-`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, an IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
-
-⚠️ always set the `SI` terminal to an input!
-
-# 🔗 LinkSPI
-
-*(aka Normal Mode)*
-
-This is the GBA's implementation of SPI. In this library, packets are set to 32-bit, as there's no benefit to using the 8-bit version. You can use this to interact with other GBAs or computers that know SPI.
-
-![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
+![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/29a25bf7-211e-49d6-a32a-566c72a44973)
 
 ## Methods
 
 Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
-`activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
+`activate(baudRate = BAUD_RATE_1)` | - | Activates the library in a specific `baudRate` (`LinkRawCable::BaudRate`).
 `deactivate()` | - | Deactivates the library.
-`transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
-`transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
-`transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
-`getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
-`getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
-`getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
-`setWaitModeActive(isActive)` | - | Enables or disables `waitMode` (*).
-`isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
+`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the connected consoles. Returns the received data, including the assigned player id.
+`transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
+`getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
+`getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`isMaster()` | **bool** | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.
+`isReady()` | **bool** | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.
+`getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.
 
-> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
-> 
-> `waitMode` is disabled by default.
-
-⚠️ when using Normal Mode between two GBAs, use a GBC Link Cable!
-
-⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
-
-⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+- don't send `0xFFFF`, it's a reserved value that means *disconnected client*
+- only `transfer(...)` if `isReady()`
 
 # 📻 LinkWireless
 
 *(aka GBA Wireless Adapter)*
 
-This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this article](docs/wireless_adapter.md) is very helpful. I've updated the blog post to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
+This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this blog post](docs/wireless_adapter.md) is very helpful. I've updated it to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
 
 The library, by default, implements a lightweight protocol (on top of the adapter's message system) that sends packet IDs and checksums. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
 
@@ -215,6 +191,48 @@ Name | Return type | Description
 
 ⚠️ `0xFFFF` is a reserved value, so don't send it!
 
+# 💻 LinkWirelessMultiboot
+
+*(aka Multiboot through Wireless Adapter)*
+
+This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 4 slaves, wirelessly, using a single cartridge.
+
+https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-92d4-ccf366adce2d
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`sendRom(rom, romSize, gameName, userName, gameId, players, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. The `players` must be the exact number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. During the process, the library will continuously invoke `cancel` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, as this also ensures compatibility with Multiboot via Link Cable. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
+
+# 🔧📻 LinkRawWireless
+
+- This is a minimal hardware wrapper designed for the *Wireless Adapter*.
+- It doesn't include any of the features of [📻 LinkWireless](#-LinkWireless), so it's not well suited for games.
+- Its demo (`LinkRawWireless_demo`) can help emulator developers in enhancing accuracy.
+
+![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/bc7e5a7d-a1bd-46a5-8318-98160c1229ae)
+
+## Methods
+
+- There's one method for every supported wireless adapter command.
+- Use `sendCommand(...)` to send arbitrary commands.
+
+# 🔧🏛 LinkWirelessOpenSDK
+
+All first-party games, including the Multiboot 'bootloader' sent by the adapter, use an official software-level protocol. This class provides methods for creating and reading packets that adhere to this protocol. It's supposed to be used in conjunction with [🔧📻 LinkRawWireless](#-LinkRawWireless).
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`getChildrenData(response)` | **LinkWirelessOpenSDK::ChildrenData** | Parses the `response` and returns a struct containing all the received packets from the connected clients.
+`getParentData(response)` | **LinkWirelessOpenSDK::ParentData** | Parses the `response` and returns a struct containing all the received packets from the host.
+`createServerBuffer(fullPayload, fullPayloadSize, sequence, [targetSlots], [offset])` | **LinkWirelessOpenSDK::SendBuffer<ServerSDKHeader>** | Creates a buffer for the host to send a `fullPayload` with a valid header. If `fullPayloadSize` is higher than `84` (the maximum payload size), the buffer will only contain the **first** `84` bytes (unless an `offset` > 0 is used). A `sequence` number must be created by using `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`. Optionally, a `targetSlots` bit array can be used to exclude some clients from the transmissions (the default is `0b1111`).
+`createServerACKBuffer(clientHeader, clientNumber)` | **LinkWirelessOpenSDK::SendBuffer<ServerSDKHeader>** | Creates a buffer for the host to acknowledge a header received from a certain `clientNumber`.
+`createClientBuffer(fullPayload, fullPayloadSize, sequence, [offset])` | **LinkWirelessOpenSDK::SendBuffer<ClientSDKHeader>** | Creates a buffer for the client to send a `fullPayload` with a valid header. If `fullPayloadSize` is higher than `14` (the maximum payload size), the buffer will only contain the **first** `14` bytes (unless an `offset` > 0 is used). A `sequence` number must be created by using `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.
+`createClientACKBuffer(serverHeader)` | **LinkWirelessOpenSDK::SendBuffer<ServerSDKHeader>** | Creates a buffer for the client to acknowledge a header received from the host.
+
 # 🌎 LinkUniversal
 
 A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and tries to connect to other peers, supporting the hot swapping of cables and adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
@@ -229,15 +247,16 @@ Name | Type | Default | Description
 --- | --- | --- | ---
 `protocol` | **LinkUniversal::Protocol** | `AUTODETECT` | Specifies what protocol should be used (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `gameName` | **const char\*** | `""` | The game name that will be broadcasted in wireless sessions (max `14` characters). The string must be a null-terminated character array. The library uses this to only connect to servers from the same game.
-`cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#constructor) constructor parameters in one *struct*.
-`wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#constructor-1) constructor parameters in one *struct*.
+`cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#-LinkCable) constructor parameters in one *struct*.
+`wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#-LinkWireless) constructor parameters in one *struct*.
 
 You can also change these compile-time constants:
 - `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `4` (LinkCable's limit) but can be increased to `5` to support larger wireless rooms.
+- `LINK_UNIVERSAL_GAME_ID_FILTER`: to restrict wireless connections to rooms with a specific game ID (`0x0000` - `0x7fff`). The default value (`0`) connects to any game ID and uses `0x7fff` when serving.
 
 ## Methods
 
-The interface is the same as [👾 LinkCable](#methods). Additionally, it supports these methods:
+The interface is the same as [👾 LinkCable](#-LinkCable). Additionally, it supports these methods:
 
 Name | Return type | Description
 --- | --- | ---
@@ -245,45 +264,59 @@ Name | Return type | Description
 `getMode()` | **LinkUniversal::Mode** | Returns the active mode (one of `LinkUniversal::Mode::LINK_CABLE`, or `LinkUniversal::Mode::LINK_WIRELESS`).
 `getProtocol()` | **LinkUniversal::Protocol** | Returns the active protocol (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `setProtocol(protocol)` | - | Sets the active `protocol`.
-`getWirelessState()` | **LinkWireless::State** | Returns the wireless state (same as [📻 LinkWireless](#methods-4)'s `getState()`).
+`getWirelessState()` | **LinkWireless::State** | Returns the wireless state (same as [📻 LinkWireless](#-LinkWireless)'s `getState()`).
 
-# 🔧👾 LinkRawCable
+# 🔌 LinkGPIO
 
-- This is a minimal hardware wrapper designed for the *Multi-Play mode*.
-- It doesn't include any of the features of [👾 LinkCable](#-LinkCable), so it's not well suited for games.
-- Its demo (`LinkRawCable_demo`) can help emulator developers in enhancing accuracy.
+*(aka General Purpose Mode)*
 
-![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/29a25bf7-211e-49d6-a32a-566c72a44973)
+This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
+
+![photo](https://github.com/afska/gba-link-connection/assets/1631752/b53ddc3d-46c5-441b-9036-489150d9de9f)
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`reset()` | - | Resets communication mode to General Purpose. **Required to initialize the library!**
+`setMode(pin, direction)` | - | Configures a `pin` to use a `direction` (input or output).
+`getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
+`readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).
+`writePin(pin, isHigh)` | - | Sets a `pin` to be high or not (when set as an output).
+`setSIInterrupts(isEnabled)` | - | If it `isEnabled`, an IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
+
+⚠️ always set the `SI` terminal to an input!
+
+# 🔗 LinkSPI
+
+*(aka Normal Mode)*
+
+This is the GBA's implementation of SPI. You can use this to interact with other GBAs or computers that know SPI. By default, it uses 32-bit packets, but you can switch to 8-bit by enabling the compile-time constant `LINK_SPI_8BIT_MODE`.
+
+![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
 ## Methods
 
 Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
-`activate(baudRate = BAUD_RATE_1)` | - | Activates the library in a specific `baudRate` (`LinkRawCable::BaudRate`).
+`activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
 `deactivate()` | - | Deactivates the library.
-`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the connected consoles. Returns the received data, including the assigned player id.
-`transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
-`transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
-`getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
-`getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
-`isMaster()` | **bool** | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.
-`isReady()` | **bool** | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.
-`getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.
+`transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
+`transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
+`getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
+`getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
+`setWaitModeActive(isActive)` | - | Enables or disables `waitMode` (*).
+`isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
 
-- don't send `0xFFFF`, it's a reserved value that means *disconnected client*
-- only `transfer(...)` if `isReady()`
+> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
+> 
+> `waitMode` is disabled by default.
 
-# 🔧📻 LinkRawWireless
+⚠️ when using Normal Mode between two GBAs, use a GBC Link Cable!
 
-- This is a minimal hardware wrapper designed for the *Wireless Adapter*.
-- It doesn't include any of the features of [📻 LinkWireless](#-LinkWireless), so it's not well suited for games.
-- Its demo (`LinkRawWireless_demo`) can help emulator developers in enhancing accuracy.
+⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
 
-![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/bc7e5a7d-a1bd-46a5-8318-98160c1229ae)
-
-
-## Methods
-
-- There's one method for every supported wireless adapter command.
-- Use `sendCommand(...)` to send arbitrary commands.
+⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!

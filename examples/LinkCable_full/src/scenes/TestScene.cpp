@@ -21,7 +21,7 @@ static std::unique_ptr<InputHandler> selectHandler =
 
 inline void send(u16 data) {
   DEBULOG("-> " + asStr(data));
-  link->send(data);
+  linkConnection->send(data);
 }
 
 std::vector<Background*> TestScene::backgrounds() {
@@ -43,7 +43,7 @@ void TestScene::tick(u16 keys) {
     return;
 
   // sync
-  link->sync();
+  linkConnection->sync();
 
   frameCounter++;
 
@@ -55,12 +55,13 @@ void TestScene::tick(u16 keys) {
   selectHandler->setIsPressed(keys & KEY_SELECT);
 
   // log events
-  if (!isConnected && link->isConnected()) {
+  if (!isConnected && linkConnection->isConnected()) {
     isConnected = true;
     initialized = false;
-    DEBULOG("! connected (" + asStr(link->playerCount()) + " players)");
+    DEBULOG("! connected (" + asStr(linkConnection->playerCount()) +
+            " players)");
   }
-  if (isConnected && !link->isConnected()) {
+  if (isConnected && !linkConnection->isConnected()) {
     isConnected = false;
     DEBULOG("! disconnected");
   }
@@ -71,7 +72,8 @@ void TestScene::tick(u16 keys) {
 
   // determine which value should be sent
   u16 value = LINK_CABLE_NO_DATA;
-  if (!initialized && link->isConnected() && link->currentPlayerId() == 1) {
+  if (!initialized && linkConnection->isConnected() &&
+      linkConnection->currentPlayerId() == 1) {
     initialized = true;
     value = 999;
   }
@@ -91,11 +93,11 @@ void TestScene::tick(u16 keys) {
   }
 
   // process received data
-  if (link->isConnected()) {
-    for (u32 i = 0; i < link->playerCount(); i++) {
-      while (link->canRead(i)) {
-        u16 message = link->read(i);
-        if (i != link->currentPlayerId())
+  if (linkConnection->isConnected()) {
+    for (u32 i = 0; i < linkConnection->playerCount(); i++) {
+      while (linkConnection->canRead(i)) {
+        u16 message = linkConnection->read(i);
+        if (i != linkConnection->currentPlayerId())
           DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
                   asStr(frameCounter) + ")");
       }

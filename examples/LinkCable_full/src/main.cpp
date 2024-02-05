@@ -14,11 +14,11 @@ static std::unique_ptr<TestScene> testScene{new TestScene(engine)};
 
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
-LinkCable* link = linkCable;
+LinkCable* linkConnection = linkCable;
 #endif
 #ifdef USE_LINK_UNIVERSAL
 LinkUniversal* linkUniversal = new LinkUniversal();
-LinkUniversal* link = linkUniversal;
+LinkUniversal* linkConnection = linkUniversal;
 #endif
 
 int main() {
@@ -32,19 +32,19 @@ int main() {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // enable and disable
-    if ((keys & KEY_DOWN) && link->isActive()) {
-      link->deactivate();
+    if ((keys & KEY_DOWN) && linkConnection->isActive()) {
+      linkConnection->deactivate();
       DEBULOG("! stopped");
     }
-    if ((keys & KEY_START) && !link->isActive()) {
-      link->activate();
+    if ((keys & KEY_START) && !linkConnection->isActive()) {
+      linkConnection->activate();
       DEBULOG("! started");
     }
 
     // log player id/count and important flags
     TextStream::instance().setText(
-        "P" + asStr(link->currentPlayerId()) + "/" +
-            asStr(link->playerCount()) + "-R" +
+        "P" + asStr(linkConnection->currentPlayerId()) + "/" +
+            asStr(linkConnection->playerCount()) + "-R" +
             asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_READY)) + "-S" +
             asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_START)) + "-E" +
             asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_ERROR)),
@@ -93,10 +93,10 @@ inline void setUpInterrupts() {
 
 void printTutorial() {
 #ifndef USE_LINK_UNIVERSAL
-  DEBULOG("LinkCable demo");
+  DEBULOG("LinkCable_full (v6.2.0)");
 #endif
 #ifdef USE_LINK_UNIVERSAL
-  DEBULOG("LinkUniversal demo");
+  DEBULOG("LinkUniversal_full (v6.2.0)");
 #endif
 
   DEBULOG("");

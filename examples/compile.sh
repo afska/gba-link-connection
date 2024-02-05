@@ -31,7 +31,9 @@ cp LinkRawCable_demo.gba ../
 cd ..
 
 cd LinkRawWireless_demo/
+sed -i -e "s/\/\/ #define LINK_RAW_WIRELESS_ENABLE_LOGGING/#define LINK_RAW_WIRELESS_ENABLE_LOGGING/g" ../../lib/LinkRawWireless.hpp
 make rebuild
+sed -i -e "s/#define LINK_RAW_WIRELESS_ENABLE_LOGGING/\/\/ #define LINK_RAW_WIRELESS_ENABLE_LOGGING/g" ../../lib/LinkRawWireless.hpp
 cp LinkRawWireless_demo.gba ../
 cd ..
 
@@ -85,4 +87,11 @@ cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
 mv backup.gba LinkWireless_demo.gba
 sed -i -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
 sed -i -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
+cd ..
+
+cd LinkWirelessMultiboot_demo/
+sed -i -e "s/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
+make rebuild
+cp LinkWirelessMultiboot_demo.out.gba ../LinkWirelessMultiboot_demo.gba
+sed -i -e "s/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
 cd ..

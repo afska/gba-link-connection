@@ -33,7 +33,7 @@ u32 toMs(u32 cycles);
 
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
-LinkCable* link = linkCable;
+LinkCable* linkConnection = linkCable;
 #endif
 #ifdef USE_LINK_UNIVERSAL
 LinkUniversal* linkUniversal =
@@ -53,7 +53,7 @@ LinkUniversal* linkUniversal =
                           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
                           .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
                           .asyncACKTimerId = 0});
-LinkUniversal* link = linkUniversal;
+LinkUniversal* linkConnection = linkUniversal;
 #endif
 
 void init() {
@@ -89,13 +89,13 @@ int main() {
 
   while (true) {
 #ifndef USE_LINK_UNIVERSAL
-    std::string output = "LinkCable\n\n";
+    std::string output = "LinkCable_stress (v6.2.0)\n\n";
 #endif
 #ifdef USE_LINK_UNIVERSAL
-    std::string output = "LinkUniversal\n\n";
+    std::string output = "LinkUniversal_stress (v6.2.0)\n\n";
 #endif
 
-    link->deactivate();
+    linkConnection->deactivate();
 
     output +=
         "A: Test packet loss\nB: Test packet sync\nL: Measure ping latency\nR: "
@@ -116,14 +116,14 @@ int main() {
     if (initialKeys & KEY_UP)
       interval = 10;
 #ifndef USE_LINK_UNIVERSAL
-    link->config.interval = interval;
+    linkConnection->config.interval = interval;
 #endif
 #ifdef USE_LINK_UNIVERSAL
-    link->linkCable->config.interval = interval;
-    link->linkWireless->config.interval = interval;
+    linkConnection->linkCable->config.interval = interval;
+    linkConnection->linkWireless->config.interval = interval;
 #endif
 
-    link->activate();
+    linkConnection->activate();
 
     if (initialKeys & KEY_A)
       test(false);
@@ -150,37 +150,37 @@ void test(bool withSync) {
     if (needsReset())
       return;
 
-    link->sync();
-    auto playerCount = link->playerCount();
+    linkConnection->sync();
+    auto playerCount = linkConnection->playerCount();
 
     std::string output = "";
 
-    if (link->isConnected() && playerCount == 2) {
+    if (linkConnection->isConnected() && playerCount == 2) {
       u16 keys = ~REG_KEYS & KEY_ANY;
       if (keys & KEY_START) {
         log("Lagging...");
         wait(1500);
       }
 
-      auto currentPlayerId = link->currentPlayerId();
+      auto currentPlayerId = linkConnection->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
       if (localCounter < FINAL_VALUE) {
         localCounter++;
-        link->send(localCounter);
+        linkConnection->send(localCounter);
       }
 
       if (localCounter == 1 || withSync) {
-        while (link->peek(remotePlayerId) != localCounter) {
-          if (!link->waitFor(remotePlayerId, needsReset))
+        while (linkConnection->peek(remotePlayerId) != localCounter) {
+          if (!linkConnection->waitFor(remotePlayerId, needsReset))
             return;
         }
       }
 
-      while (link->canRead(remotePlayerId) &&
+      while (linkConnection->canRead(remotePlayerId) &&
              (!withSync || expectedCounter + 1 == localCounter)) {
         expectedCounter++;
-        u16 message = link->read(remotePlayerId);
+        u16 message = linkConnection->read(remotePlayerId);
 
         if (message != expectedCounter) {
           error = true;
@@ -196,10 +196,11 @@ void test(bool withSync) {
       if (error) {
         output += "ERROR!\nExpected " + std::to_string(expectedCounter) +
                   " but got " + std::to_string(receivedRemoteCounter) + "\n\n";
-        if (link->canRead(remotePlayerId)) {
+        if (linkConnection->canRead(remotePlayerId)) {
           output += "Remaining packets: |";
-          while (link->canRead(remotePlayerId))
-            output += std::to_string(link->read(remotePlayerId)) + "| ";
+          while (linkConnection->canRead(remotePlayerId))
+            output +=
+                std::to_string(linkConnection->read(remotePlayerId)) + "| ";
           output += "\n\n";
         }
       }
@@ -241,15 +242,15 @@ void measureLatency(bool withPong) {
     if (needsReset())
       return;
 
-    link->sync();
-    auto playerCount = link->playerCount();
+    linkConnection->sync();
+    auto playerCount = linkConnection->playerCount();
 
-    if (link->isConnected() && playerCount == 2) {
-      auto currentPlayerId = link->currentPlayerId();
+    if (linkConnection->isConnected() && playerCount == 2) {
+      auto currentPlayerId = linkConnection->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
       if (!didInitialize) {
-        counter = 11 + link->currentPlayerId() * 10;
+        counter = 11 + linkConnection->currentPlayerId() * 10;
         didInitialize = true;
       }
 
@@ -258,23 +259,23 @@ void measureLatency(bool withPong) {
       u32 sentPacket = ++counter;
 
       profileStart();
-      link->send(sentPacket);
-      if (!link->waitFor(remotePlayerId, needsReset)) {
+      linkConnection->send(sentPacket);
+      if (!linkConnection->waitFor(remotePlayerId, needsReset)) {
         log("No response! (1) Press DOWN");
         profileStop();
         waitFor(KEY_DOWN);
         return;
       }
-      u16 receivedPacket = link->read(remotePlayerId);
+      u16 receivedPacket = linkConnection->read(remotePlayerId);
       if (withPong) {
-        link->send(receivedPacket);
-        if (!link->waitFor(remotePlayerId, needsReset)) {
+        linkConnection->send(receivedPacket);
+        if (!linkConnection->waitFor(remotePlayerId, needsReset)) {
           log("No response! (2) Press DOWN");
           profileStop();
           waitFor(KEY_DOWN);
           return;
         }
-        u16 validation = link->read(remotePlayerId);
+        u16 validation = linkConnection->read(remotePlayerId);
         if (validation != sentPacket) {
           log("Invalid response! Press DOWN\n  value = " +
               std::to_string(validation) +
@@ -304,13 +305,13 @@ void measureLatency(bool withPong) {
 }
 
 void forceSync() {
-  auto remotePlayerId = !link->currentPlayerId();
+  auto remotePlayerId = !linkConnection->currentPlayerId();
 
-  link->send(10);
-  while (link->isConnected() && !needsReset() &&
-         link->peek(remotePlayerId) != 10)
-    link->waitFor(remotePlayerId);
-  link->read(remotePlayerId);
+  linkConnection->send(10);
+  while (linkConnection->isConnected() && !needsReset() &&
+         linkConnection->peek(remotePlayerId) != 10)
+    linkConnection->waitFor(remotePlayerId);
+  linkConnection->read(remotePlayerId);
 }
 
 void log(std::string text) {

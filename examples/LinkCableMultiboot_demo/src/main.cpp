@@ -31,7 +31,7 @@ int main() {
   // Hardcoded ROM length
   // This is optional, you could also use `LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE`
   // (but the transfer will be painfully slow)
-  u32 romSize = 64880;
+  u32 romSize = 39264;
   // Note that this project's Makefile pads the ROM to a 0x10 boundary
   // (as required for Multiboot).
 
@@ -49,7 +49,8 @@ int main() {
     // Sender options
     if (isSenderMode) {
       if (result != LinkCableMultiboot::Result::SUCCESS)
-        log("Press START to send the ROM...\nPress B to set client mode...");
+        log("LinkCableMultiboot_demo\n  (v6.2.0)\n\nPress START to send the "
+            "ROM...\nPress B to set client mode...");
 
       if (keys & KEY_START) {
         log("Sending... (SELECT to cancel)");
@@ -57,7 +58,7 @@ int main() {
 
         // (3) Send the ROM
         result =
-            linkCableMultiboot->sendRom((const void*)MEM_EWRAM, romSize, []() {
+            linkCableMultiboot->sendRom((const u8*)MEM_EWRAM, romSize, []() {
               u16 keys = ~REG_KEYS & KEY_ANY;
               return keys & KEY_SELECT;
             });

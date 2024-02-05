@@ -9,12 +9,12 @@
 //       LinkCableMultiboot* linkCableMultiboot = new LinkCableMultiboot();
 // - 2) Send the ROM:
 //       LinkCableMultiboot::Result result = linkCableMultiboot->sendRom(
-//         romBytes, // for current ROM, use: ((const void*)MEM_EWRAM)
-//         romLength, // should be multiple of 0x10
+//         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
+//         romLength, // in bytes, should be multiple of 0x10
 //         []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
-//           // (when this returns true, transfer will be canceled)
+//           // (when this returns true, the transfer will be canceled)
 //         }
 //       );
 //       // `result` should be LinkCableMultiboot::Result::SUCCESS
@@ -25,6 +25,7 @@
 
 #include <tonc_bios.h>
 #include <tonc_core.h>
+#include "LinkRawCable.hpp"
 
 #define LINK_CABLE_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
 #define LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
@@ -43,11 +44,7 @@
 #define LINK_CABLE_MULTIBOOT_ACK_RESPONSE 0x73
 #define LINK_CABLE_MULTIBOOT_HEADER_SIZE 0xC0
 #define LINK_CABLE_MULTIBOOT_SWI_MULTIPLAYER_MODE 1
-#define LINK_CABLE_MULTIBOOT_SIOCNT_MAX_BAUD_RATE 3
-#define LINK_CABLE_MULTIBOOT_BIT_START 7
-#define LINK_CABLE_MULTIBOOT_BIT_MULTIPLAYER 13
-#define LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_LOW 14
-#define LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH 15
+#define LINK_CABLE_MULTIBOOT_MAX_BAUD_RATE LinkRawCable::BaudRate::BAUD_RATE_3
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)    \
   do {                                    \
     partialResult = CALL;                 \
@@ -58,7 +55,7 @@
     return error(FAILURE_DURING_HANDSHAKE);
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v6.1.1";
+    "LinkCableMultiboot/v6.2.0";
 
 const u8 LINK_CABLE_MULTIBOOT_CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
 
@@ -73,7 +70,7 @@ class LinkCableMultiboot {
   };
 
   template <typename F>
-  Result sendRom(const void* rom, u32 romSize, F cancel) {
+  Result sendRom(const u8* rom, u32 romSize, F cancel) {
     if (romSize < LINK_CABLE_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE)
@@ -109,12 +106,16 @@ class LinkCableMultiboot {
     int result = MultiBoot(&multiBootParameters,
                            LINK_CABLE_MULTIBOOT_SWI_MULTIPLAYER_MODE);
 
-    setGeneralPurposeMode();
+    linkRawCable->deactivate();
 
     return result == 1 ? FAILURE_DURING_TRANSFER : SUCCESS;
   }
 
+  ~LinkCableMultiboot() { delete linkRawCable; }
+
  private:
+  LinkRawCable* linkRawCable = new LinkRawCable();
+
   enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
 
   struct Responses {
@@ -123,17 +124,18 @@ class LinkCableMultiboot {
 
   template <typename F>
   PartialResult detectClients(MultiBootParam& multiBootParameters, F cancel) {
-    setMultiPlayMode();
+    linkRawCable->activate(LINK_CABLE_MULTIBOOT_MAX_BAUD_RATE);
 
     for (u32 t = 0; t < LINK_CABLE_MULTIBOOT_DETECTION_TRIES; t++) {
-      auto responses = exchange(LINK_CABLE_MULTIBOOT_HANDSHAKE, cancel);
+      auto response =
+          linkRawCable->transfer(LINK_CABLE_MULTIBOOT_HANDSHAKE, cancel);
       if (cancel())
         return ABORTED;
 
       for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-        if ((responses.d[i] & 0xfff0) ==
+        if ((response.data[1 + i] & 0xfff0) ==
             LINK_CABLE_MULTIBOOT_HANDSHAKE_RESPONSE) {
-          auto clientId = responses.d[i] & 0xf;
+          auto clientId = response.data[1 + i] & 0xf;
 
           switch (clientId) {
             case 0b0010:
@@ -150,7 +152,7 @@ class LinkCableMultiboot {
     }
 
     if (multiBootParameters.client_bit == 0) {
-      setGeneralPurposeMode();
+      linkRawCable->deactivate();
       wait(LINK_CABLE_MULTIBOOT_WAIT_BEFORE_RETRY);
       return NEEDS_RETRY;
     }
@@ -179,11 +181,11 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult sendHeader(const void* rom, F cancel) {
+  PartialResult sendHeader(const u8* rom, F cancel) {
     u16* headerOut = (u16*)rom;
 
     for (int i = 0; i < LINK_CABLE_MULTIBOOT_HEADER_SIZE; i += 2) {
-      exchange(*(headerOut++), cancel);
+      linkRawCable->transfer(*(headerOut++), cancel);
       if (cancel())
         return ABORTED;
     }
@@ -196,13 +198,13 @@ class LinkCableMultiboot {
     auto data =
         LINK_CABLE_MULTIBOOT_SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
 
-    auto responses = exchange(data, cancel);
+    auto response = linkRawCable->transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
     for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-      if (responses.d[i] >> 8 == LINK_CABLE_MULTIBOOT_ACK_RESPONSE)
-        multiBootParameters.client_data[i] = responses.d[i] & 0xff;
+      if (response.data[1 + i] >> 8 == LINK_CABLE_MULTIBOOT_ACK_RESPONSE)
+        multiBootParameters.client_data[i] = response.data[1 + i] & 0xff;
     }
 
     for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
@@ -222,12 +224,13 @@ class LinkCableMultiboot {
                                      F cancel) {
     u16 data = LINK_CABLE_MULTIBOOT_CONFIRM_HANDSHAKE_DATA |
                multiBootParameters.handshake_data;
-    auto responses = exchange(data, cancel);
+    auto response = linkRawCable->transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
-    return (responses.d[0] >> 8) == LINK_CABLE_MULTIBOOT_ACK_RESPONSE ? FINISHED
-                                                                      : ERROR;
+    return (response.data[1] >> 8) == LINK_CABLE_MULTIBOOT_ACK_RESPONSE
+               ? FINISHED
+               : ERROR;
   }
 
   template <typename F>
@@ -235,7 +238,7 @@ class LinkCableMultiboot {
                         u16 data,
                         u16 expectedResponse,
                         F cancel) {
-    auto responses = exchange(data, cancel);
+    auto response = linkRawCable->transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
@@ -244,7 +247,7 @@ class LinkCableMultiboot {
       u16 expectedResponseWithId = expectedResponse | clientId;
       bool isClientConnected = multiBootParameters.client_bit & clientId;
 
-      if (isClientConnected && responses.d[i] != expectedResponseWithId)
+      if (isClientConnected && response.data[1 + i] != expectedResponseWithId)
         return ERROR;
     }
 
@@ -252,47 +255,8 @@ class LinkCableMultiboot {
   }
 
   Result error(Result error) {
-    setGeneralPurposeMode();
+    linkRawCable->deactivate();
     return error;
-  }
-
-  template <typename F>
-  Responses exchange(u16 data, F cancel) {
-    Responses responses;
-    responses.d[0] = 0xffff;
-    responses.d[1] = 0xffff;
-    responses.d[2] = 0xffff;
-
-    wait(LINK_CABLE_MULTIBOOT_WAIT_BEFORE_TRANSFER);
-
-    while (isBitHigh(LINK_CABLE_MULTIBOOT_BIT_START))
-      if (cancel())
-        return responses;
-
-    REG_SIOMLT_SEND = data;
-    setBitHigh(LINK_CABLE_MULTIBOOT_BIT_START);
-
-    while (isBitHigh(LINK_CABLE_MULTIBOOT_BIT_START))
-      if (cancel())
-        return responses;
-
-    for (u32 i = 0; i < 3; i++)
-      responses.d[i] = REG_SIOMULTI[1 + i];
-
-    return responses;
-  }
-
-  void setMultiPlayMode() {
-    REG_RCNT = REG_RCNT & ~(1 << LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH);
-    REG_SIOCNT = (1 << LINK_CABLE_MULTIBOOT_BIT_MULTIPLAYER);
-    REG_SIOCNT |= LINK_CABLE_MULTIBOOT_SIOCNT_MAX_BAUD_RATE;
-    REG_SIOMLT_SEND = 0;
-  }
-
-  void setGeneralPurposeMode() {
-    REG_RCNT =
-        (REG_RCNT & ~(1 << LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_LOW)) |
-        (1 << LINK_CABLE_MULTIBOOT_BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void wait(u32 verticalLines) {
@@ -306,10 +270,6 @@ class LinkCableMultiboot {
       }
     };
   }
-
-  bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkCableMultiboot* linkCableMultiboot;

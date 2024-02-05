@@ -8,10 +8,10 @@
 // #define USE_LINK_UNIVERSAL
 
 #ifndef USE_LINK_UNIVERSAL
-extern LinkCable* link;
+extern LinkCable* linkConnection;
 #endif
 #ifdef USE_LINK_UNIVERSAL
-extern LinkUniversal* link;
+extern LinkUniversal* linkConnection;
 #endif
 
 #endif  // MAIN_H
