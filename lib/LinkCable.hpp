@@ -67,7 +67,7 @@
 #define LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH 15
 #define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v6.2.0";
+static volatile char LINK_CABLE_VERSION[] = "LinkCable/v6.2.1";
 
 void LINK_CABLE_ISR_VBLANK();
 void LINK_CABLE_ISR_SERIAL();

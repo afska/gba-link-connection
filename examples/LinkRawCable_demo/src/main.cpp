@@ -33,7 +33,7 @@ int main() {
   u16 prevKeys = 0;
 
   while (true) {
-    std::string output = "LinkRawCable_demo (v6.2.0)\n\n";
+    std::string output = "LinkRawCable_demo (v6.2.1)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkRawCable->isActive()) {

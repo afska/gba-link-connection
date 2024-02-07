@@ -76,7 +76,7 @@
 #define LINK_SPI_BIT_GENERAL_PURPOSE_LOW 14
 #define LINK_SPI_BIT_GENERAL_PURPOSE_HIGH 15
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.2.0";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.2.1";
 
 const u32 LINK_SPI_MASK_CLEAR_SO_BIT = ~(1 << LINK_SPI_BIT_SO);
 const u32 LINK_SPI_MASK_SET_START_BIT = (1 << LINK_SPI_BIT_START);
@@ -150,22 +150,8 @@ class LinkSPI {
         return LINK_SPI_NO_DATA;
       }
 
-    asm volatile(
-        // enableTransfer();
-        // startTransfer();
-        "MOV R2, %[reg_siocnt]\n\t"          // Move &REG_SIOCNT to R2
-        "LDR R0, [R2]\n\t"                   // Load SIOCNT into R0
-        "LDR R1, %[clear_so_bit_mask]\n\t"   // Load mask value to clear SO bit
-        "AND R0, R0, R1\n\t"                 // Clear SO bit
-        "STR R0, [R2]\n\t"                   // Store back to SIOCNT
-        "LDR R1, %[set_start_bit_mask]\n\t"  // Load mask value to set START bit
-        "ORR R0, R0, R1\n\t"                 // Set START bit
-        "STR R0, [R2]\n\t"                   // Store back to SIOCNT
-        :
-        : [reg_siocnt] "r"(&REG_SIOCNT),
-          [clear_so_bit_mask] "m"(LINK_SPI_MASK_CLEAR_SO_BIT),
-          [set_start_bit_mask] "m"(LINK_SPI_MASK_SET_START_BIT)
-        : "r0", "r1", "r2");
+    enableTransfer();
+    startTransfer();
 
     if (_async)
       return LINK_SPI_NO_DATA;

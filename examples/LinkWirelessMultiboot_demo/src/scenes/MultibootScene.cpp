@@ -133,7 +133,7 @@ void MultibootScene::load() {
 
   log("---");
   log("LinkWirelessMultiboot demo");
-  log("  (v6.2.0)");
+  log("  (v6.2.1)");
   log("");
   if (fs == NULL) {
     log("! GBFS file not found");
