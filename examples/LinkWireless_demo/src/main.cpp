@@ -47,7 +47,7 @@ int main() {
 
 start:
   // Options
-  log("LinkWireless_demo (v6.2.1)\n\n\n\nPress A to start\n\n\n\n\nhold LEFT "
+  log("LinkWireless_demo (v6.2.2)\n\n\n\nPress A to start\n\n\n\n\nhold LEFT "
       "on start:\n -> disable forwarding\n\nhold UP on start:\n -> disable "
       "retransmission\n\nhold B on start:\n -> set 2 players\n\nhold START on "
       "start:\n -> async ACK");

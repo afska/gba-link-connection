@@ -45,7 +45,7 @@ int main() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     linkCable->send(keys + 1);  // (avoid using 0)
 
-    std::string output = "LinkCable_basic (v6.2.1)\n\n";
+    std::string output = "LinkCable_basic (v6.2.2)\n\n";
     if (linkCable->isConnected()) {
       u8 playerCount = linkCable->playerCount();
       u8 currentPlayerId = linkCable->currentPlayerId();
