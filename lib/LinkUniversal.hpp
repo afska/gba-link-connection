@@ -254,14 +254,16 @@ class LinkUniversal {
 
   u16 peek(u8 playerId) { return incomingMessages[playerId].peek(); }
 
-  void send(u16 data) {
+  bool send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
-      return;
+      return false;
 
-    if (mode == LINK_CABLE)
+    if (mode == LINK_CABLE) {
       linkCable->send(data);
-    else
-      linkWireless->send(data);
+      return true;
+    } else {
+      return linkWireless->send(data);
+    }
   }
 
   State getState() { return state; }
