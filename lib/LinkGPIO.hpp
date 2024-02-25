@@ -19,8 +19,9 @@
 //       linkGPIO->setSIInterrupts(true);
 //       // (when SI changes from high to low, an IRQ will be generated)
 // --------------------------------------------------------------------------
-// `setMode` restrictions:
+// considerations:
 // - always set the SI terminal to an input!
+// - call reset() when you finish doing GPIO stuff!
 // --------------------------------------------------------------------------
 
 #include <tonc_core.h>

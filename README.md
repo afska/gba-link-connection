@@ -6,7 +6,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
   - [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
   - [🔧👾](#-LinkRawCable) [LinkRawCable.hpp](lib/LinkRawCable.hpp): A **minimal** low-level API for the 16-bit Multi-Play mode.
 - [📻](#-LinkWireless) [LinkWireless.hpp](lib/LinkWireless.hpp): Connect up to 5 consoles with the **Wireless Adapter**!
-  - [📡](#-LinkWirelessMultiboot) [LinkWirelessMultiboot.hpp](lib/LinkWirelessMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs **over the air**!
+  - [📡](#-LinkWirelessMultiboot) [LinkWirelessMultiboot.hpp](lib/LinkWirelessMultiboot.hpp): ‍Send Multiboot software (small 256KiB ROMs) to other GBAs **over the air**!
   - [🔧📻](#-LinkRawWireless) [LinkRawWireless.hpp](lib/LinkRawWireless.hpp): A **minimal** low-level API for the Wireless Adapter.
   - [🔧🏛️](#-LinkWirelessOpenSDK) [LinkWirelessOpenSDK.hpp](lib/LinkWirelessOpenSDK.hpp): An abstraction of the **official** software level protocol of the Wireless Adapter.
 - [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**!
@@ -16,6 +16,8 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 *(click on the emojis for documentation)*
 
 > <img alt="rlabs" width="16" height="16" src="https://user-images.githubusercontent.com/1631752/116227197-400d2380-a72a-11eb-9e7b-389aae76f13e.png" /> Created by [[r]labs](https://r-labs.io).
+
+> 💬 Check out my other GBA projects: [piuGBA](https://github.com/afska/piugba), [gba-remote-play](https://github.com/afska/gba-remote-play)
 
 ## Usage
 
@@ -286,6 +288,7 @@ Name | Return type | Description
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, an IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
 ⚠️ always set the `SI` terminal to an input!
+⚠️ call `reset()` when you finish doing GPIO stuff! (for compatibility with the other libraries)
 
 # 🔗 LinkSPI
 

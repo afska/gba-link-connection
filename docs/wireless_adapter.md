@@ -621,7 +621,7 @@ enum CommState : unsigned int {
 - There's a short initialization ritual until reaching the `COMMUNICATING` state.
 - Once the `COMMUNICATING` state is reached, the initial sequence is `n=1, phase=0`.
 - After each packet, the other node responds with a packet containing the same `n`, `phase` and `commState`, but with the `isACK` bit set.
-- The sequence continues: `n=1,ph=1` | `n=1,ph=2` | `n=1,ph=3` | `n=2,ph=0` | `n=2,ph=1` | `n=2,ph=2` | `n=2,ph=3` | `n=3,ph=0` | `n=3,ph=1` | `n=3,ph=2` | `n=3,ph=3` | `n=0,ph=0` | `n=0,ph=1` | `n=0,ph=2` | `n=0,ph=3` | `n=1,ph=0` | `n=0,ph=1` | etc.
+- The sequence continues: `n=1,ph=1` | `n=1,ph=2` | `n=1,ph=3` | `n=2,ph=0` | `n=2,ph=1` | `n=2,ph=2` | `n=2,ph=3` | `n=3,ph=0` | `n=3,ph=1` | `n=3,ph=2` | `n=3,ph=3` | `n=0,ph=0` | `n=0,ph=1` | `n=0,ph=2` | `n=0,ph=3` | `n=1,ph=0` | `n=1,ph=1` | etc.
 - Repeated or old sequence numbers are ignored, that's how they handle retransmission.
 - Transfers can contain more than one packet.
 - As the maximum transfer lengths are `87` (server) and `16` (client), based on header sizes, the maximum payload lengths are `84` and `14`.
