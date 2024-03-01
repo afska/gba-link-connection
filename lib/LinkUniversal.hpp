@@ -51,7 +51,7 @@
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
-// Max players. Default = 5
+// Max players. Default = 5 (keep in mind that LinkCable's limit is 4)
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_WIRELESS_MAX_PLAYERS
 
 // Game ID Filter. Default = 0 (no filter)
@@ -67,7 +67,7 @@
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
 #define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.2.2";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v6.2.3";
 
 void LINK_UNIVERSAL_ISR_VBLANK();
 void LINK_UNIVERSAL_ISR_SERIAL();
