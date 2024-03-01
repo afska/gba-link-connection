@@ -288,6 +288,7 @@ Name | Return type | Description
 `setSIInterrupts(isEnabled)` | - | If it `isEnabled`, an IRQ will be generated when `SI` changes from *HIGH* to *LOW*.
 
 ⚠️ always set the `SI` terminal to an input!
+
 ⚠️ call `reset()` when you finish doing GPIO stuff! (for compatibility with the other libraries)
 
 # 🔗 LinkSPI
