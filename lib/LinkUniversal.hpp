@@ -51,8 +51,8 @@
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
-// Max players. Default = 4 (LinkCable's limit), but can be increased to 5
-#define LINK_UNIVERSAL_MAX_PLAYERS LINK_CABLE_MAX_PLAYERS
+// Max players. Default = 5
+#define LINK_UNIVERSAL_MAX_PLAYERS LINK_WIRELESS_MAX_PLAYERS
 
 // Game ID Filter. Default = 0 (no filter)
 #define LINK_UNIVERSAL_GAME_ID_FILTER 0

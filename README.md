@@ -253,7 +253,7 @@ Name | Type | Default | Description
 `wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#-LinkWireless) constructor parameters in one *struct*.
 
 You can also change these compile-time constants:
-- `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `4` (LinkCable's limit) but can be increased to `5` to support larger wireless rooms.
+- `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `5`, but since LinkCable's limit is `4`, you might want to decrease it.
 - `LINK_UNIVERSAL_GAME_ID_FILTER`: to restrict wireless connections to rooms with a specific game ID (`0x0000` - `0x7fff`). The default value (`0`) connects to any game ID and uses `0x7fff` when serving.
 
 ## Methods
