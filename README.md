@@ -324,3 +324,22 @@ Name | Return type | Description
 ⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
 
 ⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+
+## SPI Configuration
+
+The GBA operates using **SPI mode 3** (`CPOL=1, CPHA=1`). Here's a connection diagram that illustrates how to connect a Link Cable to a Raspberry Pi 3's SPI pins:
+
+<table>
+  <tr>
+    <td>
+      <p>
+        <img src="https://github.com/afska/gba-link-connection/assets/1631752/a5fffad6-3aef-4f81-8d6c-ae4e99c2d5b4" alt="pinout">
+      </p>
+    </td>
+    <td>
+      <p>
+        <img src="https://github.com/afska/gba-link-connection/assets/1631752/203dc766-e316-4d92-a4b7-bc2264bffe71" alt="rpigba">
+      </p>
+    </td>
+  </tr>
+</table>
