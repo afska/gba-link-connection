@@ -45,8 +45,8 @@ int main() {
       // (4) Get a report
       int data[3];
       linkPS2Mouse->report(data);
-      log(std::to_string(data[0]) + ": " + "(" + std::to_string(data[1]) +
-          ", " + std::to_string(data[2]) + ")");
+      output += std::to_string(data[0]) + ": " + "(" + std::to_string(data[1]) +
+                ", " + std::to_string(data[2]) + ")";
     }
 
     // Print

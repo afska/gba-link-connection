@@ -6,6 +6,7 @@
 #include "../../../lib/LinkPS2Keyboard.hpp"
 
 void log(std::string text);
+static std::string scanCodes = "";
 static std::string output = "";
 static u32 irqs = 0;
 inline void VBLANK() {}
@@ -15,9 +16,9 @@ void SERIAL() {
 }
 
 // (1) Create a LinkPS2Keyboard instance
-LinkPS2Keyboard* linkPS2Keyboard = new LinkPS2Keyboard([](u8 event) {
+LinkPS2Keyboard* linkPS2Keyboard = new LinkPS2Keyboard([](u8 scanCode) {
   // (4) Handle events in the callback sent to LinkPS2Keyboard's constructor!
-  output += std::to_string(event) + "|";
+  scanCodes += std::to_string(scanCode) + "|";
 });
 
 void init() {
@@ -49,6 +50,8 @@ int main() {
         VBlankIntrWait();
         continue;
       }
+    } else {
+      output += std::to_string(irqs) + " - " + scanCodes;
     }
 
     // Print
