@@ -76,7 +76,7 @@
 #define LINK_SPI_BIT_GENERAL_PURPOSE_LOW 14
 #define LINK_SPI_BIT_GENERAL_PURPOSE_HIGH 15
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.2.3";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v6.3.0";
 
 const u32 LINK_SPI_MASK_CLEAR_SO_BIT = ~(1 << LINK_SPI_BIT_SO);
 const u32 LINK_SPI_MASK_SET_START_BIT = (1 << LINK_SPI_BIT_START);

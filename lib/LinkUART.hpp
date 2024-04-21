@@ -47,7 +47,7 @@
 #define LINK_UART_BIT_GENERAL_PURPOSE_HIGH 15
 #define LINK_UART_BARRIER asm volatile("" ::: "memory")
 
-static volatile char LINK_UART_VERSION[] = "LinkUART/v6.2.3";
+static volatile char LINK_UART_VERSION[] = "LinkUART/v6.3.0";
 
 void LINK_UART_ISR_SERIAL();
 
