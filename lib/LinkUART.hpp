@@ -100,21 +100,30 @@ class LinkUART {
   }
 
   bool canRead() { return !queue.isEmpty(); }
-  u8 read() { return queue.pop(); }
-
   bool canSend() { return !isBitHigh(LINK_UART_BIT_SEND_DATA_FLAG); }
+  bool hasError() { return isBitHigh(LINK_UART_BIT_ERROR_FLAG); }
+
+  u8 read() {
+    LINK_UART_BARRIER;
+    isReading = true;
+    LINK_UART_BARRIER;
+
+    u8 data = queue.pop();
+
+    LINK_UART_BARRIER;
+    isReading = true;
+    LINK_UART_BARRIER;
+
+    return data;
+  }
+
   void send(u8 data) { REG_SIODATA8 = data; }
 
   void _onSerial() {
-    if (!isEnabled)
+    if (!isEnabled || hasError())
       return;
 
-    if (hasError()) {
-      reset();
-      return;
-    }
-
-    if (canReceive())
+    if (canReceive() && !isReading)
       queue.push((u8)REG_SIODATA8);
   }
 
@@ -174,8 +183,9 @@ class LinkUART {
   Config config;
   U8Queue queue;
   volatile bool isEnabled = false;
+  volatile bool isReading = false;
+  // TODO: Make it similar to LinkCable (timer + outgoingQueue)
 
-  bool hasError() { return isBitHigh(LINK_UART_BIT_ERROR_FLAG); }
   bool canReceive() { return !isBitHigh(LINK_UART_BIT_RECEIVE_DATA_FLAG); }
 
   void reset() {
