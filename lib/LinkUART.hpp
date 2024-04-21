@@ -24,7 +24,6 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 
-#include <tonc_bios.h>
 #include <tonc_core.h>
 
 // Buffer size

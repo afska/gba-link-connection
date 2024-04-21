@@ -360,7 +360,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate(baudRate, dataSize, parity, useCTS)` | - | Activates the library using a specific UART mode. _Defaults: 9600bps, 8-bit data, no parity bit, no CTS_.
 `deactivate()` | - | Deactivates the library.
-`sendLine(string)` | - | Receives a null-terminated `string`, and sends the string followed by a `'\n'` character. The null character is not sent.
+`sendLine(string)` | - | Takes a null-terminated `string`, and sends it followed by a `'\n'` character. The null character is not sent.
 `sendLine(data, cancel)` | - | Like `sendLine(string)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `readLine(string, [limit])` | **bool** | Reads characters into `string` until finding a `'\n'` character or a character `limit` is reached. A null terminator is added at the end. Returns `false` if the limit has been reached without finding a newline character.
 `readLine(string, cancel, [limit])` | - | Like `readLine(string, [limit])` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
