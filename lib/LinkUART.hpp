@@ -13,10 +13,11 @@
 // - 3) Initialize the library with:
 //       linkUART->activate();
 // - 4) Send/read bytes by using:
-//       if (linkUART->canSend())
-//         linkUART->send(0xFA);
-//       if (linkUART->canRead())
-//         u8 newByte = linkUART->read();
+//       linkUART->send(0xFA);
+//       linkUART->sendLine("hello");
+//       u8 newByte = linkUART->read();
+//       char newString[256];
+//       linkUART->readLine(newString);
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That causes packet loss. You REALLY want to use libugba's instead.
@@ -99,32 +100,102 @@ class LinkUART {
     stop();
   }
 
-  bool canRead() { return !queue.isEmpty(); }
-  bool canSend() { return !isBitHigh(LINK_UART_BIT_SEND_DATA_FLAG); }
-  bool hasError() { return isBitHigh(LINK_UART_BIT_ERROR_FLAG); }
+  void sendLine(const char* string) {
+    sendLine(string, []() { return false; });
+  }
+
+  template <typename F>
+  void sendLine(const char* string, F cancel) {
+    for (u32 i = 0; string[i] != '\0'; i++) {
+      while (!canSend())
+        if (cancel())
+          return;
+      send(string[i]);
+    }
+    send('\n');
+  }
+
+  bool readLine(char* string, u32 limit = LINK_UART_QUEUE_SIZE) {
+    return readLine(
+        string, []() { return false; }, limit);
+  }
+
+  template <typename F>
+  bool readLine(char* string, F cancel, u32 limit = LINK_UART_QUEUE_SIZE) {
+    u32 readBytes = 0;
+    char lastChar = '\0';
+    bool aborted = false;
+
+    while (lastChar != '\n') {
+      while (!canRead())
+        if (cancel())
+          return false;
+      string[readBytes++] = lastChar = read();
+      if (readBytes >= limit - 1) {
+        aborted = true;
+        break;
+      }
+    }
+
+    string[readBytes] = '\0';
+    return !aborted && readBytes > 1;
+  }
+
+  void send(const u8* buffer, u32 size, u32 offset = 0) {
+    for (u32 i = 0; i < size; i++)
+      send(buffer[offset + i]);
+  }
+
+  u32 read(u8* buffer, u32 size, u32 offset = 0) {
+    for (u32 i = 0; i < size; i++) {
+      if (!canRead())
+        return i;
+      buffer[offset + i] = read();
+    }
+
+    return size;
+  }
+
+  bool canRead() { return !incomingQueue.isEmpty(); }
+  bool canSend() { return !outgoingQueue.isFull(); }
+  u32 availableForRead() { return incomingQueue.size(); }
+  u32 availableForSend() { return outgoingQueue.size(); }
 
   u8 read() {
     LINK_UART_BARRIER;
     isReading = true;
     LINK_UART_BARRIER;
 
-    u8 data = queue.pop();
+    u8 data = incomingQueue.pop();
 
     LINK_UART_BARRIER;
-    isReading = true;
+    isReading = false;
     LINK_UART_BARRIER;
 
     return data;
   }
 
-  void send(u8 data) { REG_SIODATA8 = data; }
+  void send(u8 data) {
+    LINK_UART_BARRIER;
+    isAdding = true;
+    LINK_UART_BARRIER;
+
+    outgoingQueue.push(data);
+
+    LINK_UART_BARRIER;
+    isAdding = false;
+    LINK_UART_BARRIER;
+  }
 
   void _onSerial() {
     if (!isEnabled || hasError())
       return;
 
-    if (canReceive() && !isReading)
-      queue.push((u8)REG_SIODATA8);
+    if (!isReading && canReceive())
+      incomingQueue.push((u8)REG_SIODATA8);
+
+    if (!isAdding && canTransfer() && needsTransfer())
+      REG_SIODATA8 = outgoingQueue.pop();
   }
 
  private:
@@ -181,12 +252,16 @@ class LinkUART {
   };
 
   Config config;
-  U8Queue queue;
+  U8Queue incomingQueue;
+  U8Queue outgoingQueue;
   volatile bool isEnabled = false;
   volatile bool isReading = false;
-  // TODO: Make it similar to LinkCable (timer + outgoingQueue)
+  volatile bool isAdding = false;
 
   bool canReceive() { return !isBitHigh(LINK_UART_BIT_RECEIVE_DATA_FLAG); }
+  bool canTransfer() { return !isBitHigh(LINK_UART_BIT_SEND_DATA_FLAG); }
+  bool hasError() { return isBitHigh(LINK_UART_BIT_ERROR_FLAG); }
+  bool needsTransfer() { return outgoingQueue.size() > 0; }
 
   void reset() {
     resetState();
@@ -194,7 +269,10 @@ class LinkUART {
     start();
   }
 
-  void resetState() { queue.clear(); }
+  void resetState() {
+    incomingQueue.clear();
+    outgoingQueue.clear();
+  }
 
   void stop() { setGeneralPurposeMode(); }
 

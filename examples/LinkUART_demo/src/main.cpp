@@ -8,7 +8,8 @@
 void log(std::string text);
 inline void VBLANK() {}
 
-std::string buffer = "";
+std::string received = "";
+u32 lines = 0;
 
 // (1) Create a LinkUART instance
 LinkUART* linkUART = new LinkUART();
@@ -42,27 +43,37 @@ int main() {
       if ((keys & KEY_START) | (keys & KEY_SELECT)) {
         // (3) Initialize the library
         linkUART->activate();
-        buffer = "";
+        received = "";
+        lines = 0;
       }
     } else {
       // Title
-      output += "[uart]\n";
       if (firstTransfer) {
         log(output + "Waiting...");
         firstTransfer = false;
       }
 
       // (4) Send/read bytes
-      if (linkUART->canRead()) {
-        u8 newByte = linkUART->read();
-        while (!linkUART->canSend())
-          ;
-        linkUART->send('z');
-        buffer += (char)newByte;
-        if (buffer.size() > 250)
-          buffer = "";
+      char buffer[256];
+      if (linkUART->readLine(buffer, []() {
+            u16 keys = ~REG_KEYS & KEY_ANY;
+            return (keys & KEY_L) && (keys & KEY_R);
+          })) {
+        lines++;
+        if (lines >= 18) {
+          lines = 0;
+          received = "";
+        }
+
+        received += std::string(buffer);
+
+        linkUART->sendLine(">> gba", []() {
+          u16 keys = ~REG_KEYS & KEY_ANY;
+          return (keys & KEY_L) && (keys & KEY_R);
+        });
       }
-      output += buffer;
+
+      output += received;
 
       // Cancel
       if ((keys & KEY_L) && (keys & KEY_R)) {
