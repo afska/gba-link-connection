@@ -25,6 +25,16 @@ make rebuild
 cp LinkGPIO_demo.gba ../
 cd ..
 
+cd LinkPS2Keyboard_demo/
+make rebuild
+cp LinkPS2Keyboard_demo.gba ../
+cd ..
+
+cd LinkPS2Mouse_demo/
+make rebuild
+cp LinkPS2Mouse_demo.gba ../
+cd ..
+
 cd LinkRawCable_demo/
 make rebuild
 cp LinkRawCable_demo.gba ../
@@ -40,6 +50,11 @@ cd ..
 cd LinkSPI_demo/
 make rebuild
 cp LinkSPI_demo.gba ../
+cd ..
+
+cd LinkUART_demo/
+make rebuild
+cp LinkUART_demo.gba ../
 cd ..
 
 cd LinkUniversal_basic/

@@ -20,7 +20,7 @@ void init() {
   interrupt_init();
   interrupt_set_handler(INTR_VBLANK, VBLANK);
   interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_TIMER2, VBLANK);
+  interrupt_set_handler(INTR_TIMER2, TIMER);
   interrupt_enable(INTR_TIMER2);
 }
 
