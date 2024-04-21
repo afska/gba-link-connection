@@ -12,6 +12,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🌎](#-LinkUniversal) [LinkUniversal.hpp](lib/LinkUniversal.hpp): Add multiplayer support to your game, both with 👾 *Link Cables* and 📻 *Wireless Adapters*, using the **same API**!
 - [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
+- [⏱️](#-LinkUART) [LinkUART.hpp](lib/LinkUART.hpp): Easily connect to **any PC** using a USB to UART cable!
 
 *(click on the emojis for documentation)*
 
@@ -87,7 +88,7 @@ Name | Return type | Description
 
 # 💻 LinkCableMultiboot
 
-*(aka Multiboot through Multi-Play mode)*
+*(aka Multiboot through Multi-Play Mode)*
 
 This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
 
@@ -343,3 +344,41 @@ The GBA operates using **SPI mode 3** (`CPOL=1, CPHA=1`). Here's a connection di
     </td>
   </tr>
 </table>
+
+# ⏱️ LinkUART
+
+*(aka UART Mode)*
+
+This is the GBA's implementation of UART. You can use this to interact with a PC using a _USB to UART cable_. You can change the buffer size by changing the compile-time constant `LINK_UART_QUEUE_SIZE`.
+
+![photo](https://github.com/afska/gba-link-connection/assets/1631752/2ca8abb8-1a38-40bb-bf7d-bf29a0f880cd)
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate(baudRate, dataSize, parity, useCTS)` | - | Activates the library using a specific UART mode. _Defaults: 9600bps, 8-bit data, no parity bit, no CTS_.
+`deactivate()` | - | Deactivates the library.
+`sendLine(string)` | - | Receives a null-terminated `string`, and sends the string followed by a `'\n'` character. The null character is not sent.
+`sendLine(data, cancel)` | - | Like `sendLine(string)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`readLine(string, [limit])` | **bool** | Reads characters into `string` until finding a `'\n'` character or a character `limit` is reached. A null terminator is added at the end. Returns `false` if the limit has been reached without finding a newline character.
+`readLine(string, cancel, [limit])` | - | Like `readLine(string, [limit])` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`send(buffer, size, offset)` | - | Sends `size` bytes from `buffer`, starting at byte `offset`.
+`read(buffer, size, offset)` | **u32** | Tries to read `size` bytes into `(u8*)(buffer + offset)`. Returns the number of read bytes. 
+`canRead()` | **bool** | Returns whether there are bytes to read or not.
+`canSend()` | **bool** | Returns whether there is room to send new messages or not.
+`availableForRead()` | **u32** | Returns the number of bytes available for read.
+`availableForSend()` | **u32** | Returns the number of bytes available for send (buffer size - queued bytes).
+`read()` | **u8** | Reads a byte. Returns 0 if nothing is found.
+`send(data)` | - | Sends a `data` byte.
+
+## UART Configuration
+
+The GBA operates using 1 stop bit, but everything else can be configured. By default, the library uses `8N1`, which means 8-bit data and no parity bit. RTS/CTS is disabled by default.
+
+![diagram](https://github.com/afska/gba-link-connection/assets/1631752/a6a58f94-da24-4fd9-9603-9c7c9a493f93)
+
+- Black wire (GND) -> GBA GND.
+- Green wire (TX) -> GBA SI.
+- White wire (RX) -> GBA SO.

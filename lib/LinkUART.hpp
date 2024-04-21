@@ -12,7 +12,7 @@
 //       irq_add(II_SERIAL, LINK_UART_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkUART->activate();
-// - 4) Send/read bytes by using:
+// - 4) Send/read data by using:
 //       linkUART->send(0xFA);
 //       linkUART->sendLine("hello");
 //       u8 newByte = linkUART->read();
@@ -159,7 +159,7 @@ class LinkUART {
   bool canRead() { return !incomingQueue.isEmpty(); }
   bool canSend() { return !outgoingQueue.isFull(); }
   u32 availableForRead() { return incomingQueue.size(); }
-  u32 availableForSend() { return outgoingQueue.size(); }
+  u32 availableForSend() { return LINK_UART_QUEUE_SIZE - outgoingQueue.size(); }
 
   u8 read() {
     LINK_UART_BARRIER;
