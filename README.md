@@ -20,7 +20,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 > <img alt="rlabs" width="16" height="16" src="https://user-images.githubusercontent.com/1631752/116227197-400d2380-a72a-11eb-9e7b-389aae76f13e.png" /> Created by [[r]labs](https://r-labs.io).
 
-> 💬 Check out my other GBA projects: [piuGBA](https://github.com/afska/piugba), [gba-remote-play](https://github.com/afska/gba-remote-play)
+> 💬 Check out my other GBA projects: [piuGBA](https://github.com/afska/piugba), [gba-remote-play](https://github.com/afska/gba-remote-play), [gba-flashcartio](https://github.com/afska/gba-flashcartio)
 
 ## Usage
 
@@ -351,7 +351,7 @@ The GBA operates using **SPI mode 3** (`CPOL=1, CPHA=1`). Here's a connection di
 
 *(aka UART Mode)*
 
-This is the GBA's implementation of UART. You can use this to interact with a PC using a _USB to UART cable_. You can change the buffer size by changing the compile-time constant `LINK_UART_QUEUE_SIZE`.
+This is the GBA's implementation of UART. You can use this to interact with a PC using a _USB to UART cable_. You can change the buffer size by setting the compile-time constant `LINK_UART_QUEUE_SIZE`.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/2ca8abb8-1a38-40bb-bf7d-bf29a0f880cd)
 
@@ -365,7 +365,7 @@ Name | Return type | Description
 `sendLine(string)` | - | Takes a null-terminated `string`, and sends it followed by a `'\n'` character. The null character is not sent.
 `sendLine(data, cancel)` | - | Like `sendLine(string)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `readLine(string, [limit])` | **bool** | Reads characters into `string` until finding a `'\n'` character or a character `limit` is reached. A null terminator is added at the end. Returns `false` if the limit has been reached without finding a newline character.
-`readLine(string, cancel, [limit])` | - | Like `readLine(string, [limit])` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
+`readLine(string, cancel, [limit])` | **bool** | Like `readLine(string, [limit])` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `send(buffer, size, offset)` | - | Sends `size` bytes from `buffer`, starting at byte `offset`.
 `read(buffer, size, offset)` | **u32** | Tries to read `size` bytes into `(u8*)(buffer + offset)`. Returns the number of read bytes. 
 `canRead()` | **bool** | Returns whether there are bytes to read or not.
