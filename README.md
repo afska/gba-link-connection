@@ -13,6 +13,8 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [⏱️](#%EF%B8%8F-LinkUART) [LinkUART.hpp](lib/LinkUART.hpp): Easily connect to **any PC** using a USB to UART cable!
+- [🖱️](#%EF%B8%8F-LinkPS2Mouse) [LinkPS2Mouse.hpp](lib/LinkPS2Mouse.hpp): Connect a **PS/2 mouse** to the GBA for extended controls!
+- [⌨️](#%EF%B8%8F-LinkPS2Keyboard) [LinkPS2Keyboard.hpp](lib/LinkPS2Keyboard.hpp): Connect a **PS/2 keyboard** to the GBA for extended controls!
 
 *(click on the emojis for documentation)*
 
@@ -382,3 +384,40 @@ The GBA operates using 1 stop bit, but everything else can be configured. By def
 - Black wire (GND) -> GBA GND.
 - Green wire (TX) -> GBA SI.
 - White wire (RX) -> GBA SO.
+
+# 🖱️ LinkPS2Mouse
+
+A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games.
+
+![photo](https://github.com/afska/gba-link-connection/assets/1631752/6856ff0d-0f06-4a9d-8ded-280052e02b8d)
+
+## Constructor
+
+`new LinkPS2Mouse(timerId)`, where `timerId` is the GBA Timer used for delays.
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | - | Activates the library.
+`deactivate()` | - | Deactivates the library.
+`report(data[3])` | - | Fills the `data` int array with a report. The first int contains _clicks_ that you can check against the bitmasks `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the _X movement_, and the third int is the _Y movement_.
+
+# ⌨️ LinkPS2Keyboard
+
+A PS/2 keyboard driver for the GBA. Use it to add keyboard support to your homebrew games.
+
+![photo](https://github.com/afska/gba-link-connection/assets/1631752/4c5fa3ed-5d96-45fe-ad24-73bc3f71c63f)
+
+## Constructor
+
+`new LinkPS2Keyboard(onEvent)`, where `onEvent` is a function pointer that will receive the scan codes (`u8`). You should check a PS/2 scan code list online, but there are some examples included like `LINK_PS2_KEYBOARD_KEY_ENTER` and `LINK_PS2_KEYBOARD_KEY_RELEASE`.
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | - | Activates the library.
+`deactivate()` | - | Deactivates the library.

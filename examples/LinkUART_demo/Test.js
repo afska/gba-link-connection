@@ -1,4 +1,4 @@
-const { SerialPort, ReadlineParser } = require('serialport')
+const { SerialPort, ReadlineParser } = require('serialport') // "^12.0.0"
 
 var serialPort = new SerialPort({
   path: "COM9", // (*nix: /dev/ttyACMX, Windows: COMX)
