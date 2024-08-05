@@ -104,6 +104,8 @@ Name | Return type | Description
 
 ⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
+⚠️ stop DMA before sending the ROM! _(you might need to stop your audio player)_
+
 # 🔧👾 LinkRawCable
 
 - This is a minimal hardware wrapper designed for the *Multi-Play mode*.

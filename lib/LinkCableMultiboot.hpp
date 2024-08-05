@@ -21,6 +21,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - for better results, turn on the GBAs after calling the `sendRom` method!
+// - stop DMA before sending the ROM! (you might need to stop your audio player)
 // --------------------------------------------------------------------------
 
 #include <tonc_bios.h>

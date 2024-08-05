@@ -2,7 +2,7 @@
 #define LINK_UART_H
 
 // --------------------------------------------------------------------------
-// An UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
+// A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -115,8 +115,7 @@ class LinkUART {
   }
 
   bool readLine(char* string, u32 limit = LINK_UART_QUEUE_SIZE) {
-    return readLine(
-        string, []() { return false; }, limit);
+    return readLine(string, []() { return false; }, limit);
   }
 
   template <typename F>

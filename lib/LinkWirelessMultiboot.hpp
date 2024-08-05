@@ -15,7 +15,7 @@
 //       LinkWirelessMultiboot::Result result = linkWirelessMultiboot->sendRom(
 //         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
 //         romLength, // in bytes
-//         Multiboot", // game name
+//         "Multiboot", // game name
 //         "Test", // user name
 //         0xffff, // game id
 //         2, // number of players
@@ -627,10 +627,8 @@ class LinkWirelessMultiboot {
   }
 
   template <typename F, typename V, typename C>
-  __attribute__((noinline)) Result exchangeData(u8 clientNumber,
-                                                F sendAction,
-                                                V validatePacket,
-                                                C cancel) {
+  __attribute__((noinline)) Result
+  exchangeData(u8 clientNumber, F sendAction, V validatePacket, C cancel) {
     bool hasFinished = false;
     while (!hasFinished) {
       if (cancel(progress))

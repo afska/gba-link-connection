@@ -2,7 +2,7 @@
 #define LINK_UNIVERSAL_H
 
 // --------------------------------------------------------------------------
-//  A multiplayer connection for the Link Cable and the Wireless Adapter.
+// A multiplayer connection for the Link Cable and the Wireless Adapter.
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -34,10 +34,11 @@
 //      (see examples)
 // --------------------------------------------------------------------------
 // (*2) For CABLE mode:
-//     The hardware is very sensitive to timing. Make sure your interrupt
-//     handlers are short, so `LINK_UNIVERSAL_ISR_SERIAL()` is called on time.
-//     Another option would be activating nested interrupts by setting
-//     `REG_IME=1` at the start of your interrupt handler.
+//      The hardware is very sensitive to timing. Make sure that
+//      `LINK_CABLE_ISR_SERIAL()` is handled on time. That means:
+//      Be careful with DMA usage (which stops the CPU), and write short
+//      interrupt handlers (or activate nested interrupts by setting
+//      `REG_IME=1` at the start of your handlers).
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
 // - 0xFFFF and 0x0 are reserved values, so don't use them!

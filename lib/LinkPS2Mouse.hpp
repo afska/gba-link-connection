@@ -2,7 +2,7 @@
 #define LINK_PS2_MOUSE_H
 
 // --------------------------------------------------------------------------
-// A PS/2 Mouse Adapter for the GBA
+// A PS/2 Mouse Adapter for the GBA.
 // (Based on https://github.com/kristopher/PS2-Mouse-Arduino, MIT license)
 // --------------------------------------------------------------------------
 // Usage:

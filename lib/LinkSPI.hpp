@@ -170,8 +170,7 @@ class LinkSPI {
   }
 
   void transferAsync(LINK_SPI_DATA_TYPE data) {
-    transfer(
-        data, []() { return false; }, true);
+    transfer(data, []() { return false; }, true);
   }
 
   template <typename F>

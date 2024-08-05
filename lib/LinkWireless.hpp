@@ -781,7 +781,7 @@ class LinkWireless {
       rear = -1;
     }
 
-    int size() { return count; }
+    u32 size() { return count; }
     bool isEmpty() { return size() == 0; }
     bool isFull() { return size() == LINK_WIRELESS_QUEUE_SIZE; }
 
@@ -1585,8 +1585,7 @@ class LinkWireless {
   }
 
   void transferAsync(u32 data) {
-    linkSPI->transfer(
-        data, []() { return false; }, true, true);
+    linkSPI->transfer(data, []() { return false; }, true, true);
   }
 
   u32 transfer(u32 data, bool customAck = true) {

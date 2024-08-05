@@ -2,7 +2,7 @@
 #define LINK_PS2_KEYBOARD_H
 
 // --------------------------------------------------------------------------
-// A PS/2 Keyboard Adapter for the GBA
+// A PS/2 Keyboard Adapter for the GBA.
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:

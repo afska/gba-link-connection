@@ -127,8 +127,7 @@ class LinkRawCable {
   }
 
   void transferAsync(u16 data) {
-    transfer(
-        data, []() { return false; }, true);
+    transfer(data, []() { return false; }, true);
   }
 
   Response getAsyncData() {

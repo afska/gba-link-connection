@@ -31,10 +31,11 @@
 //      That causes packet loss. You REALLY want to use libugba's instead.
 //      (see examples)
 // --------------------------------------------------------------------------
-// (*2) The hardware is very sensitive to timing. Make sure your interrupt
-//      handlers are short, so `LINK_CABLE_ISR_SERIAL()` is called on time.
-//      Another option would be activating nested interrupts by setting
-//      `REG_IME=1` at the start of your interrupt handler.
+// (*2) The hardware is very sensitive to timing. Make sure that
+//      `LINK_CABLE_ISR_SERIAL()` is handled on time. That means:
+//      Be careful with DMA usage (which stops the CPU), and write short
+//      interrupt handlers (or activate nested interrupts by setting
+//      `REG_IME=1` at the start of your handlers).
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
 // - 0xFFFF and 0x0 are reserved values, so don't send them!
@@ -118,7 +119,7 @@ class LinkCable {
       rear = -1;
     }
 
-    int size() { return count; }
+    u32 size() { return count; }
     bool isEmpty() { return size() == 0; }
     bool isFull() { return size() == LINK_CABLE_QUEUE_SIZE; }
 
