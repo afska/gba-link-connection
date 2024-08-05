@@ -21,7 +21,7 @@ void init() {
 int main() {
   init();
 
-  log("LinkUniversal_basic (v6.3.0)\n\n\nPress A to start\n\n\nhold LEFT on "
+  log("LinkUniversal_basic (v6.4.0)\n\n\nPress A to start\n\n\nhold LEFT on "
       "start:\n -> force cable\n\nhold RIGHT on start:\n -> force "
       "wireless\n\nhold UP on start:\n -> force wireless server\n\nhold DOWN "
       "on start:\n -> force wireless client\n\nhold B on start:\n -> set 2 "

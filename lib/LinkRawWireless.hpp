@@ -66,7 +66,7 @@
 #define LINK_RAW_WIRELESS_COMMAND_WAIT 0x27
 #define LINK_RAW_WIRELESS_COMMAND_BYE 0x3d
 
-static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v6.3.0";
+static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v6.4.0";
 
 const u16 LINK_RAW_WIRELESS_LOGIN_PARTS[] = {
     0x494e, 0x494e, 0x544e, 0x544e, 0x4e45, 0x4e45, 0x4f44, 0x4f44, 0x8001};

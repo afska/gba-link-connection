@@ -36,7 +36,7 @@
   else                                \
     REG &= ~(1 << BIT);
 
-static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v6.3.0";
+static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v6.4.0";
 
 const u8 LINK_GPIO_DATA_BITS[] = {2, 3, 1, 0};
 const u8 LINK_GPIO_DIRECTION_BITS[] = {6, 7, 5, 4};

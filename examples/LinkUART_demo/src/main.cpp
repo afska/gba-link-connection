@@ -32,7 +32,7 @@ int main() {
   bool firstTransfer = false;
 
   while (true) {
-    std::string output = "LinkUART_demo (v6.3.0)\n\n";
+    std::string output = "LinkUART_demo (v6.4.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkUART->isActive()) {

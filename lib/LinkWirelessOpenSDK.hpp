@@ -34,7 +34,7 @@
    LINK_WIRELESS_OPEN_SDK_HEADER_SIZE_CLIENT)
 
 static volatile char LINK_WIRELESS_OPEN_SDK_VERSION[] =
-    "LinkWirelessOpenSDK/v6.3.0";
+    "LinkWirelessOpenSDK/v6.4.0";
 
 class LinkWirelessOpenSDK {
  public:

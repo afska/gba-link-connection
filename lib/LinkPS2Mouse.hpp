@@ -47,7 +47,7 @@
 const u16 LINK_PS2_MOUSE_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                       IRQ_TIMER3};
 
-static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v6.3.0";
+static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v6.4.0";
 
 class LinkPS2Mouse {
  public:
