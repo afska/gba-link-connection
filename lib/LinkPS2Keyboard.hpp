@@ -78,6 +78,7 @@ class LinkPS2Keyboard {
 
     bitcount = 0;
     incoming = 0;
+    parityBit = 0;
     prevFrame = 0;
     frameCounter = 0;
 
@@ -94,33 +95,52 @@ class LinkPS2Keyboard {
   void _onVBlank() { frameCounter++; }
 
   void _onSerial() {
+    if (!isEnabled)
+      return;
+
     u8 val = (REG_RCNT & LINK_PS2_KEYBOARD_SO_DATA) != 0;
 
     u32 nowFrame = frameCounter;
     if (nowFrame - prevFrame > LINK_PS2_KEYBOARD_TIMEOUT_FRAMES) {
       bitcount = 0;
       incoming = 0;
+      parityBit = 0;
     }
     prevFrame = nowFrame;
 
-    u8 n = bitcount - 1;
-    if (n <= 7)
-      incoming |= (val << n);
-    bitcount++;
+    if (bitcount == 0 && val == 0) {  // start bit detected
+      // start bit is always 0, so only proceed if val is 0
+      bitcount++;
+    } else if (bitcount >= 1 && bitcount <= 8) {  // data bits
+      incoming |= (val << (bitcount - 1));
+      bitcount++;
+    } else if (bitcount == 9) {  // parity bit
+      // store parity bit for later check
+      parityBit = val;
+      bitcount++;
+    } else if (bitcount == 10) {  // stop bit
+      if (val == 1) {             // stop bit should be 1
+        // calculate parity (including the stored parity bit from previous IRQ)
+        u8 parity = 0;
+        for (u8 i = 0; i < 8; i++)
+          parity += (incoming >> i) & 1;
+        parity += parityBit;
 
-    if (bitcount == 11) {
-      onEvent(incoming);
-
+        if (parity % 2 != 0)  // odd parity as expected
+          onEvent(incoming);
+      }
       bitcount = 0;
       incoming = 0;
+      parityBit = 0;
     }
   }
 
  private:
   bool isEnabled = false;
-  uint8_t bitcount = 0;
-  uint8_t incoming = 0;
-  uint32_t prevFrame = 0;
+  u8 bitcount = 0;
+  u8 incoming = 0;
+  u8 parityBit = 0;
+  u32 prevFrame = 0;
   u32 frameCounter = 0;
   std::function<void(u8 event)> onEvent;
 };
@@ -135,9 +155,6 @@ inline void LINK_PS2_KEYBOARD_ISR_VBLANK() {
 }
 
 inline void LINK_PS2_KEYBOARD_ISR_SERIAL() {
-  if (!linkPS2Keyboard->isActive())
-    return;
-
   linkPS2Keyboard->_onSerial();
 }
 

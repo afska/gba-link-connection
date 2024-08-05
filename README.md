@@ -24,7 +24,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 ## Usage
 
-- Include the library you want (e.g. [LinkCable.hpp](lib/LinkCable.hpp)) in your game code, and refer to its comments for instructions. Most of these libraries are provided as single header files for simplicity. The only external dependency is **libtonc**, which comes preinstalled with *devkitPro*.
+- Include the library you want (e.g. [LinkCable.hpp](lib/LinkCable.hpp)) in your game code, and refer to its comments for instructions. Most of these libraries are provided as single header files for simplicity. The only external dependency is **libtonc**, which comes preinstalled with *devkitARM*.
 - Check out the [examples](examples) folder.
 	* Builds are available in [Releases](https://github.com/afska/gba-link-connection/releases).
 	* They can be tested on real GBAs or using emulators.
@@ -406,6 +406,18 @@ Name | Return type | Description
 `deactivate()` | - | Deactivates the library.
 `report(data[3])` | - | Fills the `data` int array with a report. The first int contains _clicks_ that you can check against the bitmasks `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the _X movement_, and the third int is the _Y movement_.
 
+## Pinout
+
+```
+ ____________
+|PS/2 --- GBA|
+|------------|
+|CLOCK -> SI |
+|DATA --> SO |
+|VCC ---> VCC|
+|GND ---> GND|
+```
+
 # ⌨️ LinkPS2Keyboard
 
 A PS/2 keyboard driver for the GBA. Use it to add keyboard support to your homebrew games.
@@ -423,3 +435,15 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate()` | - | Activates the library.
 `deactivate()` | - | Deactivates the library.
+
+## Pinout
+
+```
+ ____________
+|PS/2 --- GBA|
+|------------|
+|CLOCK -> SI |
+|DATA --> SO |
+|VCC ---> VCC|
+|GND ---> GND|
+```
