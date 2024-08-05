@@ -316,29 +316,27 @@ void messageLoop() {
     // (7) Receive data
     LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
     linkWireless->receive(messages);
-    if (messages[0].packetId != LINK_WIRELESS_END) {
-      for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
-        auto message = messages[i];
-        if (message.packetId == LINK_WIRELESS_END)
-          break;
+    for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
+      auto message = messages[i];
+      if (message.packetId == LINK_WIRELESS_END)
+        break;
 
 #ifndef PROFILING_ENABLED
-        u32 expected = counters[message.playerId] + 1;
+      u32 expected = counters[message.playerId] + 1;
 #endif
 
-        counters[message.playerId] = message.data;
+      counters[message.playerId] = message.data;
 
 #ifndef PROFILING_ENABLED
-        // Check for packet loss
-        if (altView && message.data != expected) {
-          lostPackets++;
-          lastLostPacketPlayerId = message.playerId;
-          lastLostPacketExpected = expected;
-          lastLostPacketReceived = message.data;
-          lastLostPacketReceivedPacketId = message.packetId;
-        }
-#endif
+      // Check for packet loss
+      if (altView && message.data != expected) {
+        lostPackets++;
+        lastLostPacketPlayerId = message.playerId;
+        lastLostPacketExpected = expected;
+        lastLostPacketReceived = message.data;
+        lastLostPacketReceivedPacketId = message.packetId;
       }
+#endif
     }
 
     // (8) Disconnect
