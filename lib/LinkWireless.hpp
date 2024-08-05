@@ -189,7 +189,8 @@ class LinkWireless {
     RECEIVE_DATA_FAILED = 8,
     ACKNOWLEDGE_FAILED = 9,
     TIMEOUT = 10,
-    REMOTE_TIMEOUT = 11
+    REMOTE_TIMEOUT = 11,
+    BUSY_TRY_AGAIN = 12,
   };
 
   struct Message {
@@ -260,6 +261,10 @@ class LinkWireless {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED && state != SERVING) {
       lastError = WRONG_STATE;
+      return false;
+    }
+    if (asyncCommand.isActive) {
+      lastError = BUSY_TRY_AGAIN;
       return false;
     }
     if (std::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH) {
@@ -877,6 +882,7 @@ class LinkWireless {
   volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;
   volatile bool isPendingClearActive = false;
+  volatile bool isSendingSyncCommand = false;
   Error lastError = NONE;
   volatile bool isEnabled = false;
 
@@ -964,8 +970,8 @@ class LinkWireless {
     if (state == SERVING && !sessionState.acceptCalled &&
         sessionState.playerCount < config.maxPlayers) {
       // AcceptConnections (start)
-      sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
-      sessionState.acceptCalled = true;
+      if (sendCommandAsync(LINK_WIRELESS_COMMAND_ACCEPT_CONNECTIONS))
+        sessionState.acceptCalled = true;
     } else if (state == CONNECTED || isConnected()) {
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive =
@@ -988,8 +994,8 @@ class LinkWireless {
   void sendPendingData() {  // (irq only)
     copyOutgoingState();
     int lastPacketId = setDataFromOutgoingMessages();
-    sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, true);
-    clearOutgoingMessagesIfNeeded(lastPacketId);
+    if (sendCommandAsync(LINK_WIRELESS_COMMAND_SEND_DATA, true))
+      clearOutgoingMessagesIfNeeded(lastPacketId);
   }
 
   int setDataFromOutgoingMessages() {  // (irq only)
@@ -1362,6 +1368,8 @@ class LinkWireless {
       this->sessionState.tmpMessagesToSend.clear();
     else
       isPendingClearActive = true;
+
+    isSendingSyncCommand = false;
   }
 
   void stop() {
@@ -1457,13 +1465,21 @@ class LinkWireless {
     CommandResult result;
     u32 command = buildCommand(type, withData ? (u16)nextCommandDataSize : 0);
 
-    if (transfer(command) != LINK_WIRELESS_DATA_REQUEST)
+    LINK_WIRELESS_BARRIER;
+    isSendingSyncCommand = true;
+    LINK_WIRELESS_BARRIER;
+
+    if (transfer(command) != LINK_WIRELESS_DATA_REQUEST) {
+      isSendingSyncCommand = false;
       return result;
+    }
 
     if (withData) {
       for (u32 i = 0; i < nextCommandDataSize; i++) {
-        if (transfer(nextCommandData[i]) != LINK_WIRELESS_DATA_REQUEST)
+        if (transfer(nextCommandData[i]) != LINK_WIRELESS_DATA_REQUEST) {
+          isSendingSyncCommand = false;
           return result;
+        }
       }
     }
 
@@ -1475,20 +1491,27 @@ class LinkWireless {
 
     if (header != LINK_WIRELESS_COMMAND_HEADER ||
         ack != type + LINK_WIRELESS_RESPONSE_ACK ||
-        responses > LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH)
+        responses > LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH) {
+      isSendingSyncCommand = false;
       return result;
+    }
 
     for (u32 i = 0; i < responses; i++)
       result.responses[i] = transfer(LINK_WIRELESS_DATA_REQUEST);
     result.responsesSize = responses;
 
     result.success = true;
+
+    LINK_WIRELESS_BARRIER;
+    isSendingSyncCommand = false;
+    LINK_WIRELESS_BARRIER;
+
     return result;
   }
 
-  void sendCommandAsync(u8 type, bool withData = false) {  // (irq only)
-    if (asyncCommand.isActive)
-      return;
+  bool sendCommandAsync(u8 type, bool withData = false) {  // (irq only)
+    if (asyncCommand.isActive || isSendingSyncCommand)
+      return false;
 
     asyncCommand.type = type;
     if (withData) {
@@ -1508,6 +1531,8 @@ class LinkWireless {
 
     u32 command = buildCommand(type, asyncCommand.totalParameters);
     transferAsync(command);
+
+    return true;
   }
 
   void updateAsyncCommand(u32 newData) {  // (irq only)
