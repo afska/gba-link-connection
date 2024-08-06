@@ -266,6 +266,9 @@ class LinkRawCable {
 
 extern LinkRawCable* linkRawCable;
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_RAW_CABLE_ISR_SERIAL() {
   linkRawCable->_onSerial();
 }

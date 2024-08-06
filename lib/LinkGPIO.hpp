@@ -50,28 +50,56 @@ class LinkGPIO {
   enum Pin { SI, SO, SD, SC };
   enum Direction { INPUT, OUTPUT };
 
+  /**
+   * @brief Resets communication mode to General Purpose.
+   * \warning Required to initialize the library!
+   */
   void reset() {
     Link::_REG_RCNT = RCNT_GENERAL_PURPOSE;
     Link::_REG_SIOCNT = SIOCNT_GENERAL_PURPOSE;
   }
 
+  /**
+   * @brief Configures a `pin` to use a `direction` (input or output).
+   * @param pin One of the enum values from `LinkGPIO::Pin`.
+   * @param direction One of the enum values from `LinkGPIO::Direction`.
+   */
   void setMode(Pin pin, Direction direction) {
     _SET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin],
              direction == Direction::OUTPUT);
   }
 
+  /**
+   * @brief Returns the direction set at `pin`.
+   */
   Direction getMode(Pin pin) {
     return Direction(_GET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin]));
   }
 
+  /**
+   * @brief Returns whether a `pin` is *HIGH* or not (when set as an input).
+   * @param pin One of the enum values from `LinkGPIO::Pin`.
+   */
   bool readPin(Pin pin) {
     return (Link::_REG_RCNT & (1 << DATA_BITS[pin])) != 0;
   }
 
+  /**
+   * @brief Sets a `pin` to be high or not (when set as an output).
+   *
+   * @param pin One of the enum values from `LinkGPIO::Pin`.
+   * @param isHigh `true` = HIGH, `false` = LOW.
+   */
   void writePin(Pin pin, bool isHigh) {
     _SET_BIT(Link::_REG_RCNT, DATA_BITS[pin], isHigh);
   }
 
+  /**
+   * @brief If it `isEnabled`, an IRQ will be generated when `SI` changes from
+   * HIGH to LOW.
+   *
+   * @param isEnabled Enable SI-falling interrupts.
+   */
   void setSIInterrupts(bool isEnabled) {
     _SET_BIT(Link::_REG_RCNT, BIT_SI_INTERRUPT, isEnabled);
   }
