@@ -2,7 +2,7 @@
 #define LINK_SPI_H
 
 // --------------------------------------------------------------------------
-// An SPI handler for the Link Port (Normal Mode, 32bits).
+// An SPI handler for the Link Port (Normal Mode, either 32 or 8 bits).
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -15,18 +15,18 @@
 //       linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 //       // (use LinkSPI::Mode::SLAVE on the other end)
 // - 4) Exchange 32-bit data with the other end:
-//       u32 data = linkSPI->transfer(0x12345678);
+//       auto data = linkSPI->transfer(0x12345678);
 //       // (this blocks the console indefinitely)
 // - 5) Exchange data with a cancellation callback:
-//       u32 data = linkSPI->transfer(0x12345678, []() {
-//         u16 keys = ~REG_KEYS & KEY_ANY;
+//       auto data = linkSPI->transfer(0x12345678, []() {
+//         auto keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
 // - 6) Exchange data asynchronously:
 //       linkSPI->transferAsync(0x12345678);
 //       // ...
 //       if (linkSPI->getAsyncState() == LinkSPI::AsyncState::READY) {
-//         u32 data = linkSPI->getAsyncData();
+//         auto data = linkSPI->getAsyncData();
 //         // ...
 //       }
 // --------------------------------------------------------------------------
@@ -40,7 +40,7 @@
 // - don't send 0xFFFFFFFF, it's reserved for errors!
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
+#include "_link_common.h"
 
 // 8-bit mode (uncomment to enable)
 // #define LINK_SPI_8BIT_MODE
@@ -53,10 +53,10 @@
 #endif
 
 #ifdef LINK_SPI_8BIT_MODE
-#define LINK_SPI_DATA_REG REG_SIODATA8
+#define LINK_SPI_DATA_REG Link::_REG_SIODATA8
 #endif
 #ifndef LINK_SPI_8BIT_MODE
-#define LINK_SPI_DATA_REG REG_SIODATA32
+#define LINK_SPI_DATA_REG Link::_REG_SIODATA32
 #endif
 
 #ifdef LINK_SPI_8BIT_MODE
@@ -66,27 +66,28 @@
 #define LINK_SPI_NO_DATA 0xffffffff
 #endif
 
-#define LINK_SPI_BIT_CLOCK 0
-#define LINK_SPI_BIT_CLOCK_SPEED 1
-#define LINK_SPI_BIT_SI 2
-#define LINK_SPI_BIT_SO 3
-#define LINK_SPI_BIT_START 7
-#define LINK_SPI_BIT_LENGTH 12
-#define LINK_SPI_BIT_IRQ 14
-#define LINK_SPI_BIT_GENERAL_PURPOSE_LOW 14
-#define LINK_SPI_BIT_GENERAL_PURPOSE_HIGH 15
-
 static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
 
-const u32 LINK_SPI_MASK_CLEAR_SO_BIT = ~(1 << LINK_SPI_BIT_SO);
-const u32 LINK_SPI_MASK_SET_START_BIT = (1 << LINK_SPI_BIT_START);
-
 class LinkSPI {
+ private:
+  using u32 = unsigned int;
+  using u8 = unsigned char;
+
+  static constexpr int BIT_CLOCK = 0;
+  static constexpr int BIT_CLOCK_SPEED = 1;
+  static constexpr int BIT_SI = 2;
+  static constexpr int BIT_SO = 3;
+  static constexpr int BIT_START = 7;
+  static constexpr int BIT_LENGTH = 12;
+  static constexpr int BIT_IRQ = 14;
+  static constexpr int BIT_GENERAL_PURPOSE_LOW = 14;
+  static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
+
  public:
   enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
   enum AsyncState { IDLE, WAITING, READY };
 
-  bool isActive() { return isEnabled; }
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
   void activate(Mode mode) {
     this->mode = mode;
@@ -178,7 +179,7 @@ class LinkSPI {
     transfer(data, cancel, true);
   }
 
-  LINK_SPI_DATA_TYPE getAsyncData() {
+  [[nodiscard]] LINK_SPI_DATA_TYPE getAsyncData() {
     if (asyncState != READY)
       return LINK_SPI_NO_DATA;
 
@@ -187,10 +188,10 @@ class LinkSPI {
     return data;
   }
 
-  Mode getMode() { return mode; }
+  [[nodiscard]] Mode getMode() { return mode; }
   void setWaitModeActive(bool isActive) { waitMode = isActive; }
-  bool isWaitModeActive() { return waitMode; }
-  AsyncState getAsyncState() { return asyncState; }
+  [[nodiscard]] bool isWaitModeActive() { return waitMode; }
+  [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
 
   void _onSerial(bool _customAck = false) {
     if (!isEnabled || asyncState != WAITING)
@@ -204,9 +205,9 @@ class LinkSPI {
     asyncData = getData();
   }
 
-  void _setSOHigh() { setBitHigh(LINK_SPI_BIT_SO); }
-  void _setSOLow() { setBitLow(LINK_SPI_BIT_SO); }
-  bool _isSIHigh() { return isBitHigh(LINK_SPI_BIT_SI); }
+  void _setSOHigh() { setBitHigh(BIT_SO); }
+  void _setSOLow() { setBitLow(BIT_SO); }
+  [[nodiscard]] bool _isSIHigh() { return isBitHigh(BIT_SI); }
 
  private:
   Mode mode = Mode::SLAVE;
@@ -216,18 +217,18 @@ class LinkSPI {
   volatile bool isEnabled = false;
 
   void setNormalMode32Bit() {
-    REG_RCNT = REG_RCNT & ~(1 << LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
 #ifdef LINK_SPI_8BIT_MODE
-    REG_SIOCNT = 0;
+    Link::_REG_SIOCNT = 0;
 #endif
 #ifndef LINK_SPI_8BIT_MODE
-    REG_SIOCNT = 1 << LINK_SPI_BIT_LENGTH;
+    Link::_REG_SIOCNT = 1 << BIT_LENGTH;
 #endif
   }
 
   void setGeneralPurposeMode() {
-    REG_RCNT = (REG_RCNT & ~(1 << LINK_SPI_BIT_GENERAL_PURPOSE_LOW)) |
-               (1 << LINK_SPI_BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
+                      (1 << BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void setData(LINK_SPI_DATA_TYPE data) { LINK_SPI_DATA_REG = data; }
@@ -235,22 +236,22 @@ class LinkSPI {
 
   void enableTransfer() { _setSOLow(); }
   void disableTransfer() { _setSOHigh(); }
-  void startTransfer() { setBitHigh(LINK_SPI_BIT_START); }
-  void stopTransfer() { setBitLow(LINK_SPI_BIT_START); }
-  bool isReady() { return !isBitHigh(LINK_SPI_BIT_START); }
+  void startTransfer() { setBitHigh(BIT_START); }
+  void stopTransfer() { setBitLow(BIT_START); }
+  bool isReady() { return !isBitHigh(BIT_START); }
   bool isSlaveReady() { return !_isSIHigh(); }
 
-  void setMasterMode() { setBitHigh(LINK_SPI_BIT_CLOCK); }
-  void setSlaveMode() { setBitLow(LINK_SPI_BIT_CLOCK); }
-  void set256KbpsSpeed() { setBitLow(LINK_SPI_BIT_CLOCK_SPEED); }
-  void set2MbpsSpeed() { setBitHigh(LINK_SPI_BIT_CLOCK_SPEED); }
-  void setInterruptsOn() { setBitHigh(LINK_SPI_BIT_IRQ); }
-  void setInterruptsOff() { setBitLow(LINK_SPI_BIT_IRQ); }
+  void setMasterMode() { setBitHigh(BIT_CLOCK); }
+  void setSlaveMode() { setBitLow(BIT_CLOCK); }
+  void set256KbpsSpeed() { setBitLow(BIT_CLOCK_SPEED); }
+  void set2MbpsSpeed() { setBitHigh(BIT_CLOCK_SPEED); }
+  void setInterruptsOn() { setBitHigh(BIT_IRQ); }
+  void setInterruptsOff() { setBitLow(BIT_IRQ); }
 
   bool isMaster() { return mode != SLAVE; }
-  bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
+  bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
+  void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkSPI* linkSPI;

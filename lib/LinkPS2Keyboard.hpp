@@ -17,6 +17,10 @@
 //       linkPS2Keyboard->activate();
 // - 4) Handle events in the callback sent to LinkPS2Keyboard's constructor!
 // --------------------------------------------------------------------------
+// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//     That causes packet loss. You REALLY want to use libugba's instead.
+//     (see examples)
+// --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |
 // |PS/2 --- GBA|

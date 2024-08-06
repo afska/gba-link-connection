@@ -1,9 +1,9 @@
+// (0) Include the header
+#include "../../../lib/LinkSPI.hpp"
+
 #include <tonc.h>
 #include <string>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkSPI.hpp"
 
 void log(std::string text);
 void wait(u32 verticalLines);

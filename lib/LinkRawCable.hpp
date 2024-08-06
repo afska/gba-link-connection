@@ -7,7 +7,7 @@
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkRawCable* linkRawCable = new LinkRawCable();
-// - 2) (Optional) Add the interrupt service routines:
+// - 2) (Optional) Add the interrupt service routines: (*)
 //       irq_init(NULL);
 //       irq_add(II_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
 //       // (this is only required for `transferAsync`)
@@ -17,7 +17,7 @@
 //       LinkRawCable::Response data = linkRawCable->transfer(0x1234);
 //       // (this blocks the console indefinitely)
 // - 5) Exchange data with a cancellation callback:
-//       auto data = linkRawCable->transfer(0x1234, []() {
+//       LinkRawCable::Response data = linkRawCable->transfer(0x1234, []() {
 //         auto keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
@@ -25,9 +25,13 @@
 //       linkRawCable->transferAsync(0x1234);
 //       // ...
 //       if (linkRawCable->getAsyncState() == LinkRawCable::AsyncState::READY) {
-//         auto data = linkRawCable->getAsyncData();
+//         LinkRawCable::Response data = linkRawCable->getAsyncData();
 //         // ...
 //       }
+// --------------------------------------------------------------------------
+// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//     That causes packet loss. You REALLY want to use libugba's instead.
+//     (see examples)
 // --------------------------------------------------------------------------
 // considerations:
 // - don't send 0xFFFF, it's a reserved value that means <disconnected client>

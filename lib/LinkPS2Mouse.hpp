@@ -8,7 +8,7 @@
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse();
-// - 2) Add the required interrupt service routines: (*)
+// - 2) Add the required interrupt service routines:
 //       irq_init(NULL);
 //       irq_add(II_TIMER2, NULL);
 // - 3) Initialize the library with:
