@@ -24,7 +24,7 @@
 // - call reset() when you finish doing GPIO stuff!
 // --------------------------------------------------------------------------
 
-#include "_link_common.h"
+#include "_link_common.hpp"
 
 class LinkGPIO {
  private:

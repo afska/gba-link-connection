@@ -40,7 +40,7 @@
 // - don't send 0xFFFFFFFF (or 0xFF in 8-bit mode), it's reserved for errors!
 // --------------------------------------------------------------------------
 
-#include "_link_common.h"
+#include "_link_common.hpp"
 
 // 8-bit mode (uncomment to enable)
 // #define LINK_SPI_8BIT_MODE
