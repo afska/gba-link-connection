@@ -24,52 +24,56 @@
 // - call reset() when you finish doing GPIO stuff!
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
-
-#define LINK_GPIO_RCNT_GENERAL_PURPOSE (1 << 15)
-#define LINK_GPIO_SIOCNT_GENERAL_PURPOSE 0
-#define LINK_GPIO_BIT_SI_INTERRUPT 8
-#define LINK_GPIO_GET(REG, BIT) ((REG >> BIT) & 1)
-#define LINK_GPIO_SET(REG, BIT, DATA) \
-  if (DATA)                           \
-    REG |= 1 << BIT;                  \
-  else                                \
-    REG &= ~(1 << BIT);
-
-static volatile char LINK_GPIO_VERSION[] = "LinkGPIO/v6.4.0";
-
-const u8 LINK_GPIO_DATA_BITS[] = {2, 3, 1, 0};
-const u8 LINK_GPIO_DIRECTION_BITS[] = {6, 7, 5, 4};
+#include "_link_common.h"
 
 class LinkGPIO {
+ private:
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+
+  static constexpr int RCNT_GENERAL_PURPOSE = (1 << 15);
+  static constexpr int SIOCNT_GENERAL_PURPOSE = 0;
+  static constexpr int BIT_SI_INTERRUPT = 8;
+  static inline int _GET_BIT(volatile u16 REG, int BIT) {
+    return (REG >> BIT) & 1;
+  }
+  static inline void _SET_BIT(volatile u16& REG, int BIT, bool DATA) {
+    if (DATA)
+      REG |= 1 << BIT;
+    else
+      REG &= ~(1 << BIT);
+  }
+  static constexpr u8 DATA_BITS[] = {2, 3, 1, 0};
+  static constexpr u8 DIRECTION_BITS[] = {6, 7, 5, 4};
+
  public:
   enum Pin { SI, SO, SD, SC };
   enum Direction { INPUT, OUTPUT };
 
   void reset() {
-    REG_RCNT = LINK_GPIO_RCNT_GENERAL_PURPOSE;
-    REG_SIOCNT = LINK_GPIO_SIOCNT_GENERAL_PURPOSE;
+    Link::_REG_RCNT = RCNT_GENERAL_PURPOSE;
+    Link::_REG_SIOCNT = SIOCNT_GENERAL_PURPOSE;
   }
 
   void setMode(Pin pin, Direction direction) {
-    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_DIRECTION_BITS[pin],
-                  direction == Direction::OUTPUT);
+    _SET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin],
+             direction == Direction::OUTPUT);
   }
 
   Direction getMode(Pin pin) {
-    return Direction(LINK_GPIO_GET(REG_RCNT, LINK_GPIO_DIRECTION_BITS[pin]));
+    return Direction(_GET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin]));
   }
 
   bool readPin(Pin pin) {
-    return (REG_RCNT & (1 << LINK_GPIO_DATA_BITS[pin])) != 0;
+    return (Link::_REG_RCNT & (1 << DATA_BITS[pin])) != 0;
   }
 
   void writePin(Pin pin, bool isHigh) {
-    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_DATA_BITS[pin], isHigh);
+    _SET_BIT(Link::_REG_RCNT, DATA_BITS[pin], isHigh);
   }
 
   void setSIInterrupts(bool isEnabled) {
-    LINK_GPIO_SET(REG_RCNT, LINK_GPIO_BIT_SI_INTERRUPT, isEnabled);
+    _SET_BIT(Link::_REG_RCNT, BIT_SI_INTERRUPT, isEnabled);
   }
 };
 

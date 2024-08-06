@@ -1,8 +1,8 @@
-#include <tonc.h>
-#include <string>
-
 // (0) Include the header
 #include "../../../lib/LinkGPIO.hpp"
+
+#include <tonc.h>
+#include <string>
 
 void log(std::string text);
 std::string mode(std::string name, LinkGPIO::Pin pin);
