@@ -38,6 +38,10 @@
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
     "LinkCableMultiboot/v7.0.0";
 
+/**
+ * @brief A Multiboot tool to send small programs from one GBA to up to 3
+ * slaves.
+ */
 class LinkCableMultiboot {
  private:
   using u32 = unsigned int;
@@ -64,42 +68,6 @@ class LinkCableMultiboot {
   static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
   static constexpr u8 CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
 
-  typedef struct {
-    u32 reserved1[5];
-    u8 handshake_data;
-    u8 padding;
-    u16 handshake_timeout;
-    u8 probe_count;
-    u8 client_data[3];
-    u8 palette_data;
-    u8 response_bit;
-    u8 client_bit;
-    u8 reserved2;
-    u8* boot_srcp;
-    u8* boot_endp;
-    u8* masterp;
-    u8* reserved3[3];
-    u32 system_work2[4];
-    u8 sendflag;
-    u8 probe_target_bit;
-    u8 check_wait;
-    u8 server_type;
-  } _MultiBootParam;
-
-  inline int _MultiBoot(_MultiBootParam* mb, u32 mode) {
-    int result;
-    asm volatile(
-        "mov r0, %1\n"        // mb => r0
-        "mov r1, %2\n"        // mode => r1
-        "swi 0x25\n"          // call 0x25
-        "mov %0, r0\n"        // r0 => output
-        : "=r"(result)        // output
-        : "r"(mb), "r"(mode)  // inputs
-        : "r0", "r1"          // clobbered registers
-    );
-    return result;
-  }
-
  public:
   enum Result {
     SUCCESS,
@@ -109,8 +77,17 @@ class LinkCableMultiboot {
     FAILURE_DURING_TRANSFER
   };
 
+  /**
+   * @brief Sends the `rom`. Once completed, the return value should be
+   * `LinkCableMultiboot::Result::SUCCESS`.
+   * @param rom A pointer to ROM data.
+   * @param romSize Size of the ROM in bytes. It must be a number between `448`
+   * and `262144`, and a multiple of `16`.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   */
   template <typename F>
-  Result sendRom(const u8* rom, u32 romSize, F cancel) {
+  [[nodiscard]] Result sendRom(const u8* rom, u32 romSize, F cancel) {
     if (romSize < MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > MAX_ROM_SIZE)
@@ -119,7 +96,7 @@ class LinkCableMultiboot {
       return INVALID_SIZE;
 
     PartialResult partialResult;
-    _MultiBootParam multiBootParameters;
+    Link::_MultiBootParam multiBootParameters;
     multiBootParameters.client_data[0] = CLIENT_NO_DATA;
     multiBootParameters.client_data[1] = CLIENT_NO_DATA;
     multiBootParameters.client_data[2] = CLIENT_NO_DATA;
@@ -143,7 +120,7 @@ class LinkCableMultiboot {
 
     LINK_CABLE_MULTIBOOT_TRY(confirmHandshakeData(multiBootParameters, cancel))
 
-    int result = _MultiBoot(&multiBootParameters, SWI_MULTIPLAYER_MODE);
+    int result = Link::_MultiBoot(&multiBootParameters, SWI_MULTIPLAYER_MODE);
 
     linkRawCable->deactivate();
 
@@ -162,7 +139,8 @@ class LinkCableMultiboot {
   };
 
   template <typename F>
-  PartialResult detectClients(_MultiBootParam& multiBootParameters, F cancel) {
+  PartialResult detectClients(Link::_MultiBootParam& multiBootParameters,
+                              F cancel) {
     linkRawCable->activate(MAX_BAUD_RATE);
 
     for (u32 t = 0; t < DETECTION_TRIES; t++) {
@@ -198,19 +176,22 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult confirmClients(_MultiBootParam& multiBootParameters, F cancel) {
+  PartialResult confirmClients(Link::_MultiBootParam& multiBootParameters,
+                               F cancel) {
     return compare(multiBootParameters,
                    CONFIRM_CLIENTS | multiBootParameters.client_bit,
                    HANDSHAKE_RESPONSE, cancel);
   }
 
   template <typename F>
-  PartialResult confirmHeader(_MultiBootParam& multiBootParameters, F cancel) {
+  PartialResult confirmHeader(Link::_MultiBootParam& multiBootParameters,
+                              F cancel) {
     return compare(multiBootParameters, HANDSHAKE, 0, cancel);
   }
 
   template <typename F>
-  PartialResult reconfirm(_MultiBootParam& multiBootParameters, F cancel) {
+  PartialResult reconfirm(Link::_MultiBootParam& multiBootParameters,
+                          F cancel) {
     return compare(multiBootParameters, HANDSHAKE, HANDSHAKE_RESPONSE, cancel);
   }
 
@@ -228,7 +209,8 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult sendPalette(_MultiBootParam& multiBootParameters, F cancel) {
+  PartialResult sendPalette(Link::_MultiBootParam& multiBootParameters,
+                            F cancel) {
     auto data = SEND_PALETTE | PALETTE_DATA;
 
     auto response = linkRawCable->transfer(data, cancel);
@@ -253,7 +235,7 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult confirmHandshakeData(_MultiBootParam& multiBootParameters,
+  PartialResult confirmHandshakeData(Link::_MultiBootParam& multiBootParameters,
                                      F cancel) {
     u16 data = CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
     auto response = linkRawCable->transfer(data, cancel);
@@ -264,7 +246,7 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult compare(_MultiBootParam& multiBootParameters,
+  PartialResult compare(Link::_MultiBootParam& multiBootParameters,
                         u16 data,
                         u16 expectedResponse,
                         F cancel) {
