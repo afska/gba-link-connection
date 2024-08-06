@@ -1,9 +1,9 @@
+// (0) Include the header
+#include "../../../lib/LinkRawCable.hpp"
+
 #include <tonc.h>
 #include <string>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkRawCable.hpp"
 
 void log(std::string text);
 void wait(u32 verticalLines);

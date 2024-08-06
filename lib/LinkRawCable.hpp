@@ -17,15 +17,15 @@
 //       LinkRawCable::Response data = linkRawCable->transfer(0x1234);
 //       // (this blocks the console indefinitely)
 // - 5) Exchange data with a cancellation callback:
-//       u16 data = linkRawCable->transfer(0x1234, []() {
-//         u16 keys = ~REG_KEYS & KEY_ANY;
+//       auto data = linkRawCable->transfer(0x1234, []() {
+//         auto keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
 // - 6) Exchange data asynchronously:
 //       linkRawCable->transferAsync(0x1234);
 //       // ...
 //       if (linkRawCable->getAsyncState() == LinkRawCable::AsyncState::READY) {
-//         u16 data = linkRawCable->getAsyncData();
+//         auto data = linkRawCable->getAsyncData();
 //         // ...
 //       }
 // --------------------------------------------------------------------------
@@ -34,7 +34,7 @@
 // - only transfer(...) if isReady()
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
+#include "_link_common.h"
 
 #define LINK_RAW_CABLE_MAX_PLAYERS 4
 #define LINK_RAW_CABLE_DISCONNECTED 0xffff
@@ -58,6 +58,10 @@
 static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v6.4.0";
 
 class LinkRawCable {
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+
  public:
   enum BaudRate {
     BAUD_RATE_0,  // 9600 bps
@@ -162,26 +166,28 @@ class LinkRawCable {
   volatile bool isEnabled = false;
 
   void setMultiPlayMode() {
-    REG_RCNT = REG_RCNT & ~(1 << LINK_RAW_CABLE_BIT_GENERAL_PURPOSE_HIGH);
-    REG_SIOCNT = (1 << LINK_RAW_CABLE_BIT_MULTIPLAYER);
-    REG_SIOCNT |= baudRate;
-    REG_SIOMLT_SEND = 0;
+    Link::_REG_RCNT =
+        Link::_REG_RCNT & ~(1 << LINK_RAW_CABLE_BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_SIOCNT = (1 << LINK_RAW_CABLE_BIT_MULTIPLAYER);
+    Link::_REG_SIOCNT |= baudRate;
+    Link::_REG_SIOMLT_SEND = 0;
   }
 
   void setGeneralPurposeMode() {
-    REG_RCNT = (REG_RCNT & ~(1 << LINK_RAW_CABLE_BIT_GENERAL_PURPOSE_LOW)) |
-               (1 << LINK_RAW_CABLE_BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_RCNT =
+        (Link::_REG_RCNT & ~(1 << LINK_RAW_CABLE_BIT_GENERAL_PURPOSE_LOW)) |
+        (1 << LINK_RAW_CABLE_BIT_GENERAL_PURPOSE_HIGH);
   }
 
-  void setData(u16 data) { REG_SIOMLT_SEND = data; }
+  void setData(u16 data) { Link::_REG_SIOMLT_SEND = data; }
   Response getData() {
     Response response = LINK_RAW_CABLE_EMPTY_RESPONSE;
 
     for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
-      response.data[i] = REG_SIOMULTI[i];
+      response.data[i] = Link::_REG_SIOMULTI[i];
 
     response.playerId =
-        (REG_SIOCNT & (0b11 << LINK_RAW_CABLE_BITS_PLAYER_ID)) >>
+        (Link::_REG_SIOCNT & (0b11 << LINK_RAW_CABLE_BITS_PLAYER_ID)) >>
         LINK_RAW_CABLE_BITS_PLAYER_ID;
 
     return response;
@@ -196,9 +202,9 @@ class LinkRawCable {
   void setInterruptsOn() { setBitHigh(LINK_RAW_CABLE_BIT_IRQ); }
   void setInterruptsOff() { setBitLow(LINK_RAW_CABLE_BIT_IRQ); }
 
-  bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
+  bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
+  void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkRawCable* linkRawCable;
