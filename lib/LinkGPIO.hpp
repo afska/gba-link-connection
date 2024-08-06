@@ -35,15 +35,6 @@ class LinkGPIO {
   static constexpr int RCNT_GENERAL_PURPOSE = (1 << 15);
   static constexpr int SIOCNT_GENERAL_PURPOSE = 0;
   static constexpr int BIT_SI_INTERRUPT = 8;
-  static inline int _GET_BIT(volatile u16 REG, int BIT) {
-    return (REG >> BIT) & 1;
-  }
-  static inline void _SET_BIT(volatile u16& REG, int BIT, bool DATA) {
-    if (DATA)
-      REG |= 1 << BIT;
-    else
-      REG &= ~(1 << BIT);
-  }
   static constexpr u8 DATA_BITS[] = {2, 3, 1, 0};
   static constexpr u8 DIRECTION_BITS[] = {6, 7, 5, 4};
 
@@ -66,15 +57,15 @@ class LinkGPIO {
    * @param direction One of the enum values from `LinkGPIO::Direction`.
    */
   void setMode(Pin pin, Direction direction) {
-    _SET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin],
-             direction == Direction::OUTPUT);
+    setBit(Link::_REG_RCNT, DIRECTION_BITS[pin],
+           direction == Direction::OUTPUT);
   }
 
   /**
    * @brief Returns the direction set at `pin`.
    */
   [[nodiscard]] Direction getMode(Pin pin) {
-    return Direction(_GET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin]));
+    return Direction(getBit(Link::_REG_RCNT, DIRECTION_BITS[pin]));
   }
 
   /**
@@ -92,7 +83,7 @@ class LinkGPIO {
    * @param isHigh `true` = HIGH, `false` = LOW.
    */
   void writePin(Pin pin, bool isHigh) {
-    _SET_BIT(Link::_REG_RCNT, DATA_BITS[pin], isHigh);
+    setBit(Link::_REG_RCNT, DATA_BITS[pin], isHigh);
   }
 
   /**
@@ -102,7 +93,17 @@ class LinkGPIO {
    * @param isEnabled Enable SI-falling interrupts.
    */
   void setSIInterrupts(bool isEnabled) {
-    _SET_BIT(Link::_REG_RCNT, BIT_SI_INTERRUPT, isEnabled);
+    setBit(Link::_REG_RCNT, BIT_SI_INTERRUPT, isEnabled);
+  }
+
+ private:
+  int getBit(volatile u16 reg, int bit) { return (reg >> bit) & 1; }
+
+  void setBit(volatile u16& reg, int bit, bool data) {
+    if (data)
+      reg |= 1 << bit;
+    else
+      reg &= ~(1 << bit);
   }
 };
 

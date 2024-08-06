@@ -36,6 +36,9 @@ inline volatile u16& _REG_SIOMLT_SEND =
 inline volatile u16* const _REG_SIOMULTI =
     reinterpret_cast<volatile u16*>(_REG_BASE + 0x0120);
 
+inline volatile u16& _REG_VCOUNT =
+    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0006);
+
 inline volatile _TMR_REC* const _REG_TM =
     reinterpret_cast<volatile _TMR_REC*>(_REG_BASE + 0x0100);
 

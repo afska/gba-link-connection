@@ -1,10 +1,10 @@
-#include <tonc.h>
-#include <string>
-#include "../../_lib/interrupt.h"
-
-#include "../../../lib/LinkCable.hpp"
 // (0) Include the header
 #include "../../../lib/LinkCableMultiboot.hpp"
+
+#include <tonc.h>
+#include <string>
+#include "../../../lib/LinkCable.hpp"
+#include "../../_lib/interrupt.h"
 
 void log(std::string text);
 

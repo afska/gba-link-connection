@@ -24,28 +24,8 @@
 // - stop DMA before sending the ROM! (you might need to stop your audio player)
 // --------------------------------------------------------------------------
 
-#include <tonc_bios.h>
-#include <tonc_core.h>
 #include "LinkRawCable.hpp"
 
-#define LINK_CABLE_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
-#define LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
-#define LINK_CABLE_MULTIBOOT_WAIT_BEFORE_RETRY ((160 + 68) * 60)
-#define LINK_CABLE_MULTIBOOT_WAIT_BEFORE_TRANSFER 50
-#define LINK_CABLE_MULTIBOOT_DETECTION_TRIES 16
-#define LINK_CABLE_MULTIBOOT_PALETTE_DATA 0x93
-#define LINK_CABLE_MULTIBOOT_CLIENTS 3
-#define LINK_CABLE_MULTIBOOT_CLIENT_NO_DATA 0xff
-#define LINK_CABLE_MULTIBOOT_HANDSHAKE 0x6200
-#define LINK_CABLE_MULTIBOOT_HANDSHAKE_RESPONSE 0x7200
-#define LINK_CABLE_MULTIBOOT_CONFIRM_CLIENTS 0x6100
-#define LINK_CABLE_MULTIBOOT_SEND_PALETTE 0x6300
-#define LINK_CABLE_MULTIBOOT_HANDSHAKE_DATA 0x11
-#define LINK_CABLE_MULTIBOOT_CONFIRM_HANDSHAKE_DATA 0x6400
-#define LINK_CABLE_MULTIBOOT_ACK_RESPONSE 0x73
-#define LINK_CABLE_MULTIBOOT_HEADER_SIZE 0xC0
-#define LINK_CABLE_MULTIBOOT_SWI_MULTIPLAYER_MODE 1
-#define LINK_CABLE_MULTIBOOT_MAX_BAUD_RATE LinkRawCable::BaudRate::BAUD_RATE_3
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)    \
   do {                                    \
     partialResult = CALL;                 \
@@ -58,9 +38,68 @@
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
     "LinkCableMultiboot/v7.0.0";
 
-const u8 LINK_CABLE_MULTIBOOT_CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
-
 class LinkCableMultiboot {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+
+  static constexpr int MIN_ROM_SIZE = 0x100 + 0xc0;
+  static constexpr int MAX_ROM_SIZE = 256 * 1024;
+  static constexpr int WAIT_BEFORE_RETRY = (160 + 68) * 60;
+  static constexpr int WAIT_BEFORE_TRANSFER = 50;
+  static constexpr int DETECTION_TRIES = 16;
+  static constexpr int PALETTE_DATA = 0x93;
+  static constexpr int CLIENTS = 3;
+  static constexpr int CLIENT_NO_DATA = 0xff;
+  static constexpr int HANDSHAKE = 0x6200;
+  static constexpr int HANDSHAKE_RESPONSE = 0x7200;
+  static constexpr int CONFIRM_CLIENTS = 0x6100;
+  static constexpr int SEND_PALETTE = 0x6300;
+  static constexpr int HANDSHAKE_DATA = 0x11;
+  static constexpr int CONFIRM_HANDSHAKE_DATA = 0x6400;
+  static constexpr int ACK_RESPONSE = 0x73;
+  static constexpr int HEADER_SIZE = 0xC0;
+  static constexpr int SWI_MULTIPLAYER_MODE = 1;
+  static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
+  static constexpr u8 CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
+
+  typedef struct {
+    u32 reserved1[5];
+    u8 handshake_data;
+    u8 padding;
+    u16 handshake_timeout;
+    u8 probe_count;
+    u8 client_data[3];
+    u8 palette_data;
+    u8 response_bit;
+    u8 client_bit;
+    u8 reserved2;
+    u8* boot_srcp;
+    u8* boot_endp;
+    u8* masterp;
+    u8* reserved3[3];
+    u32 system_work2[4];
+    u8 sendflag;
+    u8 probe_target_bit;
+    u8 check_wait;
+    u8 server_type;
+  } _MultiBootParam;
+
+  inline int _MultiBoot(_MultiBootParam* mb, u32 mode) {
+    int result;
+    asm volatile(
+        "mov r0, %1\n"        // mb => r0
+        "mov r1, %2\n"        // mode => r1
+        "swi 0x25\n"          // call 0x25
+        "mov %0, r0\n"        // r0 => output
+        : "=r"(result)        // output
+        : "r"(mb), "r"(mode)  // inputs
+        : "r0", "r1"          // clobbered registers
+    );
+    return result;
+  }
+
  public:
   enum Result {
     SUCCESS,
@@ -72,21 +111,21 @@ class LinkCableMultiboot {
 
   template <typename F>
   Result sendRom(const u8* rom, u32 romSize, F cancel) {
-    if (romSize < LINK_CABLE_MULTIBOOT_MIN_ROM_SIZE)
+    if (romSize < MIN_ROM_SIZE)
       return INVALID_SIZE;
-    if (romSize > LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE)
+    if (romSize > MAX_ROM_SIZE)
       return INVALID_SIZE;
     if ((romSize % 0x10) != 0)
       return INVALID_SIZE;
 
     PartialResult partialResult;
-    MultiBootParam multiBootParameters;
-    multiBootParameters.client_data[0] = LINK_CABLE_MULTIBOOT_CLIENT_NO_DATA;
-    multiBootParameters.client_data[1] = LINK_CABLE_MULTIBOOT_CLIENT_NO_DATA;
-    multiBootParameters.client_data[2] = LINK_CABLE_MULTIBOOT_CLIENT_NO_DATA;
-    multiBootParameters.palette_data = LINK_CABLE_MULTIBOOT_PALETTE_DATA;
+    _MultiBootParam multiBootParameters;
+    multiBootParameters.client_data[0] = CLIENT_NO_DATA;
+    multiBootParameters.client_data[1] = CLIENT_NO_DATA;
+    multiBootParameters.client_data[2] = CLIENT_NO_DATA;
+    multiBootParameters.palette_data = PALETTE_DATA;
     multiBootParameters.client_bit = 0;
-    multiBootParameters.boot_srcp = (u8*)rom + LINK_CABLE_MULTIBOOT_HEADER_SIZE;
+    multiBootParameters.boot_srcp = (u8*)rom + HEADER_SIZE;
     multiBootParameters.boot_endp = (u8*)rom + romSize;
 
     LINK_CABLE_MULTIBOOT_TRY(detectClients(multiBootParameters, cancel))
@@ -96,16 +135,15 @@ class LinkCableMultiboot {
     LINK_CABLE_MULTIBOOT_TRY(reconfirm(multiBootParameters, cancel))
     LINK_CABLE_MULTIBOOT_TRY(sendPalette(multiBootParameters, cancel))
 
-    multiBootParameters.handshake_data = (LINK_CABLE_MULTIBOOT_HANDSHAKE_DATA +
-                                          multiBootParameters.client_data[0] +
-                                          multiBootParameters.client_data[1] +
-                                          multiBootParameters.client_data[2]) %
-                                         256;
+    multiBootParameters.handshake_data =
+        (HANDSHAKE_DATA + multiBootParameters.client_data[0] +
+         multiBootParameters.client_data[1] +
+         multiBootParameters.client_data[2]) %
+        256;
 
     LINK_CABLE_MULTIBOOT_TRY(confirmHandshakeData(multiBootParameters, cancel))
 
-    int result = MultiBoot(&multiBootParameters,
-                           LINK_CABLE_MULTIBOOT_SWI_MULTIPLAYER_MODE);
+    int result = _MultiBoot(&multiBootParameters, SWI_MULTIPLAYER_MODE);
 
     linkRawCable->deactivate();
 
@@ -120,22 +158,20 @@ class LinkCableMultiboot {
   enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
 
   struct Responses {
-    u16 d[LINK_CABLE_MULTIBOOT_CLIENTS];
+    u16 d[CLIENTS];
   };
 
   template <typename F>
-  PartialResult detectClients(MultiBootParam& multiBootParameters, F cancel) {
-    linkRawCable->activate(LINK_CABLE_MULTIBOOT_MAX_BAUD_RATE);
+  PartialResult detectClients(_MultiBootParam& multiBootParameters, F cancel) {
+    linkRawCable->activate(MAX_BAUD_RATE);
 
-    for (u32 t = 0; t < LINK_CABLE_MULTIBOOT_DETECTION_TRIES; t++) {
-      auto response =
-          linkRawCable->transfer(LINK_CABLE_MULTIBOOT_HANDSHAKE, cancel);
+    for (u32 t = 0; t < DETECTION_TRIES; t++) {
+      auto response = linkRawCable->transfer(HANDSHAKE, cancel);
       if (cancel())
         return ABORTED;
 
-      for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-        if ((response.data[1 + i] & 0xfff0) ==
-            LINK_CABLE_MULTIBOOT_HANDSHAKE_RESPONSE) {
+      for (u32 i = 0; i < CLIENTS; i++) {
+        if ((response.data[1 + i] & 0xfff0) == HANDSHAKE_RESPONSE) {
           auto clientId = response.data[1 + i] & 0xf;
 
           switch (clientId) {
@@ -154,7 +190,7 @@ class LinkCableMultiboot {
 
     if (multiBootParameters.client_bit == 0) {
       linkRawCable->deactivate();
-      wait(LINK_CABLE_MULTIBOOT_WAIT_BEFORE_RETRY);
+      wait(WAIT_BEFORE_RETRY);
       return NEEDS_RETRY;
     }
 
@@ -162,30 +198,27 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult confirmClients(MultiBootParam& multiBootParameters, F cancel) {
-    return compare(
-        multiBootParameters,
-        LINK_CABLE_MULTIBOOT_CONFIRM_CLIENTS | multiBootParameters.client_bit,
-        LINK_CABLE_MULTIBOOT_HANDSHAKE_RESPONSE, cancel);
+  PartialResult confirmClients(_MultiBootParam& multiBootParameters, F cancel) {
+    return compare(multiBootParameters,
+                   CONFIRM_CLIENTS | multiBootParameters.client_bit,
+                   HANDSHAKE_RESPONSE, cancel);
   }
 
   template <typename F>
-  PartialResult confirmHeader(MultiBootParam& multiBootParameters, F cancel) {
-    return compare(multiBootParameters, LINK_CABLE_MULTIBOOT_HANDSHAKE, 0,
-                   cancel);
+  PartialResult confirmHeader(_MultiBootParam& multiBootParameters, F cancel) {
+    return compare(multiBootParameters, HANDSHAKE, 0, cancel);
   }
 
   template <typename F>
-  PartialResult reconfirm(MultiBootParam& multiBootParameters, F cancel) {
-    return compare(multiBootParameters, LINK_CABLE_MULTIBOOT_HANDSHAKE,
-                   LINK_CABLE_MULTIBOOT_HANDSHAKE_RESPONSE, cancel);
+  PartialResult reconfirm(_MultiBootParam& multiBootParameters, F cancel) {
+    return compare(multiBootParameters, HANDSHAKE, HANDSHAKE_RESPONSE, cancel);
   }
 
   template <typename F>
   PartialResult sendHeader(const u8* rom, F cancel) {
     u16* headerOut = (u16*)rom;
 
-    for (int i = 0; i < LINK_CABLE_MULTIBOOT_HEADER_SIZE; i += 2) {
+    for (int i = 0; i < HEADER_SIZE; i += 2) {
       linkRawCable->transfer(*(headerOut++), cancel);
       if (cancel())
         return ABORTED;
@@ -195,25 +228,24 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult sendPalette(MultiBootParam& multiBootParameters, F cancel) {
-    auto data =
-        LINK_CABLE_MULTIBOOT_SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
+  PartialResult sendPalette(_MultiBootParam& multiBootParameters, F cancel) {
+    auto data = SEND_PALETTE | PALETTE_DATA;
 
     auto response = linkRawCable->transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
-    for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-      if (response.data[1 + i] >> 8 == LINK_CABLE_MULTIBOOT_ACK_RESPONSE)
+    for (u32 i = 0; i < CLIENTS; i++) {
+      if (response.data[1 + i] >> 8 == ACK_RESPONSE)
         multiBootParameters.client_data[i] = response.data[1 + i] & 0xff;
     }
 
-    for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-      u8 clientId = LINK_CABLE_MULTIBOOT_CLIENT_IDS[i];
+    for (u32 i = 0; i < CLIENTS; i++) {
+      u8 clientId = CLIENT_IDS[i];
       bool isClientConnected = multiBootParameters.client_bit & clientId;
 
-      if (isClientConnected && multiBootParameters.client_data[i] ==
-                                   LINK_CABLE_MULTIBOOT_CLIENT_NO_DATA)
+      if (isClientConnected &&
+          multiBootParameters.client_data[i] == CLIENT_NO_DATA)
         return NEEDS_RETRY;
     }
 
@@ -221,21 +253,18 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult confirmHandshakeData(MultiBootParam& multiBootParameters,
+  PartialResult confirmHandshakeData(_MultiBootParam& multiBootParameters,
                                      F cancel) {
-    u16 data = LINK_CABLE_MULTIBOOT_CONFIRM_HANDSHAKE_DATA |
-               multiBootParameters.handshake_data;
+    u16 data = CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
     auto response = linkRawCable->transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
-    return (response.data[1] >> 8) == LINK_CABLE_MULTIBOOT_ACK_RESPONSE
-               ? FINISHED
-               : ERROR;
+    return (response.data[1] >> 8) == ACK_RESPONSE ? FINISHED : ERROR;
   }
 
   template <typename F>
-  PartialResult compare(MultiBootParam& multiBootParameters,
+  PartialResult compare(_MultiBootParam& multiBootParameters,
                         u16 data,
                         u16 expectedResponse,
                         F cancel) {
@@ -243,8 +272,8 @@ class LinkCableMultiboot {
     if (cancel())
       return ABORTED;
 
-    for (u32 i = 0; i < LINK_CABLE_MULTIBOOT_CLIENTS; i++) {
-      u8 clientId = LINK_CABLE_MULTIBOOT_CLIENT_IDS[i];
+    for (u32 i = 0; i < CLIENTS; i++) {
+      u8 clientId = CLIENT_IDS[i];
       u16 expectedResponseWithId = expectedResponse | clientId;
       bool isClientConnected = multiBootParameters.client_bit & clientId;
 
@@ -262,12 +291,12 @@ class LinkCableMultiboot {
 
   void wait(u32 verticalLines) {
     u32 count = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
 
     while (count < verticalLines) {
-      if (REG_VCOUNT != vCount) {
+      if (Link::_REG_VCOUNT != vCount) {
         count++;
-        vCount = REG_VCOUNT;
+        vCount = Link::_REG_VCOUNT;
       }
     };
   }
