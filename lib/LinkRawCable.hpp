@@ -124,7 +124,7 @@ class LinkRawCable {
    * data from each player, including the assigned player id.
    * @param data The value to be sent.
    * @param cancel A function that will be continuously invoked. If it returns
-   * `true`, the transfer will be aborted and the return value will be empty.
+   * `true`, the transfer will be aborted and the response will be empty.
    */
   template <typename F>
   Response transfer(u16 data, F cancel, bool _async = false) {

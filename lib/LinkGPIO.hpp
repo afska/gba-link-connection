@@ -72,7 +72,7 @@ class LinkGPIO {
   /**
    * @brief Returns the direction set at `pin`.
    */
-  Direction getMode(Pin pin) {
+  [[nodiscard]] Direction getMode(Pin pin) {
     return Direction(_GET_BIT(Link::_REG_RCNT, DIRECTION_BITS[pin]));
   }
 
@@ -80,7 +80,7 @@ class LinkGPIO {
    * @brief Returns whether a `pin` is *HIGH* or not (when set as an input).
    * @param pin One of the enum values from `LinkGPIO::Pin`.
    */
-  bool readPin(Pin pin) {
+  [[nodiscard]] bool readPin(Pin pin) {
     return (Link::_REG_RCNT & (1 << DATA_BITS[pin])) != 0;
   }
 
