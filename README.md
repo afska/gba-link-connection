@@ -24,7 +24,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 ## Usage
 
-- Include the `lib/` folder in your project's include directory, and use the library you want (e.g. [LinkCable.hpp](lib/LinkCable.hpp)). Refer to its comments for instructions. No external dependencies are required.
+- Copy the `lib/` folder into your project's `include` directory and include the library you need, such as [LinkCable.hpp](lib/LinkCable.hpp). For initial instructions and setup details, refer to the big comment block at the beginning of each file, the documentation included here, and the provided examples. No external dependencies are required.
 - Check out the [examples](examples) folder.
 	* Builds are available in [Releases](https://github.com/afska/gba-link-connection/releases).
 	* They can be tested on real GBAs or using emulators.
@@ -125,7 +125,7 @@ Name | Return type | Description
 `transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
 `getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
-`getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`. If not, returns an empty response.
 `isMaster()` | **bool** | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.
 `isReady()` | **bool** | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.
 `getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.

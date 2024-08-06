@@ -38,6 +38,9 @@
 
 static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v6.4.0";
 
+/**
+ * @brief A low level handler for the Link Port (Multi-Play Mode).
+ */
 class LinkRawCable {
  private:
   using u32 = unsigned int;
@@ -76,8 +79,16 @@ class LinkRawCable {
       -1};
 
  public:
-  bool isActive() { return isEnabled; }
+  /**
+   * @brief Returns whether the library is active or not.
+   */
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library in a specific `baudRate`.
+   * @param baudRate One of the enum values from `LinkRawCable::BaudRate`.
+   * Defaults to `LinkRawCable::BaudRate::BAUD_RATE_1` (38400 bps).
+   */
   void activate(BaudRate baudRate = BaudRate::BAUD_RATE_1) {
     this->baudRate = baudRate;
     this->asyncState = IDLE;
@@ -87,6 +98,9 @@ class LinkRawCable {
     isEnabled = true;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     isEnabled = false;
     setGeneralPurposeMode();
@@ -96,10 +110,22 @@ class LinkRawCable {
     asyncData = LinkRawCable::EMPTY_RESPONSE;
   }
 
+  /**
+   * @brief Exchanges `data` with the connected consoles. Returns the received
+   * data from each player, including the assigned player id.
+   * @param data The value to be sent.
+   */
   Response transfer(u16 data) {
     return transfer(data, []() { return false; });
   }
 
+  /**
+   * @brief Exchanges `data` with the connected consoles. Returns the received
+   * data from each player, including the assigned player id.
+   * @param data The value to be sent.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted and the return value will be empty.
+   */
   template <typename F>
   Response transfer(u16 data, F cancel, bool _async = false) {
     if (asyncState != IDLE)
@@ -131,11 +157,21 @@ class LinkRawCable {
     return LinkRawCable::EMPTY_RESPONSE;
   }
 
+  /**
+   * @brief Schedules a `data` transfer and returns. After this, call
+   * `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the
+   * async data, normal `transfer(...)`s won't do anything!
+   * @param data The value to be sent.
+   */
   void transferAsync(u16 data) {
     transfer(data, []() { return false; }, true);
   }
 
-  Response getAsyncData() {
+  /**
+   * @brief If the async state is `READY`, returns the remote data and switches
+   * the state back to `IDLE`. If not, returns an empty response.
+   */
+  [[nodiscard]] Response getAsyncData() {
     if (asyncState != READY)
       return LinkRawCable::EMPTY_RESPONSE;
 
@@ -144,11 +180,34 @@ class LinkRawCable {
     return data;
   }
 
-  BaudRate getBaudRate() { return baudRate; }
-  bool isMaster() { return !isBitHigh(LinkRawCable::BIT_SLAVE); }
-  bool isReady() { return isBitHigh(LinkRawCable::BIT_READY); }
-  AsyncState getAsyncState() { return asyncState; }
+  /**
+   * @brief Returns the current `baudRate`.
+   */
+  [[nodiscard]] BaudRate getBaudRate() { return baudRate; }
 
+  /**
+   * @brief Returns whether the console is connected as master or not. Returns
+   * garbage when the cable is not properly connected.
+   */
+  [[nodiscard]] bool isMaster() { return !isBitHigh(LinkRawCable::BIT_SLAVE); }
+
+  /**
+   * @brief Returns whether all connected consoles have entered the multiplayer
+   * mode. Returns garbage when the cable is not properly connected.
+   */
+  [[nodiscard]] bool isReady() { return isBitHigh(LinkRawCable::BIT_READY); }
+
+  /**
+   * @brief Returns the state of the last async transfer (one of
+   * `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or
+   * `LinkRawCable::AsyncState::READY`).
+   */
+  [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
+
+  /**
+   * @brief This method is called by the SERIAL interrupt handler. You shouldn't
+   * call it manually!
+   */
   void _onSerial() {
     if (!isEnabled || asyncState != WAITING)
       return;
