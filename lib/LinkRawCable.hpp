@@ -67,8 +67,8 @@ class LinkRawCable {
     BAUD_RATE_3   // 115200 bps
   };
   struct Response {
-    u16 data[LinkRawCable::MAX_PLAYERS] = {DISCONNECTED, DISCONNECTED,
-                                           DISCONNECTED, DISCONNECTED};
+    u16 data[MAX_PLAYERS] = {DISCONNECTED, DISCONNECTED, DISCONNECTED,
+                             DISCONNECTED};
     int playerId = -1;  // (-1 = unknown)
   };
   enum AsyncState { IDLE, WAITING, READY };
@@ -92,7 +92,7 @@ class LinkRawCable {
   void activate(BaudRate baudRate = BaudRate::BAUD_RATE_1) {
     this->baudRate = baudRate;
     this->asyncState = IDLE;
-    this->asyncData = LinkRawCable::EMPTY_RESPONSE;
+    this->asyncData = EMPTY_RESPONSE;
 
     setMultiPlayMode();
     isEnabled = true;
@@ -107,7 +107,7 @@ class LinkRawCable {
 
     baudRate = BaudRate::BAUD_RATE_1;
     asyncState = IDLE;
-    asyncData = LinkRawCable::EMPTY_RESPONSE;
+    asyncData = EMPTY_RESPONSE;
   }
 
   /**
@@ -129,7 +129,7 @@ class LinkRawCable {
   template <typename F>
   Response transfer(u16 data, F cancel, bool _async = false) {
     if (asyncState != IDLE)
-      return LinkRawCable::EMPTY_RESPONSE;
+      return EMPTY_RESPONSE;
 
     setData(data);
 
@@ -143,18 +143,18 @@ class LinkRawCable {
     startTransfer();
 
     if (_async)
-      return LinkRawCable::EMPTY_RESPONSE;
+      return EMPTY_RESPONSE;
 
     while (isSending())
       if (cancel()) {
         stopTransfer();
-        return LinkRawCable::EMPTY_RESPONSE;
+        return EMPTY_RESPONSE;
       }
 
     if (isReady() && !hasError())
       return getData();
 
-    return LinkRawCable::EMPTY_RESPONSE;
+    return EMPTY_RESPONSE;
   }
 
   /**
@@ -173,7 +173,7 @@ class LinkRawCable {
    */
   [[nodiscard]] Response getAsyncData() {
     if (asyncState != READY)
-      return LinkRawCable::EMPTY_RESPONSE;
+      return EMPTY_RESPONSE;
 
     Response data = asyncData;
     asyncState = IDLE;
@@ -189,13 +189,13 @@ class LinkRawCable {
    * @brief Returns whether the console is connected as master or not. Returns
    * garbage when the cable is not properly connected.
    */
-  [[nodiscard]] bool isMaster() { return !isBitHigh(LinkRawCable::BIT_SLAVE); }
+  [[nodiscard]] bool isMaster() { return !isBitHigh(BIT_SLAVE); }
 
   /**
    * @brief Returns whether all connected consoles have entered the multiplayer
    * mode. Returns garbage when the cable is not properly connected.
    */
-  [[nodiscard]] bool isReady() { return isBitHigh(LinkRawCable::BIT_READY); }
+  [[nodiscard]] bool isReady() { return isBitHigh(BIT_READY); }
 
   /**
    * @brief Returns the state of the last async transfer (one of
@@ -214,7 +214,7 @@ class LinkRawCable {
 
     setInterruptsOff();
     asyncState = READY;
-    asyncData = LinkRawCable::EMPTY_RESPONSE;
+    asyncData = EMPTY_RESPONSE;
     if (isReady() && !hasError())
       asyncData = getData();
   }
@@ -222,45 +222,42 @@ class LinkRawCable {
  private:
   BaudRate baudRate = BaudRate::BAUD_RATE_1;
   AsyncState asyncState = IDLE;
-  Response asyncData = LinkRawCable::EMPTY_RESPONSE;
+  Response asyncData = EMPTY_RESPONSE;
   volatile bool isEnabled = false;
 
   void setMultiPlayMode() {
-    Link::_REG_RCNT =
-        Link::_REG_RCNT & ~(1 << LinkRawCable::BIT_GENERAL_PURPOSE_HIGH);
-    Link::_REG_SIOCNT = (1 << LinkRawCable::BIT_MULTIPLAYER);
+    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_SIOCNT = (1 << BIT_MULTIPLAYER);
     Link::_REG_SIOCNT |= baudRate;
     Link::_REG_SIOMLT_SEND = 0;
   }
 
   void setGeneralPurposeMode() {
-    Link::_REG_RCNT =
-        (Link::_REG_RCNT & ~(1 << LinkRawCable::BIT_GENERAL_PURPOSE_LOW)) |
-        (1 << LinkRawCable::BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
+                      (1 << BIT_GENERAL_PURPOSE_HIGH);
   }
 
   void setData(u16 data) { Link::_REG_SIOMLT_SEND = data; }
   Response getData() {
-    Response response = LinkRawCable::EMPTY_RESPONSE;
+    Response response = EMPTY_RESPONSE;
 
-    for (u32 i = 0; i < LinkRawCable::MAX_PLAYERS; i++)
+    for (u32 i = 0; i < MAX_PLAYERS; i++)
       response.data[i] = Link::_REG_SIOMULTI[i];
 
     response.playerId =
-        (Link::_REG_SIOCNT & (0b11 << LinkRawCable::BITS_PLAYER_ID)) >>
-        LinkRawCable::BITS_PLAYER_ID;
+        (Link::_REG_SIOCNT & (0b11 << BITS_PLAYER_ID)) >> BITS_PLAYER_ID;
 
     return response;
   }
 
-  bool hasError() { return isBitHigh(LinkRawCable::BIT_ERROR); }
-  bool isSending() { return isBitHigh(LinkRawCable::BIT_START); }
+  bool hasError() { return isBitHigh(BIT_ERROR); }
+  bool isSending() { return isBitHigh(BIT_START); }
 
-  void startTransfer() { setBitHigh(LinkRawCable::BIT_START); }
-  void stopTransfer() { setBitLow(LinkRawCable::BIT_START); }
+  void startTransfer() { setBitHigh(BIT_START); }
+  void stopTransfer() { setBitLow(BIT_START); }
 
-  void setInterruptsOn() { setBitHigh(LinkRawCable::BIT_IRQ); }
-  void setInterruptsOff() { setBitLow(LinkRawCable::BIT_IRQ); }
+  void setInterruptsOn() { setBitHigh(BIT_IRQ); }
+  void setInterruptsOff() { setBitLow(BIT_IRQ); }
 
   bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
