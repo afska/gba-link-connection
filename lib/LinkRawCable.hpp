@@ -36,7 +36,7 @@
 
 #include "_link_common.h"
 
-static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v6.4.0";
+static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.0.0";
 
 /**
  * @brief A low level handler for the Link Port (Multi-Play Mode).

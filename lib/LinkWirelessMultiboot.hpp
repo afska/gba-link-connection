@@ -73,7 +73,7 @@ const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET = 4;
 const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE = 12;
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
-    "LinkWirelessMultiboot/v6.4.0";
+    "LinkWirelessMultiboot/v7.0.0";
 
 class LinkWirelessMultiboot {
  public:

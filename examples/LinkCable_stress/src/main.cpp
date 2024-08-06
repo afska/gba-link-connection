@@ -89,10 +89,10 @@ int main() {
 
   while (true) {
 #ifndef USE_LINK_UNIVERSAL
-    std::string output = "LinkCable_stress (v6.4.0)\n\n";
+    std::string output = "LinkCable_stress (v7.0.0)\n\n";
 #endif
 #ifdef USE_LINK_UNIVERSAL
-    std::string output = "LinkUniversal_stress (v6.4.0)\n\n";
+    std::string output = "LinkUniversal_stress (v7.0.0)\n\n";
 #endif
 
     linkConnection->deactivate();
