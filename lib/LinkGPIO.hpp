@@ -28,6 +28,7 @@
 
 class LinkGPIO {
  private:
+  using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
 

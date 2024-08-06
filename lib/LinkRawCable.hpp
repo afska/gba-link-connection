@@ -18,7 +18,7 @@
 //       // (this blocks the console indefinitely)
 // - 5) Exchange data with a cancellation callback:
 //       LinkRawCable::Response data = linkRawCable->transfer(0x1234, []() {
-//         auto keys = ~REG_KEYS & KEY_ANY;
+//         u16 keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
 // - 6) Exchange data asynchronously:
@@ -172,6 +172,13 @@ class LinkRawCable {
   }
 
   /**
+   * @brief Returns the state of the last async transfer (one of
+   * `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or
+   * `LinkRawCable::AsyncState::READY`).
+   */
+  [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
+
+  /**
    * @brief If the async state is `READY`, returns the remote data and switches
    * the state back to `IDLE`. If not, returns an empty response.
    */
@@ -202,15 +209,8 @@ class LinkRawCable {
   [[nodiscard]] bool isReady() { return isBitHigh(BIT_READY); }
 
   /**
-   * @brief Returns the state of the last async transfer (one of
-   * `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or
-   * `LinkRawCable::AsyncState::READY`).
-   */
-  [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
-
-  /**
-   * @brief This method is called by the SERIAL interrupt handler. You shouldn't
-   * call it manually!
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
    */
   void _onSerial() {
     if (!isEnabled || asyncState != WAITING)

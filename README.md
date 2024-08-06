@@ -126,9 +126,9 @@ Name | Return type | Description
 `transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
 `getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
 `getAsyncData()` | **LinkRawCable::Response** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`. If not, returns an empty response.
+`getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.
 `isMaster()` | **bool** | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.
 `isReady()` | **bool** | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.
-`getBaudRate()` | **LinkRawCable::BaudRate** | Returns the current `baudRate`.
 
 - don't send `0xFFFF`, it's a reserved value that means *disconnected client*
 - only `transfer(...)` if `isReady()`
@@ -315,20 +315,22 @@ Name | Return type | Description
 `transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `transferAsync(data, [cancel])` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
 `getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
-`getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`.
+`getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`. If not, returns an empty response.
 `getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
 `setWaitModeActive(isActive)` | - | Enables or disables `waitMode` (*).
 `isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
 
-> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive, and wait if it's not. That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
+> (*) `waitMode`: The GBA adds an extra feature over SPI. When working as master, it can check whether the other terminal is ready to receive (ready: `MISO=LOW`), and wait if it's not (not ready: `MISO=HIGH`). That makes the connection more reliable, but it's not always supported on other hardware units (e.g. the Wireless Adapter), so it must be disabled in those cases.
 > 
 > `waitMode` is disabled by default.
+>
+> `MISO` means `SO` on the slave side and `SI` on the master side.
 
 ⚠️ when using Normal Mode between two GBAs, use a GBC Link Cable!
 
 ⚠️ only use the 2Mbps mode with custom hardware (very short wires)!
 
-⚠️ don't send `0xFFFFFFFF`, it's reserved for errors!
+⚠️ don't send `0xFFFFFFFF` (or `0xFF` in 8-bit mode), it's reserved for errors!
 
 ## SPI Configuration
 

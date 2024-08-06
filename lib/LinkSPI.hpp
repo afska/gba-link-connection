@@ -15,18 +15,18 @@
 //       linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
 //       // (use LinkSPI::Mode::SLAVE on the other end)
 // - 4) Exchange 32-bit data with the other end:
-//       auto data = linkSPI->transfer(0x12345678);
+//       u32 data = linkSPI->transfer(0x12345678);
 //       // (this blocks the console indefinitely)
 // - 5) Exchange data with a cancellation callback:
-//       auto data = linkSPI->transfer(0x12345678, []() {
-//         auto keys = ~REG_KEYS & KEY_ANY;
+//       u32 data = linkSPI->transfer(0x12345678, []() {
+//         u16 keys = ~REG_KEYS & KEY_ANY;
 //         return keys & KEY_START;
 //       });
 // - 6) Exchange data asynchronously:
 //       linkSPI->transferAsync(0x12345678);
 //       // ...
 //       if (linkSPI->getAsyncState() == LinkSPI::AsyncState::READY) {
-//         auto data = linkSPI->getAsyncData();
+//         u32 data = linkSPI->getAsyncData();
 //         // ...
 //       }
 // --------------------------------------------------------------------------
@@ -37,7 +37,7 @@
 // considerations:
 // - when using Normal Mode between two GBAs, use a GBC Link Cable!
 // - only use the 2Mbps mode with custom hardware (very short wires)!
-// - don't send 0xFFFFFFFF, it's reserved for errors!
+// - don't send 0xFFFFFFFF (or 0xFF in 8-bit mode), it's reserved for errors!
 // --------------------------------------------------------------------------
 
 #include "_link_common.h"
@@ -68,9 +68,14 @@
 
 static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
 
+/**
+ * @brief An SPI handler for the Link Port (Normal Mode, either 32 or 8 bits).
+ * 32-bit transfers by default. Set `LINK_SPI_8BIT_MODE` for 8-bit transfers.
+ */
 class LinkSPI {
  private:
   using u32 = unsigned int;
+  using u16 = unsigned short;
   using u8 = unsigned char;
 
   static constexpr int BIT_CLOCK = 0;
@@ -87,8 +92,17 @@ class LinkSPI {
   enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
   enum AsyncState { IDLE, WAITING, READY };
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library in a specific `mode`.
+   *
+   * @param mode One of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`,
+   * or `LinkSPI::Mode::MASTER_2MBPS`.
+   */
   void activate(Mode mode) {
     this->mode = mode;
     this->waitMode = false;
@@ -112,6 +126,9 @@ class LinkSPI {
     isEnabled = true;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     isEnabled = false;
     setGeneralPurposeMode();
@@ -122,10 +139,20 @@ class LinkSPI {
     asyncData = 0;
   }
 
+  /**
+   * @brief Exchanges `data` with the other end. Returns the received data.
+   * @param data The value to be sent.
+   */
   LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data) {
     return transfer(data, []() { return false; });
   }
 
+  /**
+   * @brief Exchanges `data` with the other end. Returns the received data.
+   * @param data The value to be sent.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted and the response will be empty.
+   */
   template <typename F>
   LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data,
                               F cancel,
@@ -170,15 +197,40 @@ class LinkSPI {
     return getData();
   }
 
+  /**
+   * @brief Schedules a `data` transfer and returns. After this, call
+   * `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the
+   * async data, normal `transfer(...)`s won't do anything!
+   * @param data The value to be sent.
+   */
   void transferAsync(LINK_SPI_DATA_TYPE data) {
     transfer(data, []() { return false; }, true);
   }
 
+  /**
+   * @brief Schedules a `data` transfer and returns. After this, call
+   * `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the
+   * async data, normal `transfer(...)`s won't do anything!
+   * @param data The value to be sent.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted and the response will be empty.
+   */
   template <typename F>
   void transferAsync(LINK_SPI_DATA_TYPE data, F cancel) {
     transfer(data, cancel, true);
   }
 
+  /**
+   * @brief Returns the state of the last async transfer (one of
+   * `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or
+   * `LinkSPI::AsyncState::READY`).
+   */
+  [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
+
+  /**
+   * @brief If the async state is `READY`, returns the remote data and switches
+   * the state back to `IDLE`. If not, returns an empty response.
+   */
   [[nodiscard]] LINK_SPI_DATA_TYPE getAsyncData() {
     if (asyncState != READY)
       return LINK_SPI_NO_DATA;
@@ -188,11 +240,33 @@ class LinkSPI {
     return data;
   }
 
+  /**
+   * @brief Returns the current `mode`.
+   */
   [[nodiscard]] Mode getMode() { return mode; }
-  void setWaitModeActive(bool isActive) { waitMode = isActive; }
-  [[nodiscard]] bool isWaitModeActive() { return waitMode; }
-  [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
 
+  /**
+   * @brief Enables or disables `waitMode`: The GBA adds an extra feature over
+   * SPI. When working as master, it can check whether the other terminal is
+   * ready to receive (ready: `MISO=LOW`), and wait if it's not (not ready:
+   * `MISO=HIGH`). That makes the connection more reliable, but it's not always
+   * supported on other hardware units (e.g. the Wireless Adapter), so it must
+   * be disabled in those cases.
+   * \warning `waitMode` is disabled by default.
+   * \warning `MISO` means `SO` on the slave side and `SI` on the master side.
+   */
+  void setWaitModeActive(bool isActive) { waitMode = isActive; }
+
+  /**
+   * @brief Returns whether `waitMode` (*) is active or not.
+   * \warning See `setWaitModeActive(...)`.
+   */
+  [[nodiscard]] bool isWaitModeActive() { return waitMode; }
+
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   void _onSerial(bool _customAck = false) {
     if (!isEnabled || asyncState != WAITING)
       return;
@@ -205,8 +279,22 @@ class LinkSPI {
     asyncData = getData();
   }
 
+  /**
+   * @brief Sets SO output to HIGH.
+   * \warning This is internal API!
+   */
   void _setSOHigh() { setBitHigh(BIT_SO); }
+
+  /**
+   * @brief Sets SO output to LOW.
+   * \warning This is internal API!
+   */
   void _setSOLow() { setBitLow(BIT_SO); }
+
+  /**
+   * @brief Returns whether SI is HIGH or LOW.
+   * \warning This is internal API!
+   */
   [[nodiscard]] bool _isSIHigh() { return isBitHigh(BIT_SI); }
 
  private:
