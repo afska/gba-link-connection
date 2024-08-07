@@ -113,6 +113,16 @@ static inline __attribute__((always_inline)) int _MultiBoot(_MultiBootParam* mb,
   return (int)r0;
 }
 
+// Helpers
+
+static inline int _max(int a, int b) {
+  return (a > b) ? (a) : (b);
+}
+
+static inline int _min(int a, int b) {
+  return (a < b) ? (a) : (b);
+}
+
 }  // namespace Link
 
 #endif  // LINK_COMMON_H

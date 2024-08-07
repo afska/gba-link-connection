@@ -1,6 +1,7 @@
+#include "../../../lib/LinkRawWireless.hpp"
+
 #include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
-#include "../../../lib/LinkRawWireless.hpp"
 #include "../../_lib/interrupt.h"
 #include "scenes/DebugScene.h"
 #include "utils/SceneUtils.h"

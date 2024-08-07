@@ -1,3 +1,5 @@
+#include "../../../../lib/LinkRawWireless.hpp"
+
 #include "DebugScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
@@ -5,7 +7,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "../../../../lib/LinkRawWireless.hpp"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
