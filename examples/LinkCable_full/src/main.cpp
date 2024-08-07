@@ -41,13 +41,17 @@ int main() {
       DEBULOG("! started");
     }
 
+    static constexpr int BIT_READY = 3;
+    static constexpr int BIT_ERROR = 6;
+    static constexpr int BIT_START = 7;
+
     // log player id/count and important flags
     TextStream::instance().setText(
         "P" + asStr(linkConnection->currentPlayerId()) + "/" +
             asStr(linkConnection->playerCount()) + "-R" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_READY)) + "-S" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_START)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, LINK_CABLE_BIT_ERROR)),
+            asStr(isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
+            asStr(isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
+            asStr(isBitHigh(REG_SIOCNT, BIT_START)),
         0, 14);
 
     engine->update();

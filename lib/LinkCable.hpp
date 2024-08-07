@@ -62,6 +62,8 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
 #define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 5
 #define LINK_CABLE_DEFAULT_INTERVAL 50
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
+#define LINK_CABLE_DISCONNECTED 0xffff
+#define LINK_CABLE_NO_DATA 0x0
 #define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
 /**
@@ -75,8 +77,6 @@ class LinkCable {
   using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
 
-  static constexpr int DISCONNECTED = 0xffff;
-  static constexpr int NO_DATA = 0x0;
   static constexpr int BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
   static constexpr int BIT_SLAVE = 2;
@@ -110,7 +110,7 @@ class LinkCable {
 
     u16 pop() {
       if (isEmpty())
-        return NO_DATA;
+        return LINK_CABLE_NO_DATA;
 
       auto x = arr[front];
       front = (front + 1) % LINK_CABLE_QUEUE_SIZE;
@@ -121,7 +121,7 @@ class LinkCable {
 
     u16 peek() {
       if (isEmpty())
-        return NO_DATA;
+        return LINK_CABLE_NO_DATA;
 
       return arr[front];
     }
@@ -301,7 +301,7 @@ class LinkCable {
    * @param data The value to be sent.
    */
   void send(u16 data) {
-    if (data == DISCONNECTED || data == NO_DATA)
+    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
       return;
 
     LINK_CABLE_BARRIER;
@@ -356,8 +356,8 @@ class LinkCable {
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       u16 data = Link::_REG_SIOMULTI[i];
 
-      if (data != DISCONNECTED) {
-        if (data != NO_DATA && i != state.currentPlayerId)
+      if (data != LINK_CABLE_DISCONNECTED) {
+        if (data != LINK_CABLE_NO_DATA && i != state.currentPlayerId)
           _state.newMessages[i].push(data);
         newPlayerCount++;
         setOnline(i);

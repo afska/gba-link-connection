@@ -42,6 +42,9 @@
 
 static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.0.0";
 
+#define LINK_RAW_CABLE_MAX_PLAYERS 4
+#define LINK_RAW_CABLE_DISCONNECTED 0xffff
+
 /**
  * @brief A low level handler for the Link Port (Multi-Play Mode).
  */
@@ -51,8 +54,6 @@ class LinkRawCable {
   using u16 = unsigned short;
   using u8 = unsigned char;
 
-  static constexpr int MAX_PLAYERS = 4;
-  static constexpr int DISCONNECTED = 0xffff;
   static constexpr int BIT_SLAVE = 2;
   static constexpr int BIT_READY = 3;
   static constexpr int BITS_PLAYER_ID = 4;
@@ -71,15 +72,15 @@ class LinkRawCable {
     BAUD_RATE_3   // 115200 bps
   };
   struct Response {
-    u16 data[MAX_PLAYERS] = {DISCONNECTED, DISCONNECTED, DISCONNECTED,
-                             DISCONNECTED};
+    u16 data[LINK_RAW_CABLE_MAX_PLAYERS];
     int playerId = -1;  // (-1 = unknown)
   };
   enum AsyncState { IDLE, WAITING, READY };
 
  private:
   static constexpr Response EMPTY_RESPONSE = {
-      {DISCONNECTED, DISCONNECTED, DISCONNECTED, DISCONNECTED},
+      {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
+       LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED},
       -1};
 
  public:
@@ -245,7 +246,7 @@ class LinkRawCable {
   Response getData() {
     Response response = EMPTY_RESPONSE;
 
-    for (u32 i = 0; i < MAX_PLAYERS; i++)
+    for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
       response.data[i] = Link::_REG_SIOMULTI[i];
 
     response.playerId =
