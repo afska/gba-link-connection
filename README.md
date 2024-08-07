@@ -68,7 +68,8 @@ You can update these values at any time without creating a new instance:
 
 You can also change these compile-time constants:
 - `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value it's `390` bytes. There are 2 temporary queues, 1 incoming queue and 1 outgoing queue. To calculate it:
+  - This affects how much memory is allocated. With the default value, it's `390` bytes.  There's a double-buffered pending queue (to avoid data races), `1` incoming queue and `1` outgoing queue.
+  - You can calculate the memory usage with:
     - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)`
 
 ## Methods
@@ -384,13 +385,13 @@ Name | Return type | Description
 
 ## UART Configuration
 
-The GBA operates using 1 stop bit, but everything else can be configured. By default, the library uses `8N1`, which means 8-bit data and no parity bit. RTS/CTS is disabled by default.
+The GBA operates using `1` stop bit, but everything else can be configured. By default, the library uses `8N1`, which means 8-bit data and no parity bit. RTS/CTS is disabled by default.
 
 ![diagram](https://github.com/afska/gba-link-connection/assets/1631752/a6a58f94-da24-4fd9-9603-9c7c9a493f93)
 
-- Black wire (GND) -> GBA GND.
-- Green wire (TX) -> GBA SI.
-- White wire (RX) -> GBA SO.
+- Black wire (`GND`) -> GBA `GND`.
+- Green wire (`TX`) -> GBA `SI`.
+- White wire (`RX`) -> GBA `SO`.
 
 # 🖱️ LinkPS2Mouse
 
