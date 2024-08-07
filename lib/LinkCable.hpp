@@ -213,7 +213,7 @@ class LinkCable {
   [[nodiscard]] u8 playerCount() { return state.playerCount; }
 
   /**
-   * @brief Returns the current player id (`0~3`).
+   * @brief Returns the current player ID (`0~3`).
    */
   [[nodiscard]] u8 currentPlayerId() { return state.currentPlayerId; }
 
@@ -242,7 +242,7 @@ class LinkCable {
   /**
    * @brief Waits for data from player #`playerId`. Returns `true` on success,
    * or `false` on disconnection.
-   * @param playerId A player id.
+   * @param playerId A player ID.
    */
   bool waitFor(u8 playerId) {
     return waitFor(playerId, []() { return false; });
@@ -271,7 +271,7 @@ class LinkCable {
   /**
    * @brief Returns `true` if there are pending messages from player
    * #`playerId`.
-   * @param playerId A player id.
+   * @param playerId A player ID.
    * \warning Keep in mind that if this returns `false`, it will keep doing so
    * until you *fetch new data* with `sync()`.
    */
@@ -281,7 +281,7 @@ class LinkCable {
 
   /**
    * @brief Dequeues and returns the next message from player #`playerId`.
-   * @param playerId A player id.
+   * @param playerId A player ID.
    * \warning If there's no data from that player, a `0` will be returned.
    */
   u16 read(u8 playerId) { return state.incomingMessages[playerId].pop(); }
@@ -289,7 +289,7 @@ class LinkCable {
   /**
    * @brief Returns the next message from player #`playerId` without dequeuing
    * it.
-   * @param playerId A player id.
+   * @param playerId A player ID.
    * \warning If there's no data from that player, a `0` will be returned.
    */
   [[nodiscard]] u16 peek(u8 playerId) {

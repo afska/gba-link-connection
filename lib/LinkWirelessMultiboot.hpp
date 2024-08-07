@@ -17,7 +17,7 @@
 //         romLength, // in bytes
 //         "Multiboot", // game name
 //         "Test", // user name
-//         0xffff, // game id
+//         0xffff, // game ID
 //         2, // number of players
 //         [](LinkWirelessMultiboot::MultibootProgress progress) {
 //           // check progress.[state,connectedClients,percentage]

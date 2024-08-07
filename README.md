@@ -81,7 +81,7 @@ Name | Return type | Description
 `deactivate()` | - | Deactivates the library.
 `isConnected()` | **bool** | Returns `true` if there are at least 2 connected players.
 `playerCount()` | **u8** *(0~4)* | Returns the number of connected players.
-`currentPlayerId()` | **u8** *(0~3)* | Returns the current player id.
+`currentPlayerId()` | **u8** *(0~3)* | Returns the current player ID.
 `sync()` | - | Call this method every time you need to fetch new data.
 `waitFor(playerId)` | **bool** | Waits for data from player #`playerId`. Returns `true` on success, or `false` on disconnection.
 `waitFor(playerId, cancel)` | **bool** | Like `waitFor(playerId)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
@@ -125,7 +125,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate(baudRate = BAUD_RATE_1)` | - | Activates the library in a specific `baudRate` (`LinkRawCable::BaudRate`).
 `deactivate()` | - | Deactivates the library.
-`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the connected consoles. Returns the received data, including the assigned player id.
+`transfer(data)` | **LinkRawCable::Response** | Exchanges `data` with the connected consoles. Returns the received data, including the assigned player ID.
 `transfer(data, cancel)` | **LinkRawCable::Response** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
 `transferAsync(data)` | - | Schedules a `data` transfer and returns. After this, call `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the async data, normal `transfer(...)`s won't do anything!
 `getAsyncState()` | **LinkRawCable::AsyncState** | Returns the state of the last async transfer (one of `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or `LinkRawCable::AsyncState::READY`).
@@ -191,14 +191,14 @@ Name | Return type | Description
 `getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
 `getServersAsyncEnd(servers)` | **bool** | Fills the `servers` array with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
 `connect(serverId)` | **bool** | Starts a connection with `serverId` and changes the state to `CONNECTING`.
-`keepConnecting()` | **bool** | When connecting, this needs to be called until the state is `CONNECTED`. It assigns a player id. Keep in mind that `isConnected()` and `playerCount()` won't be updated until the first message from server arrives.
+`keepConnecting()` | **bool** | When connecting, this needs to be called until the state is `CONNECTED`. It assigns a player ID. Keep in mind that `isConnected()` and `playerCount()` won't be updated until the first message from server arrives.
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes.
 `receive(messages)` | **bool** | Fills the `messages` array with incoming messages, forwarding if needed.
 `getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
 `isConnected()` | **bool** | Returns true if the player count is higher than 1.
 `isSessionActive()` | **bool** | Returns true if the state is `SERVING` or `CONNECTED`.
 `playerCount()` | **u8** *(1~5)* | Returns the number of connected players.
-`currentPlayerId()` | **u8** *(0~4)* | Returns the current player id.
+`currentPlayerId()` | **u8** *(0~4)* | Returns the current player ID.
 `getLastError([clear])` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared if `clear` is `true` (default behavior).
 
 ⚠️ `0xFFFF` is a reserved value, so don't send it!
@@ -227,7 +227,7 @@ Name | Return type | Description
 
 ## Methods
 
-- There's one method for every supported wireless adapter command.
+- There's one method for every supported Wireless Adapter command.
 - Use `sendCommand(...)` to send arbitrary commands.
 
 # 🔧🏛 LinkWirelessOpenSDK

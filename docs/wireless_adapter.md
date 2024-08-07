@@ -290,7 +290,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
       * The number of available slots depends on `maxPlayers` (see [Setup](#setup---0x17)) and/or [EndHost](#endhost---0x1b).
     * 4th byte: Zero.
 
-🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new id.
+🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new ID.
 
 ✅ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
 

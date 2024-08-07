@@ -772,7 +772,7 @@ genericWait:
 }
 
 int DebugScene::selectServerId() {
-  switch (selectOption("Which server id?", std::vector<std::string>{
+  switch (selectOption("Which server ID?", std::vector<std::string>{
                                                "<first>", "<second>", "<third>",
                                                "<fourth>", "<pick>"})) {
     case 0: {

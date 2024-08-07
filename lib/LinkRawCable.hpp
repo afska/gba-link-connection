@@ -117,7 +117,7 @@ class LinkRawCable {
 
   /**
    * @brief Exchanges `data` with the connected consoles. Returns the received
-   * data from each player, including the assigned player id.
+   * data from each player, including the assigned player ID.
    * @param data The value to be sent.
    */
   Response transfer(u16 data) {
@@ -126,7 +126,7 @@ class LinkRawCable {
 
   /**
    * @brief Exchanges `data` with the connected consoles. Returns the received
-   * data from each player, including the assigned player id.
+   * data from each player, including the assigned player ID.
    * @param data The value to be sent.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted and the response will be empty.

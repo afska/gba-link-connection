@@ -45,7 +45,7 @@ int main() {
     static constexpr int BIT_ERROR = 6;
     static constexpr int BIT_START = 7;
 
-    // log player id/count and important flags
+    // log player ID/count and important flags
     TextStream::instance().setText(
         "P" + asStr(linkConnection->currentPlayerId()) + "/" +
             asStr(linkConnection->playerCount()) + "-R" +
