@@ -26,6 +26,9 @@
 
 #include "LinkRawCable.hpp"
 
+static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
+    "LinkCableMultiboot/v7.0.0";
+
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)    \
   do {                                    \
     partialResult = CALL;                 \
@@ -34,9 +37,6 @@
     return error(CANCELED);               \
   else if (partialResult == ERROR)        \
     return error(FAILURE_DURING_HANDSHAKE);
-
-static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v7.0.0";
 
 /**
  * @brief A Multiboot tool to send small programs from one GBA to up to 3

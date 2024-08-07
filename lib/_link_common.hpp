@@ -45,6 +45,33 @@ inline volatile u16& _REG_VCOUNT =
 inline volatile _TMR_REC* const _REG_TM =
     reinterpret_cast<volatile _TMR_REC*>(_REG_BASE + 0x0100);
 
+static constexpr u16 _TM_FREQ_1 = 0;          // 1 cycle/tick (16.7 MHz)
+static constexpr u16 _TM_FREQ_64 = 0x0001;    // 64 cycles/tick (262 kHz)
+static constexpr u16 _TM_FREQ_256 = 0x0002;   // 256 cycles/tick (66 kHz)
+static constexpr u16 _TM_FREQ_1024 = 0x0003;  // 1024 cycles/tick (16 kHz)
+static constexpr u16 _TM_IRQ = 0x0040;
+static constexpr u16 _TM_ENABLE = 0x0080;
+
+static constexpr u16 _IRQ_VBLANK = 0x0001;  //!< Catch VBlank irq
+static constexpr u16 _IRQ_TIMER0 = 0x0008;  //!< Catch timer 0 irq
+static constexpr u16 _IRQ_TIMER1 = 0x0010;  //!< Catch timer 1 irq
+static constexpr u16 _IRQ_TIMER2 = 0x0020;  //!< Catch timer 2 irq
+static constexpr u16 _IRQ_TIMER3 = 0x0040;  //!< Catch timer 3 irq
+static constexpr u16 _IRQ_SERIAL = 0x0080;  //!< Catch serial comm irq
+static constexpr u16 _TIMER_IRQ_IDS[] = {_IRQ_TIMER0, _IRQ_TIMER1, _IRQ_TIMER2,
+                                         _IRQ_TIMER3};
+
+inline void _IntrWait(u32 flagClear, u32 irq) {
+  asm volatile(
+      "mov r0, %0\n"              // flagClear => r0
+      "mov r1, %1\n"              // irq => r1
+      "swi 0x04\n"                // call 0x04
+      :                           // outputs
+      : "r"(flagClear), "r"(irq)  // inputs
+      : "r0", "r1"                // clobbered registers
+  );
+}
+
 typedef struct {
   u32 reserved1[5];
   u8 handshake_data;

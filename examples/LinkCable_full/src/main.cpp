@@ -1,11 +1,11 @@
+// FULL:
+// This example has a menu and lets the user send data in different ways.
+
 #include "main.h"
 #include <libgba-sprite-engine/gba_engine.h>
 #include "../../_lib/interrupt.h"
 #include "scenes/TestScene.h"
 #include "utils/SceneUtils.h"
-
-// FULL:
-// This example has a menu and lets the user send data in different ways.
 
 void setUpInterrupts();
 void printTutorial();

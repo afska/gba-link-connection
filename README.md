@@ -26,6 +26,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 - Copy the `lib/` folder into your project's `include` directory and include the library you need, such as [LinkCable.hpp](lib/LinkCable.hpp). For initial instructions and setup details, refer to the big comment block at the beginning of each file, the documentation included here, and the provided examples. No external dependencies are required.
 - Check out the [examples](examples) folder.
+	* The example code uses [libtonc](https://github.com/gbadev-org/libtonc) (and [libugba](https://github.com/AntonioND/libugba) for interrupts), but any library can be used.
 	* Builds are available in [Releases](https://github.com/afska/gba-link-connection/releases).
 	* They can be tested on real GBAs or using emulators.
 	* For `LinkCable`/`LinkWireless`/`LinkUniversal` there are stress tests that you can use to tweak your configuration.

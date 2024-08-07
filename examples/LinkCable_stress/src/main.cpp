@@ -1,7 +1,3 @@
-#include "main.h"
-#include <string>
-#include "../../_lib/interrupt.h"
-
 // STRESS:
 // This example can perform multiple stress tests.
 // A) Packet loss test:
@@ -17,6 +13,10 @@
 //   - Measures how much time it takes to receive a packet from the other node.
 // R) Measure ping-pong latency:
 //   - Like (L), but adding a validation response and adding that time.
+
+#include "main.h"
+#include <string>
+#include "../../_lib/interrupt.h"
 
 #define FINAL_VALUE 65534
 

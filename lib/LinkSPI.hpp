@@ -45,6 +45,8 @@
 // 8-bit mode (uncomment to enable)
 // #define LINK_SPI_8BIT_MODE
 
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
+
 #ifdef LINK_SPI_8BIT_MODE
 #define LINK_SPI_DATA_TYPE u8
 #endif
@@ -65,8 +67,6 @@
 #ifndef LINK_SPI_8BIT_MODE
 #define LINK_SPI_NO_DATA 0xffffffff
 #endif
-
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
 
 /**
  * @brief An SPI handler for the Link Port (Normal Mode, either 32 or 8 bits).

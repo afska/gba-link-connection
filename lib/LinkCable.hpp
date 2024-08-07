@@ -42,41 +42,42 @@
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 
-#include <tonc_bios.h>
-#include <tonc_core.h>
+#include "_link_common.hpp"
 
 // Buffer size
 #define LINK_CABLE_QUEUE_SIZE 15
 
+static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
+
 #define LINK_CABLE_MAX_PLAYERS 4
-#define LINK_CABLE_DISCONNECTED 0xffff
-#define LINK_CABLE_NO_DATA 0x0
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
 #define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 5
 #define LINK_CABLE_DEFAULT_INTERVAL 50
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
-#define LINK_CABLE_BASE_FREQUENCY TM_FREQ_1024
-#define LINK_CABLE_REMOTE_TIMEOUT_OFFLINE -1
-#define LINK_CABLE_BIT_SLAVE 2
-#define LINK_CABLE_BIT_READY 3
-#define LINK_CABLE_BITS_PLAYER_ID 4
-#define LINK_CABLE_BIT_ERROR 6
-#define LINK_CABLE_BIT_START 7
-#define LINK_CABLE_BIT_MULTIPLAYER 13
-#define LINK_CABLE_BIT_IRQ 14
-#define LINK_CABLE_BIT_GENERAL_PURPOSE_LOW 14
-#define LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH 15
 #define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
-
-void LINK_CABLE_ISR_VBLANK();
-void LINK_CABLE_ISR_SERIAL();
-void LINK_CABLE_ISR_TIMER();
-const u16 LINK_CABLE_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
-                                        IRQ_TIMER3};
-
 class LinkCable {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+  using vs32 = volatile signed int;
+  using vu32 = volatile unsigned int;
+
+  static constexpr u16 DISCONNECTED = 0xffff;
+  static constexpr u16 NO_DATA = 0x0;
+  static constexpr u16 BASE_FREQUENCY = Link::_TM_FREQ_1024;
+  static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
+  static constexpr int BIT_SLAVE = 2;
+  static constexpr int BIT_READY = 3;
+  static constexpr int BITS_PLAYER_ID = 4;
+  static constexpr int BIT_ERROR = 6;
+  static constexpr int BIT_START = 7;
+  static constexpr int BIT_MULTIPLAYER = 13;
+  static constexpr int BIT_IRQ = 14;
+  static constexpr int BIT_GENERAL_PURPOSE_LOW = 14;
+  static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
+
  public:
   enum BaudRate {
     BAUD_RATE_0,  // 9600 bps
@@ -98,7 +99,7 @@ class LinkCable {
 
     u16 pop() {
       if (isEmpty())
-        return LINK_CABLE_NO_DATA;
+        return NO_DATA;
 
       auto x = arr[front];
       front = (front + 1) % LINK_CABLE_QUEUE_SIZE;
@@ -109,7 +110,7 @@ class LinkCable {
 
     u16 peek() {
       if (isEmpty())
-        return LINK_CABLE_NO_DATA;
+        return NO_DATA;
 
       return arr[front];
     }
@@ -202,7 +203,8 @@ class LinkCable {
     sync();
 
     while (isConnected() && !canRead(playerId) && !cancel()) {
-      IntrWait(1, IRQ_SERIAL | LINK_CABLE_TIMER_IRQ_IDS[config.sendTimerId]);
+      Link::_IntrWait(
+          1, Link::_IRQ_SERIAL | Link::_TIMER_IRQ_IDS[config.sendTimerId]);
       sync();
     }
 
@@ -218,7 +220,7 @@ class LinkCable {
   u16 peek(u8 playerId) { return state.incomingMessages[playerId].peek(); }
 
   void send(u16 data) {
-    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
+    if (data == DISCONNECTED || data == NO_DATA)
       return;
 
     LINK_CABLE_BARRIER;
@@ -263,10 +265,10 @@ class LinkCable {
 
     u8 newPlayerCount = 0;
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      u16 data = REG_SIOMULTI[i];
+      u16 data = Link::_REG_SIOMULTI[i];
 
-      if (data != LINK_CABLE_DISCONNECTED) {
-        if (data != LINK_CABLE_NO_DATA && i != state.currentPlayerId)
+      if (data != DISCONNECTED) {
+        if (data != NO_DATA && i != state.currentPlayerId)
           _state.newMessages[i].push(data);
         newPlayerCount++;
         setOnline(i);
@@ -284,8 +286,7 @@ class LinkCable {
 
     state.playerCount = newPlayerCount;
     state.currentPlayerId =
-        (REG_SIOCNT & (0b11 << LINK_CABLE_BITS_PLAYER_ID)) >>
-        LINK_CABLE_BITS_PLAYER_ID;
+        (Link::_REG_SIOCNT & (0b11 << BITS_PLAYER_ID)) >> BITS_PLAYER_ID;
 
     if (!isMaster())
       sendPendingData();
@@ -341,10 +342,10 @@ class LinkCable {
   volatile bool isAddingMessage = false;
   volatile bool isAddingWhileResetting = false;
 
-  bool isMaster() { return !isBitHigh(LINK_CABLE_BIT_SLAVE); }
-  bool isReady() { return isBitHigh(LINK_CABLE_BIT_READY); }
-  bool hasError() { return isBitHigh(LINK_CABLE_BIT_ERROR); }
-  bool isSending() { return isBitHigh(LINK_CABLE_BIT_START); }
+  bool isMaster() { return !isBitHigh(BIT_SLAVE); }
+  bool isReady() { return isBitHigh(BIT_READY); }
+  bool hasError() { return isBitHigh(BIT_ERROR); }
+  bool isSending() { return isBitHigh(BIT_START); }
   bool didTimeout() { return _state.IRQTimeout >= config.timeout; }
 
   void sendPendingData() {
@@ -357,10 +358,10 @@ class LinkCable {
   }
 
   void transfer(u16 data) {
-    REG_SIOMLT_SEND = data;
+    Link::_REG_SIOMLT_SEND = data;
 
     if (isMaster())
-      setBitHigh(LINK_CABLE_BIT_START);
+      setBitHigh(BIT_START);
   }
 
   void reset() {
@@ -401,14 +402,14 @@ class LinkCable {
   }
 
   void stopTimer() {
-    REG_TM[config.sendTimerId].cnt =
-        REG_TM[config.sendTimerId].cnt & (~TM_ENABLE);
+    Link::_REG_TM[config.sendTimerId].cnt =
+        Link::_REG_TM[config.sendTimerId].cnt & (~Link::_TM_ENABLE);
   }
 
   void startTimer() {
-    REG_TM[config.sendTimerId].start = -config.interval;
-    REG_TM[config.sendTimerId].cnt =
-        TM_ENABLE | TM_IRQ | LINK_CABLE_BASE_FREQUENCY;
+    Link::_REG_TM[config.sendTimerId].start = -config.interval;
+    Link::_REG_TM[config.sendTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
   }
 
   void clearIncomingMessages() {
@@ -434,30 +435,30 @@ class LinkCable {
   }
 
   bool isOnline(u8 playerId) {
-    return _state.timeouts[playerId] != LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
+    return _state.timeouts[playerId] != REMOTE_TIMEOUT_OFFLINE;
   }
   void setOnline(u8 playerId) { _state.timeouts[playerId] = 0; }
   void setOffline(u8 playerId) {
-    _state.timeouts[playerId] = LINK_CABLE_REMOTE_TIMEOUT_OFFLINE;
+    _state.timeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
   }
 
-  void setInterruptsOn() { setBitHigh(LINK_CABLE_BIT_IRQ); }
+  void setInterruptsOn() { setBitHigh(BIT_IRQ); }
 
   void setMultiPlayMode() {
-    REG_RCNT = REG_RCNT & ~(1 << LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH);
-    REG_SIOCNT = (1 << LINK_CABLE_BIT_MULTIPLAYER);
-    REG_SIOCNT |= config.baudRate;
-    REG_SIOMLT_SEND = 0;
+    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_SIOCNT = (1 << BIT_MULTIPLAYER);
+    Link::_REG_SIOCNT |= config.baudRate;
+    Link::_REG_SIOMLT_SEND = 0;
   }
 
   void setGeneralPurposeMode() {
-    REG_RCNT = (REG_RCNT & ~(1 << LINK_CABLE_BIT_GENERAL_PURPOSE_LOW)) |
-               (1 << LINK_CABLE_BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
+                      (1 << BIT_GENERAL_PURPOSE_HIGH);
   }
 
-  bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
+  bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
+  void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkCable* linkCable;
