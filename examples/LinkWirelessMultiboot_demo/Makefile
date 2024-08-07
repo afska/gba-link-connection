@@ -160,7 +160,7 @@ CFLAGS		+= -ffast-math -fno-strict-aliasing
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS		:= $(ARCH) $(INCLUDE)
-LDFLAGS 	:= $(ARCH) -Wl,-Map,$(PROJ).map
+LDFLAGS 	:= $(ARCH) -Wl,--print-memory-usage,-Map,$(PROJ).map
 
 # --- switched additions ----------------------------------------------
 
