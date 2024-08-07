@@ -17,9 +17,15 @@
 //       linkPS2Keyboard->activate();
 // - 4) Handle events in the callback sent to LinkPS2Keyboard's constructor!
 // --------------------------------------------------------------------------
-// (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
-//     That causes packet loss. You REALLY want to use libugba's instead.
-//     (see examples)
+// (*1) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
+//      That causes packet loss. You REALLY want to use libugba's instead.
+//      (see examples)
+// --------------------------------------------------------------------------
+// (*2) The hardware is very sensitive to timing. Make sure that
+//      `LINK_PS2_KEYBOARD_ISR_SERIAL()` is handled on time. That means:
+//      Be careful with DMA usage (which stops the CPU), and write short
+//      interrupt handlers (or activate nested interrupts by setting
+//      `REG_IME=1` at the start of your handlers).
 // --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |
@@ -35,6 +41,9 @@
 
 static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.0.0";
 
+/**
+ * @brief A PS/2 Keyboard Adapter for the GBA.
+ */
 class LinkPS2Keyboard {
  private:
   using EventCallback = void (*)(u8 event);
@@ -51,10 +60,22 @@ class LinkPS2Keyboard {
   static constexpr int TIMEOUT_FRAMES = 15;  // (~250ms)
 
  public:
+  /**
+   * @brief Constructs a new LinkPS2Keyboard object.
+   *
+   * @param onEvent Function pointer that will receive the scan codes (`u8`).
+   * Check out `LINK_PS2_KEYBOARD_KEY` and `LINK_PS2_KEYBOARD_EVENT` for codes.
+   */
   explicit LinkPS2Keyboard(EventCallback onEvent) { this->onEvent = onEvent; }
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library.
+   */
   void activate() {
     deactivate();
 
@@ -70,6 +91,9 @@ class LinkPS2Keyboard {
     isEnabled = true;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     isEnabled = false;
 
@@ -77,8 +101,16 @@ class LinkPS2Keyboard {
     Link::_REG_SIOCNT = 0;
   }
 
+  /**
+   * @brief This method is called by the VBLANK interrupt handler.
+   * \warning This is internal API!
+   */
   void _onVBlank() { frameCounter++; }
 
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   void _onSerial() {
     if (!isEnabled)
       return;
@@ -132,6 +164,9 @@ class LinkPS2Keyboard {
 
 extern LinkPS2Keyboard* linkPS2Keyboard;
 
+/**
+ * @brief VBLANK interrupt handler.
+ */
 inline void LINK_PS2_KEYBOARD_ISR_VBLANK() {
   if (!linkPS2Keyboard->isActive())
     return;
@@ -139,11 +174,16 @@ inline void LINK_PS2_KEYBOARD_ISR_VBLANK() {
   linkPS2Keyboard->_onVBlank();
 }
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_PS2_KEYBOARD_ISR_SERIAL() {
   linkPS2Keyboard->_onSerial();
 }
 
-// Example Scan Codes: (Num Lock OFF)
+/**
+ * @brief Key Scan Code list.
+ */
 enum LINK_PS2_KEYBOARD_KEY {
   ESC = 118,
   F1 = 112,
@@ -222,6 +262,9 @@ enum LINK_PS2_KEYBOARD_KEY {
   NUMPAD_SLASH = 53
 };
 
+/**
+ * @brief Event Scan Code list.
+ */
 enum LINK_PS2_KEYBOARD_EVENT {
   RELEASE = 240,  // Triggered before each key release
   SPECIAL = 224   // Triggered before special keys
