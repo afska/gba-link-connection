@@ -26,6 +26,9 @@
 
 #include "_link_common.hpp"
 
+/**
+ * @brief A GPIO handler for the Link Port.
+ */
 class LinkGPIO {
  private:
   using u32 = unsigned int;

@@ -75,9 +75,9 @@ class LinkCable {
   using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
 
-  static constexpr u16 DISCONNECTED = 0xffff;
-  static constexpr u16 NO_DATA = 0x0;
-  static constexpr u16 BASE_FREQUENCY = Link::_TM_FREQ_1024;
+  static constexpr int DISCONNECTED = 0xffff;
+  static constexpr int NO_DATA = 0x0;
+  static constexpr int BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
   static constexpr int BIT_SLAVE = 2;
   static constexpr int BIT_READY = 3;
@@ -142,6 +142,18 @@ class LinkCable {
     vu32 count = 0;
   };
 
+  /**
+   * @brief Constructs a new LinkCable object.
+   * @param baudRate Sets a specific baud rate.
+   * @param timeout Number of *frames* without a `SERIAL` IRQ to reset the
+   * connection.
+   * @param remoteTimeout Number of *messages* with `0xFFFF` to mark a player as
+   * disconnected.
+   * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
+   * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
+   * will transfer faster but also consume more CPU.
+   * @param sendTimerId `(0~3)` GBA Timer to use for sending.
+   */
   explicit LinkCable(BaudRate baudRate = BAUD_RATE_1,
                      u32 timeout = LINK_CABLE_DEFAULT_TIMEOUT,
                      u32 remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
@@ -154,8 +166,14 @@ class LinkCable {
     this->config.sendTimerId = sendTimerId;
   }
 
-  bool isActive() { return isEnabled; }
+  /**
+   * @brief Returns whether the library is active or not.
+   */
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library.
+   */
   void activate() {
     LINK_CABLE_BARRIER;
     isEnabled = false;
@@ -169,6 +187,9 @@ class LinkCable {
     LINK_CABLE_BARRIER;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     LINK_CABLE_BARRIER;
     isEnabled = false;
@@ -179,13 +200,26 @@ class LinkCable {
     clearIncomingMessages();
   }
 
-  bool isConnected() {
+  /**
+   * @brief Returns `true` if there are at least 2 connected players.
+   */
+  [[nodiscard]] bool isConnected() {
     return state.playerCount > 1 && state.currentPlayerId < state.playerCount;
   }
 
-  u8 playerCount() { return state.playerCount; }
-  u8 currentPlayerId() { return state.currentPlayerId; }
+  /**
+   * @brief Returns the number of connected players (`0~4`).
+   */
+  [[nodiscard]] u8 playerCount() { return state.playerCount; }
 
+  /**
+   * @brief Returns the current player id (`0~3`).
+   */
+  [[nodiscard]] u8 currentPlayerId() { return state.currentPlayerId; }
+
+  /**
+   * @brief Call this method every time you need to fetch new data.
+   */
   void sync() {
     if (!isEnabled)
       return;
@@ -205,10 +239,22 @@ class LinkCable {
       clearIncomingMessages();
   }
 
+  /**
+   * @brief Waits for data from player #`playerId`. Returns `true` on success,
+   * or `false` on disconnection.
+   * @param playerId A player id.
+   */
   bool waitFor(u8 playerId) {
     return waitFor(playerId, []() { return false; });
   }
 
+  /**
+   * @brief Waits for data from player #`playerId`. Returns `true` on success,
+   * or `false` on disconnection.
+   * @param playerId Number of player to wait data from.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the wait be aborted.
+   */
   template <typename F>
   bool waitFor(u8 playerId, F cancel) {
     sync();
@@ -222,14 +268,38 @@ class LinkCable {
     return isConnected() && canRead(playerId);
   }
 
-  bool canRead(u8 playerId) {
+  /**
+   * @brief Returns `true` if there are pending messages from player
+   * #`playerId`.
+   * @param playerId A player id.
+   * \warning Keep in mind that if this returns `false`, it will keep doing so
+   * until you *fetch new data* with `sync()`.
+   */
+  [[nodiscard]] bool canRead(u8 playerId) {
     return !state.incomingMessages[playerId].isEmpty();
   }
 
+  /**
+   * @brief Dequeues and returns the next message from player #`playerId`.
+   * @param playerId A player id.
+   * \warning If there's no data from that player, a `0` will be returned.
+   */
   u16 read(u8 playerId) { return state.incomingMessages[playerId].pop(); }
 
-  u16 peek(u8 playerId) { return state.incomingMessages[playerId].peek(); }
+  /**
+   * @brief Returns the next message from player #`playerId` without dequeuing
+   * it.
+   * @param playerId A player id.
+   * \warning If there's no data from that player, a `0` will be returned.
+   */
+  [[nodiscard]] u16 peek(u8 playerId) {
+    return state.incomingMessages[playerId].peek();
+  }
 
+  /**
+   * @brief Sends `data` to all connected players.
+   * @param data The value to be sent.
+   */
   void send(u16 data) {
     if (data == DISCONNECTED || data == NO_DATA)
       return;
@@ -250,6 +320,10 @@ class LinkCable {
     }
   }
 
+  /**
+   * @brief This method is called by the VBLANK interrupt handler.
+   * \warning This is internal API!
+   */
   void _onVBlank() {
     if (!isEnabled)
       return;
@@ -262,6 +336,10 @@ class LinkCable {
     copyState();
   }
 
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   void _onSerial() {
     if (!isEnabled)
       return;
@@ -305,6 +383,10 @@ class LinkCable {
     copyState();
   }
 
+  /**
+   * @brief This method is called by the TIMER interrupt handler.
+   * \warning This is internal API!
+   */
   void _onTimer() {
     if (!isEnabled)
       return;
@@ -328,6 +410,10 @@ class LinkCable {
     u8 sendTimerId;
   };
 
+  /**
+   * @brief LinkCable configuration.
+   * \warning `deactivate()` first, change the config, and `activate()` again!
+   */
   Config config;
 
  private:
@@ -474,14 +560,23 @@ class LinkCable {
 
 extern LinkCable* linkCable;
 
+/**
+ * @brief VBLANK interrupt handler.
+ */
 inline void LINK_CABLE_ISR_VBLANK() {
   linkCable->_onVBlank();
 }
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_CABLE_ISR_SERIAL() {
   linkCable->_onSerial();
 }
 
+/**
+ * @brief TIMER interrupt handler.
+ */
 inline void LINK_CABLE_ISR_TIMER() {
   linkCable->_onTimer();
 }

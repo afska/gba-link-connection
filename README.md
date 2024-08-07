@@ -56,7 +56,7 @@ The library uses message queues to send/receive data and transmits when it's pos
 Name | Type | Default | Description
 --- | --- | --- | ---
 `baudRate` | **BaudRate** | `BAUD_RATE_1` | Sets a specific baud rate.
-`timeout` | **u32** | `3` | Number of *frames* without an `II_SERIAL` IRQ to reset the connection.
+`timeout` | **u32** | `3` | Number of *frames* without a `SERIAL` IRQ to reset the connection.
 `remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
 `interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
@@ -86,8 +86,8 @@ Name | Return type | Description
 `waitFor(playerId)` | **bool** | Waits for data from player #`playerId`. Returns `true` on success, or `false` on disconnection.
 `waitFor(playerId, cancel)` | **bool** | Like `waitFor(playerId)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
 `canRead(playerId)` | **bool** | Returns `true` if there are pending messages from player #`playerId`. Keep in mind that if this returns `false`, it will keep doing so until you *fetch new data* with `sync()`.
-`read(playerId)` | **u16** | Dequeues and returns the next message from player #`playerId`.
-`peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing it.
+`read(playerId)` | **u16** | Dequeues and returns the next message from player #`playerId`. If there's no data from that player, a `0` will be returned.
+`peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing it. If there's no data from that player, a `0` will be returned.
 `send(data)` | - | Sends `data` to all connected players.
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
@@ -171,6 +171,7 @@ You can also change these compile-time constants:
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions (~3.5KB) in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
+  - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
 - `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but reduce overall CPU usage.
 
 ## Methods
