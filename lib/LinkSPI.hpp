@@ -101,7 +101,6 @@ class LinkSPI {
 
   /**
    * @brief Activates the library in a specific `mode`.
-   *
    * @param mode One of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`,
    * or `LinkSPI::Mode::MASTER_2MBPS`.
    */

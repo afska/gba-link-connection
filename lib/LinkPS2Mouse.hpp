@@ -21,6 +21,10 @@
 //       data[1] // X movement
 //       data[2] // Y movement
 // --------------------------------------------------------------------------
+// considerations:
+// - `activate()` or `report(...)` could freeze the system if not connected!
+// - detecting timeouts using timer interrupts is the user's responsibility!
+// --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |
 // |PS/2 --- GBA|
@@ -39,6 +43,9 @@ static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.0";
 #define LINK_PS2_MOUSE_RIGHT_CLICK 0b010
 #define LINK_PS2_MOUSE_MIDDLE_CLICK 0b100
 
+/**
+ * @brief A PS/2 Mouse Adapter for the GBA.
+ */
 class LinkPS2Mouse {
  private:
   using u32 = unsigned int;
@@ -54,10 +61,22 @@ class LinkPS2Mouse {
   static constexpr int TO_TICKS = 17;
 
  public:
+  /**
+   * @brief Constructs a new LinkPS2Mouse object.
+   * @param waitTimerId `(0~3)` GBA Timer used for delays.
+   */
   explicit LinkPS2Mouse(u8 waitTimerId) { this->waitTimerId = waitTimerId; }
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library.
+   * \warning Could freeze the system if nothing is connected!
+   * \warning Detect timeouts using timer interrupts!
+   */
   void activate() {
     deactivate();
 
@@ -76,6 +95,9 @@ class LinkPS2Mouse {
     isEnabled = true;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     isEnabled = false;
 
@@ -83,6 +105,14 @@ class LinkPS2Mouse {
     Link::_REG_SIOCNT = 0;
   }
 
+  /**
+   * @brief Fills the `data` int array with a report. The first int contains
+   * *clicks* that you can check against the bitmasks
+   * `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and
+   * `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the *X movement*, and the
+   * third int is the *Y movement*.
+   * @param data The array to be filled with data.
+   */
   void report(int (&data)[3]) {
     write(0xeb);                       // send read data
     readByte();                        // read ack byte

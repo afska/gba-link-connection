@@ -81,7 +81,6 @@ class LinkGPIO {
 
   /**
    * @brief Sets a `pin` to be high or not (when set as an output).
-   *
    * @param pin One of the enum values from `LinkGPIO::Pin`.
    * @param isHigh `true` = HIGH, `false` = LOW.
    */

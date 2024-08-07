@@ -396,7 +396,9 @@ The GBA operates using `1` stop bit, but everything else can be configured. By d
 
 # 🖱️ LinkPS2Mouse
 
-A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games.
+A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games. It's a straight port from [this library](https://github.com/kristopher/PS2-Mouse-Arduino).
+
+⚠️ calling `activate()` or `report(...)` could freeze the system if nothing is connected: detecting timeouts using timer interrupts is the user's responsibility.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/6856ff0d-0f06-4a9d-8ded-280052e02b8d)
 
@@ -411,7 +413,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate()` | - | Activates the library.
 `deactivate()` | - | Deactivates the library.
-`report(data[3])` | - | Fills the `data` int array with a report. The first int contains _clicks_ that you can check against the bitmasks `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the _X movement_, and the third int is the _Y movement_.
+`report(data[3])` | - | Fills the `data` int array with a report. The first int contains *clicks* that you can check against the bitmasks `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the *X movement*, and the third int is the *Y movement*.
 
 ## Pinout
 

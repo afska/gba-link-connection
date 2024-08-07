@@ -63,7 +63,6 @@ class LinkPS2Keyboard {
 
   /**
    * @brief Constructs a new LinkPS2Keyboard object.
-   *
    * @param onEvent Function pointer that will receive the scan codes (`u8`).
    * Check out `LINK_PS2_KEYBOARD_KEY` and `LINK_PS2_KEYBOARD_EVENT` for codes.
    */
