@@ -143,6 +143,7 @@ class LinkSPI {
   /**
    * @brief Exchanges `data` with the other end. Returns the received data.
    * @param data The value to be sent.
+   * \warning Blocks the system until completion.
    */
   LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data) {
     return transfer(data, []() { return false; });
@@ -153,6 +154,7 @@ class LinkSPI {
    * @param data The value to be sent.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted and the response will be empty.
+   * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
   LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data,
@@ -203,6 +205,8 @@ class LinkSPI {
    * `getAsyncState()` and `getAsyncData()`. Note that until you retrieve the
    * async data, normal `transfer(...)`s won't do anything!
    * @param data The value to be sent.
+   * \warning If `waitMode` (*) is active, blocks the system until completion.
+   * See `setWaitModeActive(...)`.
    */
   void transferAsync(LINK_SPI_DATA_TYPE data) {
     transfer(data, []() { return false; }, true);
@@ -215,6 +219,8 @@ class LinkSPI {
    * @param data The value to be sent.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted and the response will be empty.
+   * \warning If `waitMode` (*) is active, blocks the system until completion or
+   * cancellation. See `setWaitModeActive(...)`.
    */
   template <typename F>
   void transferAsync(LINK_SPI_DATA_TYPE data, F cancel) {

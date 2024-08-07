@@ -119,6 +119,7 @@ class LinkRawCable {
    * @brief Exchanges `data` with the connected consoles. Returns the received
    * data from each player, including the assigned player ID.
    * @param data The value to be sent.
+   * \warning Blocks the system until completion.
    */
   Response transfer(u16 data) {
     return transfer(data, []() { return false; });
@@ -130,6 +131,7 @@ class LinkRawCable {
    * @param data The value to be sent.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted and the response will be empty.
+   * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
   Response transfer(u16 data, F cancel, bool _async = false) {

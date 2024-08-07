@@ -85,6 +85,7 @@ class LinkCableMultiboot {
    * and `262144`, and a multiple of `16`.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
   [[nodiscard]] Result sendRom(const u8* rom, u32 romSize, F cancel) {

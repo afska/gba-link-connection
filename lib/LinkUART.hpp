@@ -26,13 +26,18 @@
 
 #include "_link_common.hpp"
 
-// Buffer size
+/**
+ * @brief Buffer size in bytes.
+ */
 #define LINK_UART_QUEUE_SIZE 256
 
 static volatile char LINK_UART_VERSION[] = "LinkUART/v7.0.0";
 
 #define LINK_UART_BARRIER asm volatile("" ::: "memory")
 
+/**
+ * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
+ */
 class LinkUART {
  private:
   using u32 = unsigned int;
@@ -67,6 +72,9 @@ class LinkUART {
   enum DataSize { SIZE_7_BITS, SIZE_8_BITS };
   enum Parity { NO, EVEN, ODD };
 
+  /**
+   * @brief Constructs a new LinkUART object.
+   */
   explicit LinkUART() {
     this->config.baudRate = BAUD_RATE_0;
     this->config.dataSize = SIZE_8_BITS;
@@ -74,8 +82,19 @@ class LinkUART {
     this->config.useCTS = false;
   }
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library using a specific UART mode.
+   * Defaults: 9600bps, 8-bit data, no parity bit, no CTS_
+   * @param baudRate One of the enum values from `LinkUART::BaudRate`.
+   * @param dataSize One of the enum values from `LinkUART::DataSize`.
+   * @param parity One of the enum values from `LinkUART::Parity`.
+   * @param useCTS Enable RTS/CTS flow.
+   */
   void activate(BaudRate baudRate = BAUD_RATE_0,
                 DataSize dataSize = SIZE_8_BITS,
                 Parity parity = NO,
@@ -96,6 +115,9 @@ class LinkUART {
     LINK_UART_BARRIER;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     LINK_UART_BARRIER;
     isEnabled = false;
@@ -105,10 +127,24 @@ class LinkUART {
     stop();
   }
 
+  /**
+   * @brief Takes a null-terminated `string`, and sends it followed by a `'\n'`
+   * character. The null character is not sent.
+   * @param string The null-terminated string.
+   * \warning Blocks the system until completion.
+   */
   void sendLine(const char* string) {
     sendLine(string, []() { return false; });
   }
 
+  /**
+   * @brief Takes a null-terminated `string`, and sends it followed by a `'\n'`
+   * character. The null character is not sent.
+   * @param string The null-terminated string.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
+   */
   template <typename F>
   void sendLine(const char* string, F cancel) {
     for (u32 i = 0; string[i] != '\0'; i++) {
@@ -120,10 +156,30 @@ class LinkUART {
     send('\n');
   }
 
+  /**
+   * @brief Reads characters into `string` until finding a `'\n'` character or a
+   * character `limit` is reached. A null terminator is added at the end.
+   * Returns `false` if the limit has been reached without finding a newline
+   * character.
+   * @param string The output string buffer.
+   * @param limit The character limit.
+   * \warning Blocks the system until completion.
+   */
   bool readLine(char* string, u32 limit = LINK_UART_QUEUE_SIZE) {
     return readLine(string, []() { return false; }, limit);
   }
 
+  /**
+   * @brief Reads characters into `string` until finding a `'\n'` character or a
+   * character `limit` is reached. A null terminator is added at the end.
+   * Returns `false` if the limit has been reached without finding a newline
+   * character.
+   * @param string The output string buffer.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * @param limit The character limit.
+   * \warning Blocks the system until completion or cancellation.
+   */
   template <typename F>
   bool readLine(char* string, F cancel, u32 limit = LINK_UART_QUEUE_SIZE) {
     u32 readBytes = 0;
@@ -145,11 +201,24 @@ class LinkUART {
     return !aborted && readBytes > 1;
   }
 
+  /**
+   * @brief Sends `size` bytes from `buffer`, starting at byte `offset`.
+   * @param buffer The source buffer.
+   * @param size The size in bytes.
+   * @param offset The starting offset.
+   */
   void send(const u8* buffer, u32 size, u32 offset = 0) {
     for (u32 i = 0; i < size; i++)
       send(buffer[offset + i]);
   }
 
+  /**
+   * @brief Tries to read `size` bytes into `(u8*)(buffer + offset)`. Returns
+   * the number of read bytes.
+   * @param buffer The target buffer.
+   * @param size The size in bytes.
+   * @param offset The offset from target buffer.
+   */
   u32 read(u8* buffer, u32 size, u32 offset = 0) {
     for (u32 i = 0; i < size; i++) {
       if (!canRead())
@@ -160,13 +229,32 @@ class LinkUART {
     return size;
   }
 
+  /**
+   * @brief Returns whether there are bytes to read or not.
+   */
   [[nodiscard]] bool canRead() { return !incomingQueue.isEmpty(); }
+
+  /**
+   * @brief Returns whether there is room to send new messages or not.
+   */
   [[nodiscard]] bool canSend() { return !outgoingQueue.isFull(); }
+
+  /**
+   * @brief Returns the number of bytes available for read.
+   */
   [[nodiscard]] u32 availableForRead() { return incomingQueue.size(); }
+
+  /**
+   * @brief Returns the number of bytes available for send (buffer size - queued
+   * bytes).
+   */
   [[nodiscard]] u32 availableForSend() {
     return LINK_UART_QUEUE_SIZE - outgoingQueue.size();
   }
 
+  /**
+   * @brief Reads a byte. Returns 0 if nothing is found.
+   */
   u8 read() {
     LINK_UART_BARRIER;
     isReading = true;
@@ -181,6 +269,10 @@ class LinkUART {
     return data;
   }
 
+  /**
+   * @brief Sends a `data` byte.
+   * @param data The value to be sent.
+   */
   void send(u8 data) {
     LINK_UART_BARRIER;
     isAdding = true;
@@ -193,6 +285,10 @@ class LinkUART {
     LINK_UART_BARRIER;
   }
 
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   void _onSerial() {
     if (!isEnabled || hasError())
       return;
@@ -327,6 +423,9 @@ class LinkUART {
 
 extern LinkUART* linkUART;
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_UART_ISR_SERIAL() {
   linkUART->_onSerial();
 }
