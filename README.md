@@ -433,7 +433,7 @@ A PS/2 keyboard driver for the GBA. Use it to add keyboard support to your homeb
 
 ## Constructor
 
-`new LinkPS2Keyboard(onEvent)`, where `onEvent` is a function pointer that will receive the scan codes (`u8`). You should check a PS/2 scan code list online, but there are some examples included like `LINK_PS2_KEYBOARD_KEY_ENTER` and `LINK_PS2_KEYBOARD_KEY_RELEASE`.
+`new LinkPS2Keyboard(onEvent)`, where `onEvent` is a function pointer that will receive the scan codes (`u8`). You should check a PS/2 scan code list online, but most common keys/events are included in enums like `LINK_PS2_KEYBOARD_KEY::ENTER` and `LINK_PS2_KEYBOARD_KEY::RELEASE`.
 
 ## Methods
 

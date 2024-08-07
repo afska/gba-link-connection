@@ -31,54 +31,35 @@
 // |GND ---> GND|
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
-#include <functional>
-
-// Example Scan Codes: (Num Lock OFF)
-#define LINK_PS2_KEYBOARD_KEY_Z 26              // Z
-#define LINK_PS2_KEYBOARD_KEY_Q 21              // Q
-#define LINK_PS2_KEYBOARD_KEY_S 27              // S
-#define LINK_PS2_KEYBOARD_KEY_E 36              // E
-#define LINK_PS2_KEYBOARD_KEY_C 33              // C
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_1 105      // Numpad 1
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_7 108      // Numpad 7
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_5 115      // Numpad 5
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_9 125      // Numpad 9
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_3 122      // Numpad 3
-#define LINK_PS2_KEYBOARD_KEY_ENTER 90          // Enter
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_PLUS 121   // Numpad +
-#define LINK_PS2_KEYBOARD_KEY_BACKSPACE 102     // Backspace
-#define LINK_PS2_KEYBOARD_KEY_NUMPAD_MINUS 123  // Numpad -
-#define LINK_PS2_KEYBOARD_KEY_LEFT 107          // Left
-#define LINK_PS2_KEYBOARD_KEY_RIGHT 116         // Right
-#define LINK_PS2_KEYBOARD_KEY_UP 117            // Up
-#define LINK_PS2_KEYBOARD_KEY_ESC 118           // ESC
-#define LINK_PS2_KEYBOARD_KEY_SUPR 113          // Supr
-// ---
-#define LINK_PS2_KEYBOARD_KEY_RELEASE 240  // Triggered before each key release
-#define LINK_PS2_KEYBOARD_KEY_SPECIAL 224  // Triggered before special keys
-
-#define LINK_PS2_KEYBOARD_SI_DIRECTION 0b1000000
-#define LINK_PS2_KEYBOARD_SO_DIRECTION 0b10000000
-#define LINK_PS2_KEYBOARD_SI_DATA 0b100
-#define LINK_PS2_KEYBOARD_SO_DATA 0b1000
-#define LINK_PS2_KEYBOARD_TIMEOUT_FRAMES 15  // (~250ms)
+#include "_link_common.hpp"
 
 static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.0.0";
 
 class LinkPS2Keyboard {
- public:
-  explicit LinkPS2Keyboard(std::function<void(u8 event)> onEvent) {
-    this->onEvent = onEvent;
-  }
+ private:
+  using EventCallback = void (*)(u8 event);
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
 
-  bool isActive() { return isEnabled; }
+  static constexpr int RCNT_GPIO_AND_SI_IRQ = 0b1000000100000000;
+  static constexpr int RCNT_GPIO = 0b1000000000000000;
+  static constexpr int SI_DIRECTION = 0b1000000;
+  static constexpr int SO_DIRECTION = 0b10000000;
+  static constexpr int SI_DATA = 0b100;
+  static constexpr int SO_DATA = 0b1000;
+  static constexpr int TIMEOUT_FRAMES = 15;  // (~250ms)
+
+ public:
+  explicit LinkPS2Keyboard(EventCallback onEvent) { this->onEvent = onEvent; }
+
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
   void activate() {
     deactivate();
 
-    REG_RCNT = 0b1000000100000000;  // General Purpose Mode + SI interrupts
-    REG_SIOCNT = 0;                 // Unused
+    Link::_REG_RCNT = RCNT_GPIO_AND_SI_IRQ;
+    Link::_REG_SIOCNT = 0;
 
     bitcount = 0;
     incoming = 0;
@@ -92,8 +73,8 @@ class LinkPS2Keyboard {
   void deactivate() {
     isEnabled = false;
 
-    REG_RCNT = 0b1000000000000000;  // General Purpose Mode
-    REG_SIOCNT = 0;                 // Unused
+    Link::_REG_RCNT = RCNT_GPIO;
+    Link::_REG_SIOCNT = 0;
   }
 
   void _onVBlank() { frameCounter++; }
@@ -102,10 +83,10 @@ class LinkPS2Keyboard {
     if (!isEnabled)
       return;
 
-    u8 val = (REG_RCNT & LINK_PS2_KEYBOARD_SO_DATA) != 0;
+    u8 val = (Link::_REG_RCNT & SO_DATA) != 0;
 
     u32 nowFrame = frameCounter;
-    if (nowFrame - prevFrame > LINK_PS2_KEYBOARD_TIMEOUT_FRAMES) {
+    if (nowFrame - prevFrame > TIMEOUT_FRAMES) {
       bitcount = 0;
       incoming = 0;
       parityBit = 0;
@@ -146,7 +127,7 @@ class LinkPS2Keyboard {
   u8 parityBit = 0;
   u32 prevFrame = 0;
   u32 frameCounter = 0;
-  std::function<void(u8 event)> onEvent;
+  EventCallback onEvent;
 };
 
 extern LinkPS2Keyboard* linkPS2Keyboard;
@@ -161,5 +142,89 @@ inline void LINK_PS2_KEYBOARD_ISR_VBLANK() {
 inline void LINK_PS2_KEYBOARD_ISR_SERIAL() {
   linkPS2Keyboard->_onSerial();
 }
+
+// Example Scan Codes: (Num Lock OFF)
+enum LINK_PS2_KEYBOARD_KEY {
+  ESC = 118,
+  F1 = 112,
+  F2 = 121,
+  F3 = 123,
+  F4 = 125,
+  F5 = 130,
+  F6 = 137,
+  F7 = 139,
+  F8 = 143,
+  F9 = 145,
+  F10 = 148,
+  F11 = 153,
+  F12 = 156,
+  BACKSPACE = 102,
+  TAB = 26,
+  ENTER = 90,
+  SHIFT = 18,
+  CTRL = 17,
+  ALT = 20,
+  SPACE = 33,
+  CAPS_LOCK = 58,
+  NUM_LOCK = 90,
+  SCROLL_LOCK = 119,
+  INSERT = 99,
+  DELETE = 113,
+  HOME = 103,
+  END = 107,
+  PAGE_UP = 104,
+  PAGE_DOWN = 109,
+  UP = 117,
+  DOWN = 119,
+  LEFT = 107,
+  RIGHT = 116,
+  A = 28,
+  B = 50,
+  C = 33,
+  D = 30,
+  E = 36,
+  F = 34,
+  G = 35,
+  H = 43,
+  I = 44,
+  J = 45,
+  K = 46,
+  L = 47,
+  M = 50,
+  N = 49,
+  O = 48,
+  P = 49,
+  Q = 21,
+  R = 38,
+  S = 27,
+  T = 40,
+  U = 42,
+  V = 32,
+  W = 24,
+  X = 29,
+  Y = 41,
+  Z = 26,
+  NUMPAD_0 = 104,
+  NUMPAD_1 = 105,
+  NUMPAD_2 = 110,
+  NUMPAD_3 = 122,
+  NUMPAD_4 = 108,
+  NUMPAD_5 = 115,
+  NUMPAD_6 = 111,
+  NUMPAD_7 = 108,
+  NUMPAD_8 = 114,
+  NUMPAD_9 = 125,
+  NUMPAD_PLUS = 121,
+  NUMPAD_MINUS = 123,
+  NUMPAD_ENTER = 96,
+  NUMPAD_DOT = 99,
+  NUMPAD_ASTERISK = 55,
+  NUMPAD_SLASH = 53
+};
+
+enum LINK_PS2_KEYBOARD_EVENT {
+  RELEASE = 240,  // Triggered before each key release
+  SPECIAL = 224   // Triggered before special keys
+};
 
 #endif  // LINK_PS2_KEYBOARD_H

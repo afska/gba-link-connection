@@ -325,7 +325,9 @@ class LinkUniversal {
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
-    int maxPlayers = min(LINK_CABLE_MAX_PLAYERS, LINK_UNIVERSAL_MAX_PLAYERS);
+    int maxPlayers =
+        min(LINK_CABLE_MAX_PLAYERS,
+            LINK_UNIVERSAL_MAX_PLAYERS);  // TODO: MOVE TO CONSTEXPR
     for (u32 i = 0; i < maxPlayers; i++) {
       while (linkCable->canRead(i))
         incomingMessages[i].push(linkCable->read(i));
