@@ -31,29 +31,32 @@
 // |GND ---> GND|
 // --------------------------------------------------------------------------
 
-#include <tonc_bios.h>
-#include <tonc_core.h>
+#include "_link_common.hpp"
+
+static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.0";
 
 #define LINK_PS2_MOUSE_LEFT_CLICK 0b001
 #define LINK_PS2_MOUSE_RIGHT_CLICK 0b010
 #define LINK_PS2_MOUSE_MIDDLE_CLICK 0b100
 
-#define LINK_PS2_MOUSE_SI_DIRECTION 0b1000000
-#define LINK_PS2_MOUSE_SO_DIRECTION 0b10000000
-#define LINK_PS2_MOUSE_SI_DATA 0b100
-#define LINK_PS2_MOUSE_SO_DATA 0b1000
-#define LINK_PS2_MOUSE_TO_TICKS 17
-
-const u16 LINK_PS2_MOUSE_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
-                                      IRQ_TIMER3};
-
-static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.0";
-
 class LinkPS2Mouse {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+  using s16 = signed short;
+
+  static constexpr int RCNT_GPIO = 0b1000000000000000;
+  static constexpr int SI_DIRECTION = 0b1000000;
+  static constexpr int SO_DIRECTION = 0b10000000;
+  static constexpr int SI_DATA = 0b100;
+  static constexpr int SO_DATA = 0b1000;
+  static constexpr int TO_TICKS = 17;
+
  public:
   explicit LinkPS2Mouse(u8 waitTimerId) { this->waitTimerId = waitTimerId; }
 
-  bool isActive() { return isEnabled; }
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
   void activate() {
     deactivate();
@@ -76,8 +79,8 @@ class LinkPS2Mouse {
   void deactivate() {
     isEnabled = false;
 
-    REG_RCNT = 0b1000000000000000;  // General Purpose Mode
-    REG_SIOCNT = 0;                 // Unused
+    Link::_REG_RCNT = RCNT_GPIO;
+    Link::_REG_SIOCNT = 0;
   }
 
   void report(int (&data)[3]) {
@@ -188,48 +191,50 @@ class LinkPS2Mouse {
   }
 
   void waitMilliseconds(u16 milliseconds) {
-    u16 ticksOf1024Cycles = milliseconds * LINK_PS2_MOUSE_TO_TICKS;
-    REG_TM[waitTimerId].start = -ticksOf1024Cycles;
-    REG_TM[waitTimerId].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1024;
-    IntrWait(1, LINK_PS2_MOUSE_IRQ_IDS[waitTimerId]);
-    REG_TM[waitTimerId].cnt = 0;
+    u16 ticksOf1024Cycles = milliseconds * TO_TICKS;
+    Link::_REG_TM[waitTimerId].start = -ticksOf1024Cycles;
+    Link::_REG_TM[waitTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_IRQ | Link::_TM_FREQ_1024;
+    Link::_IntrWait(1, Link::_TIMER_IRQ_IDS[waitTimerId]);
+    Link::_REG_TM[waitTimerId].cnt = 0;
   }
 
   void waitMicroseconds(u16 microseconds) {
-    u16 cycles = microseconds * LINK_PS2_MOUSE_TO_TICKS;
-    REG_TM[waitTimerId].start = -cycles;
-    REG_TM[waitTimerId].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1;
-    IntrWait(1, LINK_PS2_MOUSE_IRQ_IDS[waitTimerId]);
-    REG_TM[waitTimerId].cnt = 0;
+    u16 cycles = microseconds * TO_TICKS;
+    Link::_REG_TM[waitTimerId].start = -cycles;
+    Link::_REG_TM[waitTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_IRQ | Link::_TM_FREQ_1;
+    Link::_IntrWait(1, Link::_TIMER_IRQ_IDS[waitTimerId]);
+    Link::_REG_TM[waitTimerId].cnt = 0;
   }
 
   bool getClock() {
-    REG_RCNT &= ~LINK_PS2_MOUSE_SI_DIRECTION;
-    return (REG_RCNT & LINK_PS2_MOUSE_SI_DATA) >> 0;
+    Link::_REG_RCNT &= ~SI_DIRECTION;
+    return (Link::_REG_RCNT & SI_DATA) >> 0;
   }
   bool getData() {
-    REG_RCNT &= ~LINK_PS2_MOUSE_SO_DIRECTION;
-    return (REG_RCNT & LINK_PS2_MOUSE_SO_DATA) >> 1;
+    Link::_REG_RCNT &= ~SO_DIRECTION;
+    return (Link::_REG_RCNT & SO_DATA) >> 1;
   }
 
   void setClockHigh() {
-    REG_RCNT |= LINK_PS2_MOUSE_SI_DIRECTION;
-    REG_RCNT |= LINK_PS2_MOUSE_SI_DATA;
+    Link::_REG_RCNT |= SI_DIRECTION;
+    Link::_REG_RCNT |= SI_DATA;
   }
 
   void setClockLow() {
-    REG_RCNT |= LINK_PS2_MOUSE_SI_DIRECTION;
-    REG_RCNT &= ~LINK_PS2_MOUSE_SI_DATA;
+    Link::_REG_RCNT |= SI_DIRECTION;
+    Link::_REG_RCNT &= ~SI_DATA;
   }
 
   void setDataHigh() {
-    REG_RCNT |= LINK_PS2_MOUSE_SO_DIRECTION;
-    REG_RCNT |= LINK_PS2_MOUSE_SO_DATA;
+    Link::_REG_RCNT |= SO_DIRECTION;
+    Link::_REG_RCNT |= SO_DATA;
   }
 
   void setDataLow() {
-    REG_RCNT |= LINK_PS2_MOUSE_SO_DIRECTION;
-    REG_RCNT &= ~LINK_PS2_MOUSE_SO_DATA;
+    Link::_REG_RCNT |= SO_DIRECTION;
+    Link::_REG_RCNT &= ~SO_DATA;
   }
 };
 

@@ -46,7 +46,6 @@ static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.0.0";
  */
 class LinkPS2Keyboard {
  private:
-  using EventCallback = void (*)(u8 event);
   using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
@@ -60,6 +59,8 @@ class LinkPS2Keyboard {
   static constexpr int TIMEOUT_FRAMES = 15;  // (~250ms)
 
  public:
+  using EventCallback = void (*)(u8 event);
+
   /**
    * @brief Constructs a new LinkPS2Keyboard object.
    *

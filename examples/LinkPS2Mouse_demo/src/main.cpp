@@ -1,9 +1,9 @@
+// (0) Include the header
+#include "../../../lib/LinkPS2Mouse.hpp"
+
 #include <tonc.h>
 #include <string>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkPS2Mouse.hpp"
 
 void log(std::string text);
 inline void VBLANK() {}

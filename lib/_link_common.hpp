@@ -12,6 +12,10 @@ using u32 = unsigned int;
 using u16 = unsigned short;
 using u8 = unsigned char;
 
+using vs32 = volatile signed int;
+using vu32 = volatile unsigned int;
+using s16 = signed short;
+
 // Structs
 
 struct _TMR_REC {
