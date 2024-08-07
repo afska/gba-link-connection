@@ -24,33 +24,39 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
+#include "_link_common.hpp"
 
 // Buffer size
 #define LINK_UART_QUEUE_SIZE 256
 
-#define LINK_UART_BIT_CTS 2
-#define LINK_UART_BIT_PARITY_CONTROL 3
-#define LINK_UART_BIT_SEND_DATA_FLAG 4
-#define LINK_UART_BIT_RECEIVE_DATA_FLAG 5
-#define LINK_UART_BIT_ERROR_FLAG 6
-#define LINK_UART_BIT_DATA_LENGTH 7
-#define LINK_UART_BIT_FIFO_ENABLE 8
-#define LINK_UART_BIT_PARITY_ENABLE 9
-#define LINK_UART_BIT_SEND_ENABLE 10
-#define LINK_UART_BIT_RECEIVE_ENABLE 11
-#define LINK_UART_BIT_UART_1 12
-#define LINK_UART_BIT_UART_2 13
-#define LINK_UART_BIT_IRQ 14
-#define LINK_UART_BIT_GENERAL_PURPOSE_LOW 14
-#define LINK_UART_BIT_GENERAL_PURPOSE_HIGH 15
-#define LINK_UART_BARRIER asm volatile("" ::: "memory")
-
 static volatile char LINK_UART_VERSION[] = "LinkUART/v7.0.0";
 
-void LINK_UART_ISR_SERIAL();
+#define LINK_UART_BARRIER asm volatile("" ::: "memory")
 
 class LinkUART {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+  using vs32 = volatile signed int;
+  using vu32 = volatile unsigned int;
+
+  static constexpr int BIT_CTS = 2;
+  static constexpr int BIT_PARITY_CONTROL = 3;
+  static constexpr int BIT_SEND_DATA_FLAG = 4;
+  static constexpr int BIT_RECEIVE_DATA_FLAG = 5;
+  static constexpr int BIT_ERROR_FLAG = 6;
+  static constexpr int BIT_DATA_LENGTH = 7;
+  static constexpr int BIT_FIFO_ENABLE = 8;
+  static constexpr int BIT_PARITY_ENABLE = 9;
+  static constexpr int BIT_SEND_ENABLE = 10;
+  static constexpr int BIT_RECEIVE_ENABLE = 11;
+  static constexpr int BIT_UART_1 = 12;
+  static constexpr int BIT_UART_2 = 13;
+  static constexpr int BIT_IRQ = 14;
+  static constexpr int BIT_GENERAL_PURPOSE_LOW = 14;
+  static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
+
  public:
   enum BaudRate {
     BAUD_RATE_0,  // 9600 bps
@@ -68,7 +74,7 @@ class LinkUART {
     this->config.useCTS = false;
   }
 
-  bool isActive() { return isEnabled; }
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
   void activate(BaudRate baudRate = BAUD_RATE_0,
                 DataSize dataSize = SIZE_8_BITS,
@@ -154,10 +160,12 @@ class LinkUART {
     return size;
   }
 
-  bool canRead() { return !incomingQueue.isEmpty(); }
-  bool canSend() { return !outgoingQueue.isFull(); }
-  u32 availableForRead() { return incomingQueue.size(); }
-  u32 availableForSend() { return LINK_UART_QUEUE_SIZE - outgoingQueue.size(); }
+  [[nodiscard]] bool canRead() { return !incomingQueue.isEmpty(); }
+  [[nodiscard]] bool canSend() { return !outgoingQueue.isFull(); }
+  [[nodiscard]] u32 availableForRead() { return incomingQueue.size(); }
+  [[nodiscard]] u32 availableForSend() {
+    return LINK_UART_QUEUE_SIZE - outgoingQueue.size();
+  }
 
   u8 read() {
     LINK_UART_BARRIER;
@@ -190,10 +198,10 @@ class LinkUART {
       return;
 
     if (!isReading && canReceive())
-      incomingQueue.push((u8)REG_SIODATA8);
+      incomingQueue.push((u8)Link::_REG_SIODATA8);
 
     if (!isAdding && canTransfer() && needsTransfer())
-      REG_SIODATA8 = outgoingQueue.pop();
+      Link::_REG_SIODATA8 = outgoingQueue.pop();
   }
 
  private:
@@ -256,9 +264,9 @@ class LinkUART {
   volatile bool isReading = false;
   volatile bool isAdding = false;
 
-  bool canReceive() { return !isBitHigh(LINK_UART_BIT_RECEIVE_DATA_FLAG); }
-  bool canTransfer() { return !isBitHigh(LINK_UART_BIT_SEND_DATA_FLAG); }
-  bool hasError() { return isBitHigh(LINK_UART_BIT_ERROR_FLAG); }
+  bool canReceive() { return !isBitHigh(BIT_RECEIVE_DATA_FLAG); }
+  bool canTransfer() { return !isBitHigh(BIT_SEND_DATA_FLAG); }
+  bool hasError() { return isBitHigh(BIT_ERROR_FLAG); }
   bool needsTransfer() { return outgoingQueue.size() > 0; }
 
   void reset() {
@@ -291,30 +299,30 @@ class LinkUART {
     setReceiveOn();
   }
 
-  void set8BitData() { setBitHigh(LINK_UART_BIT_DATA_LENGTH); }
-  void setParityOn() { setBitHigh(LINK_UART_BIT_PARITY_ENABLE); }
-  void setOddParity() { setBitHigh(LINK_UART_BIT_PARITY_CONTROL); }
-  void setCTSOn() { setBitHigh(LINK_UART_BIT_CTS); }
-  void setFIFOOn() { setBitHigh(LINK_UART_BIT_FIFO_ENABLE); }
-  void setInterruptsOn() { setBitHigh(LINK_UART_BIT_IRQ); }
-  void setSendOn() { setBitHigh(LINK_UART_BIT_SEND_ENABLE); }
-  void setReceiveOn() { setBitHigh(LINK_UART_BIT_RECEIVE_ENABLE); }
+  void set8BitData() { setBitHigh(BIT_DATA_LENGTH); }
+  void setParityOn() { setBitHigh(BIT_PARITY_ENABLE); }
+  void setOddParity() { setBitHigh(BIT_PARITY_CONTROL); }
+  void setCTSOn() { setBitHigh(BIT_CTS); }
+  void setFIFOOn() { setBitHigh(BIT_FIFO_ENABLE); }
+  void setInterruptsOn() { setBitHigh(BIT_IRQ); }
+  void setSendOn() { setBitHigh(BIT_SEND_ENABLE); }
+  void setReceiveOn() { setBitHigh(BIT_RECEIVE_ENABLE); }
 
   void setUARTMode() {
-    REG_RCNT = REG_RCNT & ~(1 << LINK_UART_BIT_GENERAL_PURPOSE_HIGH);
-    REG_SIOCNT = (1 << LINK_UART_BIT_UART_1) | (1 << LINK_UART_BIT_UART_2);
-    REG_SIOCNT |= config.baudRate;
-    REG_SIOMLT_SEND = 0;
+    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_SIOCNT = (1 << BIT_UART_1) | (1 << BIT_UART_2);
+    Link::_REG_SIOCNT |= config.baudRate;
+    Link::_REG_SIOMLT_SEND = 0;
   }
 
   void setGeneralPurposeMode() {
-    REG_RCNT = (REG_RCNT & ~(1 << LINK_UART_BIT_GENERAL_PURPOSE_LOW)) |
-               (1 << LINK_UART_BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
+                      (1 << BIT_GENERAL_PURPOSE_HIGH);
   }
 
-  bool isBitHigh(u8 bit) { return (REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { REG_SIOCNT &= ~(1 << bit); }
+  bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
+  void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
+  void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkUART* linkUART;
