@@ -6,9 +6,13 @@
  */
 namespace Link {
 
+// Types
+
 using u32 = unsigned int;
 using u16 = unsigned short;
 using u8 = unsigned char;
+
+// Structs
 
 struct _TMR_REC {
   union {
@@ -18,6 +22,30 @@ struct _TMR_REC {
 
   u16 cnt;
 } __attribute__((aligned(4)));
+
+typedef struct {
+  u32 reserved1[5];
+  u8 handshake_data;
+  u8 padding;
+  u16 handshake_timeout;
+  u8 probe_count;
+  u8 client_data[3];
+  u8 palette_data;
+  u8 response_bit;
+  u8 client_bit;
+  u8 reserved2;
+  u8* boot_srcp;
+  u8* boot_endp;
+  u8* masterp;
+  u8* reserved3[3];
+  u32 system_work2[4];
+  u8 sendflag;
+  u8 probe_target_bit;
+  u8 check_wait;
+  u8 server_type;
+} _MultiBootParam;
+
+// I/O Registers
 
 constexpr u32 _REG_BASE = 0x04000000;
 
@@ -61,51 +89,24 @@ static constexpr u16 _IRQ_SERIAL = 0x0080;  //!< Catch serial comm irq
 static constexpr u16 _TIMER_IRQ_IDS[] = {_IRQ_TIMER0, _IRQ_TIMER1, _IRQ_TIMER2,
                                          _IRQ_TIMER3};
 
-inline void _IntrWait(u32 flagClear, u32 irq) {
-  asm volatile(
-      "mov r0, %0\n"              // flagClear => r0
-      "mov r1, %1\n"              // irq => r1
-      "swi 0x04\n"                // call 0x04
-      :                           // outputs
-      : "r"(flagClear), "r"(irq)  // inputs
-      : "r0", "r1"                // clobbered registers
-  );
+// SWI
+
+static inline __attribute__((always_inline)) void _IntrWait(u32 flagClear,
+                                                            u32 irq) {
+  register u32 r0 asm("r0") = flagClear;
+  register u32 r1 asm("r1") = irq;
+
+  asm volatile("swi 0x04\n" : : "r"(r0), "r"(r1));
 }
 
-typedef struct {
-  u32 reserved1[5];
-  u8 handshake_data;
-  u8 padding;
-  u16 handshake_timeout;
-  u8 probe_count;
-  u8 client_data[3];
-  u8 palette_data;
-  u8 response_bit;
-  u8 client_bit;
-  u8 reserved2;
-  u8* boot_srcp;
-  u8* boot_endp;
-  u8* masterp;
-  u8* reserved3[3];
-  u32 system_work2[4];
-  u8 sendflag;
-  u8 probe_target_bit;
-  u8 check_wait;
-  u8 server_type;
-} _MultiBootParam;
+static inline __attribute__((always_inline)) int _MultiBoot(_MultiBootParam* mb,
+                                                            u32 mode) {
+  register _MultiBootParam* r0 asm("r0") = mb;
+  register u32 r1 asm("r1") = mode;
 
-inline int _MultiBoot(_MultiBootParam* mb, u32 mode) {
-  int result;
-  asm volatile(
-      "mov r0, %1\n"        // mb => r0
-      "mov r1, %2\n"        // mode => r1
-      "swi 0x25\n"          // call 0x25
-      "mov %0, r0\n"        // r0 => output
-      : "=r"(result)        // output
-      : "r"(mb), "r"(mode)  // inputs
-      : "r0", "r1"          // clobbered registers
-  );
-  return result;
+  asm volatile("swi 0x25\n" : "+r"(r0) : "r"(r1));
+
+  return (int)r0;
 }
 
 }  // namespace Link
