@@ -44,7 +44,15 @@
 
 #include "_link_common.hpp"
 
-// Buffer size
+/**
+ * @brief Buffer size (how many incoming and outgoing messages
+ * the queues can store at max **per player**). The default value is `15`, which
+ * seems fine for most games.
+ * \warning This affects how much memory is allocated. With the default value,
+ * it's `390` bytes. There are 2 temporary queues, 1 incoming queue and 1
+ * outgoing queue. To calculate it: `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) *
+ * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)`
+ */
 #define LINK_CABLE_QUEUE_SIZE 15
 
 static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
@@ -56,6 +64,9 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
 #define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
+/**
+ * @brief A Link Cable connection for Multi-Play mode.
+ */
 class LinkCable {
  private:
   using u32 = unsigned int;

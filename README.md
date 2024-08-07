@@ -68,6 +68,8 @@ You can update these values at any time without creating a new instance:
 
 You can also change these compile-time constants:
 - `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value it's `390` bytes. There are 2 temporary queues, 1 incoming queue and 1 outgoing queue. To calculate it:
+    - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)`
 
 ## Methods
 
