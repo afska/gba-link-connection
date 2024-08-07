@@ -42,7 +42,9 @@
 
 #include "_link_common.hpp"
 
-// 8-bit mode (uncomment to enable)
+/**
+ * @brief 8-bit mode (uncomment to enable)
+ */
 // #define LINK_SPI_8BIT_MODE
 
 static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
@@ -344,6 +346,9 @@ class LinkSPI {
 
 extern LinkSPI* linkSPI;
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_SPI_ISR_SERIAL() {
   linkSPI->_onSerial();
 }

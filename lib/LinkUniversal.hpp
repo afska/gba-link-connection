@@ -325,7 +325,8 @@ class LinkUniversal {
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
-    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
+    int maxPlayers = min(LINK_CABLE_MAX_PLAYERS, LINK_UNIVERSAL_MAX_PLAYERS);
+    for (u32 i = 0; i < maxPlayers; i++) {
       while (linkCable->canRead(i))
         incomingMessages[i].push(linkCable->read(i));
     }
@@ -340,7 +341,8 @@ class LinkUniversal {
       if (message.packetId == LINK_WIRELESS_END)
         break;
 
-      incomingMessages[message.playerId].push(message.data);
+      if (message.playerId < LINK_UNIVERSAL_MAX_PLAYERS)
+        incomingMessages[message.playerId].push(message.data);
     }
   }
 

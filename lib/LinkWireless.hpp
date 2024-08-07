@@ -1047,7 +1047,7 @@ class LinkWireless {
       MessageHeader header = serializer.asStruct;
       u32 partialPacketId = header.partialPacketId;
       bool isConfirmation = header.isConfirmation;
-      u8 remotePlayerId = header.playerId;
+      u8 remotePlayerId = min(header.playerId, config.maxPlayers - 1);
       u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
       u32 checksum = header.dataChecksum;
       bool isPing = data == LINK_WIRELESS_MSG_PING;
