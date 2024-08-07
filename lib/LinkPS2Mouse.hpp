@@ -60,6 +60,8 @@ class LinkPS2Mouse {
   static constexpr int SO_DATA = 0b1000;
   static constexpr int TO_TICKS = 17;
 
+  LinkPS2Mouse() = delete;
+
  public:
   /**
    * @brief Constructs a new LinkPS2Mouse object.

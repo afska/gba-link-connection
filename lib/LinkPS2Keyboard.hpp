@@ -58,6 +58,8 @@ class LinkPS2Keyboard {
   static constexpr int SO_DATA = 0b1000;
   static constexpr int TIMEOUT_FRAMES = 15;  // (~250ms)
 
+  LinkPS2Keyboard() = delete;
+
  public:
   using EventCallback = void (*)(u8 event);
 
