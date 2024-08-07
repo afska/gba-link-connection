@@ -110,7 +110,7 @@ class LinkSPI {
     this->asyncState = IDLE;
     this->asyncData = 0;
 
-    setNormalMode32Bit();
+    setNormalMode();
     disableTransfer();
 
     if (mode == SLAVE)
@@ -305,7 +305,7 @@ class LinkSPI {
   LINK_SPI_DATA_TYPE asyncData = 0;
   volatile bool isEnabled = false;
 
-  void setNormalMode32Bit() {
+  void setNormalMode() {
     Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
 #ifdef LINK_SPI_8BIT_MODE
     Link::_REG_SIOCNT = 0;
