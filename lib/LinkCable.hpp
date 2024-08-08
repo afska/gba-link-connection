@@ -51,7 +51,7 @@
  * \warning This affects how much memory is allocated. With the default value,
  * it's `390` bytes. There's a double-buffered pending queue (to avoid data
  * races), 1 incoming queue and 1 outgoing queue.
- * \warning You can calculate the memory usage with `LINK_CABLE_QUEUE_SIZE * 26`
+ * \warning You can calculate the usage with `LINK_CABLE_QUEUE_SIZE * 26`.
  */
 #define LINK_CABLE_QUEUE_SIZE 15
 

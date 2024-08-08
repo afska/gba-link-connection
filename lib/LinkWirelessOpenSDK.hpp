@@ -230,10 +230,9 @@ class LinkWirelessOpenSDK {
    * @param fullPayloadSize Total size of the payload.
    * @param sequence A sequence number created using
    * `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.
-   * @param targetSlots `(Optional)` A bit array that can be used to exclude
-   * some clients (the default is `0b1111`).
-   * @param offset `(Optional)` The offset within the `fullPayload` pointer.
-   * Defaults to `0`.
+   * @param targetSlots A bit array that can be used to exclude some clients
+   * (the default is `0b1111`).
+   * @param offset The offset within the `fullPayload` pointer. Defaults to `0`.
    */
   [[nodiscard]]
   SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
@@ -303,8 +302,7 @@ class LinkWirelessOpenSDK {
    * @param fullPayloadSize Total size of the payload.
    * @param sequence A sequence number created using
    * `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.
-   * @param offset `(Optional)` The offset within the `fullPayload` pointer.
-   * Defaults to `0`.
+   * @param offset The offset within the `fullPayload` pointer. Defaults to `0`.
    */
   [[nodiscard]]
   SendBuffer<ClientSDKHeader> createClientBuffer(const u8* fullPayload,

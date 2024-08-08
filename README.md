@@ -71,7 +71,7 @@ You can also change these compile-time constants:
 - `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
   - This affects how much memory is allocated. With the default value, it's `390` bytes.  There's a double-buffered pending queue (to avoid data races), `1` incoming queue and `1` outgoing queue.
   - You can calculate the memory usage with:
-    - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)`
+    - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)` <=> `LINK_CABLE_QUEUE_SIZE * 26`
 
 ## Methods
 
@@ -156,7 +156,7 @@ Name | Type | Default | Description
 --- | --- | --- | ---
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
-`maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. The adapter will accept connections after reaching the limit, but the library will ignore them. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
+`maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
 `timeout` | **u32** | `10` | Number of *frames* without receiving *any* data to reset the connection.
 `remoteTimeout` | **u32** | `10` | Number of *successful transfers* without a message from a client to mark the player as disconnected.
 `interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
@@ -170,10 +170,13 @@ You can update these values at any time without creating a new instance:
 
 You can also change these compile-time constants:
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's `960` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
+  - You can calculate the memory usage with:
+    - `LINK_WIRELESS_QUEUE_SIZE * sizeof(Message) * 4` <=> `LINK_WIRELESS_QUEUE_SIZE * 32`
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
   - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
-- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but reduce overall CPU usage.
+- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but also reduce overall CPU usage.
 
 ## Methods
 
@@ -187,7 +190,7 @@ Name | Return type | Description
 `isActive()` | **bool** | Returns whether the library is active or not.
 `activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`. It can also be used to disconnect or reset the adapter.
 `deactivate()` | **bool** | Puts the adapter into a low consumption mode and then deactivates the library. It returns a boolean indicating whether the transition to low consumption mode was successful.
-`serve([gameName], [userName], [gameId])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters), a `userName` (max `8` characters), and a `gameId` *(0 ~ 0x7FFF)* that games will be able to read. The strings must be null-terminated character arrays.  If the adapter is already serving, this method only updates the broadcast data.
+`serve([gameName], [userName], [gameId])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters), a `userName` (max `8` characters), and a `gameId` *(0 ~ 0x7FFF)* that games will be able to read. The strings must be null-terminated character arrays.  If the adapter is already serving, this method only updates the broadcast data. Updating broadcast data while serving can fail if the adapter is busy. In that case, this will return `false` and `getLastError()` will be `BUSY_TRY_AGAIN`.
 `getServers(servers, [onWait])` | **bool** | Fills the `servers` array with all the currently broadcasting servers. This action takes 1 second to complete, but you can optionally provide an `onWait()` function which will be invoked each time VBlank starts.
 `getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
 `getServersAsyncEnd(servers)` | **bool** | Fills the `servers` array with all the currently broadcasting servers. Changes the state to `AUTHENTICATED` again.
