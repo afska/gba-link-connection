@@ -573,6 +573,8 @@ The bootloader will only accept ROMs with valid headers: they must contain this 
 
 When the bootloader accepts the ROM, it will run the jump instruction located at the first byte. No extra headers are required apart from these 16 bytes.
 
+`LinkWirelessMultiboot` patches the header on the fly, so users can compile their ROMs for cabled Multiboot and also use them wirelessly.
+
 ### Official protocol
 
 > You can learn more details by reading [LinkWirelessOpenSDK.hpp](../lib/LinkWirelessOpenSDK.hpp)'s code.
