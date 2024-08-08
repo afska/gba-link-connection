@@ -1,11 +1,11 @@
+// (0) Include the header
+#include "../../../lib/LinkWireless.hpp"
+
 #include <tonc.h>
 #include <functional>
 #include <string>
 #include <vector>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkWireless.hpp"
 
 #ifdef PROFILING_ENABLED
 #include <regex>

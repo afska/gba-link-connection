@@ -15,6 +15,7 @@ using u8 = unsigned char;
 using vs32 = volatile signed int;
 using vu32 = volatile unsigned int;
 using s16 = signed short;
+using s8 = signed char;
 
 // Structs
 

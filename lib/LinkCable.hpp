@@ -77,7 +77,7 @@ class LinkCable {
   using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
 
-  static constexpr int BASE_FREQUENCY = Link::_TM_FREQ_1024;
+  static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
   static constexpr int BIT_SLAVE = 2;
   static constexpr int BIT_READY = 3;
