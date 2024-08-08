@@ -1,10 +1,11 @@
+#include "../../../../lib/LinkWirelessMultiboot.hpp"
+
 #include "MultibootScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
 #include <tonc.h>
 #include <functional>
 
-#include "../../../../lib/LinkWirelessMultiboot.hpp"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 

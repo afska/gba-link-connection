@@ -88,7 +88,7 @@ class LinkCableMultiboot {
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
-  [[nodiscard]] Result sendRom(const u8* rom, u32 romSize, F cancel) {
+  Result sendRom(const u8* rom, u32 romSize, F cancel) {
     if (romSize < MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > MAX_ROM_SIZE)

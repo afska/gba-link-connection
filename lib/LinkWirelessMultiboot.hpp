@@ -30,12 +30,25 @@
 //       // `result` should be LinkWirelessMultiboot::Result::SUCCESS
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
+#include "_link_common.hpp"
+
 #include "LinkRawWireless.hpp"
 #include "LinkWirelessOpenSDK.hpp"
 
 // Enable logging (set `linkWirelessMultiboot->logger` and uncomment to enable)
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+
+static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
+    "LinkWirelessMultiboot/v7.0.0";
+
+#define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
+#define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
+#define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
+#define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
+#define LINK_WIRELESS_MULTIBOOT_TRY(CALL) \
+  if ((lastResult = CALL) != SUCCESS) {   \
+    return finish(lastResult);            \
+  }
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #include <string>
@@ -44,38 +57,30 @@
 #define LWMLOG(str)
 #endif
 
-#define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
-#define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
-#define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
-#define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
-#define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
-#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003c0000
-#define LINK_WIRELESS_MULTIBOOT_SETUP_TX 1
-#define LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT 32
-#define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG (1 << 15)
-#define LINK_WIRELESS_MULTIBOOT_FRAME_LINES 228
-#define LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS 4
-#define LINK_WIRELESS_MULTIBOOT_TRY(CALL) \
-  if ((lastResult = CALL) != SUCCESS) {   \
-    return finish(lastResult);            \
-  }
-
-const u8 LINK_WIRELESS_MULTIBOOT_CMD_START[] = {0x00, 0x54, 0x00, 0x00,
-                                                0x00, 0x02, 0x00};
-const u8 LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE = 7;
-const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[][6] = {
-    {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
-    {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
-const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE = 6;
-const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH[] = {
-    0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42, 0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00};
-const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET = 4;
-const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE = 12;
-
-static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
-    "LinkWirelessMultiboot/v7.0.0";
-
 class LinkWirelessMultiboot {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+
+  static constexpr int HEADER_SIZE = 0xC0;
+  static constexpr int SETUP_MAGIC = 0x003c0000;
+  static constexpr int SETUP_TX = 1;
+  static constexpr int SETUP_WAIT_TIMEOUT = 32;
+  static constexpr int GAME_ID_MULTIBOOT_FLAG = (1 << 15);
+  static constexpr int FRAME_LINES = 228;
+  static constexpr int MAX_INFLIGHT_PACKETS = 4;
+  static constexpr u8 CMD_START[] = {0x00, 0x54, 0x00, 0x00, 0x00, 0x02, 0x00};
+  static constexpr u8 CMD_START_SIZE = 7;
+  static constexpr u8 BOOTLOADER_HANDSHAKE[][6] = {
+      {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
+      {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
+  static constexpr u8 BOOTLOADER_HANDSHAKE_SIZE = 6;
+  static constexpr u8 ROM_HEADER_PATCH[] = {0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42,
+                                            0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00};
+  static constexpr u8 ROM_HEADER_PATCH_OFFSET = 4;
+  static constexpr u8 ROM_HEADER_PATCH_SIZE = 12;
+
  public:
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
   typedef void (*Logger)(std::string);
@@ -126,7 +131,7 @@ class LinkWirelessMultiboot {
 
     LWMLOG("all players are connected");
     progress.state = PREPARING;
-    linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
+    linkRawWireless->wait(FRAME_LINES);
 
     LWMLOG("rom start command...");
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(cancel))
@@ -158,13 +163,12 @@ class LinkWirelessMultiboot {
   };
 
   struct PendingTransferList {
-    std::array<PendingTransfer, LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS>
-        transfers;
+    std::array<PendingTransfer, MAX_INFLIGHT_PACKETS> transfers;
 
     PendingTransfer* max(bool ack = false) {
       int maxCursor = -1;
       int maxI = -1;
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive && (int)transfers[i].cursor > maxCursor &&
             (!ack || transfers[i].ack)) {
           maxCursor = transfers[i].cursor;
@@ -177,7 +181,7 @@ class LinkWirelessMultiboot {
     PendingTransfer* minWithoutAck() {
       u32 minCursor = 0xffffffff;
       int minI = -1;
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive && transfers[i].cursor < minCursor &&
             !transfers[i].ack) {
           minCursor = transfers[i].cursor;
@@ -192,7 +196,7 @@ class LinkWirelessMultiboot {
       if (maxTransfer != NULL && newCursor <= maxTransfer->cursor)
         return;
 
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (!transfers[i].isActive) {
           transfers[i].cursor = newCursor;
           transfers[i].ack = false;
@@ -220,19 +224,17 @@ class LinkWirelessMultiboot {
     }
 
     void cleanup() {
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive && transfers[i].ack)
           transfers[i].isActive = false;
       }
     }
 
-    bool isFull() {
-      return size() == LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS;
-    }
+    bool isFull() { return size() == MAX_INFLIGHT_PACKETS; }
 
     u32 size() {
       u32 size = 0;
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++)
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++)
         if (transfers[i].isActive)
           size++;
       return size;
@@ -240,7 +242,7 @@ class LinkWirelessMultiboot {
 
    private:
     bool isAckCompleteUpTo(u32 cursor) {
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++)
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++)
         if (transfers[i].isActive && !transfers[i].ack &&
             transfers[i].cursor < cursor)
           return false;
@@ -248,7 +250,7 @@ class LinkWirelessMultiboot {
     }
 
     int findIndex(LinkWirelessOpenSDK::SequenceNumber sequence) {
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive &&
             LinkWirelessOpenSDK::SequenceNumber::fromPacketId(
                 transfers[i].cursor) == sequence) {
@@ -268,7 +270,7 @@ class LinkWirelessMultiboot {
       u32 pendingCount = pendingTransferList.size();
 
       if (canSendInflightPackets && pendingCount > 0 &&
-          pendingCount < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS) {
+          pendingCount < MAX_INFLIGHT_PACKETS) {
         return pendingTransferList.max()->cursor + 1;
       } else {
         auto minWithoutAck = pendingTransferList.minWithoutAck();
@@ -282,7 +284,7 @@ class LinkWirelessMultiboot {
     }
 
     u32 transferred() {
-      return cursor * LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER;
+      return cursor * LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH;
     }
 
     LinkWirelessOpenSDK::SequenceNumber sequence() {
@@ -308,17 +310,15 @@ class LinkWirelessMultiboot {
                                               const char* userName,
                                               const u16 gameId,
                                               u8 players) {
-    if (!linkRawWireless->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_TX,
-                                LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT,
-                                LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
+    if (!linkRawWireless->setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
+                                SETUP_MAGIC)) {
       LWMLOG("! setup failed");
       return FAILURE;
     }
     LWMLOG("setup ok");
 
-    if (!linkRawWireless->broadcast(
-            gameName, userName,
-            gameId | LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG)) {
+    if (!linkRawWireless->broadcast(gameName, userName,
+                                    gameId | GAME_ID_MULTIBOOT_FLAG)) {
       LWMLOG("! broadcast failed");
       return FAILURE;
     }
@@ -420,10 +420,9 @@ class LinkWirelessMultiboot {
     LWMLOG("validating name...");
     for (u32 i = 0; i < 2; i++) {
       auto receivedPayload = handshakePackets[i].payload;
-      auto expectedPayload = LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[i];
+      auto expectedPayload = BOOTLOADER_HANDSHAKE[i];
 
-      for (u32 j = 0; j < LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE;
-           j++) {
+      for (u32 j = 0; j < BOOTLOADER_HANDSHAKE_SIZE; j++) {
         if (!hasReceivedName || receivedPayload[j] != expectedPayload[j]) {
           LWMLOG("! bad payload");
           return finish(BAD_HANDSHAKE);
@@ -455,8 +454,7 @@ class LinkWirelessMultiboot {
       LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
           i,
           linkWirelessOpenSDK->createServerBuffer(
-              LINK_WIRELESS_MULTIBOOT_CMD_START,
-              LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE,
+              CMD_START, CMD_START_SIZE,
               {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 1 << i),
           cancel))
     }
@@ -470,14 +468,12 @@ class LinkWirelessMultiboot {
                                                 C cancel) {
     LinkWirelessOpenSDK::ChildrenData childrenData;
     std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1> transfers;
-    u8 firstPagePatch[LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER];
-    for (u32 i = 0; i < LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER; i++) {
+    u8 firstPagePatch[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+    for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; i++) {
       firstPagePatch[i] =
-          i >= LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET &&
-                  i < LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET +
-                          LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE
-              ? LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH
-                    [i - LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET]
+          i >= ROM_HEADER_PATCH_OFFSET &&
+                  i < ROM_HEADER_PATCH_OFFSET + ROM_HEADER_PATCH_SIZE
+              ? ROM_HEADER_PATCH[i - ROM_HEADER_PATCH_OFFSET]
               : rom[i];
     }
 
@@ -490,7 +486,7 @@ class LinkWirelessMultiboot {
         return finish(CANCELED);
 
       u32 cursor = findMinCursor(transfers);
-      u32 offset = cursor * LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER;
+      u32 offset = cursor * LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH;
       auto sequence = LinkWirelessOpenSDK::SequenceNumber::fromPacketId(cursor);
       const u8* bufferToSend = cursor == 0 ? (const u8*)firstPagePatch : rom;
 
@@ -517,9 +513,9 @@ class LinkWirelessMultiboot {
         }
       }
 
-      u32 newPercentage =
-          min(transfers[findMinClient(transfers)].transferred() * 100 / romSize,
-              100);
+      u32 newPercentage = Link::_min(
+          transfers[findMinClient(transfers)].transferred() * 100 / romSize,
+          100);
       if (newPercentage != progress.percentage) {
         progress.percentage = newPercentage;
         LWMLOG("-> " + std::to_string(newPercentage));

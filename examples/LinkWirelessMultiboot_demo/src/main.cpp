@@ -1,6 +1,7 @@
+#include "../../../lib/LinkWirelessMultiboot.hpp"
+
 #include <libgba-sprite-engine/gba_engine.h>
 #include <tonc.h>
-#include "../../../lib/LinkWirelessMultiboot.hpp"
 #include "../../_lib/interrupt.h"
 #include "scenes/MultibootScene.h"
 #include "utils/SceneUtils.h"
