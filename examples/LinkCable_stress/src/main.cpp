@@ -52,7 +52,8 @@ LinkUniversal* linkUniversal =
                           .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
                           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
                           .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-                          .asyncACKTimerId = 0});
+                          .asyncACKTimerId = 0},
+                      __qran_seed);
 LinkUniversal* linkConnection = linkUniversal;
 #endif
 

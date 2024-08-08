@@ -49,8 +49,9 @@ int main() {
     // Sender options
     if (isSenderMode) {
       if (result != LinkCableMultiboot::Result::SUCCESS)
-        log("LinkCableMultiboot_demo\n  (v7.0.0)\n\nPress START to send the "
-            "ROM...\nPress B to set client mode...");
+        log("LinkCableMultiboot_demo\n  (v7.0.0)\n\n"
+            "Press START to send the ROM...\n"
+            "Press B to set client mode...");
 
       if (keys & KEY_START) {
         log("Sending... (SELECT to cancel)");

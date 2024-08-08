@@ -150,7 +150,7 @@ void MultibootScene::load() {
   log("B: toggle players");
   log("UP/DOWN: scroll up/down");
   log("L/R: scroll page up/down");
-  log("UP+L/DOWN+R: scroll to top/bottom");
+  log("UP+L/DOWN+R: scroll top/bottom");
   log("SELECT: clear");
   log("---");
   log("");

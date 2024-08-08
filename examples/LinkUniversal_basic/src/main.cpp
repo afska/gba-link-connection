@@ -1,12 +1,12 @@
-#include <tonc.h>
-#include <string>
-#include "../../_lib/interrupt.h"
-
 // BASIC:
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
 #include "../../../lib/LinkUniversal.hpp"
+
+#include <tonc.h>
+#include <string>
+#include "../../_lib/interrupt.h"
 
 void log(std::string text);
 void waitFor(u16 key);
@@ -21,11 +21,13 @@ void init() {
 int main() {
   init();
 
-  log("LinkUniversal_basic (v7.0.0)\n\n\nPress A to start\n\n\nhold LEFT on "
-      "start:\n -> force cable\n\nhold RIGHT on start:\n -> force "
-      "wireless\n\nhold UP on start:\n -> force wireless server\n\nhold DOWN "
-      "on start:\n -> force wireless client\n\nhold B on start:\n -> set 2 "
-      "players (wireless)");
+  log("LinkUniversal_basic (v7.0.0)\n\n\n"
+      "Press A to start\n\n\n"
+      "hold LEFT on start:\n -> force cable\n\n"
+      "hold RIGHT on start:\n -> force wireless\n\n"
+      "hold UP on start:\n -> force wireless server\n\n"
+      "hold DOWN on start:\n -> force wireless client\n\n"
+      "hold B on start:\n -> set 2 players (wireless)");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
@@ -56,7 +58,8 @@ int main() {
           .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
           .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-          .asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID});
+          .asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
+      __qran_seed);
 
   // (2) Add the required interrupt service routines
   interrupt_init();

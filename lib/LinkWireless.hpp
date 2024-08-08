@@ -106,6 +106,7 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
 
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
+#define LINK_WIRELESS_END 0
 #define LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 22
 #define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
 #define LINK_WIRELESS_BROADCAST_LENGTH 6
@@ -114,7 +115,9 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
 #define LINK_WIRELESS_MAX_SERVERS              \
   (LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
    LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH)
-#define LINK_WIRELESS_END 0
+#define LINK_WIRELESS_MAX_GAME_ID 0x7fff
+#define LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
+#define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
@@ -153,9 +156,6 @@ class LinkWireless {
   static constexpr int TRANSFER_WAIT = 15;
   static constexpr int BROADCAST_SEARCH_WAIT_FRAMES = 60;
   static constexpr int CMD_TIMEOUT = 100;
-  static constexpr int MAX_GAME_ID = 0x7fff;
-  static constexpr int MAX_GAME_NAME_LENGTH = 14;
-  static constexpr int MAX_USER_NAME_LENGTH = 8;
   static constexpr int LOGIN_STEPS = 9;
   static constexpr int COMMAND_HEADER_VALUE = 0x9966;
   static constexpr int RESPONSE_ACK_VALUE = 0x80;
@@ -233,8 +233,8 @@ class LinkWireless {
   struct Server {
     u16 id = 0;
     u16 gameId;
-    char gameName[MAX_GAME_NAME_LENGTH + 1];
-    char userName[MAX_USER_NAME_LENGTH + 1];
+    char gameName[LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
+    char userName[LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1];
     u8 currentPlayerCount;
 
     bool isFull() { return currentPlayerCount == 0; }
@@ -332,7 +332,7 @@ class LinkWireless {
    */
   bool serve(const char* gameName = "",
              const char* userName = "",
-             u16 gameId = MAX_GAME_ID) {
+             u16 gameId = LINK_WIRELESS_MAX_GAME_ID) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED && state != SERVING) {
       lastError = WRONG_STATE;
@@ -342,25 +342,25 @@ class LinkWireless {
       lastError = BUSY_TRY_AGAIN;
       return false;
     }
-    if (std::strlen(gameName) > MAX_GAME_NAME_LENGTH) {
+    if (std::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH) {
       lastError = GAME_NAME_TOO_LONG;
       return false;
     }
-    if (std::strlen(userName) > MAX_GAME_NAME_LENGTH) {
+    if (std::strlen(userName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH) {
       lastError = USER_NAME_TOO_LONG;
       return false;
     }
 
-    char finalGameName[MAX_GAME_NAME_LENGTH + 1];
-    char finalUserName[MAX_USER_NAME_LENGTH + 1];
-    copyName(finalGameName, gameName, MAX_GAME_NAME_LENGTH);
-    copyName(finalUserName, userName, MAX_USER_NAME_LENGTH);
+    char finalGameName[LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
+    char finalUserName[LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1];
+    copyName(finalGameName, gameName, LINK_WIRELESS_MAX_GAME_NAME_LENGTH);
+    copyName(finalUserName, userName, LINK_WIRELESS_MAX_USER_NAME_LENGTH);
 
     if (state != SERVING)
       setup(config.maxPlayers);
 
     addData(buildU32(buildU16(finalGameName[1], finalGameName[0]),
-                     gameId & MAX_GAME_ID),
+                     gameId & LINK_WIRELESS_MAX_GAME_ID),
             true);
     addData(buildU32(buildU16(finalGameName[5], finalGameName[4]),
                      buildU16(finalGameName[3], finalGameName[2])));
@@ -486,7 +486,7 @@ class LinkWireless {
 
       Server server;
       server.id = (u16)result.responses[start];
-      server.gameId = result.responses[start + 1] & MAX_GAME_ID;
+      server.gameId = result.responses[start + 1] & LINK_WIRELESS_MAX_GAME_ID;
       u32 gameI = 0, userI = 0;
       recoverName(server.gameName, gameI, result.responses[start + 1], false);
       recoverName(server.gameName, gameI, result.responses[start + 2]);

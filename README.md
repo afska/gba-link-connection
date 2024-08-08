@@ -265,6 +265,7 @@ Name | Type | Default | Description
 `gameName` | **const char\*** | `""` | The game name that will be broadcasted in wireless sessions (max `14` characters). The string must be a null-terminated character array. The library uses this to only connect to servers from the same game.
 `cableOptions` | **LinkUniversal::CableOptions** | *same as LinkCable* | All the [👾 LinkCable](#-LinkCable) constructor parameters in one *struct*.
 `wirelessOptions` | **LinkUniversal::WirelessOptions** | *same as LinkWireless* | All the [📻 LinkWireless](#-LinkWireless) constructor parameters in one *struct*.
+`randomSeed` | **int** | `123` | Random seed used for waits to prevent livelocks. If you use _libtonc_, pass `__qran_seed`.
 
 You can also change these compile-time constants:
 - `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `5`, but since LinkCable's limit is `4`, you might want to decrease it.

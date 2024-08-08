@@ -45,9 +45,8 @@
 //   (they mean 'disconnected' and 'no data' respectively)
 // --------------------------------------------------------------------------
 
-#include <tonc_bios.h>
-#include <tonc_core.h>
-#include <tonc_math.h>
+#include "_link_common.hpp"
+
 #include <cstdio>
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
@@ -58,23 +57,26 @@
 // Game ID Filter. Default = 0 (no filter)
 #define LINK_UNIVERSAL_GAME_ID_FILTER 0
 
-#define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
-#define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
-#define LINK_UNIVERSAL_MAX_ROOM_NUMBER 32000
-#define LINK_UNIVERSAL_INIT_WAIT_FRAMES 10
-#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES 25
-#define LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM 10
-#define LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES 10
-#define LINK_UNIVERSAL_SERVE_WAIT_FRAMES 60
-#define LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM 30
-
 static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.0.0";
 
-void LINK_UNIVERSAL_ISR_VBLANK();
-void LINK_UNIVERSAL_ISR_SERIAL();
-void LINK_UNIVERSAL_ISR_TIMER();
+#define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
+#define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 
 class LinkUniversal {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+  using s8 = signed char;
+
+  static constexpr int MAX_ROOM_NUMBER = 32000;
+  static constexpr int INIT_WAIT_FRAMES = 10;
+  static constexpr int SWITCH_WAIT_FRAMES = 25;
+  static constexpr int SWITCH_WAIT_FRAMES_RANDOM = 10;
+  static constexpr int BROADCAST_SEARCH_WAIT_FRAMES = 10;
+  static constexpr int SERVE_WAIT_FRAMES = 60;
+  static constexpr int SERVE_WAIT_FRAMES_RANDOM = 30;
+
  public:
   enum State { INITIALIZING, WAITING, CONNECTED };
   enum Mode { LINK_CABLE, LINK_WIRELESS };
@@ -104,25 +106,29 @@ class LinkUniversal {
     s8 asyncACKTimerId;
   };
 
-  explicit LinkUniversal(
-      Protocol protocol = AUTODETECT,
-      const char* gameName = "",
-      CableOptions cableOptions =
-          CableOptions{
-              LinkCable::BaudRate::BAUD_RATE_1, LINK_CABLE_DEFAULT_TIMEOUT,
-              LINK_CABLE_DEFAULT_REMOTE_TIMEOUT, LINK_CABLE_DEFAULT_INTERVAL,
-              LINK_CABLE_DEFAULT_SEND_TIMER_ID},
-      WirelessOptions wirelessOptions = WirelessOptions{
-          true, LINK_UNIVERSAL_MAX_PLAYERS, LINK_WIRELESS_DEFAULT_TIMEOUT,
-          LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
-          LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-          LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID}) {
+  explicit LinkUniversal(Protocol protocol = AUTODETECT,
+                         const char* gameName = "",
+                         CableOptions cableOptions =
+                             CableOptions{LinkCable::BaudRate::BAUD_RATE_1,
+                                          LINK_CABLE_DEFAULT_TIMEOUT,
+                                          LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
+                                          LINK_CABLE_DEFAULT_INTERVAL,
+                                          LINK_CABLE_DEFAULT_SEND_TIMER_ID},
+                         WirelessOptions wirelessOptions =
+                             WirelessOptions{
+                                 true, LINK_UNIVERSAL_MAX_PLAYERS,
+                                 LINK_WIRELESS_DEFAULT_TIMEOUT,
+                                 LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
+                                 LINK_WIRELESS_DEFAULT_INTERVAL,
+                                 LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
+                                 LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
+                         int randomSeed = 123) {
     this->linkCable = new LinkCable(
         cableOptions.baudRate, cableOptions.timeout, cableOptions.remoteTimeout,
         cableOptions.interval, cableOptions.sendTimerId);
     this->linkWireless = new LinkWireless(
         wirelessOptions.retransmission, true,
-        min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
+        Link::_min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
         wirelessOptions.timeout, wirelessOptions.remoteTimeout,
         wirelessOptions.interval, wirelessOptions.sendTimerId,
         wirelessOptions.asyncACKTimerId);
@@ -131,7 +137,7 @@ class LinkUniversal {
     this->config.gameName = gameName;
   }
 
-  bool isActive() { return isEnabled; }
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
   void activate() {
     reset();
@@ -146,16 +152,16 @@ class LinkUniversal {
   }
 
   void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
-  Protocol getProtocol() { return this->config.protocol; }
+  [[nodiscard]] Protocol getProtocol() { return this->config.protocol; }
 
-  bool isConnected() { return state == CONNECTED; }
+  [[nodiscard]] bool isConnected() { return state == CONNECTED; }
 
-  u8 playerCount() {
+  [[nodiscard]] u8 playerCount() {
     return mode == LINK_CABLE ? linkCable->playerCount()
                               : linkWireless->playerCount();
   }
 
-  u8 currentPlayerId() {
+  [[nodiscard]] u8 currentPlayerId() {
     return mode == LINK_CABLE ? linkCable->currentPlayerId()
                               : linkWireless->currentPlayerId();
   }
@@ -164,10 +170,10 @@ class LinkUniversal {
     if (!isEnabled)
       return;
 
-    u16 keys = ~REG_KEYS & KEY_ANY;
-    __qran_seed += keys;
-    __qran_seed += REG_RCNT;
-    __qran_seed += REG_SIOCNT;
+    u16 keys = ~Link::_REG_KEYS & Link::_KEY_ANY;
+    randomSeed += keys;
+    randomSeed += Link::_REG_RCNT;
+    randomSeed += Link::_REG_SIOCNT;
 
     if (mode == LINK_CABLE)
       linkCable->sync();
@@ -175,7 +181,7 @@ class LinkUniversal {
     switch (state) {
       case INITIALIZING: {
         waitCount++;
-        if (waitCount > LINK_UNIVERSAL_INIT_WAIT_FRAMES)
+        if (waitCount > INIT_WAIT_FRAMES)
           start();
         break;
       };
@@ -242,18 +248,22 @@ class LinkUniversal {
                                     : linkWireless->config.sendTimerId;
 
     while (isConnected() && !canRead(playerId) && !cancel()) {
-      IntrWait(1, IRQ_SERIAL | LINK_CABLE_TIMER_IRQ_IDS[timerId]);
+      Link::_IntrWait(1, Link::_IRQ_SERIAL | Link::_TIMER_IRQ_IDS[timerId]);
       sync();
     }
 
     return isConnected() && canRead(playerId);
   }
 
-  bool canRead(u8 playerId) { return !incomingMessages[playerId].isEmpty(); }
+  [[nodiscard]] bool canRead(u8 playerId) {
+    return !incomingMessages[playerId].isEmpty();
+  }
 
   u16 read(u8 playerId) { return incomingMessages[playerId].pop(); }
 
-  u16 peek(u8 playerId) { return incomingMessages[playerId].peek(); }
+  [[nodiscard]] u16 peek(u8 playerId) {
+    return incomingMessages[playerId].peek();
+  }
 
   bool send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
@@ -267,17 +277,19 @@ class LinkUniversal {
     }
   }
 
-  State getState() { return state; }
-  Mode getMode() { return mode; }
-  LinkWireless::State getWirelessState() { return linkWireless->getState(); }
+  [[nodiscard]] State getState() { return state; }
+  [[nodiscard]] Mode getMode() { return mode; }
+  [[nodiscard]] LinkWireless::State getWirelessState() {
+    return linkWireless->getState();
+  }
 
   ~LinkUniversal() {
     delete linkCable;
     delete linkWireless;
   }
 
-  u32 _getWaitCount() { return waitCount; }
-  u32 _getSubWaitCount() { return subWaitCount; }
+  [[nodiscard]] u32 _getWaitCount() { return waitCount; }
+  [[nodiscard]] u32 _getSubWaitCount() { return subWaitCount; }
 
   void _onVBlank() {
     if (mode == LINK_CABLE)
@@ -322,13 +334,16 @@ class LinkUniversal {
   u32 switchWait = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
+  int randomSeed = 0;
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
-    int maxPlayers =
-        min(LINK_CABLE_MAX_PLAYERS,
-            LINK_UNIVERSAL_MAX_PLAYERS);  // TODO: MOVE TO CONSTEXPR
-    for (u32 i = 0; i < maxPlayers; i++) {
+    static constexpr u32 MAX_PLAYERS =
+        LINK_CABLE_MAX_PLAYERS < LINK_UNIVERSAL_MAX_PLAYERS
+            ? LINK_CABLE_MAX_PLAYERS
+            : LINK_UNIVERSAL_MAX_PLAYERS;
+
+    for (u32 i = 0; i < MAX_PLAYERS; i++) {
       while (linkCable->canRead(i))
         incomingMessages[i].push(linkCable->read(i));
     }
@@ -360,7 +375,7 @@ class LinkUniversal {
         waitCount = 0;
         subWaitCount++;
 
-        if (subWaitCount >= LINK_UNIVERSAL_BROADCAST_SEARCH_WAIT_FRAMES) {
+        if (subWaitCount >= BROADCAST_SEARCH_WAIT_FRAMES) {
           if (!tryConnectOrServeWirelessSession())
             return false;
         }
@@ -407,8 +422,7 @@ class LinkUniversal {
           (LINK_UNIVERSAL_GAME_ID_FILTER == 0 ||
            server.gameId == LINK_UNIVERSAL_GAME_ID_FILTER)) {
         u32 randomNumber = safeStoi(server.userName);
-        if (randomNumber > maxRandomNumber &&
-            randomNumber < LINK_UNIVERSAL_MAX_ROOM_NUMBER) {
+        if (randomNumber > maxRandomNumber && randomNumber < MAX_ROOM_NUMBER) {
           maxRandomNumber = randomNumber;
           serverIndex = i;
         }
@@ -423,9 +437,8 @@ class LinkUniversal {
         return false;
 
       subWaitCount = 0;
-      serveWait = LINK_UNIVERSAL_SERVE_WAIT_FRAMES +
-                  qran_range(1, LINK_UNIVERSAL_SERVE_WAIT_FRAMES_RANDOM);
-      u32 randomNumber = qran_range(1, LINK_UNIVERSAL_MAX_ROOM_NUMBER);
+      serveWait = SERVE_WAIT_FRAMES + _qran_range(1, SERVE_WAIT_FRAMES_RANDOM);
+      u32 randomNumber = _qran_range(1, MAX_ROOM_NUMBER);
       char randomNumberStr[6];
       std::snprintf(randomNumberStr, sizeof(randomNumberStr), "%d",
                     randomNumber);
@@ -503,8 +516,7 @@ class LinkUniversal {
 
   void resetState() {
     waitCount = 0;
-    switchWait = LINK_UNIVERSAL_SWITCH_WAIT_FRAMES +
-                 qran_range(1, LINK_UNIVERSAL_SWITCH_WAIT_FRAMES_RANDOM);
+    switchWait = SWITCH_WAIT_FRAMES + _qran_range(1, SWITCH_WAIT_FRAMES_RANDOM);
     subWaitCount = 0;
     serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
@@ -523,6 +535,15 @@ class LinkUniversal {
     }
 
     return num;
+  }
+
+  int _qran(void) {
+    randomSeed = 1664525 * randomSeed + 1013904223;
+    return (randomSeed >> 16) & 0x7FFF;
+  }
+
+  int _qran_range(int min, int max) {
+    return (_qran() * (max - min) >> 15) + min;
   }
 };
 

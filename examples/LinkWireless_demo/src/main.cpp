@@ -47,10 +47,12 @@ int main() {
 
 start:
   // Options
-  log("LinkWireless_demo (v7.0.0)\n\n\n\nPress A to start\n\n\n\n\nhold LEFT "
-      "on start:\n -> disable forwarding\n\nhold UP on start:\n -> disable "
-      "retransmission\n\nhold B on start:\n -> set 2 players\n\nhold START on "
-      "start:\n -> async ACK");
+  log("LinkWireless_demo (v7.0.0)\n\n\n\n"
+      "Press A to start\n\n\n\n\n"
+      "hold LEFT on start:\n -> disable forwarding\n\n"
+      "hold UP on start:\n -> disable retransmission\n\n"
+      "hold B on start:\n -> set 2 players\n\n"
+      "hold START on start:\n -> async ACK");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
