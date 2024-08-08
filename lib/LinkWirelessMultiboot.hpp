@@ -35,7 +35,10 @@
 #include "LinkRawWireless.hpp"
 #include "LinkWirelessOpenSDK.hpp"
 
-// Enable logging (set `linkWirelessMultiboot->logger` and uncomment to enable)
+/**
+ * @brief Enable logging.
+ * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
+ */
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
@@ -57,6 +60,10 @@ static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
 #define LWMLOG(str)
 #endif
 
+/**
+ * @brief A Wireless Multiboot tool to send small ROMs from a GBA to up to 4
+ * slaves.
+ */
 class LinkWirelessMultiboot {
  private:
   using u32 = unsigned int;
@@ -104,6 +111,23 @@ class LinkWirelessMultiboot {
     u32 percentage = 0;
   };
 
+  /**
+   * @brief Sends the `rom`. Once completed, the return value should be
+   * `LinkWirelessMultiboot::Result::SUCCESS`.
+   * @param rom A pointer to ROM data.
+   * @param romSize Size of the ROM in bytes. It must be a number between
+   * `448` and `262144`. It's recommended to use a ROM size that is a multiple
+   * of `16`, as this also ensures compatibility with Multiboot via Link Cable.
+   * @param gameName Game name. Maximum `14` characters + NULL terminator.
+   * @param userName User name. Maximum `8` characters + NULL terminator.
+   * @param gameId `(0 ~ 0x7FFF)` Game ID.
+   * @param players The exact number of consoles that will download the ROM.
+   * Once this number of players is reached, the code will start transmitting
+   * the ROM bytes.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
+   */
   template <typename C>
   Result sendRom(const u8* rom,
                  u32 romSize,

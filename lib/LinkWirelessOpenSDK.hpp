@@ -14,6 +14,12 @@
 
 static volatile char VERSION[] = "LinkWirelessOpenSDK/v7.0.0";
 
+/**
+ * @brief An open-source implementation of the "official" Wireless Adapter
+ * protocol.
+ * \warning Advanced usage only!
+ * \warning You only need this if you want to interact with N software.
+ */
 class LinkWirelessOpenSDK {
  private:
   using u32 = unsigned int;
@@ -126,6 +132,11 @@ class LinkWirelessOpenSDK {
     ClientResponse responses[4];
   };
 
+  /**
+   * @brief Parses the `response` and returns a struct containing all the
+   * received packets from the connected clients.
+   * @param response The response to be parsed.
+   */
   [[nodiscard]]
   ChildrenData getChildrenData(LinkRawWireless::ReceiveDataResponse response) {
     u8* buffer = (u8*)response.data;
@@ -165,6 +176,11 @@ class LinkWirelessOpenSDK {
     return childrenData;
   }
 
+  /**
+   * @brief Parses the `response` and returns a struct containing all the
+   * received packets from the host.
+   * @param response The response to be parsed.
+   */
   [[nodiscard]]
   ParentData getParentData(LinkRawWireless::ReceiveDataResponse response) {
     u8* buffer = (u8*)response.data;
@@ -201,6 +217,23 @@ class LinkWirelessOpenSDK {
     return parentData;
   }
 
+  /**
+   * @brief Creates a buffer for the host to send a `fullPayload` with a valid
+   * header. If `fullPayloadSize` is higher than `84` (the maximum payload
+   * size), the buffer will only contain the **first** `84` bytes (unless an
+   * `offset` > 0 is used). A `sequence` number must be created by using
+   * `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`. Optionally, a
+   * `targetSlots` bit array can be used to exclude some clients from the
+   * transmissions (the default is `0b1111`).
+   * @param fullPayload A pointer to the payload buffer.
+   * @param fullPayloadSize Total size of the payload.
+   * @param sequence A sequence number created using
+   * `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.
+   * @param targetSlots `(Optional)` A bit array that can be used to exclude
+   * some clients (the default is `0b1111`).
+   * @param offset `(Optional)` The offset within the `fullPayload` pointer.
+   * Defaults to `0`.
+   */
   [[nodiscard]]
   SendBuffer<ServerSDKHeader> createServerBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
@@ -238,6 +271,12 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
+  /**
+   * @brief Creates a buffer for the host to acknowledge a header received from
+   * a certain `clientNumber`.
+   * @param clientHeader The header of the received packet.
+   * @param clientNumber `(0~3)` The client number that sent the packet.
+   */
   [[nodiscard]]
   SendBuffer<ServerSDKHeader> createServerACKBuffer(
       ClientSDKHeader clientHeader,
@@ -253,6 +292,19 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
+  /**
+   * @brief Creates a buffer for the client to send a `fullPayload` with a valid
+   * header. If `fullPayloadSize` is higher than `14` (the maximum payload
+   * size), the buffer will only contain the **first** `14` bytes (unless an
+   * `offset` > 0 is used). A `sequence` number must be created by using
+   * `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.
+   * @param fullPayload A pointer to the payload buffer.
+   * @param fullPayloadSize Total size of the payload.
+   * @param sequence A sequence number created using
+   * `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.
+   * @param offset `(Optional)` The offset within the `fullPayload` pointer.
+   * Defaults to `0`.
+   */
   [[nodiscard]]
   SendBuffer<ClientSDKHeader> createClientBuffer(const u8* fullPayload,
                                                  u32 fullPayloadSize,
@@ -290,6 +342,11 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
+  /**
+   * @brief Creates a buffer for the client to acknowledge a header received
+   * from the host.
+   * @param serverHeader The header of the received packet.
+   */
   [[nodiscard]]
   SendBuffer<ClientSDKHeader> createClientACKBuffer(
       ServerSDKHeader serverHeader) {
@@ -304,6 +361,7 @@ class LinkWirelessOpenSDK {
     return buffer;
   }
 
+ private:
   [[nodiscard]]
   ServerSDKHeader createACKHeaderFor(ClientSDKHeader clientHeader,
                                      u8 clientNumber) {
