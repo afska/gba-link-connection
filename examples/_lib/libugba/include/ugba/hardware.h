@@ -529,6 +529,14 @@ EXPORT_API uintptr_t *UGBA_RegDMA3DAD(void);
 // 3) When starting a timer by writing to:
 //
 //        REG_TM0CNT_H, REG_TM1CNT_H, REG_TM2CNT_H, REG_TM3CNT_H
+//
+// 4) When IME or IE have been 0 for some time, IF isn't 0, and IME or IE are
+//    set to a value that would trigger an interrupt:
+//
+//        REG_IE, REG_IME
+//
+//   Note that writing to IF doesn't work on the SDL2 port. On the GBA, writing
+//   a 1 to a bit sets it to 0. On the SDL2 port, it sets the bit to 1.
 
 #ifdef __GBA__
 # define UGBA_RegisterUpdatedOffset(offset) do { (void)(offset); } while (0)

@@ -1,5 +1,5 @@
 #include "interrupt.h"
-#include <ugba.h>
+#include <ugba/ugba.h>
 
 void interrupt_init(void) {
   IRQ_Init();

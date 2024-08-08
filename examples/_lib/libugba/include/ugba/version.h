@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //
-// Copyright (c) 2020 Antonio Niño Díaz
+// Copyright (c) 2020-2022 Antonio Niño Díaz
 
 #ifndef VERSION_H__
 #define VERSION_H__
@@ -10,7 +10,7 @@
 // This library follows the Semantic Versioning rules: https://semver.org/
 
 #define LIBUGBA_VERSION_MAJOR   (0U)
-#define LIBUGBA_VERSION_MINOR   (2U)
+#define LIBUGBA_VERSION_MINOR   (3U)
 #define LIBUGBA_VERSION_PATCH   (0U)
 
 #define LIBUGBA_VERSION         ((LIBUGBA_VERSION_MAJOR << 16) | \

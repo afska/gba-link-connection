@@ -13,10 +13,10 @@ extern "C" {
 #include "bios.h"
 #include "bios_wrappers.h"
 #include "console.h"
+#include "dma.h"
+#include "display.h"
 #include "debug.h"
 #include "definitions.h"
-#include "display.h"
-#include "dma.h"
 #include "fp_math.h"
 #include "hardware.h"
 #include "input.h"
@@ -25,16 +25,17 @@ extern "C" {
 #include "sound.h"
 #include "sram.h"
 #include "timer.h"
+#include "version.h"
 #include "vram.h"
 
 // Initialize library. This function needs to be called at the start of main().
-EXPORT_API void UGBA_Init(int* argc, char** argv[]);
+EXPORT_API void UGBA_Init(int *argc, char **argv[]);
 
 #ifndef __GBA__
 // Initialize library with no video output (for testing). This function needs to
 // be called at the start of main(). Not implemented in GBA as it isn't usedul
 // there.
-EXPORT_API void UGBA_InitHeadless(int* argc, char** argv[]);
+EXPORT_API void UGBA_InitHeadless(int *argc, char **argv[]);
 #endif
 
 // This function tries to detect specific flashcarts with special needs and
@@ -46,4 +47,4 @@ EXPORT_API uint16_t UGBA_FlashcartOptimizedWaitstates(void);
 }
 #endif
 
-#endif  // UGBA_H__
+#endif // UGBA_H__
