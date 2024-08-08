@@ -63,19 +63,43 @@
 // #include <string>
 // #include <functional>
 
-// Buffer size
+/**
+ * @brief Buffer size (how many incoming and outgoing messages the queues can
+ * store at max). The default value is `30`, which seems fine for most games.
+ * \warning This affects how much memory is allocated. With the default value,
+ * it's `960` bytes. There's a double-buffered incoming queue and a
+ * double-buffered outgoing queue (to avoid data races).
+ * \warning You can calculate the usage with `LINK_WIRELESS_QUEUE_SIZE * 32`.
+ */
 #define LINK_WIRELESS_QUEUE_SIZE 30
 
-// Max server transfer length
+/**
+ * @brief Max server transfer length per timer tick. Must be in the range
+ * `[6;20]`. The default value is `20`, but you might want to set it a bit lower
+ * to reduce CPU usage.
+ */
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
 
-// Max client transfer length
+/**
+ * @brief Max client transfer length per timer tick. Must be in the range
+ * `[2;4]`. The default value is `4`. Changing this is not recommended, it's
+ * already too low.
+ */
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 
-// Put Interrupt Service Routines (ISR) in IWRAM (uncomment to enable)
+/**
+ * @brief Put Interrupt Service Routines (ISR) in IWRAM (uncomment to enable).
+ * This can significantly improve performance due to its faster access, but it's
+ * disabled by default to conserve IWRAM space, which is limited.
+ */
 // #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
 
-// Use send/receive latch (uncomment to enable)
+/**
+ * @brief Use send/receive latch (uncomment to enable).
+ * This makes it alternate between sends and receives on each timer tick
+ * (instead of doing both things). Enabling it will introduce some latency but
+ * also reduce overall CPU usage.
+ */
 // #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
 
 static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
@@ -108,6 +132,9 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
     if (!reset())                     \
       return false;
 
+/**
+ * @brief A high level driver for the GBA Wireless Adapter.
+ */
 class LinkWireless {
  private:
   using u32 = unsigned int;
@@ -213,6 +240,27 @@ class LinkWireless {
     bool isFull() { return currentPlayerCount == 0; }
   };
 
+  /**
+   * @brief Constructs a new LinkWireless object.
+   * @param forwarding If `true`, the server forwards all messages to the
+   * clients. Otherwise, clients only see messages sent from the server
+   * (ignoring other peers).
+   * @param retransmission If `true`, the library handles retransmission for
+   * you, so there should be no packet loss.
+   * @param maxPlayers Maximum number of allowed players. If your game only
+   * supports -for example- two players, set this to `2` as it will make
+   * transfers faster.
+   * @param timeout Number of *frames* without receiving *any* data to reset the
+   * connection.
+   * @param remoteTimeout Number of *successful transfers* without a message
+   * from a client to mark the player as disconnected.
+   * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
+   * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
+   * will transfer faster but also consume more CPU.
+   * @param sendTimerId GBA Timer to use for sending.
+   * @param asyncACKTimerId GBA Timer to use for ACKs. If you have free timers,
+   * use one here to reduce CPU usage.
+   */
   explicit LinkWireless(
       bool forwarding = true,
       bool retransmission = true,
@@ -232,8 +280,16 @@ class LinkWireless {
     this->config.asyncACKTimerId = asyncACKTimerId;
   }
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library. When an adapter is connected, it changes the
+   * state to `AUTHENTICATED`. It can also be used to disconnect or reset the
+   * adapter.
+   */
   bool activate() {
     lastError = NONE;
     isEnabled = false;
@@ -246,6 +302,11 @@ class LinkWireless {
     return success;
   }
 
+  /**
+   * @brief Puts the adapter into a low consumption mode and then deactivates
+   * the library. It returns a boolean indicating whether the transition to low
+   * consumption mode was successful.
+   */
   bool deactivate() {
     activate();
     bool success = sendCommand(COMMAND_BYE).success;
@@ -258,6 +319,17 @@ class LinkWireless {
     return success;
   }
 
+  /**
+   * @brief Starts broadcasting a server and changes the state to `SERVING`. You
+   * can optionally provide data that games will be able to read. If the adapter
+   * is already serving, this method only updates the broadcast data.
+   * @param gameName Game name. Maximum `14` characters + NULL terminator.
+   * @param userName User name. Maximum `8` characters + NULL terminator.
+   * @param gameId `(0 ~ 0x7FFF)` Game ID.
+   * \warning Updating broadcast data while serving can fail if the adapter is
+   * busy. In that case, this will return `false` and `getLastError()` will be
+   * `BUSY_TRY_AGAIN`.
+   */
   bool serve(const char* gameName = "",
              const char* userName = "",
              u16 gameId = MAX_GAME_ID) {
@@ -319,10 +391,25 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Fills the `servers` array with all the currently broadcasting
+   * servers.
+   * @param servers The array to be filled with data.
+   * \warning This action takes 1 second to complete.
+   * \warning For an async version, see `getServersAsyncStart()`.
+   */
   bool getServers(Server servers[]) {
     return getServers(servers, []() {});
   }
 
+  /**
+   * @brief Fills the `servers` array with all the currently broadcasting
+   * servers.
+   * @param servers The array to be filled with data.
+   * @param onWait A function which will be invoked each time VBlank starts.
+   * \warning This action takes 1 second to complete.
+   * \warning For an async version, see `getServersAsyncStart()`.
+   */
   template <typename F>
   bool getServers(Server servers[], F onWait) {
     if (!getServersAsyncStart())
@@ -336,6 +423,10 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Starts looking for broadcasting servers and changes the state to
+   * `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
+   */
   bool getServersAsyncStart() {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
@@ -356,6 +447,11 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Fills the `servers` array with all the currently broadcasting
+   * servers. Changes the state to `AUTHENTICATED` again.
+   * @param servers The array to be filled with data.
+   */
   bool getServersAsyncEnd(Server servers[]) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != SEARCHING) {
@@ -412,6 +508,11 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Starts a connection with `serverId` and changes the state to
+   * `CONNECTING`.
+   * @param serverId Device ID of the server.
+   */
   bool connect(u16 serverId) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != AUTHENTICATED) {
@@ -433,6 +534,12 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief When connecting, this needs to be called until the state is
+   * `CONNECTED`. It assigns a player ID. Keep in mind that `isConnected()` and
+   * `playerCount()` won't be updated until the first message from the server
+   * arrives.
+   */
   bool keepConnecting() {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (state != CONNECTING) {
@@ -470,6 +577,10 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Enqueues `data` to be sent to other nodes.
+   * @param data The value to be sent.
+   */
   bool send(u16 data, int _author = -1) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (!isSessionActive()) {
@@ -505,6 +616,11 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Fills the `messages` array with incoming messages, forwarding if
+   * needed.
+   * @param messages The array to be filled with data.
+   */
   bool receive(Message messages[]) {
     if (!isEnabled || state == NEEDS_RESET || !isSessionActive())
       return false;
@@ -528,14 +644,43 @@ class LinkWireless {
     return true;
   }
 
+  /**
+   * @brief Returns the current state (one of
+   * `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`,
+   * `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`,
+   * `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+   */
   [[nodiscard]] State getState() { return state; }
+
+  /**
+   * @brief Returns `true` if the player count is higher than `1`.
+   */
   [[nodiscard]] bool isConnected() { return sessionState.playerCount > 1; }
+
+  /**
+   * @brief Returns `true` if the state is `SERVING` or `CONNECTED`.
+   */
   [[nodiscard]] bool isSessionActive() {
     return state == SERVING || state == CONNECTED;
   }
+
+  /**
+   * @brief Returns the number of connected players.
+   */
   [[nodiscard]] u8 playerCount() { return sessionState.playerCount; }
+
+  /**
+   * @brief Returns the current player ID.
+   */
   [[nodiscard]] u8 currentPlayerId() { return sessionState.currentPlayerId; }
-  [[nodiscard]] Error getLastError(bool clear = true) {
+
+  /**
+   * @brief If one of the other methods returns `false`, you can inspect this to
+   * know the cause. After this call, the last error is cleared if `clear` is
+   * `true` (default behavior).
+   * @param clear Whether it should clear the error or not.
+   */
+  Error getLastError(bool clear = true) {
     Error error = lastError;
     if (clear)
       lastError = NONE;
@@ -547,32 +692,80 @@ class LinkWireless {
     delete linkGPIO;
   }
 
+  /**
+   * @brief Returns whether it's running an async command or not.
+   * \warning This is internal API!
+   */
   [[nodiscard]] bool _hasActiveAsyncCommand() { return asyncCommand.isActive; }
+
+  /**
+   * @brief Returns whether there's room for new outgoing messages or not.
+   * \warning This is internal API!
+   */
   [[nodiscard]] bool _canSend() {
     return !sessionState.outgoingMessages.isFull();
   }
+
+  /**
+   * @brief Returns the number of pending outgoing messages.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _getPendingCount() {
     return sessionState.outgoingMessages.size();
   }
+
+  /**
+   * @brief Returns the last packet ID.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _lastPacketId() { return sessionState.lastPacketId; }
+
+  /**
+   * @brief Returns the last confirmation received from player ID 1.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _lastConfirmationFromClient1() {
     return sessionState.lastConfirmationFromClients[1];
   }
+
+  /**
+   * @brief Returns the last packet ID received from player ID 1.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _lastPacketIdFromClient1() {
     return sessionState.lastPacketIdFromClients[1];
   }
+
+  /**
+   * @brief Returns the last confirmation received from the server.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _lastConfirmationFromServer() {
     return sessionState.lastConfirmationFromServer;
   }
+
+  /**
+   * @brief Returns the last packet ID received from the server.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _lastPacketIdFromServer() {
     return sessionState.lastPacketIdFromServer;
   }
+
+  /**
+   * @brief Returns the next pending packet ID.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _nextPendingPacketId() {
     return sessionState.outgoingMessages.isEmpty()
                ? 0
                : sessionState.outgoingMessages.peek().packetId;
   }
 
+  /**
+   * @brief This method is called by the VBLANK interrupt handler.
+   * \warning This is internal API!
+   */
   void _onVBlank() {
     if (!isEnabled)
       return;
@@ -625,6 +818,10 @@ class LinkWireless {
   void _onACKTimer() { __onACKTimer(); }
 #endif
 
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   LINK_WIRELESS_ALWAYS_INLINE void __onSerial() {
     if (!isEnabled)
       return;
@@ -679,6 +876,10 @@ class LinkWireless {
 #endif
   }
 
+  /**
+   * @brief This method is called by the TIMER interrupt handler.
+   * \warning This is internal API!
+   */
   LINK_WIRELESS_ALWAYS_INLINE void __onTimer() {
     if (!isEnabled)
       return;
@@ -699,6 +900,10 @@ class LinkWireless {
 #endif
   }
 
+  /**
+   * @brief This method is called by the other TIMER interrupt handler.
+   * \warning This is internal API!
+   */
   LINK_WIRELESS_ALWAYS_INLINE void __onACKTimer() {
     if (!isEnabled || !asyncCommand.isActive ||
         asyncCommand.ackStep == AsyncCommand::ACKStep::READY)
@@ -1732,18 +1937,30 @@ class LinkWireless {
 
 extern LinkWireless* linkWireless;
 
+/**
+ * @brief VBLANK interrupt handler.
+ */
 inline void LINK_WIRELESS_ISR_VBLANK() {
   linkWireless->_onVBlank();
 }
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_WIRELESS_ISR_SERIAL() {
   linkWireless->_onSerial();
 }
 
+/**
+ * @brief TIMER interrupt handler used for sending.
+ */
 inline void LINK_WIRELESS_ISR_TIMER() {
   linkWireless->_onTimer();
 }
 
+/**
+ * @brief TIMER interrupt handler used for ACKs.
+ */
 inline void LINK_WIRELESS_ISR_ACK_TIMER() {
   linkWireless->_onACKTimer();
 }

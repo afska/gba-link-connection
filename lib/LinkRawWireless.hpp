@@ -789,12 +789,12 @@ class LinkRawWireless {
   [[nodiscard]] State getState() { return state; }
 
   /**
-   * @brief Returns true if the player count is higher than 1.
+   * @brief Returns `true` if the player count is higher than `1`.
    */
   [[nodiscard]] bool isConnected() { return sessionState.playerCount > 1; }
 
   /**
-   * @brief Returns true if the state is `SERVING` or `CONNECTED`.
+   * @brief Returns `true` if the state is `SERVING` or `CONNECTED`.
    */
   [[nodiscard]] bool isSessionActive() {
     return state == SERVING || state == CONNECTED;
