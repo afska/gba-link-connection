@@ -602,14 +602,14 @@ class LinkWireless {
     isAddingMessage = true;
     LINK_WIRELESS_BARRIER;
 
-    sessionState.tmpMessagesToSend.push(message);
+    sessionState.newOutgoingMessages.push(message);
 
     LINK_WIRELESS_BARRIER;
     isAddingMessage = false;
     LINK_WIRELESS_BARRIER;
 
     if (isPendingClearActive) {
-      sessionState.tmpMessagesToSend.clear();
+      sessionState.newOutgoingMessages.clear();
       isPendingClearActive = false;
     }
 
@@ -1009,10 +1009,10 @@ class LinkWireless {
   };
 
   struct SessionState {
-    MessageQueue incomingMessages;      // read by user, write by irq&user
-    MessageQueue outgoingMessages;      // read and write by irq
-    MessageQueue tmpMessagesToReceive;  // read and write by irq
-    MessageQueue tmpMessagesToSend;     // read by irq, write by user&irq
+    MessageQueue incomingMessages;     // read by user, write by irq&user
+    MessageQueue outgoingMessages;     // read and write by irq
+    MessageQueue newIncomingMessages;  // read and write by irq
+    MessageQueue newOutgoingMessages;  // read by irq, write by user&irq
     u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
     u32 recvTimeout = 0;
     u32 frameRecvCount = 0;
@@ -1281,7 +1281,7 @@ class LinkWireless {
         if (!handleConfirmation(message))
           continue;
       } else {
-        sessionState.tmpMessagesToReceive.push(message);
+        sessionState.newIncomingMessages.push(message);
       }
     }
     copyIncomingState();
@@ -1467,11 +1467,11 @@ class LinkWireless {
     if (isAddingMessage)
       return;
 
-    while (!sessionState.tmpMessagesToSend.isEmpty()) {
+    while (!sessionState.newOutgoingMessages.isEmpty()) {
       if (!_canSend())
         break;
 
-      auto message = sessionState.tmpMessagesToSend.pop();
+      auto message = sessionState.newOutgoingMessages.pop();
       message.packetId = newPacketId();
       sessionState.outgoingMessages.push(message);
     }
@@ -1481,8 +1481,8 @@ class LinkWireless {
     if (isReadingMessages)
       return;
 
-    while (!sessionState.tmpMessagesToReceive.isEmpty()) {
-      auto message = sessionState.tmpMessagesToReceive.pop();
+    while (!sessionState.newIncomingMessages.isEmpty()) {
+      auto message = sessionState.newIncomingMessages.pop();
       sessionState.incomingMessages.push(message);
     }
   }
@@ -1574,9 +1574,9 @@ class LinkWireless {
       this->sessionState.incomingMessages.clear();
     this->sessionState.outgoingMessages.clear();
 
-    this->sessionState.tmpMessagesToReceive.clear();
+    this->sessionState.newIncomingMessages.clear();
     if (!isAddingMessage)
-      this->sessionState.tmpMessagesToSend.clear();
+      this->sessionState.newOutgoingMessages.clear();
     else
       isPendingClearActive = true;
 

@@ -229,7 +229,7 @@ class LinkCable {
     LINK_CABLE_BARRIER;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
-      move(_state.pendingMessages[i], state.incomingMessages[i]);
+      move(_state.readyToSyncMessages[i], state.syncedIncomingMessages[i]);
 
     LINK_CABLE_BARRIER;
     isReadingMessages = false;
@@ -276,7 +276,7 @@ class LinkCable {
    * until you *fetch new data* with `sync()`.
    */
   [[nodiscard]] bool canRead(u8 playerId) {
-    return !state.incomingMessages[playerId].isEmpty();
+    return !state.syncedIncomingMessages[playerId].isEmpty();
   }
 
   /**
@@ -284,7 +284,7 @@ class LinkCable {
    * @param playerId A player ID.
    * \warning If there's no data from that player, a `0` will be returned.
    */
-  u16 read(u8 playerId) { return state.incomingMessages[playerId].pop(); }
+  u16 read(u8 playerId) { return state.syncedIncomingMessages[playerId].pop(); }
 
   /**
    * @brief Returns the next message from player #`playerId` without dequeuing
@@ -293,7 +293,7 @@ class LinkCable {
    * \warning If there's no data from that player, a `0` will be returned.
    */
   [[nodiscard]] u16 peek(u8 playerId) {
-    return state.incomingMessages[playerId].peek();
+    return state.syncedIncomingMessages[playerId].peek();
   }
 
   /**
@@ -418,14 +418,14 @@ class LinkCable {
 
  private:
   struct ExternalState {
-    U16Queue incomingMessages[LINK_CABLE_MAX_PLAYERS];
+    U16Queue syncedIncomingMessages[LINK_CABLE_MAX_PLAYERS];
     u8 playerCount;
     u8 currentPlayerId;
   };
 
   struct InternalState {
     U16Queue outgoingMessages;
-    U16Queue pendingMessages[LINK_CABLE_MAX_PLAYERS];
+    U16Queue readyToSyncMessages[LINK_CABLE_MAX_PLAYERS];
     U16Queue newMessages[LINK_CABLE_MAX_PLAYERS];
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
@@ -478,7 +478,7 @@ class LinkCable {
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       if (!isReadingMessages)
-        _state.pendingMessages[i].clear();
+        _state.readyToSyncMessages[i].clear();
 
       _state.newMessages[i].clear();
       setOffline(i);
@@ -511,7 +511,7 @@ class LinkCable {
 
   void clearIncomingMessages() {
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
-      state.incomingMessages[i].clear();
+      state.syncedIncomingMessages[i].clear();
   }
 
   void copyState() {
@@ -520,9 +520,9 @@ class LinkCable {
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       if (isOnline(i))
-        move(_state.newMessages[i], _state.pendingMessages[i]);
+        move(_state.newMessages[i], _state.readyToSyncMessages[i]);
       else
-        _state.pendingMessages[i].clear();
+        _state.readyToSyncMessages[i].clear();
     }
   }
 
@@ -580,5 +580,22 @@ inline void LINK_CABLE_ISR_SERIAL() {
 inline void LINK_CABLE_ISR_TIMER() {
   linkCable->_onTimer();
 }
+
+/**
+ * NOTES:
+ * For end users:
+ *   - `sync()` fills an incoming queue (`syncedIncomingMessages`).
+ *   - `read(...)` pops one message from that queue.
+ *   - `send(...)` pushes one message to an outgoing queue (`outgoingMessages`).
+ * Behind the curtains:
+ *   - On each SERIAL IRQ:
+ *     -> Each new message is pushed to `newMessages`.
+ *   - On each VBLANK, SERIAL, or TIMER IRQ:
+ *     -> **If the user is not syncing**:
+ *       -> All `newMessages` are moved to `readyToSyncMessages`.
+ *     -> **If the user is not sending**:
+ *       -> Pops one message from `outgoingMessages` and transfers it.
+ *   - `sync()` moves all `readyToSyncMessages` to `syncedIncomingMessages`.
+ */
 
 #endif  // LINK_CABLE_H
