@@ -3,6 +3,7 @@ build
 .vscode
 
 # Files
+.DS_Store
 *.elf
 *.gba
 *.sav
