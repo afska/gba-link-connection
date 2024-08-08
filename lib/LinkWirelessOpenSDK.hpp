@@ -26,6 +26,7 @@ class LinkWirelessOpenSDK {
   using u16 = unsigned short;
   using u8 = unsigned char;
 
+ public:
   static constexpr int MAX_TRANSFER_WORDS = 23;
   static constexpr int MAX_TRANSFER_BYTES_SERVER = 87;
   static constexpr int MAX_TRANSFER_BYTES_CLIENT = 16;

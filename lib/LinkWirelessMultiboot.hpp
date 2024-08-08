@@ -36,7 +36,7 @@
  * @brief Enable logging.
  * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
  */
-#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+// #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v7.0.0";
@@ -312,7 +312,7 @@ class LinkWirelessMultiboot {
     }
 
     __attribute__((noinline)) u32 transferred() {
-      return cursor * LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH;
+      return cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
     }
 
     __attribute__((noinline)) LinkWirelessOpenSDK::SequenceNumber sequence() {
@@ -496,8 +496,8 @@ class LinkWirelessMultiboot {
                                                 C cancel) {
     LinkWirelessOpenSDK::ChildrenData childrenData;
     std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1> transfers;
-    u8 firstPagePatch[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
-    for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; i++) {
+    u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER];
+    for (u32 i = 0; i < LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER; i++) {
       firstPagePatch[i] =
           i >= ROM_HEADER_PATCH_OFFSET &&
                   i < ROM_HEADER_PATCH_OFFSET + ROM_HEADER_PATCH_SIZE
@@ -514,7 +514,7 @@ class LinkWirelessMultiboot {
         return finish(CANCELED);
 
       u32 cursor = findMinCursor(transfers);
-      u32 offset = cursor * LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH;
+      u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
       auto sequence = LinkWirelessOpenSDK::SequenceNumber::fromPacketId(cursor);
       const u8* bufferToSend = cursor == 0 ? (const u8*)firstPagePatch : rom;
 
@@ -621,8 +621,6 @@ class LinkWirelessMultiboot {
       LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>
           sendBuffer,
       C cancel) {
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
-
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
@@ -635,8 +633,6 @@ class LinkWirelessMultiboot {
         },
         cancel))
 
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
-
     return SUCCESS;
   }
 
@@ -644,8 +640,6 @@ class LinkWirelessMultiboot {
   __attribute__((noinline)) Result exchangeACKData(u8 clientNumber,
                                                    V validatePacket,
                                                    C cancel) {
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
-
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
@@ -655,16 +649,12 @@ class LinkWirelessMultiboot {
         },
         validatePacket, cancel))
 
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
-
     return SUCCESS;
   }
 
   template <typename F, typename V, typename C>
   __attribute__((noinline)) Result
   exchangeData(u8 clientNumber, F sendAction, V validatePacket, C cancel) {
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
-
     volatile bool hasFinished = false;
     while (!hasFinished) {
       if (cancel(progress))
@@ -685,8 +675,6 @@ class LinkWirelessMultiboot {
         }
       }
     }
-
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
 
     return SUCCESS;
   }
