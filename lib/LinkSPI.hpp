@@ -101,8 +101,7 @@ class LinkSPI {
 
   /**
    * @brief Activates the library in a specific `mode`.
-   * @param mode One of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`,
-   * or `LinkSPI::Mode::MASTER_2MBPS`.
+   * @param mode One of the enum values from `LinkSPI::Mode`.
    */
   void activate(Mode mode) {
     this->mode = mode;
@@ -228,9 +227,8 @@ class LinkSPI {
   }
 
   /**
-   * @brief Returns the state of the last async transfer (one of
-   * `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or
-   * `LinkSPI::AsyncState::READY`).
+   * @brief Returns the state of the last async transfer.
+   * @return One of the enum values from `LinkSPI::AsyncState`.
    */
   [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
 

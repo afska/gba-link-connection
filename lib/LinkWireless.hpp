@@ -645,10 +645,8 @@ class LinkWireless {
   }
 
   /**
-   * @brief Returns the current state (one of
-   * `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`,
-   * `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`,
-   * `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+   * @brief Returns the current state.
+   * @return One of the enum values from `LinkWireless::State`.
    */
   [[nodiscard]] State getState() { return state; }
 

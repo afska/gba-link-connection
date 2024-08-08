@@ -175,9 +175,8 @@ class LinkRawCable {
   }
 
   /**
-   * @brief Returns the state of the last async transfer (one of
-   * `LinkRawCable::AsyncState::IDLE`, `LinkRawCable::AsyncState::WAITING`, or
-   * `LinkRawCable::AsyncState::READY`).
+   * @brief Returns the state of the last async transfer
+   * @return One of the enum values from `LinkRawCable::AsyncState`.
    */
   [[nodiscard]] AsyncState getAsyncState() { return asyncState; }
 

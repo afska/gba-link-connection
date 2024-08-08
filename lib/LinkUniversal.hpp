@@ -51,10 +51,17 @@
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
-// Max players. Default = 5 (keep in mind that LinkCable's limit is 4)
+/**
+ * @brief Maximum number of players. Default = 5
+ * \warning Keep in mind that LinkCable's limit is 4.
+ */
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_WIRELESS_MAX_PLAYERS
 
-// Game ID Filter. Default = 0 (no filter)
+/**
+ * @brief Game ID Filter (`0x0000` ~ `0x7fff`). Default = 0 (no filter)
+ * This restricts wireless connections to rooms with a specific game ID.
+ * When disabled, it connects to any game ID and uses `0x7fff` when serving.
+ */
 #define LINK_UNIVERSAL_GAME_ID_FILTER 0
 
 static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.0.0";
@@ -62,6 +69,9 @@ static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.0.0";
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA
 
+/**
+ * @brief A multiplayer connection for the Link Cable and the Wireless Adapter.
+ */
 class LinkUniversal {
  private:
   using u32 = unsigned int;
@@ -106,6 +116,18 @@ class LinkUniversal {
     s8 asyncACKTimerId;
   };
 
+  /**
+   * @brief Constructs a new LinkUniversal object.
+   * @param protocol One of the enum values from `LinkUniversal::Protocol`.
+   * @param gameName The game name that will be broadcasted in wireless sessions
+   * (max `14` characters). The string must be a null-terminated character
+   * array. The library uses this to only connect to servers from the same game.
+   * @param cableOptions All the LinkCable constructor parameters in one struct.
+   * @param wirelessOptions All the LinkWireless constructor parameters in one
+   * struct.
+   * @param randomSeed Random seed used for waits to prevent livelocks. If you
+   * use _libtonc_, pass `__qran_seed`.
+   */
   explicit LinkUniversal(Protocol protocol = AUTODETECT,
                          const char* gameName = "",
                          CableOptions cableOptions =
@@ -137,13 +159,22 @@ class LinkUniversal {
     this->config.gameName = gameName;
   }
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library.
+   */
   void activate() {
     reset();
     isEnabled = true;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     isEnabled = false;
     linkCable->deactivate();
@@ -151,21 +182,30 @@ class LinkUniversal {
     resetState();
   }
 
-  void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
-  [[nodiscard]] Protocol getProtocol() { return this->config.protocol; }
-
+  /**
+   * @brief Returns `true` if there are at least 2 connected players.
+   */
   [[nodiscard]] bool isConnected() { return state == CONNECTED; }
 
+  /**
+   * @brief Returns the number of connected players (`0~5`).
+   */
   [[nodiscard]] u8 playerCount() {
     return mode == LINK_CABLE ? linkCable->playerCount()
                               : linkWireless->playerCount();
   }
 
+  /**
+   * @brief Returns the current player ID (`0~4`).
+   */
   [[nodiscard]] u8 currentPlayerId() {
     return mode == LINK_CABLE ? linkCable->currentPlayerId()
                               : linkWireless->currentPlayerId();
   }
 
+  /**
+   * @brief Call this method every time you need to fetch new data.
+   */
   void sync() {
     if (!isEnabled)
       return;
@@ -236,10 +276,22 @@ class LinkUniversal {
     }
   }
 
+  /**
+   * @brief Waits for data from player #`playerId`. Returns `true` on success,
+   * or `false` on disconnection.
+   * @param playerId A player ID.
+   */
   bool waitFor(u8 playerId) {
     return waitFor(playerId, []() { return false; });
   }
 
+  /**
+   * @brief Waits for data from player #`playerId`. Returns `true` on success,
+   * or `false` on disconnection.
+   * @param playerId Number of player to wait data from.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the wait be aborted.
+   */
   template <typename F>
   bool waitFor(u8 playerId, F cancel) {
     sync();
@@ -255,16 +307,40 @@ class LinkUniversal {
     return isConnected() && canRead(playerId);
   }
 
+  /**
+   * @brief Returns `true` if there are pending messages from player
+   * #`playerId`.
+   * @param playerId A player ID.
+   * \warning Keep in mind that if this returns `false`, it will keep doing so
+   * until you *fetch new data* with `sync()`.
+   */
   [[nodiscard]] bool canRead(u8 playerId) {
     return !incomingMessages[playerId].isEmpty();
   }
 
+  /**
+   * @brief Dequeues and returns the next message from player #`playerId`.
+   * @param playerId A player ID.
+   * \warning If there's no data from that player, a `0` will be returned.
+   */
   u16 read(u8 playerId) { return incomingMessages[playerId].pop(); }
 
+  /**
+   * @brief Returns the next message from player #`playerId` without dequeuing
+   * it.
+   * @param playerId A player ID.
+   * \warning If there's no data from that player, a `0` will be returned.
+   */
   [[nodiscard]] u16 peek(u8 playerId) {
     return incomingMessages[playerId].peek();
   }
 
+  /**
+   * @brief Sends `data` to all connected players.
+   * If the buffers are full, it either drops the oldest message (on cable mode)
+   * or ignores it returning `false` (on wireless mode).
+   * @param data The value to be sent.
+   */
   bool send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
       return false;
@@ -277,20 +353,58 @@ class LinkUniversal {
     }
   }
 
+  /**
+   * @brief Returns the current state.
+   * @return One of the enum values from `LinkUniversal::State`.
+   */
   [[nodiscard]] State getState() { return state; }
+
+  /**
+   * @brief Returns the active mode.
+   * @return One of the enum values from `LinkUniversal::Mode`.
+   */
   [[nodiscard]] Mode getMode() { return mode; }
+
+  /**
+   * @brief Returns the active protocol
+   * @return One of the enum values from `LinkUniversal::Protocol`.
+   */
+  [[nodiscard]] Protocol getProtocol() { return this->config.protocol; }
+
+  /**
+   * @brief Returns the wireless state (same as `LinkWireless::getState()`).
+   */
   [[nodiscard]] LinkWireless::State getWirelessState() {
     return linkWireless->getState();
   }
+
+  /**
+   * @brief Sets the active `protocol`.
+   * @param protocol One of the enum values from `LinkUniversal::Protocol`.
+   */
+  void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
 
   ~LinkUniversal() {
     delete linkCable;
     delete linkWireless;
   }
 
+  /**
+   * @brief Returns the wait count.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _getWaitCount() { return waitCount; }
+
+  /**
+   * @brief Returns the sub-wait count.
+   * \warning This is internal API!
+   */
   [[nodiscard]] u32 _getSubWaitCount() { return subWaitCount; }
 
+  /**
+   * @brief This method is called by the VBLANK interrupt handler.
+   * \warning This is internal API!
+   */
   void _onVBlank() {
     if (mode == LINK_CABLE)
       linkCable->_onVBlank();
@@ -298,6 +412,10 @@ class LinkUniversal {
       linkWireless->_onVBlank();
   }
 
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   void _onSerial() {
     if (mode == LINK_CABLE)
       linkCable->_onSerial();
@@ -305,6 +423,10 @@ class LinkUniversal {
       linkWireless->_onSerial();
   }
 
+  /**
+   * @brief This method is called by the TIMER interrupt handler.
+   * \warning This is internal API!
+   */
   void _onTimer() {
     if (mode == LINK_CABLE)
       linkCable->_onTimer();
@@ -312,6 +434,10 @@ class LinkUniversal {
       linkWireless->_onTimer();
   }
 
+  /**
+   * @brief This method is called by the other TIMER interrupt handler.
+   * \warning This is internal API!
+   */
   void _onACKTimer() {
     if (mode == LINK_WIRELESS)
       linkWireless->_onACKTimer();
@@ -549,18 +675,30 @@ class LinkUniversal {
 
 extern LinkUniversal* linkUniversal;
 
+/**
+ * @brief VBLANK interrupt handler.
+ */
 inline void LINK_UNIVERSAL_ISR_VBLANK() {
   linkUniversal->_onVBlank();
 }
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_UNIVERSAL_ISR_SERIAL() {
   linkUniversal->_onSerial();
 }
 
+/**
+ * @brief TIMER interrupt handler used for sending.
+ */
 inline void LINK_UNIVERSAL_ISR_TIMER() {
   linkUniversal->_onTimer();
 }
 
+/**
+ * @brief TIMER interrupt handler used for ACKs.
+ */
 inline void LINK_UNIVERSAL_ISR_ACK_TIMER() {
   linkUniversal->_onACKTimer();
 }
