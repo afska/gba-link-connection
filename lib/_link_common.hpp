@@ -78,6 +78,18 @@ inline volatile u16& _REG_VCOUNT =
 inline volatile u16& _REG_KEYS =
     *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0130);
 
+inline volatile u16& _REG_TM1CNT_L =
+    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0104);
+
+inline volatile u16& _REG_TM1CNT_H =
+    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0106);
+
+inline volatile u16& _REG_TM2CNT_L =
+    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0108);
+
+inline volatile u16& _REG_TM2CNT_H =
+    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x010a);
+
 inline volatile _TMR_REC* const _REG_TM =
     reinterpret_cast<volatile _TMR_REC*>(_REG_BASE + 0x0100);
 
@@ -86,8 +98,10 @@ static constexpr u16 _TM_FREQ_1 = 0;          //!< 1 cycle/tick (16.7 MHz)
 static constexpr u16 _TM_FREQ_64 = 0x0001;    //!< 64 cycles/tick (262 kHz)
 static constexpr u16 _TM_FREQ_256 = 0x0002;   //!< 256 cycles/tick (66 kHz)
 static constexpr u16 _TM_FREQ_1024 = 0x0003;  //!< 1024 cycles/tick (16 kHz)
-static constexpr u16 _TM_IRQ = 0x0040;        //!< Enable timer irq
-static constexpr u16 _TM_ENABLE = 0x0080;     //!< Enable timer
+static constexpr u16 _TM_CASCADE =
+    0x0004;  //!< Increment when preceding timer overflows
+static constexpr u16 _TM_IRQ = 0x0040;     //!< Enable timer irq
+static constexpr u16 _TM_ENABLE = 0x0080;  //!< Enable timer
 
 static constexpr u16 _IRQ_VBLANK = 0x0001;  //!< Catch VBlank irq
 static constexpr u16 _IRQ_TIMER0 = 0x0008;  //!< Catch timer 0 irq

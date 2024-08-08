@@ -663,7 +663,7 @@ class LinkUniversal {
     return num;
   }
 
-  int _qran(void) {
+  int _qran() {
     randomSeed = 1664525 * randomSeed + 1013904223;
     return (randomSeed >> 16) & 0x7FFF;
   }
