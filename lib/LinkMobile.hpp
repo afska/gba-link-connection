@@ -51,6 +51,24 @@ class LinkMobile {
   using u16 = unsigned short;
   using u8 = unsigned char;
 
+  static constexpr int COMMAND_BEGIN_SESSION = 0x10;
+  static constexpr int COMMAND_END_SESSION = 0x11;
+  static constexpr int COMMAND_DIAL_TELEPHONE = 0x12;
+  static constexpr int COMMAND_HANG_UP_TELEPHONE = 0x13;
+  static constexpr int COMMAND_WAIT_FOR_TELEPHONE_CALL = 0x14;
+  static constexpr int COMMAND_TRANSFER_DATA = 0x15;
+  static constexpr int COMMAND_TELEPHONE_STATUS = 0x17;
+  static constexpr int COMMAND_SIO32 = 0x18;
+  static constexpr int COMMAND_READ_CONFIGURATION_DATA = 0x19;
+  static constexpr int COMMAND_ISP_LOGIN = 0x21;
+  static constexpr int COMMAND_ISP_LOGOUT = 0x22;
+  static constexpr int COMMAND_OPEN_TCP_CONNECTION = 0x23;
+  static constexpr int COMMAND_CLOSE_TCP_CONNECTION = 0x24;
+  static constexpr int COMMAND_OPEN_UDP_CONNECTION = 0x25;
+  static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
+  static constexpr int COMMAND_DNS_QUERY = 0x28;
+  static constexpr int COMMAND_ERROR_STATUS = 0x6E;
+
  public:
   std::function<void(std::string str)> debug;  // TODO: REMOVE
 
@@ -133,6 +151,51 @@ class LinkMobile {
   Config config;
 
  private:
+  struct MagicBytes {
+    u8 magic1 = 0x99;
+    u8 magic2 = 0x66;
+  } __attribute__((packed));
+
+  struct PacketHeader {
+    u8 commandId;
+    u8 _unused_;
+    u8 dataSizeH;  // The Mobile Adapter discards any packets bigger than 255
+                   // bytes, effectively forcing the high byte of the packet
+                   // data length to be 0.
+    u8 dataSizeL;
+  } __attribute__((packed));
+
+  struct PacketChecksum {
+    // The Packet Checksum is simply the 16-bit sum of all previous header bytes
+    // and all previous packet data bytes. It does not include the magic bytes.
+    // The checksum is transmitted big-endian.
+    u8 checksumH;
+    u8 checksumL;
+  } __attribute__((packed));
+
+  struct AcknowledgementSignal {
+    u8 deviceId;    // The first byte is the Device ID OR'ed with the value 0x80
+    u8 commandAck;  // The second byte is 0x00 for the sender. The receiver
+                    // transfers the Command ID from the Packet Header XOR'ed by
+                    // 0x80.
+
+    /* Device ID | OR Value | Device Type
+    0x01		| 0x81		| Game Boy Advance
+    0x08		| 0x88		| PDC Mobile Adapter (Blue)
+    0x09		| 0x89		| cdmaOne Mobile Adapter (Yellow)
+    0x0A		| 0x8A		| PHS Mobile Adapter (Green)
+    0x0B		| 0x8B		| DDI Mobile Adapter (Red)
+    */
+  } __attribute__((packed));
+
+  struct Command {
+    MagicBytes magicBytes;
+    PacketHeader packetHeader;
+    u8 data[255];
+    PacketChecksum packetChecksum;
+    AcknowledgementSignal acknowledgementSignal;
+  };
+
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   Error lastError = NONE;
@@ -164,7 +227,8 @@ class LinkMobile {
   bool start() {
     startTimer();
 
-    linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+    linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+                      LinkSPI::DataSize::SIZE_8BIT);
 
     if (!login())
       return false;
@@ -188,7 +252,7 @@ class LinkMobile {
   }
 
   bool login() {
-    // TODO: ASD
+    // TODO: IMPLEMENT
     return false;
   }
 
