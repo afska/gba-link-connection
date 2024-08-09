@@ -1014,7 +1014,7 @@ class LinkRawWireless {
         false, customAck);
 
     if (customAck && !acknowledge())
-      return LINK_SPI_NO_DATA;
+      return LINK_SPI_NO_DATA_32;
 
     return receivedData;
   }
@@ -1032,7 +1032,7 @@ class LinkRawWireless {
         false, true);
 
     if (!reverseAcknowledgeStart())
-      return LINK_SPI_NO_DATA;
+      return LINK_SPI_NO_DATA_32;
 
     return receivedData;
   }

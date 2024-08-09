@@ -42,37 +42,14 @@
 
 #include "_link_common.hpp"
 
-/**
- * @brief 8-bit mode (uncomment to enable)
- */
-// #define LINK_SPI_8BIT_MODE
-
 static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
 
-#ifdef LINK_SPI_8BIT_MODE
-#define LINK_SPI_DATA_TYPE u8
-#endif
-#ifndef LINK_SPI_8BIT_MODE
-#define LINK_SPI_DATA_TYPE u32
-#endif
-
-#ifdef LINK_SPI_8BIT_MODE
-#define LINK_SPI_DATA_REG Link::_REG_SIODATA8
-#endif
-#ifndef LINK_SPI_8BIT_MODE
-#define LINK_SPI_DATA_REG Link::_REG_SIODATA32
-#endif
-
-#ifdef LINK_SPI_8BIT_MODE
-#define LINK_SPI_NO_DATA 0xff
-#endif
-#ifndef LINK_SPI_8BIT_MODE
-#define LINK_SPI_NO_DATA 0xffffffff
-#endif
+#define LINK_SPI_NO_DATA_32 0xffffffff
+#define LINK_SPI_NO_DATA_8 0xff
+#define LINK_SPI_NO_DATA LINK_SPI_NO_DATA_32
 
 /**
  * @brief An SPI handler for the Link Port (Normal Mode, either 32 or 8 bits).
- * 32-bit transfers by default. Set `LINK_SPI_8BIT_MODE` for 8-bit transfers.
  */
 class LinkSPI {
  private:
@@ -92,6 +69,7 @@ class LinkSPI {
 
  public:
   enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
+  enum DataSize { SIZE_32BIT, SIZE_8BIT };
   enum AsyncState { IDLE, WAITING, READY };
 
   /**
@@ -102,9 +80,11 @@ class LinkSPI {
   /**
    * @brief Activates the library in a specific `mode`.
    * @param mode One of the enum values from `LinkSPI::Mode`.
+   * @param dataSize One of the enum values from `LinkSPI::DataSize`.
    */
-  void activate(Mode mode) {
+  void activate(Mode mode, DataSize dataSize = SIZE_32BIT) {
     this->mode = mode;
+    this->dataSize = dataSize;
     this->waitMode = false;
     this->asyncState = IDLE;
     this->asyncData = 0;
@@ -144,7 +124,7 @@ class LinkSPI {
    * @param data The value to be sent.
    * \warning Blocks the system until completion.
    */
-  LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data) {
+  u32 transfer(u32 data) {
     return transfer(data, []() { return false; });
   }
 
@@ -156,12 +136,12 @@ class LinkSPI {
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
-  LINK_SPI_DATA_TYPE transfer(LINK_SPI_DATA_TYPE data,
-                              F cancel,
-                              bool _async = false,
-                              bool _customAck = false) {
+  u32 transfer(u32 data,
+               F cancel,
+               bool _async = false,
+               bool _customAck = false) {
     if (asyncState != IDLE)
-      return LINK_SPI_NO_DATA;
+      return noData();
 
     setData(data);
 
@@ -177,20 +157,20 @@ class LinkSPI {
         disableTransfer();
         setInterruptsOff();
         asyncState = IDLE;
-        return LINK_SPI_NO_DATA;
+        return noData();
       }
 
     enableTransfer();
     startTransfer();
 
     if (_async)
-      return LINK_SPI_NO_DATA;
+      return noData();
 
     while (!isReady())
       if (cancel()) {
         stopTransfer();
         disableTransfer();
-        return LINK_SPI_NO_DATA;
+        return noData();
       }
 
     if (!_customAck)
@@ -207,7 +187,7 @@ class LinkSPI {
    * \warning If `waitMode` (*) is active, blocks the system until completion.
    * See `setWaitModeActive(...)`.
    */
-  void transferAsync(LINK_SPI_DATA_TYPE data) {
+  void transferAsync(u32 data) {
     transfer(data, []() { return false; }, true);
   }
 
@@ -222,7 +202,7 @@ class LinkSPI {
    * cancellation. See `setWaitModeActive(...)`.
    */
   template <typename F>
-  void transferAsync(LINK_SPI_DATA_TYPE data, F cancel) {
+  void transferAsync(u32 data, F cancel) {
     transfer(data, cancel, true);
   }
 
@@ -236,11 +216,11 @@ class LinkSPI {
    * @brief If the async state is `READY`, returns the remote data and switches
    * the state back to `IDLE`. If not, returns an empty response.
    */
-  [[nodiscard]] LINK_SPI_DATA_TYPE getAsyncData() {
+  [[nodiscard]] u32 getAsyncData() {
     if (asyncState != READY)
-      return LINK_SPI_NO_DATA;
+      return noData();
 
-    LINK_SPI_DATA_TYPE data = asyncData;
+    u32 data = asyncData;
     asyncState = IDLE;
     return data;
   }
@@ -249,6 +229,11 @@ class LinkSPI {
    * @brief Returns the current `mode`.
    */
   [[nodiscard]] Mode getMode() { return mode; }
+
+  /**
+   * @brief Returns the current `dataSize`.
+   */
+  [[nodiscard]] DataSize getDataSize() { return dataSize; }
 
   /**
    * @brief Enables or disables `waitMode`: The GBA adds an extra feature over
@@ -304,19 +289,19 @@ class LinkSPI {
 
  private:
   Mode mode = Mode::SLAVE;
+  DataSize dataSize = DataSize::SIZE_32BIT;
   bool waitMode = false;
   AsyncState asyncState = IDLE;
-  LINK_SPI_DATA_TYPE asyncData = 0;
+  u32 asyncData = 0;
   volatile bool isEnabled = false;
 
   void setNormalMode() {
     Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
-#ifdef LINK_SPI_8BIT_MODE
-    Link::_REG_SIOCNT = 0;
-#endif
-#ifndef LINK_SPI_8BIT_MODE
-    Link::_REG_SIOCNT = 1 << BIT_LENGTH;
-#endif
+
+    if (dataSize == SIZE_32BIT)
+      Link::_REG_SIOCNT = 1 << BIT_LENGTH;
+    else
+      Link::_REG_SIOCNT = 0;
   }
 
   void setGeneralPurposeMode() {
@@ -324,8 +309,21 @@ class LinkSPI {
                       (1 << BIT_GENERAL_PURPOSE_HIGH);
   }
 
-  void setData(LINK_SPI_DATA_TYPE data) { LINK_SPI_DATA_REG = data; }
-  LINK_SPI_DATA_TYPE getData() { return LINK_SPI_DATA_REG; }
+  void setData(u32 data) {
+    if (dataSize == SIZE_32BIT)
+      Link::_REG_SIODATA32 = data;
+    else
+      Link::_REG_SIODATA8 = data & 0xff;
+  }
+
+  u32 getData() {
+    return dataSize == SIZE_32BIT ? Link::_REG_SIODATA32
+                                  : Link::_REG_SIODATA8 & 0xff;
+  }
+
+  u32 noData() {
+    return dataSize == SIZE_32BIT ? LINK_SPI_NO_DATA_32 : LINK_SPI_NO_DATA_8;
+  }
 
   void enableTransfer() { _setSOLow(); }
   void disableTransfer() { _setSOHigh(); }

@@ -1792,7 +1792,7 @@ class LinkWireless {
         false, customAck);
 
     if (customAck && !acknowledge())
-      return LINK_SPI_NO_DATA;
+      return LINK_SPI_NO_DATA_32;
 
     return receivedData;
   }

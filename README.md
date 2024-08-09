@@ -310,7 +310,7 @@ Name | Return type | Description
 
 *(aka Normal Mode)*
 
-This is the GBA's implementation of SPI. You can use this to interact with other GBAs or computers that know SPI. By default, it uses 32-bit packets, but you can switch to 8-bit by enabling the compile-time constant `LINK_SPI_8BIT_MODE`.
+This is the GBA's implementation of SPI. You can use this to interact with other GBAs or computers that know SPI.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
@@ -319,7 +319,7 @@ This is the GBA's implementation of SPI. You can use this to interact with other
 Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
-`activate(mode)` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`).
+`activate(mode, [dataSize])` | - | Activates the library in a specific `mode` (one of `LinkSPI::Mode::SLAVE`, `LinkSPI::Mode::MASTER_256KBPS`, or `LinkSPI::Mode::MASTER_2MBPS`). By default, the `dataSize` is 32-bit, but can be changed to `LinkSPI::DataSize::SIZE_8BIT`.
 `deactivate()` | - | Deactivates the library.
 `transfer(data)` | **u32** | Exchanges `data` with the other end. Returns the received data.
 `transfer(data, cancel)` | **u32** | Like `transfer(data)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the transfer if it returns `true`.
@@ -327,6 +327,7 @@ Name | Return type | Description
 `getAsyncState()` | **LinkSPI::AsyncState** | Returns the state of the last async transfer (one of `LinkSPI::AsyncState::IDLE`, `LinkSPI::AsyncState::WAITING`, or `LinkSPI::AsyncState::READY`).
 `getAsyncData()` | **u32** | If the async state is `READY`, returns the remote data and switches the state back to `IDLE`. If not, returns an empty response.
 `getMode()` | **LinkSPI::Mode** | Returns the current `mode`.
+`getDataSize()` | **LinkSPI::DataSize** | Returns the current `dataSize`.
 `setWaitModeActive(isActive)` | - | Enables or disables `waitMode` (*).
 `isWaitModeActive()` | **bool** | Returns whether `waitMode` (*) is active or not.
 
