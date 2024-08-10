@@ -2,7 +2,7 @@
 #define LINK_MOBILE_H
 
 // --------------------------------------------------------------------------
-// A high level driver for the GB Mobile Adapter.
+// A high level driver for the Mobile Adapter GB.
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -40,7 +40,7 @@
     if (!reset())                   \
       return false;
 
-static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v6.7.0";
+static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
 
@@ -52,13 +52,12 @@ class LinkMobile {
 
   static constexpr int FRAME_LINES = 228;
   static constexpr int PING_WAIT = FRAME_LINES * 7;
-  static constexpr int CMD_TIMEOUT = 100;
+  static constexpr int CMD_TIMEOUT = FRAME_LINES * 3;
   static constexpr int ADAPTER_WAITING = 0xD2;
   static constexpr int GBA_WAITING = 0x4B;
   static constexpr int OR_VALUE = 0x80;
-  static constexpr int LOGIN_STEPS = 8;
-  static constexpr int COMMAND_HEADER_VALUE1 = 0x99;
-  static constexpr int COMMAND_HEADER_VALUE2 = 0x66;
+  static constexpr int COMMAND_MAGIC_VALUE1 = 0x99;
+  static constexpr int COMMAND_MAGIC_VALUE2 = 0x66;
   static constexpr int DEVICE_GBA = 0x1;
   static constexpr int DEVICE_ADAPTER_BLUE = 0x8;
   static constexpr int DEVICE_ADAPTER_YELLOW = 0x9;
@@ -81,9 +80,12 @@ class LinkMobile {
   static constexpr int COMMAND_OPEN_UDP_CONNECTION = 0x25;
   static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
   static constexpr int COMMAND_DNS_QUERY = 0x28;
-  static constexpr int COMMAND_ERROR_STATUS = 0x6E;
+  static constexpr int COMMAND_ERROR_STATUS = 0x6E | OR_VALUE;
+
+  static constexpr int LOGIN_PARTS_SIZE = 8;
   static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
                                        0x45, 0x4e, 0x44, 0x4f};
+
   static constexpr int SUPPORTED_DEVICES_SIZE = 4;
   static constexpr u8 SUPPORTED_DEVICES[] = {
       DEVICE_ADAPTER_BLUE, DEVICE_ADAPTER_YELLOW, DEVICE_ADAPTER_GREEN,
@@ -172,11 +174,11 @@ class LinkMobile {
 
  private:
   struct MagicBytes {
-    u8 magic1 = COMMAND_HEADER_VALUE1;
-    u8 magic2 = COMMAND_HEADER_VALUE2;
+    u8 magic1 = COMMAND_MAGIC_VALUE1;
+    u8 magic2 = COMMAND_MAGIC_VALUE2;
 
     bool isValid() {
-      return magic1 == COMMAND_HEADER_VALUE1 && magic2 == COMMAND_HEADER_VALUE2;
+      return magic1 == COMMAND_MAGIC_VALUE1 && magic2 == COMMAND_MAGIC_VALUE2;
     }
   } __attribute__((packed));
 
@@ -203,35 +205,32 @@ class LinkMobile {
     u8 checksumL;
   } __attribute__((packed));
 
-  struct AcknowledgementSignal {
-    u8 deviceId;    // The first byte is the Device ID OR'ed with the value 0x80
-    u8 commandAck;  // The second byte is 0x00 for the sender. The receiver
-                    // transfers the Command ID from the Packet Header XOR'ed by
-                    // 0x80.
-
-    /* Device ID | OR Value | Device Type
-    0x01		| 0x81		| Game Boy Advance
-    0x08		| 0x88		| PDC Mobile Adapter (Blue)
-    0x09		| 0x89		| cdmaOne Mobile Adapter (Yellow)
-    0x0A		| 0x8A		| PHS Mobile Adapter (Green)
-    0x0B		| 0x8B		| DDI Mobile Adapter (Red)
-    */
-  } __attribute__((packed));
-
   struct Command {
     MagicBytes magicBytes;
     PacketHeader packetHeader;
     PacketData packetData;
     PacketChecksum packetChecksum;
-    AcknowledgementSignal acknowledgementSignal;
+  };
+
+  enum CommandStatus {
+    SUCCESS,
+    NOT_WAITING,
+    INVALID_DEVICE_ID,
+    INVALID_COMMAND_ACK,
+    INVALID_MAGIC_BYTES,
+    WEIRD_DATA_SIZE,
+    WRONG_CHECKSUM,
+    ERROR,
+    UNEXPECTED_RESPONSE
   };
 
   struct CommandResponse {
-    bool success = false;
+    CommandStatus status;
     Command command;
   };
 
-  static constexpr u32 HEADER_SIZE = sizeof(MagicBytes) + sizeof(PacketHeader);
+  static constexpr u32 PREAMBLE_SIZE =
+      sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
   LinkSPI* linkSPI = new LinkSPI();
@@ -307,119 +306,170 @@ class LinkMobile {
   }
 
   bool login() {
-    for (u32 i = 0; i < LOGIN_STEPS; i++)
+    for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
       addData(LOGIN_PARTS[i], i == 0);
     auto command = buildCommand(COMMAND_BEGIN_SESSION, true);
 
+    return withSyncCommand([&command, this]() {
+      auto response = sendCommandWithResponse(command);
+      if (response.status != CommandStatus::SUCCESS) {
+        // TODO: RESET
+        if (response.status == CommandStatus::ERROR) {
+          mgbalog("error %d", response.command.packetData.bytes[1]);
+        } else {
+          mgbalog("status %d", response.status);
+        }
+        return false;
+      }
+
+      mgbalog("SUCCESS!");
+
+      return true;
+    });
+  }
+
+  template <typename F>
+  bool withSyncCommand(F action) {
     LINK_MOBILE_BARRIER;
     isSendingSyncCommand = true;
     LINK_MOBILE_BARRIER;
 
-    sendCommand(command);
+    bool result = action();
 
     LINK_MOBILE_BARRIER;
     isSendingSyncCommand = false;
     LINK_MOBILE_BARRIER;
 
-    return false;
+    return result;
   }
 
-  CommandResponse sendCommand(Command command) {
+  CommandResponse sendCommandWithResponse(Command command) {
     CommandResponse response;
+    CommandStatus status = sendCommand(command);
+    if (status != CommandStatus::SUCCESS) {
+      response.status = status;
+      return response;
+    }
 
-    mgbalog("----------");
-    mgbalog("sending command: %d (%d bytes).", command.packetHeader.commandId,
-            command.packetHeader.dataSizeL);
-
-    // COMMAND
-    const u8* commandBytes = (const u8*)&command;
-    for (u32 i = 0; i < HEADER_SIZE + command.packetHeader.dataSizeL; i++) {
-      u8 r;
-      if ((r = transfer(commandBytes[i])) != ADAPTER_WAITING) {
-        mgbalog("! not waiting: %d", r);
+    response = receiveCommand();
+    auto remoteCommand = response.command.packetHeader.commandId;
+    if (remoteCommand == COMMAND_ERROR_STATUS) {
+      if (response.command.packetHeader.dataSizeL != 2 ||
+          response.command.packetData.bytes[0] !=
+              command.packetHeader.commandId) {
+        response.status = CommandStatus::UNEXPECTED_RESPONSE;
+        return response;
+      } else {
+        response.status = CommandStatus::ERROR;
         return response;
       }
     }
-    mgbalog("header + data sent");
-    commandBytes += HEADER_SIZE + LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
-    for (u32 i = 0; i < CHECKSUM_SIZE; i++) {
-      u8 r;
-      if ((r = transfer(commandBytes[i])) != ADAPTER_WAITING) {
-        mgbalog("! not waiting: %d (i = %d)", r, i);
-        return response;
-      }
-    }
-    mgbalog("checksum sent");
-    if (!exchangeACK(0, command.packetHeader.commandId ^ OR_VALUE)) {
-      mgbalog("! invalid ack");
-      return response;
-    }
-    mgbalog("COMMAND SENT!");
 
-    // wait for response????
-    u8 rr;
-    while ((rr = transfer(GBA_WAITING)) == ADAPTER_WAITING) {
-      mgbalog("waiting %d", rr);
-    }
-    mgbalog("AND NOW %d", rr);
-    if (rr != COMMAND_HEADER_VALUE1) {
-      mgbalog("invalid magic response 1! %d", rr);
+    if (remoteCommand != (command.packetHeader.commandId | OR_VALUE)) {
+      response.status = CommandStatus::UNEXPECTED_RESPONSE;
       return response;
     }
-    rr = transfer(GBA_WAITING);
-    if (rr != COMMAND_HEADER_VALUE2) {
-      mgbalog("invalid magic response 2! %d", rr);
-      return response;
-    }
-
-    u8* responseCommandBytes = (u8*)&response.command;
-    for (u32 i = 2; i < HEADER_SIZE; i++)
-      responseCommandBytes[i] = transfer(GBA_WAITING);
-    responseCommandBytes += HEADER_SIZE;
-    // TODO: VALIDATE high bytes = 0?
-    mgbalog("header received, %d bytes",
-            response.command.packetHeader.dataSizeL);
-    for (u32 i = 0; i < response.command.packetHeader.dataSizeL; i++)
-      responseCommandBytes[i] = transfer(GBA_WAITING);
-    responseCommandBytes += LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
-    mgbalog("bytes received");
-    for (u32 i = 0; i < CHECKSUM_SIZE; i++)
-      responseCommandBytes[i] = transfer(GBA_WAITING);
-    mgbalog("checksum received");
-
-    // VALIDATE CHECKSUM
-    u32 rChecksum = response.command.packetHeader.sum();
-    for (u32 i = 0; i < response.command.packetHeader.dataSizeL; i++)
-      rChecksum += response.command.packetData.bytes[i];
-    if (msB16(rChecksum) != response.command.packetChecksum.checksumH) {
-      mgbalog("wrong checksum H: expected %d but got %d", msB16(rChecksum),
-              response.command.packetChecksum.checksumH);
-      return response;
-    }
-    if (lsB16(rChecksum) != response.command.packetChecksum.checksumL) {
-      mgbalog("wrong checksum L: expected %d but got %d", lsB16(rChecksum),
-              response.command.packetChecksum.checksumL);
-      return response;
-    }
-
-    if (!exchangeACK(response.command.packetHeader.commandId ^ OR_VALUE, 0)) {
-      mgbalog("! invalid ack response");
-      return response;
-    }
-
-    mgbalog("I think everything worked? %d",
-            response.command.packetHeader.dataSizeL);
 
     return response;
   }
 
-  bool exchangeACK(u8 localCommandAck, u8 remoteCommandAck) {
-    if (!isSupportedAdapter(transfer(DEVICE_GBA | OR_VALUE)))
-      return false;
-    if (transfer(localCommandAck) != remoteCommandAck)
-      return false;
+  CommandStatus sendCommand(Command command) {
+    const u8* commandBytes = (const u8*)&command;
 
-    return true;
+    // Magic Bytes + Packet Header + Data
+    for (u32 i = 0; i < PREAMBLE_SIZE + command.packetHeader.dataSizeL; i++) {
+      if (transfer(commandBytes[i]) != ADAPTER_WAITING)
+        return CommandStatus::NOT_WAITING;
+    }
+    commandBytes += PREAMBLE_SIZE + LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
+
+    // Packet Checksum
+    for (u32 i = 0; i < CHECKSUM_SIZE; i++) {
+      if (transfer(commandBytes[i]) != ADAPTER_WAITING)
+        return CommandStatus::NOT_WAITING;
+    }
+
+    // Acknowledgement Signal
+    auto ackResult = acknowledge(0, command.packetHeader.commandId ^ OR_VALUE);
+    if (ackResult != SUCCESS)
+      return ackResult;
+
+    return CommandStatus::SUCCESS;
+  }
+
+  CommandResponse receiveCommand() {
+    CommandResponse response;
+    u8* responseBytes = (u8*)&response.command;
+
+    // Magic Bytes
+    if (waitForMeaningfulByte() != COMMAND_MAGIC_VALUE1) {
+      response.status = CommandStatus::INVALID_MAGIC_BYTES;
+      return response;
+    }
+    if (transfer(GBA_WAITING) != COMMAND_MAGIC_VALUE2) {
+      response.status = CommandStatus::INVALID_MAGIC_BYTES;
+      return response;
+    }
+
+    // Packet Header
+    for (u32 i = 2; i < PREAMBLE_SIZE; i++)
+      responseBytes[i] = transfer(GBA_WAITING);
+    responseBytes += PREAMBLE_SIZE;
+    if (response.command.packetHeader._unusedDataSizeH_ != 0) {
+      response.status = CommandStatus::WEIRD_DATA_SIZE;
+      return response;
+    }
+
+    // Data
+    for (u32 i = 0; i < response.command.packetHeader.dataSizeL; i++)
+      responseBytes[i] = transfer(GBA_WAITING);
+    responseBytes += LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
+
+    // Packet Checksum
+    for (u32 i = 0; i < CHECKSUM_SIZE; i++)
+      responseBytes[i] = transfer(GBA_WAITING);
+    u32 rChecksum = response.command.packetHeader.sum();
+    for (u32 i = 0; i < response.command.packetHeader.dataSizeL; i++)
+      rChecksum += response.command.packetData.bytes[i];
+    if (msB16(rChecksum) != response.command.packetChecksum.checksumH ||
+        lsB16(rChecksum) != response.command.packetChecksum.checksumL) {
+      response.status = CommandStatus::WRONG_CHECKSUM;
+      return response;
+    }
+
+    // Acknowledgement Signal
+    auto ackResult =
+        acknowledge(response.command.packetHeader.commandId ^ OR_VALUE, 0);
+    if (ackResult != SUCCESS) {
+      response.status = ackResult;
+      return response;
+    }
+
+    response.status = CommandStatus::SUCCESS;
+
+    return response;
+  }
+
+  u8 waitForMeaningfulByte() {
+    u32 lines = 0;
+    u32 vCount = Link::_REG_VCOUNT;
+
+    u8 value = GBA_WAITING;
+    while ((value = transfer(GBA_WAITING)) == ADAPTER_WAITING) {
+      if (cmdTimeout(lines, vCount))
+        break;
+    }
+
+    return value;
+  }
+
+  CommandStatus acknowledge(u8 localCommandAck, u8 remoteCommandAck) {
+    if (!isSupportedAdapter(transfer(DEVICE_GBA | OR_VALUE)))
+      return CommandStatus::INVALID_DEVICE_ID;
+    if (transfer(localCommandAck) != remoteCommandAck)
+      return CommandStatus::INVALID_COMMAND_ACK;
+
+    return CommandStatus::SUCCESS;
   }
 
   bool isSupportedAdapter(u8 ack) {
@@ -444,8 +494,6 @@ class LinkMobile {
       checksum += command.packetData.bytes[i];
     command.packetChecksum.checksumH = msB16(checksum);
     command.packetChecksum.checksumL = lsB16(checksum);
-    command.acknowledgementSignal.deviceId = DEVICE_GBA | OR_VALUE;
-    command.acknowledgementSignal.commandAck = 0;
 
     return command;
   }
@@ -453,7 +501,6 @@ class LinkMobile {
   u32 transfer(u32 data) {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
-    // mgbalog("SENDING %d", data);
     u32 receivedData = linkSPI->transfer(
         data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); });
 
