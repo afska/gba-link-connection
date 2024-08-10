@@ -64,8 +64,13 @@ start:
     firstTime = false;
   }
 
+again:
   // (3) Initialize the library
-  linkMobile->activate();
+  if (!linkMobile->activate()) {
+    log("Adapter not connected!\n\nPress A to try again");
+    waitFor(KEY_A);
+    goto again;
+  }
 
   bool activating = false;
 

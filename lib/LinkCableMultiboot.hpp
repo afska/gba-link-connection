@@ -200,7 +200,7 @@ class LinkCableMultiboot {
   PartialResult sendHeader(const u8* rom, F cancel) {
     u16* headerOut = (u16*)rom;
 
-    for (int i = 0; i < HEADER_SIZE; i += 2) {
+    for (u32 i = 0; i < HEADER_SIZE; i += 2) {
       linkRawCable->transfer(*(headerOut++), cancel);
       if (cancel())
         return ABORTED;

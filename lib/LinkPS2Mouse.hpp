@@ -136,7 +136,7 @@ class LinkPS2Mouse {
     s16 x = readByte();
     if ((status & (1 << 4)) != 0)
       // negative
-      for (int i = 8; i < 16; i++)
+      for (u32 i = 8; i < 16; i++)
         x |= 1 << i;
     return x;
   }
@@ -145,7 +145,7 @@ class LinkPS2Mouse {
     s16 y = readByte();
     if ((status & (1 << 5)) != 0)
       // negative
-      for (int i = 8; i < 16; i++)
+      for (u32 i = 8; i < 16; i++)
         y |= 1 << i;
     return y;
   }
@@ -203,7 +203,7 @@ class LinkPS2Mouse {
       ;
     while (!getClock())
       ;  // eat start bit
-    for (int i = 0; i < 8; i++) {
+    for (u32 i = 0; i < 8; i++) {
       data |= readBit() << i;
     }
     readBit();  // parity bit

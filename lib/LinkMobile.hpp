@@ -96,11 +96,7 @@ class LinkMobile {
 
   enum State {
     NEEDS_RESET,
-    AUTHENTICATED,
-    SEARCHING,
-    SERVING,
-    CONNECTING,
-    CONNECTED
+    SESSION_ACTIVE,
   };
 
   enum Error {
@@ -119,20 +115,22 @@ class LinkMobile {
 
   bool activate() {
     lastError = NONE;
-    isEnabled = false;
+    isEnabled = false;  // TODO: EARLY ACTIVATE
 
     LINK_MOBILE_BARRIER;
     bool success = reset();
     LINK_MOBILE_BARRIER;
 
+    if (!success) {
+      deactivate();
+      return false;
+    }
+
     isEnabled = true;
-    return success;
+    return true;
   }
 
   bool deactivate() {
-    activate();
-    // bool success = sendCommand(LINK_MOBILE_COMMAND_BYE).success;
-
     lastError = NONE;
     isEnabled = false;
     resetState();
@@ -159,6 +157,33 @@ class LinkMobile {
   void _onSerial() {
     if (!isEnabled)
       return;
+
+    linkSPI->_onSerial();
+    if (linkSPI->getAsyncState() != LinkSPI::AsyncState::READY) {
+      mgbalog("NOT READY");
+      return;
+    }
+    u32 newData = linkSPI->getAsyncData();
+
+    if (state != SESSION_ACTIVE) {  // TODO: AUTHENTICATING state
+      mgbalog("SESSION NOT ACTIVE");
+      return;
+    }
+
+    if (asyncCommand.isActive) {
+      if (asyncCommand.state == AsyncCommand::State::PENDING) {
+        if (isSIO32Mode()) {
+          // TODO: IMPLEMENT
+          mgbalog("sio32");
+        } else {
+          updateAsyncCommandSIO8(newData);
+        }
+
+        if (asyncCommand.state == AsyncCommand::State::COMPLETED) {
+          processAsyncCommand();
+        }
+      }
+    }
   }
 
   void _onTimer() {
@@ -176,10 +201,6 @@ class LinkMobile {
   struct MagicBytes {
     u8 magic1 = COMMAND_MAGIC_VALUE1;
     u8 magic2 = COMMAND_MAGIC_VALUE2;
-
-    bool isValid() {
-      return magic1 == COMMAND_MAGIC_VALUE1 && magic2 == COMMAND_MAGIC_VALUE2;
-    }
   } __attribute__((packed));
 
   struct PacketData {
@@ -212,7 +233,8 @@ class LinkMobile {
     PacketChecksum packetChecksum;
   };
 
-  enum CommandStatus {
+  enum CommandResult {
+    PENDING,
     SUCCESS,
     NOT_WAITING,
     INVALID_DEVICE_ID,
@@ -225,14 +247,28 @@ class LinkMobile {
   };
 
   struct CommandResponse {
-    CommandStatus status;
+    CommandResult result = CommandResult::PENDING;
     Command command;
+  };
+
+  struct AsyncCommand {
+    enum State { PENDING, COMPLETED };
+    enum Direction { SENDING, RECEIVING };
+
+    volatile State state;
+    volatile CommandResult result;
+    volatile u32 transferred;  // (in SIO32: words; in SIO8: bytes)
+    Command cmd;
+    volatile Direction direction;
+    volatile bool isWaiting;
+    volatile bool isActive = false;
   };
 
   static constexpr u32 PREAMBLE_SIZE =
       sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
+  AsyncCommand asyncCommand;
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   PacketData nextCommandData;
@@ -240,6 +276,12 @@ class LinkMobile {
   volatile bool isSendingSyncCommand = false;
   Error lastError = NONE;
   volatile bool isEnabled = false;
+
+  void processAsyncCommand() {  // (irq only)
+    asyncCommand.isActive = false;
+    // TODO: IMPLEMENT
+    mgbalog("PROCESSED! %d", asyncCommand.result);
+  }
 
   void addData(u8 value, bool start = false) {
     if (start)
@@ -264,7 +306,10 @@ class LinkMobile {
     return start();
   }
 
-  void resetState() { this->state = NEEDS_RESET; }
+  void resetState() {
+    this->asyncCommand.isActive = false;
+    this->state = NEEDS_RESET;
+  }
 
   void stop() {
     stopTimer();
@@ -284,7 +329,7 @@ class LinkMobile {
 
     // TODO: SWITCH TO 32BITS?
 
-    state = AUTHENTICATED;
+    state = SESSION_ACTIVE;
 
     return true;
   }
@@ -312,19 +357,19 @@ class LinkMobile {
 
     return withSyncCommand([&command, this]() {
       auto response = sendCommandWithResponse(command);
-      if (response.status != CommandStatus::SUCCESS) {
+      if (response.result != CommandResult::SUCCESS) {
         // TODO: RESET
-        if (response.status == CommandStatus::ERROR) {
+        if (response.result == CommandResult::ERROR) {
           mgbalog("error %d", response.command.packetData.bytes[1]);
         } else {
-          mgbalog("status %d", response.status);
+          mgbalog("result %d", response.result);
         }
         return false;
+      } else {
+        mgbalog("success size %d", response.command.packetHeader.dataSizeL);
       }
 
-      mgbalog("SUCCESS!");
-
-      return true;
+      return response.result == CommandResult::SUCCESS;
     });
   }
 
@@ -345,9 +390,15 @@ class LinkMobile {
 
   CommandResponse sendCommandWithResponse(Command command) {
     CommandResponse response;
-    CommandStatus status = sendCommand(command);
-    if (status != CommandStatus::SUCCESS) {
-      response.status = status;
+
+    isEnabled = true;        // TODO: !!!
+    state = SESSION_ACTIVE;  // TODO: !!!
+    sendCommandAsync(command);
+    while (asyncCommand.isActive)
+      ;
+    if (asyncCommand.result != CommandResult::SUCCESS) {
+      mgbalog("NOT SUCCESS 1 %d", asyncCommand.result);
+      response.result = asyncCommand.result;
       return response;
     }
 
@@ -357,44 +408,20 @@ class LinkMobile {
       if (response.command.packetHeader.dataSizeL != 2 ||
           response.command.packetData.bytes[0] !=
               command.packetHeader.commandId) {
-        response.status = CommandStatus::UNEXPECTED_RESPONSE;
+        response.result = CommandResult::UNEXPECTED_RESPONSE;
         return response;
       } else {
-        response.status = CommandStatus::ERROR;
+        response.result = CommandResult::ERROR;
         return response;
       }
     }
 
     if (remoteCommand != (command.packetHeader.commandId | OR_VALUE)) {
-      response.status = CommandStatus::UNEXPECTED_RESPONSE;
+      response.result = CommandResult::UNEXPECTED_RESPONSE;
       return response;
     }
 
     return response;
-  }
-
-  CommandStatus sendCommand(Command command) {
-    const u8* commandBytes = (const u8*)&command;
-
-    // Magic Bytes + Packet Header + Data
-    for (u32 i = 0; i < PREAMBLE_SIZE + command.packetHeader.dataSizeL; i++) {
-      if (transfer(commandBytes[i]) != ADAPTER_WAITING)
-        return CommandStatus::NOT_WAITING;
-    }
-    commandBytes += PREAMBLE_SIZE + LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
-
-    // Packet Checksum
-    for (u32 i = 0; i < CHECKSUM_SIZE; i++) {
-      if (transfer(commandBytes[i]) != ADAPTER_WAITING)
-        return CommandStatus::NOT_WAITING;
-    }
-
-    // Acknowledgement Signal
-    auto ackResult = acknowledge(0, command.packetHeader.commandId ^ OR_VALUE);
-    if (ackResult != SUCCESS)
-      return ackResult;
-
-    return CommandStatus::SUCCESS;
   }
 
   CommandResponse receiveCommand() {
@@ -403,11 +430,11 @@ class LinkMobile {
 
     // Magic Bytes
     if (waitForMeaningfulByte() != COMMAND_MAGIC_VALUE1) {
-      response.status = CommandStatus::INVALID_MAGIC_BYTES;
+      response.result = CommandResult::INVALID_MAGIC_BYTES;
       return response;
     }
     if (transfer(GBA_WAITING) != COMMAND_MAGIC_VALUE2) {
-      response.status = CommandStatus::INVALID_MAGIC_BYTES;
+      response.result = CommandResult::INVALID_MAGIC_BYTES;
       return response;
     }
 
@@ -416,7 +443,7 @@ class LinkMobile {
       responseBytes[i] = transfer(GBA_WAITING);
     responseBytes += PREAMBLE_SIZE;
     if (response.command.packetHeader._unusedDataSizeH_ != 0) {
-      response.status = CommandStatus::WEIRD_DATA_SIZE;
+      response.result = CommandResult::WEIRD_DATA_SIZE;
       return response;
     }
 
@@ -433,7 +460,7 @@ class LinkMobile {
       rChecksum += response.command.packetData.bytes[i];
     if (msB16(rChecksum) != response.command.packetChecksum.checksumH ||
         lsB16(rChecksum) != response.command.packetChecksum.checksumL) {
-      response.status = CommandStatus::WRONG_CHECKSUM;
+      response.result = CommandResult::WRONG_CHECKSUM;
       return response;
     }
 
@@ -441,13 +468,108 @@ class LinkMobile {
     auto ackResult =
         acknowledge(response.command.packetHeader.commandId ^ OR_VALUE, 0);
     if (ackResult != SUCCESS) {
-      response.status = ackResult;
+      response.result = ackResult;
       return response;
     }
 
-    response.status = CommandStatus::SUCCESS;
+    response.result = CommandResult::SUCCESS;
 
     return response;
+  }
+
+  bool sendCommandAsync(Command command) {  // (irq only)
+    if (asyncCommand.isActive /* || isSendingSyncCommand*/)
+      return false;
+
+    mgbalog("Sending");
+
+    asyncCommand.state = AsyncCommand::State::PENDING;
+    asyncCommand.result = CommandResult::PENDING;
+    asyncCommand.transferred = 0;
+    asyncCommand.cmd = command;
+    asyncCommand.direction = AsyncCommand::Direction::SENDING;
+    asyncCommand.isWaiting = false;
+    asyncCommand.isActive = true;
+
+    if (isSIO32Mode()) {
+      transferAsync(*((u32*)&command));  // TODO: CHECK ENDIANNESS
+      asyncCommand.transferred += 4;
+    } else {
+      transferAsync(command.magicBytes.magic1);
+      asyncCommand.transferred++;
+    }
+
+    return true;
+  }
+
+  void updateAsyncCommandSIO8(u32 newData) {  // (irq only)
+    mgbalog("Updating");
+    const u8* commandBytes = (const u8*)&asyncCommand.cmd;
+    u32 preambleAndDataSize =
+        PREAMBLE_SIZE + asyncCommand.cmd.packetHeader.dataSizeL;
+
+    if (asyncCommand.transferred < preambleAndDataSize) {
+      // Magic Bytes + Packet Header + Data
+      if (newData != ADAPTER_WAITING) {
+        asyncCommand.result = CommandResult::NOT_WAITING;
+        asyncCommand.state = AsyncCommand::State::COMPLETED;
+        return;
+      }
+
+      transferAsync(commandBytes[asyncCommand.transferred]);
+      asyncCommand.transferred++;
+    } else if (asyncCommand.transferred < preambleAndDataSize + CHECKSUM_SIZE) {
+      commandBytes += PREAMBLE_SIZE + LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
+
+      // Packet Checksum
+      if (newData != ADAPTER_WAITING) {
+        asyncCommand.result = CommandResult::NOT_WAITING;
+        asyncCommand.state = AsyncCommand::State::COMPLETED;
+        return;
+      }
+
+      transferAsync(
+          commandBytes[asyncCommand.transferred - preambleAndDataSize]);
+      asyncCommand.transferred++;
+    } else if (asyncCommand.transferred ==
+               preambleAndDataSize + CHECKSUM_SIZE) {
+      // Acknowledgement Signal (1)
+      if (newData != ADAPTER_WAITING) {
+        asyncCommand.result = CommandResult::NOT_WAITING;
+        asyncCommand.state = AsyncCommand::State::COMPLETED;
+        return;
+      }
+
+      transferAsync(DEVICE_GBA | OR_VALUE);
+      asyncCommand.transferred++;
+    } else if (asyncCommand.transferred ==
+               preambleAndDataSize + CHECKSUM_SIZE + 1) {
+      // Acknowledgement Signal (2)
+      if (!isSupportedAdapter(newData)) {
+        asyncCommand.result = CommandResult::INVALID_DEVICE_ID;
+        asyncCommand.state = AsyncCommand::State::COMPLETED;
+        return;
+      }
+
+      transferAsync(0);
+      asyncCommand.transferred++;
+    } else if (asyncCommand.transferred ==
+               preambleAndDataSize + CHECKSUM_SIZE + 2) {
+      // Acknowledgement Signal (3)
+      if (newData != (asyncCommand.cmd.packetHeader.commandId ^ OR_VALUE)) {
+        asyncCommand.result = CommandResult::INVALID_COMMAND_ACK;
+        asyncCommand.state = AsyncCommand::State::COMPLETED;
+        mgbalog("COMMAND ACK: %d, expected %d, cmd %d", newData,
+                asyncCommand.cmd.packetHeader.commandId ^ OR_VALUE,
+                asyncCommand.cmd.packetHeader.commandId);
+        return;
+      }
+
+      asyncCommand.result = CommandResult::SUCCESS;
+      asyncCommand.state = AsyncCommand::State::COMPLETED;
+    } else {
+      mgbalog("wtf");  // TODO: REMOVE
+    }
   }
 
   u8 waitForMeaningfulByte() {
@@ -463,13 +585,13 @@ class LinkMobile {
     return value;
   }
 
-  CommandStatus acknowledge(u8 localCommandAck, u8 remoteCommandAck) {
+  CommandResult acknowledge(u8 localCommandAck, u8 remoteCommandAck) {
     if (!isSupportedAdapter(transfer(DEVICE_GBA | OR_VALUE)))
-      return CommandStatus::INVALID_DEVICE_ID;
+      return CommandResult::INVALID_DEVICE_ID;
     if (transfer(localCommandAck) != remoteCommandAck)
-      return CommandStatus::INVALID_COMMAND_ACK;
+      return CommandResult::INVALID_COMMAND_ACK;
 
-    return CommandStatus::SUCCESS;
+    return CommandResult::SUCCESS;
   }
 
   bool isSupportedAdapter(u8 ack) {
@@ -498,6 +620,13 @@ class LinkMobile {
     return command;
   }
 
+  void transferAsync(u32 data) {
+    // TODO: SEND WITH TIMER INTERRUPT; ADD SMALL WAIT (4 ticks for sio8, 8
+    // ticks for sio32)
+    linkSPI->transferAsync(data);
+    // TODO: asyncCommand.isWaiting = true;
+  }
+
   u32 transfer(u32 data) {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
@@ -505,6 +634,10 @@ class LinkMobile {
         data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); });
 
     return receivedData;
+  }
+
+  bool isSIO32Mode() {
+    return linkSPI->getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
   }
 
   bool cmdTimeout(u32& lines, u32& vCount) {
@@ -528,23 +661,6 @@ class LinkMobile {
       if (Link::_REG_VCOUNT != vCount) {
         count++;
         vCount = Link::_REG_VCOUNT;
-      }
-    };
-  }
-
-  template <typename F>
-  void waitVBlanks(u32 vBlanks, F onVBlank) {
-    u32 count = 0;
-    u32 vCount = Link::_REG_VCOUNT;
-
-    while (count < vBlanks) {
-      if (Link::_REG_VCOUNT != vCount) {
-        vCount = Link::_REG_VCOUNT;
-
-        if (vCount == 160) {
-          onVBlank();
-          count++;
-        }
       }
     };
   }
