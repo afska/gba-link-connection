@@ -37,7 +37,7 @@
 // considerations:
 // - when using Normal Mode between two GBAs, use a GBC Link Cable!
 // - only use the 2Mbps mode with custom hardware (very short wires)!
-// - don't send 0xFFFFFFFF (or 0xFF in 8-bit mode), it's reserved for errors!
+// - returns 0xFFFFFFFF (or 0xFF) on misuse or cancelled transfers!
 // --------------------------------------------------------------------------
 
 #include "_link_common.hpp"

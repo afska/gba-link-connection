@@ -29,6 +29,7 @@
 // TODO: Remove
 #include <functional>
 #include <string>
+#include "_link_tonc_mgba.h"
 
 #define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
 
@@ -41,9 +42,7 @@
 
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v6.7.0";
 
-void LINK_MOBILE_ISR_VBLANK();
-void LINK_MOBILE_ISR_SERIAL();
-void LINK_MOBILE_ISR_TIMER();
+#define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
 
 class LinkMobile {
  private:
@@ -51,12 +50,27 @@ class LinkMobile {
   using u16 = unsigned short;
   using u8 = unsigned char;
 
+  static constexpr int FRAME_LINES = 228;
+  static constexpr int PING_WAIT = FRAME_LINES * 7;
+  static constexpr int CMD_TIMEOUT = 100;
+  static constexpr int ADAPTER_WAITING = 0xD2;
+  static constexpr int GBA_WAITING = 0x4B;
+  static constexpr int OR_VALUE = 0x80;
+  static constexpr int LOGIN_STEPS = 8;
+  static constexpr int COMMAND_HEADER_VALUE1 = 0x99;
+  static constexpr int COMMAND_HEADER_VALUE2 = 0x66;
+  static constexpr int DEVICE_GBA = 0x1;
+  static constexpr int DEVICE_ADAPTER_BLUE = 0x8;
+  static constexpr int DEVICE_ADAPTER_YELLOW = 0x9;
+  static constexpr int DEVICE_ADAPTER_GREEN = 0xA;
+  static constexpr int DEVICE_ADAPTER_RED = 0xB;
   static constexpr int COMMAND_BEGIN_SESSION = 0x10;
   static constexpr int COMMAND_END_SESSION = 0x11;
   static constexpr int COMMAND_DIAL_TELEPHONE = 0x12;
   static constexpr int COMMAND_HANG_UP_TELEPHONE = 0x13;
   static constexpr int COMMAND_WAIT_FOR_TELEPHONE_CALL = 0x14;
   static constexpr int COMMAND_TRANSFER_DATA = 0x15;
+  static constexpr int COMMAND_RESET = 0x16;
   static constexpr int COMMAND_TELEPHONE_STATUS = 0x17;
   static constexpr int COMMAND_SIO32 = 0x18;
   static constexpr int COMMAND_READ_CONFIGURATION_DATA = 0x19;
@@ -68,6 +82,12 @@ class LinkMobile {
   static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
   static constexpr int COMMAND_DNS_QUERY = 0x28;
   static constexpr int COMMAND_ERROR_STATUS = 0x6E;
+  static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
+                                       0x45, 0x4e, 0x44, 0x4f};
+  static constexpr int SUPPORTED_DEVICES_SIZE = 4;
+  static constexpr u8 SUPPORTED_DEVICES[] = {
+      DEVICE_ADAPTER_BLUE, DEVICE_ADAPTER_YELLOW, DEVICE_ADAPTER_GREEN,
+      DEVICE_ADAPTER_RED};
 
  public:
   std::function<void(std::string str)> debug;  // TODO: REMOVE
@@ -152,17 +172,27 @@ class LinkMobile {
 
  private:
   struct MagicBytes {
-    u8 magic1 = 0x99;
-    u8 magic2 = 0x66;
+    u8 magic1 = COMMAND_HEADER_VALUE1;
+    u8 magic2 = COMMAND_HEADER_VALUE2;
+
+    bool isValid() {
+      return magic1 == COMMAND_HEADER_VALUE1 && magic2 == COMMAND_HEADER_VALUE2;
+    }
+  } __attribute__((packed));
+
+  struct PacketData {
+    u8 bytes[LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH];
   } __attribute__((packed));
 
   struct PacketHeader {
     u8 commandId;
-    u8 _unused_;
-    u8 dataSizeH;  // The Mobile Adapter discards any packets bigger than 255
-                   // bytes, effectively forcing the high byte of the packet
-                   // data length to be 0.
+    u8 _unused_ = 0;
+    u8 _unusedDataSizeH_ = 0;  // The Mobile Adapter discards any packets bigger
+                               // than 255 bytes, effectively forcing the high
+                               // byte of the packet data length to be 0.
     u8 dataSizeL;
+
+    u16 sum() { return commandId + _unused_ + _unusedDataSizeH_ + dataSizeL; }
   } __attribute__((packed));
 
   struct PacketChecksum {
@@ -191,15 +221,33 @@ class LinkMobile {
   struct Command {
     MagicBytes magicBytes;
     PacketHeader packetHeader;
-    u8 data[255];
+    PacketData packetData;
     PacketChecksum packetChecksum;
     AcknowledgementSignal acknowledgementSignal;
   };
 
+  struct CommandResponse {
+    bool success = false;
+    Command command;
+  };
+
+  static constexpr u32 HEADER_SIZE = sizeof(MagicBytes) + sizeof(PacketHeader);
+  static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
+
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
+  PacketData nextCommandData;
+  u32 nextCommandDataSize = 0;
+  volatile bool isSendingSyncCommand = false;
   Error lastError = NONE;
   volatile bool isEnabled = false;
+
+  void addData(u8 value, bool start = false) {
+    if (start)
+      nextCommandDataSize = 0;
+    nextCommandData.bytes[nextCommandDataSize] = value;
+    nextCommandDataSize++;
+  }
 
   void copyName(char* target, const char* source, u32 length) {
     u32 len = std::strlen(source);
@@ -230,6 +278,8 @@ class LinkMobile {
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                       LinkSPI::DataSize::SIZE_8BIT);
 
+    pingAdapter();
+
     if (!login())
       return false;
 
@@ -251,13 +301,167 @@ class LinkMobile {
     //     Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
   }
 
+  void pingAdapter() {
+    transfer(0);
+    wait(PING_WAIT);
+  }
+
   bool login() {
-    // TODO: IMPLEMENT
+    for (u32 i = 0; i < LOGIN_STEPS; i++)
+      addData(LOGIN_PARTS[i], i == 0);
+    auto command = buildCommand(COMMAND_BEGIN_SESSION, true);
+
+    LINK_MOBILE_BARRIER;
+    isSendingSyncCommand = true;
+    LINK_MOBILE_BARRIER;
+
+    sendCommand(command);
+
+    LINK_MOBILE_BARRIER;
+    isSendingSyncCommand = false;
+    LINK_MOBILE_BARRIER;
+
     return false;
   }
 
+  CommandResponse sendCommand(Command command) {
+    CommandResponse response;
+
+    mgbalog("----------");
+    mgbalog("sending command: %d (%d bytes).", command.packetHeader.commandId,
+            command.packetHeader.dataSizeL);
+
+    // COMMAND
+    const u8* commandBytes = (const u8*)&command;
+    for (u32 i = 0; i < HEADER_SIZE + command.packetHeader.dataSizeL; i++) {
+      u8 r;
+      if ((r = transfer(commandBytes[i])) != ADAPTER_WAITING) {
+        mgbalog("! not waiting: %d", r);
+        return response;
+      }
+    }
+    mgbalog("header + data sent");
+    commandBytes += HEADER_SIZE + LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
+    for (u32 i = 0; i < CHECKSUM_SIZE; i++) {
+      u8 r;
+      if ((r = transfer(commandBytes[i])) != ADAPTER_WAITING) {
+        mgbalog("! not waiting: %d (i = %d)", r, i);
+        return response;
+      }
+    }
+    mgbalog("checksum sent");
+    if (!exchangeACK(0, command.packetHeader.commandId ^ OR_VALUE)) {
+      mgbalog("! invalid ack");
+      return response;
+    }
+    mgbalog("COMMAND SENT!");
+
+    // wait for response????
+    u8 rr;
+    while ((rr = transfer(GBA_WAITING)) == ADAPTER_WAITING) {
+      mgbalog("waiting %d", rr);
+    }
+    mgbalog("AND NOW %d", rr);
+    if (rr != COMMAND_HEADER_VALUE1) {
+      mgbalog("invalid magic response 1! %d", rr);
+      return response;
+    }
+    rr = transfer(GBA_WAITING);
+    if (rr != COMMAND_HEADER_VALUE2) {
+      mgbalog("invalid magic response 2! %d", rr);
+      return response;
+    }
+
+    u8* responseCommandBytes = (u8*)&response.command;
+    for (u32 i = 2; i < HEADER_SIZE; i++)
+      responseCommandBytes[i] = transfer(GBA_WAITING);
+    responseCommandBytes += HEADER_SIZE;
+    // TODO: VALIDATE high bytes = 0?
+    mgbalog("header received, %d bytes",
+            response.command.packetHeader.dataSizeL);
+    for (u32 i = 0; i < response.command.packetHeader.dataSizeL; i++)
+      responseCommandBytes[i] = transfer(GBA_WAITING);
+    responseCommandBytes += LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
+    mgbalog("bytes received");
+    for (u32 i = 0; i < CHECKSUM_SIZE; i++)
+      responseCommandBytes[i] = transfer(GBA_WAITING);
+    mgbalog("checksum received");
+
+    // VALIDATE CHECKSUM
+    u32 rChecksum = response.command.packetHeader.sum();
+    for (u32 i = 0; i < response.command.packetHeader.dataSizeL; i++)
+      rChecksum += response.command.packetData.bytes[i];
+    if (msB16(rChecksum) != response.command.packetChecksum.checksumH) {
+      mgbalog("wrong checksum H: expected %d but got %d", msB16(rChecksum),
+              response.command.packetChecksum.checksumH);
+      return response;
+    }
+    if (lsB16(rChecksum) != response.command.packetChecksum.checksumL) {
+      mgbalog("wrong checksum L: expected %d but got %d", lsB16(rChecksum),
+              response.command.packetChecksum.checksumL);
+      return response;
+    }
+
+    if (!exchangeACK(response.command.packetHeader.commandId ^ OR_VALUE, 0)) {
+      mgbalog("! invalid ack response");
+      return response;
+    }
+
+    mgbalog("I think everything worked? %d",
+            response.command.packetHeader.dataSizeL);
+
+    return response;
+  }
+
+  bool exchangeACK(u8 localCommandAck, u8 remoteCommandAck) {
+    if (!isSupportedAdapter(transfer(DEVICE_GBA | OR_VALUE)))
+      return false;
+    if (transfer(localCommandAck) != remoteCommandAck)
+      return false;
+
+    return true;
+  }
+
+  bool isSupportedAdapter(u8 ack) {
+    for (u32 i = 0; i < SUPPORTED_DEVICES_SIZE; i++) {
+      if ((SUPPORTED_DEVICES[i] | OR_VALUE) == ack)
+        return true;
+    }
+
+    return false;
+  }
+
+  Command buildCommand(u8 type, bool withData = false) {
+    Command command;
+    command.packetHeader.commandId = type;
+    command.packetHeader._unused_ = 0;
+    command.packetHeader._unusedDataSizeH_ = 0;
+    command.packetHeader.dataSizeL = withData ? (u8)nextCommandDataSize : 0;
+    if (withData)
+      command.packetData = nextCommandData;
+    u16 checksum = command.packetHeader.sum();
+    for (u32 i = 0; i < command.packetHeader.dataSizeL; i++)
+      checksum += command.packetData.bytes[i];
+    command.packetChecksum.checksumH = msB16(checksum);
+    command.packetChecksum.checksumL = lsB16(checksum);
+    command.acknowledgementSignal.deviceId = DEVICE_GBA | OR_VALUE;
+    command.acknowledgementSignal.commandAck = 0;
+
+    return command;
+  }
+
+  u32 transfer(u32 data) {
+    u32 lines = 0;
+    u32 vCount = Link::_REG_VCOUNT;
+    // mgbalog("SENDING %d", data);
+    u32 receivedData = linkSPI->transfer(
+        data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); });
+
+    return receivedData;
+  }
+
   bool cmdTimeout(u32& lines, u32& vCount) {
-    return timeout(100, lines, vCount);
+    return timeout(CMD_TIMEOUT, lines, vCount);
   }
 
   bool timeout(u32 limit, u32& lines, u32& vCount) {
