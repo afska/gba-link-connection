@@ -4,8 +4,8 @@
 
 The GBAs Serial Port may be used in various different communication modes. Normal mode may exchange data between two GBAs (or to transfer data from master GBA to several slave GBAs in one-way direction).  
 Multi-player mode may exchange data between up to four GBAs. UART mode works much like a RS232 interface. JOY Bus mode uses a standardized Nintendo protocol. And General Purpose mode allows to mis-use the 'serial' port as bi-directional 4bit parallel port.  
-Note: The Nintendo DS does not include a Serial Port.  
-  
+Note: The Nintendo DS does not include a Serial Port.
+
 - SIO Normal Mode
 - SIO Multi-Player Mode
 - SIO General-Purpose Mode
@@ -13,12 +13,12 @@ Note: The Nintendo DS does not include a Serial Port.
 - GBA Wireless Adapter
 
 # SIO Normal Mode
-  
+
 This mode is used to communicate between two units.  
 Transfer rates of 256Kbit/s or 2Mbit/s can be selected, however, the fast 2Mbit/s is intended ONLY for special hardware expansions that are DIRECTLY connected to the GBA link port (ie. without a cable being located between the GBA and expansion hardware). In normal cases, always use 256Kbit/s transfer rate which provides stable results.  
-Transfer lengths of 8bit or 32bit may be used, the 8bit mode is the same as for older DMG/CGB gameboys, however, the voltages for "GBA cartridges in GBAs" are different as for "DMG/CGB cartridges in DMG/CGB/GBAs", ie. it is not possible to communicate between DMG/CGB games and GBA games.  
+Transfer lengths of 8bit or 32bit may be used, the 8bit mode is the same as for older DMG/CGB gameboys, however, the voltages for "GBA cartridges in GBAs" are different as for "DMG/CGB cartridges in DMG/CGB/GBAs", ie. it is not possible to communicate between DMG/CGB games and GBA games.
 
-**4000134h - RCNT (R) - Mode Selection, in Normal/Multiplayer/UART modes (R/W)**  
+**4000134h - RCNT (R) - Mode Selection, in Normal/Multiplayer/UART modes (R/W)**
 
 ```
   Bit   Expl.
@@ -29,7 +29,7 @@ Transfer lengths of 8bit or 32bit may be used, the 8bit mode is the same as for 
   15    Must be zero (0) for Normal/Multiplayer/UART modes
 ```
 
-**4000128h - SIOCNT - SIO Control, usage in NORMAL Mode (R/W)**  
+**4000128h - SIOCNT - SIO Control, usage in NORMAL Mode (R/W)**
 
 ```
   Bit   Expl.
@@ -46,23 +46,23 @@ Transfer lengths of 8bit or 32bit may be used, the 8bit mode is the same as for 
   15    Not used                (Read only, always 0)
 ```
 
-The Start bit is automatically reset when the transfer completes, ie. when all 8 or 32 bits are transferred, at that time an IRQ may be generated.  
-  
-**400012Ah - SIODATA8 - SIO Normal Communication 8bit Data (R/W)**  
+The Start bit is automatically reset when the transfer completes, ie. when all 8 or 32 bits are transferred, at that time an IRQ may be generated.
 
-For 8bit normal mode. Contains 8bit data (only lower 8bit are used). Outgoing data should be written to this register before starting the transfer. During transfer, transmitted bits are shifted-out (MSB first), and received bits are shifted-in simultaneously. Upon transfer completion, the register contains the received 8bit value.  
-  
-**4000120h - SIODATA32\_L - SIO Normal Communication lower 16bit data (R/W)**  
-**4000122h - SIODATA32\_H - SIO Normal Communication upper 16bit data (R/W)**  
+**400012Ah - SIODATA8 - SIO Normal Communication 8bit Data (R/W)**
+
+For 8bit normal mode. Contains 8bit data (only lower 8bit are used). Outgoing data should be written to this register before starting the transfer. During transfer, transmitted bits are shifted-out (MSB first), and received bits are shifted-in simultaneously. Upon transfer completion, the register contains the received 8bit value.
+
+**4000120h - SIODATA32_L - SIO Normal Communication lower 16bit data (R/W)**  
+**4000122h - SIODATA32_H - SIO Normal Communication upper 16bit data (R/W)**
 
 Same as above SIODATA8, for 32bit normal transfer mode respectively.  
-SIOCNT/RCNT must be set to 32bit normal mode <before> writing to SIODATA32.  
-  
+SIOCNT/RCNT must be set to 32bit normal mode <before> writing to SIODATA32.
+
 **Initialization**
 
 First, initialize RCNT register. Second, set mode/clock bits in SIOCNT with startbit cleared. For master: select internal clock, and (in most cases) specify 256KHz as transfer rate. For slave: select external clock, the local transfer rate selection is then ignored, as the transfer rate is supplied by the remote GBA (or other computer, which might supply custom transfer rates).  
-Third, set the startbit in SIOCNT with mode/clock bits unchanged.  
-  
+Third, set the startbit in SIOCNT with mode/clock bits unchanged.
+
 **Recommended Communication Procedure for SLAVE unit (external clock)**  
 \- Initialize data which is to be sent to master.  
 \- Set Start flag.  
@@ -71,41 +71,41 @@ Third, set the startbit in SIOCNT with mode/clock bits unchanged.
 \- Set SO to HIGH to indicate that we are not ready.  
 \- Process received data.  
 \- Repeat procedure if more data is to be transferred.  
-(or is so=high done automatically? would be fine - more stable - otherwise master may still need delay)  
-  
+(or is so=high done automatically? would be fine - more stable - otherwise master may still need delay)
+
 **Recommended Communication Procedure for SLAVE unit (external clock)**  
 \- Initialize data which is to be sent to master.  
 \- Set Start=0 and SO=0 (SO=LOW indicates that slave is (almost) ready).  
-\- Set Start=1 and SO=1 (SO=HIGH indicates not ready, applied after transfer).  
+\- Set Start=1 and SO=1 (SO=HIGH indicates not ready, applied after transfer).
 
->   (Expl. Old SO=LOW kept output until 1st clock bit received).
+> (Expl. Old SO=LOW kept output until 1st clock bit received).
 
->   (Expl. New SO=HIGH is automatically output at transfer completion).
+> (Expl. New SO=HIGH is automatically output at transfer completion).
 
 \- Set SO to LOW to indicate that master may start now.  
 \- Wait for IRQ (or for Start bit to become zero). (Check timeout here!)  
 \- Process received data.  
-\- Repeat procedure if more data is to be transferred.  
-  
+\- Repeat procedure if more data is to be transferred.
+
 **Recommended Communication Procedure for MASTER unit (internal clock)**  
 \- Initialize data which is to be sent to slave.  
 \- Wait for SI to become LOW (slave ready). (Check timeout here!)  
 \- Set Start flag.  
 \- Wait for IRQ (or for Start bit to become zero).  
 \- Process received data.  
-\- Repeat procedure if more data is to be transferred.  
-  
+\- Repeat procedure if more data is to be transferred.
+
 **Cable Protocol**  
 During inactive transfer, the shift clock (SC) is high. The transmit (SO) and receive (SI) data lines may be manually controlled as described above.  
-When master sends SC=LOW, each master and slave must output the next outgoing data bit to SO. When master sends SC=HIGH, each master and slave must read out the opponents data bit from SI. This is repeated for each of the 8 or 32 bits, and when completed SC will be kept high again.  
-  
+When master sends SC=LOW, each master and slave must output the next outgoing data bit to SO. When master sends SC=HIGH, each master and slave must read out the opponents data bit from SI. This is repeated for each of the 8 or 32 bits, and when completed SC will be kept high again.
+
 **Transfer Rates**  
 Either 256KHz or 2MHz rates can be selected for SC, so max 32KBytes (256Kbit) or 128KBytes (2Mbit) can be transferred per second. However, the software must process each 8bit or 32bit of transmitted data separately, so the actual transfer rate will be reduced by the time spent on handling each data unit.  
-Only 256KHz provides stable results in most cases (such like when linking between two GBAs). The 2MHz rate is intended for special expansion hardware (with very short wires) only.  
-  
+Only 256KHz provides stable results in most cases (such like when linking between two GBAs). The 2MHz rate is intended for special expansion hardware (with very short wires) only.
+
 **Using Normal mode for One-Way Multiplayer communication**  
 When using normal mode with multiplay-cables, data isn't exchanged between first and second GBA as usually. Instead, data is shifted from first to last GBA (the first GBA receives zero, because master SI is shortcut to GND).  
-This behaviour may be used for fast ONE-WAY data transfer from master to all other GBAs. For example (3 GBAs linked):  
+This behaviour may be used for fast ONE-WAY data transfer from master to all other GBAs. For example (3 GBAs linked):
 
 ```
   Step         Sender      1st Recipient   2nd Recipient
@@ -116,13 +116,13 @@ This behaviour may be used for fast ONE-WAY data transfer from master to all oth
 ```
 
 The recipients should not output any own data, instead they should forward the previously received data to the next recipient during next transfer (just keep the incoming data unmodified in the data register).  
-Due to the delayed forwarding, 2nd recipient should ignore the first incoming data. After the last transfer, the sender must send one (or more) dummy data unit(s), so that the last data is forwarded to the 2nd (or further) recipient(s).  
+Due to the delayed forwarding, 2nd recipient should ignore the first incoming data. After the last transfer, the sender must send one (or more) dummy data unit(s), so that the last data is forwarded to the 2nd (or further) recipient(s).
 
 # SIO Multi-Player Mode
-  
-Multi-Player mode can be used to communicate between up to 4 units.  
-  
-**4000134h - RCNT (R) - Mode Selection, in Normal/Multiplayer/UART modes (R/W)**  
+
+Multi-Player mode can be used to communicate between up to 4 units.
+
+**4000134h - RCNT (R) - Mode Selection, in Normal/Multiplayer/UART modes (R/W)**
 
 ```
   Bit   Expl.
@@ -133,9 +133,9 @@ Multi-Player mode can be used to communicate between up to 4 units.
   15    Must be zero (0) for Normal/Multiplayer/UART modes
 ```
 
-Note: Even though undocumented, many Nintendo games are using Bit 0 to test current SC state in multiplay mode.  
-  
-**4000128h - SIOCNT - SIO Control, usage in MULTI-PLAYER Mode (R/W)**  
+Note: Even though undocumented, many Nintendo games are using Bit 0 to test current SC state in multiplay mode.
+
+**4000128h - SIOCNT - SIO Control, usage in MULTI-PLAYER Mode (R/W)**
 
 ```
   Bit   Expl.
@@ -152,34 +152,34 @@ Note: Even though undocumented, many Nintendo games are using Bit 0 to test curr
   15    Not used            (Read only, always 0)
 ```
 
-The ID Bits are undefined until the first transfer has completed.  
-  
-**400012Ah - SIOMLT\_SEND - Data Send Register (R/W)**  
-Outgoing data (16 bit) which is to be sent to the other GBAs.  
-  
+The ID Bits are undefined until the first transfer has completed.
+
+**400012Ah - SIOMLT_SEND - Data Send Register (R/W)**  
+Outgoing data (16 bit) which is to be sent to the other GBAs.
+
 **4000120h - SIOMULTI0 - SIO Multi-Player Data 0 (Parent) (R/W)**  
 **4000122h - SIOMULTI1 - SIO Multi-Player Data 1 (1st child) (R/W)**  
 **4000124h - SIOMULTI2 - SIO Multi-Player Data 2 (2nd child) (R/W)**  
 **4000126h - SIOMULTI3 - SIO Multi-Player Data 3 (3rd child) (R/W)**  
 These registers are automatically reset to FFFFh upon transfer start.  
-After transfer, these registers contain incoming data (16bit each) from all remote GBAs (if any / otherwise still FFFFh), as well as the local outgoing SIOMLT\_SEND data.  
-Ie. after the transfer, all connected GBAs will contain the same values in their SIOMULTI0-3 registers.  
-  
+After transfer, these registers contain incoming data (16bit each) from all remote GBAs (if any / otherwise still FFFFh), as well as the local outgoing SIOMLT_SEND data.  
+Ie. after the transfer, all connected GBAs will contain the same values in their SIOMULTI0-3 registers.
+
 **Initialization**  
 \- Initialize RCNT Bit 14-15 and SIOCNT Bit 12-13 to select Multi-Player mode.  
 \- Read SIOCNT Bit 3 to verify that all GBAs are in Multi-Player mode.  
-\- Read SIOCNT Bit 2 to detect whether this is the Parent/Master unit.  
-  
+\- Read SIOCNT Bit 2 to detect whether this is the Parent/Master unit.
+
 **Recommended Transmission Procedure**  
-\- Write outgoing data to SIODATA\_SEND.  
+\- Write outgoing data to SIODATA_SEND.  
 \- Master must set Start bit.  
 \- All units must process received data in SIOMULTI0-3 when transfer completed.  
 \- After the first successful transfer, ID Bits in SIOCNT are valid.  
 \- If more data is to be transferred, repeat procedure.
 
 The parent unit blindly sends data regardless of whether childs have already processed old data/supplied new data. So, parent unit might be required to insert delays between each transfer, and/or perform error checking.  
-Also, slave units may signalize that they are not ready by temporarily switching into another communication mode (which does not output SD High, as Multi-Player mode does during inactivity).  
-  
+Also, slave units may signalize that they are not ready by temporarily switching into another communication mode (which does not output SD High, as Multi-Player mode does during inactivity).
+
 **Transfer Protocol**  
 Beginning  
 \- The masters SI pin is always LOW.  
@@ -211,15 +211,15 @@ Step D
 Transfer end  
 \- Master sets SC=HIGH, all GBAs set SO=HIGH.  
 \- The Start/Busy bits of all GBAs are automatically cleared.  
-\- Interrupts are requested in all GBAs (as far as enabled).  
-  
+\- Interrupts are requested in all GBAs (as far as enabled).
+
 **Error Bit**  
 This bit is set when a slave did not receive SI=LOW even though SC=LOW signalized a transfer (this might happen when connecting more than 4 GBAs, or when the previous child is not connected). Also, the bit is set when a Stopbit wasn't HIGH.  
 The error bit may be undefined during active transfer - read only after transfer completion (the transfer continues and completes as normal even if errors have occurred for some or all GBAs).  
-Don't know: The bit is automatically reset/initialized with each transfer, or must be manually reset?  
-  
+Don't know: The bit is automatically reset/initialized with each transfer, or must be manually reset?
+
 **Transmission Time**  
-The transmission time depends on the selected Baud rate. And on the amount of Bits (16 data bits plus start/stop bits for each GBA), delays between data for each GBA, plus final timeout (if less than 4 GBAs). That is, depending on the number of connected GBAs:  
+The transmission time depends on the selected Baud rate. And on the amount of Bits (16 data bits plus start/stop bits for each GBA), delays between data for each GBA, plus final timeout (if less than 4 GBAs). That is, depending on the number of connected GBAs:
 
 ```
   GBAs    Bits    Delays   Timeout
@@ -230,17 +230,17 @@ The transmission time depends on the selected Baud rate. And on the amount of Bi
 ```
 
 (The average Delay and Timeout periods are unknown?)  
-Above is not counting the additional CPU time that must be spent on initiating and processing each transfer.  
-  
+Above is not counting the additional CPU time that must be spent on initiating and processing each transfer.
+
 **Fast One-Way Transmission**  
-Beside for the actual SIO Multiplayer mode, you can also use SIO Normal mode for fast one-way data transfer from Master unit to all Child unit(s). See chapter about SIO Normal mode for details.  
-  
+Beside for the actual SIO Multiplayer mode, you can also use SIO Normal mode for fast one-way data transfer from Master unit to all Child unit(s). See chapter about SIO Normal mode for details.
+
 # SIO General-Purpose Mode
 
-In this mode, the SIO is 'misused' as a 4bit bi-directional parallel port, each of the SI,SO,SC,SD pins may be directly controlled, each can be separately declared as input (with internal pull-up) or as output signal.  
-  
+In this mode, the SIO is 'misused' as a 4bit bi-directional parallel port, each of the SI,SO,SC,SD pins may be directly controlled, each can be separately declared as input (with internal pull-up) or as output signal.
+
 **4000134h - RCNT (R) - SIO Mode, usage in GENERAL-PURPOSE Mode (R/W)**  
-Interrupts can be requested when SI changes from HIGH to LOW, as General Purpose mode does not require a serial shift clock, this interrupt may be produced even when the GBA is in Stop (low power standby) state.  
+Interrupts can be requested when SI changes from HIGH to LOW, as General Purpose mode does not require a serial shift clock, this interrupt may be produced even when the GBA is in Stop (low power standby) state.
 
 ```
   Bit   Expl.
@@ -258,14 +258,14 @@ Interrupts can be requested when SI changes from HIGH to LOW, as General Purpose
   15    Must be "1" for General-Purpose or JOYBUS Mode
 ```
 
-SI should be always used as Input to avoid problems with other hardware which does not expect data to be output there.  
-  
+SI should be always used as Input to avoid problems with other hardware which does not expect data to be output there.
+
 **4000128h - SIOCNT - SIO Control, not used in GENERAL-PURPOSE Mode**  
-This register is not used in general purpose mode. That is, the separate bits of SIOCNT still exist and are read- and/or write-able in the same manner as for Normal, Multiplay, or UART mode (depending on SIOCNT Bit 12,13), but are having no effect on data being output to the link port.  
-  
+This register is not used in general purpose mode. That is, the separate bits of SIOCNT still exist and are read- and/or write-able in the same manner as for Normal, Multiplay, or UART mode (depending on SIOCNT Bit 12,13), but are having no effect on data being output to the link port.
+
 # SIO Control Registers Summary
-  
-**Mode Selection (by RCNT.15-14 and SIOCNT.13-12)**  
+
+**Mode Selection (by RCNT.15-14 and SIOCNT.13-12)**
 
 ```
   R.15 R.14 S.13 S.12 Mode
@@ -276,8 +276,8 @@ This register is not used in general purpose mode. That is, the separate bits of
   1    0    x    x    General Purpose
   1    1    x    x    JOY BUS
 ```
-  
-**SIOCNT**  
+
+**SIOCNT**
 
 ```
   Bit    0      1    2     3      4 5 6   7     8    9      10   11
@@ -287,16 +287,17 @@ This register is not used in general purpose mode. That is, the separate bits of
 ```
 
 # GBA Wireless Adapter
-  
-**GBA Wireless Adapter (AGB-015 or OXY-004)**  
+
+**GBA Wireless Adapter (AGB-015 or OXY-004)**
+
 - GBA Wireless Adapter Games
 - GBA Wireless Adapter Login
 - GBA Wireless Adapter Commands
 - GBA Wireless Adapter Component Lists
-  
+
 ## GBA Wireless Adapter Games
 
-**GBA Wireless Adapter compatible Games**  
+**GBA Wireless Adapter compatible Games**
 
 ```
   bit Generations series (Japan only)
@@ -341,11 +342,11 @@ This register is not used in general purpose mode. That is, the separate bits of
   Sennen Kazoku (Japan only)
   Shrek SuperSlam
   Sonic Advance 3
-``` 
+```
 
 ## GBA Wireless Adapter Login
 
-**GBA Wireless Adapter Login**  
+**GBA Wireless Adapter Login**
 
 ```
   rcnt=8000h    ;\\
@@ -373,8 +374,8 @@ This register is not used in general purpose mode. That is, the separate bits of
   ret
  @@key\_string db 'NINTENDO',01h,80h    ;10 bytes (5 halfwords; index=0..4)
 ```
-  
-**Data exchanged during Login**  
+
+**Data exchanged during Login**
 
 ```
                GBA                         ADAPTER
@@ -394,11 +395,11 @@ This register is not used in general purpose mode. That is, the separate bits of
                     \\                          \\
                      MSBs=Inverse of            MSBs=Own
                       Prev.Data.From.Adapter     Data.From.Adapter
-```  
+```
 
 # GBA Wireless Adapter Commands
-  
-**Wireless Command/Parameter Transmission**  
+
+**Wireless Command/Parameter Transmission**
 
 ```
   GBA       Adapter
@@ -412,7 +413,7 @@ This register is not used in general purpose mode. That is, the separate bits of
   ...       ...         ;/
 ```
 
-Wireless 32bit Transfers  
+Wireless 32bit Transfers
 
 ```
   wait until \[4000128h\].Bit2=0  ;want SI=0
@@ -421,9 +422,9 @@ Wireless 32bit Transfers
   set \[4000128h\].Bit3=0,Bit7=1  ;set SO=0 and start 32bit transfer
 ```
 
-All command/param/reply transfers should be done at Internal Clock (except, Response Words for command 25h,27h,35h,37h should use External Clock).  
-  
-**Wireless Commands**  
+All command/param/reply transfers should be done at Internal Clock (except, Response Words for command 25h,27h,35h,37h should use External Clock).
+
+**Wireless Commands**
 
 ```
   Cmd Para Reply Name
@@ -444,7 +445,7 @@ All command/param/reply transfers should be done at Internal Clock (except, Resp
   1Eh -    NN    Get Directory? (receive list of game/user names?)
   1Fh 1    -     Select Game for Download (send 16bit Game\_ID)
 
-  
+
 
   20h -    1
   21h -    1     Good/Bad response to cmd 1Fh ?
@@ -463,7 +464,7 @@ All command/param/reply transfers should be done at Internal Clock (except, Resp
   2Eh
   2Fh
 
-  
+
 
   30h 1    -
   31h
@@ -483,11 +484,11 @@ All command/param/reply transfers should be done at Internal Clock (except, Resp
   3Fh
 ```
 
-Special Response 996601EEh for error or so? (only at software side?)  
-  
+Special Response 996601EEh for error or so? (only at software side?)
+
 ## GBA Wireless Adapter Component Lists
-  
-Main Chipset  
+
+Main Chipset
 
 ```
   U1 32pin Freescale MC13190 (2.4 GHz ISM band transceiver)
@@ -497,9 +498,9 @@ Main Chipset
 
 The MC13190 is a Short-Range, Low-Power 2.4 GHz ISM band transceiver.  
 The processor is Motorola's 32-bit M-Core RISC engine. (?) MCT3000 (?)  
-See also: [http://www.eetimes.com/document.asp?doc\_id=1271943](http://www.eetimes.com/document.asp?doc_id=1271943)  
-  
-Version with GERMAN Postal Code on sticker:  
+See also: [http://www.eetimes.com/document.asp?doc_id=1271943](http://www.eetimes.com/document.asp?doc_id=1271943)
+
+Version with GERMAN Postal Code on sticker:
 
 ```
   Sticker on Case:
@@ -514,7 +515,7 @@ Version with GERMAN Postal Code on sticker:
   X3  2pin "D959L4I" (9.5MHz)           (top side) (ca. 19 clks per 2us)
 ```
 
-Further components... top side (A-7)  
+Further components... top side (A-7)
 
 ```
   D1   5pin "D6F, 44"   (top side, below X3)
@@ -531,7 +532,7 @@ Further components... top side (A-7)
   CN1  6pin connector to GBA link port (top side)
 ```
 
-Further components... bottom side (B-7)  
+Further components... bottom side (B-7)
 
 ```
   U201 5pin "LXVB"      (bottom side, near CN1)
@@ -540,8 +541,8 @@ Further components... bottom side (B-7)
   B70  6pin "\[\]"        (bottom side, near ANT, small white chip)
 ```
 
-Plus, resistors and capacitors (without any markings).  
-  
+Plus, resistors and capacitors (without any markings).
+
 Version WITHOUT sticker:
 
 ```
@@ -554,7 +555,7 @@ Version WITHOUT sticker:
   X3  2pin "9.5SKSS4GT"                 (top side)
 ```
 
-Further components... top side (A-1)  
+Further components... top side (A-1)
 
 ```
   D1   5pin "D6F, 31"   (top side, below X3)
@@ -570,7 +571,7 @@ Further components... top side (A-1)
   CN1  6pin connector to GBA link port (top side)
 ```
 
-Further components... bottom side (B-1)  
+Further components... bottom side (B-1)
 
 ```
   U201 5pin "LXV2"      (bottom side, near CN1)
@@ -579,9 +580,9 @@ Further components... bottom side (B-1)
   B70  6pin "\[\]"        (bottom side, near ANT, small white chip)
 ```
 
-Plus, resistors and capacitors (without any markings).  
-  
-Major Differences  
+Plus, resistors and capacitors (without any markings).
+
+Major Differences
 
 ```
   Sticker      "N/A"                     vs "Grossosteim P/AGB-A-WA-EUR-2 E3"
