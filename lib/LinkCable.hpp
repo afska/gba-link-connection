@@ -251,7 +251,7 @@ class LinkCable {
   /**
    * @brief Waits for data from player #`playerId`. Returns `true` on success,
    * or `false` on disconnection.
-   * @param playerId Number of player to wait data from.
+   * @param playerId ID of player to wait data from.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the wait be aborted.
    */
