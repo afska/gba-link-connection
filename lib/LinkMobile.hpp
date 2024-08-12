@@ -43,6 +43,7 @@
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
+#define LINK_MOBILE_DEFAULT_TIMER_ID 3
 
 class LinkMobile {
  private:
@@ -50,6 +51,7 @@ class LinkMobile {
   using u16 = unsigned short;
   using u8 = unsigned char;
 
+  static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int FRAME_LINES = 228;
   static constexpr int PING_WAIT = FRAME_LINES * 7;
   static constexpr int CMD_TIMEOUT = FRAME_LINES * 5;
@@ -85,6 +87,7 @@ class LinkMobile {
   static constexpr int LOGIN_PARTS_SIZE = 8;
   static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
                                        0x45, 0x4e, 0x44, 0x4f};
+  static constexpr u8 WAIT_TICKS[] = {4, 8};
 
   static constexpr int SUPPORTED_DEVICES_SIZE = 4;
   static constexpr u8 SUPPORTED_DEVICES[] = {
@@ -108,8 +111,8 @@ class LinkMobile {
     // ...
   };
 
-  explicit LinkMobile() {
-    // TODO: Fill config
+  explicit LinkMobile(u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
+    this->config.timerId = timerId;
   }
 
   [[nodiscard]] bool isActive() { return isEnabled; }
@@ -193,12 +196,16 @@ class LinkMobile {
   }
 
   void _onTimer() {
-    if (!isEnabled)
+    if (!isEnabled || !asyncCommand.isActive || !asyncCommand.isWaiting)
       return;
+
+    linkSPI->transferAsync(asyncCommand.pendingData);
+    stopTimer();
+    asyncCommand.isWaiting = false;
   }
 
   struct Config {
-    // TODO: Define
+    u32 timerId;
   };
 
   Config config;
@@ -263,8 +270,21 @@ class LinkMobile {
     Command cmd;
     volatile Direction direction;
     volatile u16 expectedChecksum;
+    volatile u32 pendingData;
     volatile bool isWaiting;
     volatile bool isActive = false;
+
+    void reset() {
+      state = AsyncCommand::State::PENDING;
+      result = CommandResult::PENDING;
+      transferred = 0;
+      cmd = Command{};
+      direction = AsyncCommand::Direction::SENDING;
+      expectedChecksum = 0;
+      pendingData = 0;
+      isWaiting = false;
+      isActive = true;
+    }
 
     void fail(CommandResult result) {
       result = CommandResult::NOT_WAITING;
@@ -324,8 +344,6 @@ class LinkMobile {
   }
 
   bool start() {
-    startTimer();
-
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                       LinkSPI::DataSize::SIZE_8BIT);
 
@@ -347,15 +365,14 @@ class LinkMobile {
   }
 
   void stopTimer() {
-    // Link::_REG_TM[config.sendTimerId].cnt =
-    //     Link::_REG_TM[config.sendTimerId].cnt & (~Link::_TM_ENABLE);
+    Link::_REG_TM[config.timerId].cnt =
+        Link::_REG_TM[config.timerId].cnt & (~Link::_TM_ENABLE);
   }
 
-  void startTimer() {
-    // Link::_REG_TM[config.sendTimerId].start = -config.interval;
-    // Link::_REG_TM[config.sendTimerId].cnt =
-    //     Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
-    // TODO: START TIMER AFTER transferAsync
+  void startTimer(u16 interval) {
+    Link::_REG_TM[config.timerId].start = -interval;
+    Link::_REG_TM[config.timerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
   }
 
   void pingAdapter() {
@@ -439,14 +456,8 @@ class LinkMobile {
     if (asyncCommand.isActive)
       return false;
 
-    asyncCommand.state = AsyncCommand::State::PENDING;
-    asyncCommand.result = CommandResult::PENDING;
-    asyncCommand.transferred = 0;
+    asyncCommand.reset();
     asyncCommand.cmd = command;
-    asyncCommand.direction = AsyncCommand::Direction::SENDING;
-    asyncCommand.expectedChecksum = 0;
-    asyncCommand.isWaiting = false;
-    asyncCommand.isActive = true;
 
     if (isSIO32Mode()) {
       transferAsync(*((u32*)&command));  // TODO: CHECK ENDIANNESS
@@ -461,14 +472,8 @@ class LinkMobile {
     if (asyncCommand.isActive)
       return false;
 
-    asyncCommand.state = AsyncCommand::State::PENDING;
-    asyncCommand.result = CommandResult::PENDING;
-    asyncCommand.transferred = 0;
-    asyncCommand.cmd = Command{};
+    asyncCommand.reset();
     asyncCommand.direction = AsyncCommand::Direction::RECEIVING;
-    asyncCommand.expectedChecksum = 0;
-    asyncCommand.isWaiting = false;
-    asyncCommand.isActive = true;
 
     transferAsync(GBA_WAITING);
 
@@ -602,10 +607,9 @@ class LinkMobile {
   }
 
   void transferAsync(u32 data) {
-    // TODO: SEND WITH TIMER INTERRUPT; ADD SMALL WAIT (4 ticks for sio8, 8
-    // ticks for sio32)
-    linkSPI->transferAsync(data);
-    // TODO: asyncCommand.isWaiting = true;
+    asyncCommand.isWaiting = true;
+    asyncCommand.pendingData = data;
+    startTimer(WAIT_TICKS[isSIO32Mode()]);
   }
 
   u32 transfer(u32 data) {
