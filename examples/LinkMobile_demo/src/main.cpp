@@ -81,7 +81,7 @@ again:
 
     // Menu
     log(std::string("") +
-        "L = Read Configuration\n\n "
+        "L = Read Configuration\n\n (DOWN = ok)\n "
         "(SELECT = cancel)\n (START = reactivate)");
 
     // SELECT = back
@@ -155,8 +155,12 @@ void readConfiguration() {
       std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
       toStr(data.loginID, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
       "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) + "\nPOP Server:\n  " +
-      toStr(data.popServer, 19));
-  hang();
+      toStr(data.popServer, 19) + "\n\nMode: " +
+      (linkMobile->linkSPI->getDataSize() == LinkSPI::DataSize::SIZE_32BIT
+           ? "SIO32"
+           : "SIO8"));
+  while (true)
+    ;
 }
 
 void log(std::string text) {

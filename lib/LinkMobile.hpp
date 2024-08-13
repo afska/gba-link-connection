@@ -182,6 +182,9 @@ class LinkMobile {
   }
 
   bool readConfiguration(ConfigurationData& configurationData) {
+    while (linkSPI->getAsyncState() != LinkSPI::AsyncState::IDLE)
+      ;  // wait
+
     mgbalog("READING CONFIGURATION!!!");
     addData(1, true);
     auto sio32Response =
@@ -190,10 +193,14 @@ class LinkMobile {
       mgbalog("SIO32 FAILED!!!");
       return false;
     }
-    wait(PING_WAIT);
-    linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                      LinkSPI::DataSize::SIZE_32BIT);
-    mgbalog("SIO32 ACTIVATED!!! now sending read configuration");
+    if (sio32Response.command.header.commandId != (COMMAND_RESET | OR_VALUE)) {
+      wait(PING_WAIT);
+      linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+                        LinkSPI::DataSize::SIZE_32BIT);
+      mgbalog("SIO32 ACTIVATED!!! now sending read configuration");
+    } else {
+      mgbalog("Adapter returned RESET, keeping SIO8 mode");
+    }
 
     static constexpr u8 CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
     u8* configurationDataBytes = (u8*)&configurationData;
@@ -238,6 +245,11 @@ class LinkMobile {
   void _onVBlank() {
     if (!isEnabled)
       return;
+
+    // if (!asyncCommand.isActive &&
+    //     linkSPI->getAsyncState() == LinkSPI::AsyncState::IDLE) {
+    //   linkSPI->transfer(GBA_WAITING);
+    // }
   }
 
   void _onSerial() {
@@ -248,7 +260,6 @@ class LinkMobile {
     if (linkSPI->getAsyncState() != LinkSPI::AsyncState::READY)
       return;
     u32 newData = linkSPI->getAsyncData();
-    mgbalog("RECEIVED 0x%X", newData);
 
     if (state == NEEDS_RESET)
       return;
@@ -279,7 +290,6 @@ class LinkMobile {
     if (!isEnabled || !asyncCommand.isActive || !asyncCommand.isWaiting)
       return;
 
-    mgbalog("SENT 0x%X", asyncCommand.pendingData);
     linkSPI->transferAsync(asyncCommand.pendingData);
     stopTimer();
     asyncCommand.isWaiting = false;
@@ -291,7 +301,7 @@ class LinkMobile {
 
   Config config;
 
- private:
+  //  private: // TODO: RECOVER
   struct MagicBytes {
     u8 magic1 = COMMAND_MAGIC_VALUE1;
     u8 magic2 = COMMAND_MAGIC_VALUE2;
@@ -393,8 +403,10 @@ class LinkMobile {
   }
 
   void addData(u8 value, bool start = false) {
-    if (start)
+    if (start) {
       nextCommandDataSize = 0;
+      nextCommandData = PacketData{};
+    }
     nextCommandData.bytes[nextCommandDataSize] = value;
     nextCommandDataSize++;
   }
@@ -524,6 +536,12 @@ class LinkMobile {
     }
 
     if (remoteCommand != (command.header.commandId | OR_VALUE)) {
+      if (command.header.commandId == COMMAND_SIO32 &&
+          remoteCommand == (COMMAND_RESET | OR_VALUE)) {
+        // Exception
+        return response;
+      }
+
       response.result = CommandResult::UNEXPECTED_RESPONSE;
       return response;
     }
@@ -836,6 +854,7 @@ class LinkMobile {
   }
 
   void transferAsync(u32 data) {
+    mgbalog("SENT %X", data);
     asyncCommand.isWaiting = true;
     asyncCommand.pendingData = data;
     startTimer(WAIT_TICKS[isSIO32Mode()]);
