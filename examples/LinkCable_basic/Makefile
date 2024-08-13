@@ -14,7 +14,7 @@ export TONCLIB := ${DEVKITPRO}/libtonc
 
 # === TONC RULES ======================================================
 #
-# Yes, this is almost, but not quite, completely like to 
+# Yes, this is almost, but not quite, completely like to
 # DKP's base_rules and gba_rules
 #
 
@@ -53,7 +53,7 @@ export OBJCOPY	:=	$(PREFIX)objcopy
 
 %.elf :
 	@echo Linking cartridge
-	$(LD) -specs=gba.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@	
+	$(LD) -specs=gba.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
 	$(NM) -Sn $@ > $(basename $(notdir $@)).map
 
 #----------------------------------------------------------------------
@@ -69,7 +69,7 @@ export OBJCOPY	:=	$(PREFIX)objcopy
 %.iwram.o : %.iwram.cpp
 	@echo $(notdir $<)
 	$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) $(IARCH) -c $< -o $@
-	
+
 #----------------------------------------------------------------------
 %.iwram.o : %.iwram.c
 	@echo $(notdir $<)
@@ -148,8 +148,8 @@ bDEBUG2	:= 0	# Generate debug info (bDEBUG2? Not a full DEBUG flag. Yet)
 
 # === BUILD FLAGS =====================================================
 # This is probably where you can stop editing
-# NOTE: I've noticed that -fgcse and -ftree-loop-optimize sometimes muck 
-#	up things (gcse seems fond of building masks inside a loop instead of 
+# NOTE: I've noticed that -fgcse and -ftree-loop-optimize sometimes muck
+#	up things (gcse seems fond of building masks inside a loop instead of
 #	outside them for example). Removing them sometimes helps
 
 # --- Architecture ---
@@ -203,7 +203,7 @@ endif
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-# Still in main dir: 
+# Still in main dir:
 # * Define/export some extra variables
 # * Invoke this file again from the build dir
 # PONDER: what happens if BUILD == "" ?
@@ -238,7 +238,7 @@ export OFILES	:=	$(addsuffix .o, $(BINFILES))					\
 export INCLUDE	:=	$(foreach dir,$(INCDIRS),-I$(CURDIR)/$(dir))	\
 					$(foreach dir,$(LIBDIRS),-I$(dir)/include)		\
 					-I$(CURDIR)/$(BUILD)
- 
+
 export LIBPATHS	:=	-L$(CURDIR) $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 # --- Create BUILD if necessary, and run this makefile from there ---

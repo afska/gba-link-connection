@@ -1,3 +1,4 @@
+// node v14
 const { SerialPort, ReadlineParser } = require("serialport"); // "^12.0.0"
 
 var serialPort = new SerialPort({
