@@ -43,6 +43,8 @@
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
+#define LINK_MOBILE_MAX_COMMAND_BYTES (4 + 4 + 252 + 4 + 4)
+// SIO32: (4 + 4 + 252 + 4 + 4), SIO8: (2 + 4 + 255 + 2 + 2)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
 
 class LinkMobile {
@@ -185,7 +187,7 @@ class LinkMobile {
     addData(0, true);
     addData(CONFIGURATION_DATA_CHUNK);
     auto response1 = sendCommandWithResponse(
-        buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+        serializeCommand(COMMAND_READ_CONFIGURATION_DATA, true));
     if (response1.result != CommandResult::SUCCESS ||
         response1.command.size != CONFIGURATION_DATA_CHUNK + 1)
       return false;
@@ -193,7 +195,7 @@ class LinkMobile {
     addData(CONFIGURATION_DATA_CHUNK, true);
     addData(CONFIGURATION_DATA_CHUNK);
     auto response2 = sendCommandWithResponse(
-        buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+        serializeCommand(COMMAND_READ_CONFIGURATION_DATA, true));
     if (response2.result != CommandResult::SUCCESS ||
         response2.command.size != CONFIGURATION_DATA_CHUNK + 1)
       return false;
@@ -300,6 +302,12 @@ class LinkMobile {
     }
   };
 
+  struct SerializedCommand {
+    u8 bytes[LINK_MOBILE_MAX_COMMAND_BYTES];
+    u32 size = 0;
+    u32 mainSize = 0;
+  }
+
   enum CommandResult {
     PENDING,
     SUCCESS,
@@ -326,7 +334,7 @@ class LinkMobile {
     volatile State state;
     volatile CommandResult result;
     volatile u32 transferred;  // (in SIO32: words; in SIO8: bytes)
-    Command cmd;
+    SerializedCommand cmd;
     volatile Direction direction;
     volatile u16 expectedChecksum;
     volatile u32 pendingData;
@@ -337,7 +345,7 @@ class LinkMobile {
       state = AsyncCommand::State::PENDING;
       result = CommandResult::PENDING;
       transferred = 0;
-      cmd = Command{};
+      cmd = SerializedCommand{};
       direction = AsyncCommand::Direction::SENDING;
       expectedChecksum = 0;
       pendingData = 0;
@@ -440,7 +448,7 @@ class LinkMobile {
   bool login() {
     for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
       addData(LOGIN_PARTS[i], i == 0);
-    auto command = buildCommand(COMMAND_BEGIN_SESSION, true);
+    auto command = serializeCommand(COMMAND_BEGIN_SESSION, true);
 
     auto response = sendCommandWithResponse(command);
     if (response.result != CommandResult::SUCCESS)
@@ -457,15 +465,15 @@ class LinkMobile {
   }
 
   bool logout() {
-    auto command = buildCommand(COMMAND_END_SESSION, true);
+    auto command = serializeCommand(COMMAND_END_SESSION, true);
     auto response = sendCommandWithResponse(command);
     return response.result == CommandResult::SUCCESS;
   }
 
-  CommandResponse sendCommandWithResponse(Command command) {
+  CommandResponse sendCommandWithResponse(SerializedCommand serializedCommand) {
     CommandResponse response;
 
-    sendCommandAsync(command);
+    sendCommandAsync(serializedCommand);
     waitUntilAsyncCommandFinishes();
     if (asyncCommand.result != CommandResult::SUCCESS) {
       response.result = asyncCommand.result;
@@ -515,7 +523,7 @@ class LinkMobile {
       }
   }
 
-  bool sendCommandAsync(Command command) {
+  bool sendCommandAsync(SerializedCommand serializedCommand) {
     if (asyncCommand.isActive)
       return false;
 
@@ -544,33 +552,24 @@ class LinkMobile {
   }
 
   void sendAsyncCommandSIO8(u32 newData) {
-    const u8* commandBytes = (const u8*)&asyncCommand.cmd;
-    u32 mainSize = PREAMBLE_SIZE + asyncCommand.cmd.size;
+    const u8* commandBytes = (const u8*)&asyncCommand.cmd.bytes;
+    u32 mainSize = asyncCommand.cmd.mainSize;
 
-    bool isAcknowledgement =
-        asyncCommand.transferred >= mainSize + CHECKSUM_SIZE + 1;
-    if (!isAcknowledgement && newData != ADAPTER_WAITING)
-      return asyncCommand.fail(CommandResult::NOT_WAITING);
-
-    if (asyncCommand.transferred < mainSize) {
-      // Magic Bytes + Packet Header + Packet Data
-      advance(commandBytes[asyncCommand.transferred]);
-    } else if (asyncCommand.transferred < mainSize + CHECKSUM_SIZE) {
-      // Packet Checksum
-      commandBytes += PREAMBLE_SIZE + LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH;
-      advance(commandBytes[asyncCommand.transferred - mainSize]);
-    } else if (asyncCommand.transferred == mainSize + CHECKSUM_SIZE) {
-      // Acknowledgement Signal (1)
-      advance(DEVICE_GBA | OR_VALUE);
-    } else if (asyncCommand.transferred == mainSize + CHECKSUM_SIZE + 1) {
-      // Acknowledgement Signal (2)
+    if (async.transferred < mainSize + CHECKSUM_SIZE + 1) {
+      if (newData != ADAPTER_WAITING)
+        return asyncCommand.fail(CommandResult::NOT_WAITING);
+    } else if (async.transferred == mainSize + CHECKSUM_SIZE + 1) {
       if (!isSupportedAdapter(newData))
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
-      advance(0);
-    } else if (asyncCommand.transferred == mainSize + CHECKSUM_SIZE + 2) {
-      // Acknowledgement Signal (3)
+    } else if (async.transferred == asyncCommand.transferred ==
+               mainSize + CHECKSUM_SIZE + 2) {
       if (newData != (asyncCommand.cmd.commandId ^ OR_VALUE))
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
+    }
+
+    if (asyncCommand.transferred < asyncCommand.cmd.totalSize) {
+      advance(asyncCommand.cmd.bytes[asyncCommand.transferred]);
+    } else {
       asyncCommand.result = CommandResult::SUCCESS;
       asyncCommand.state = AsyncCommand::State::COMPLETED;
     }
@@ -578,7 +577,7 @@ class LinkMobile {
 
   void receiveAsyncCommandSIO8(u32 newData) {
     u8* commandBytes = (u8*)&asyncCommand.cmd;
-    u32 mainSize = PREAMBLE_SIZE + asyncCommand.cmd.size;
+    u32 mainSize = asyncCommand.mainSize;
 
     if (asyncCommand.transferred == 0) {
       // Magic Bytes (1)
@@ -647,21 +646,47 @@ class LinkMobile {
     return false;
   }
 
-  Command buildCommand(u8 type, bool withData = false) {
-    Command command;
-    command.commandId = type;
-    command._unused_ = 0;
-    command._unusedSizeHigh_ = 0;
-    command.size = withData ? (u8)nextCommandDataSize : 0;
-    if (withData) {
-      u32* nextCommandDataWords = (u32*)&nextCommandData;
-      u32* commandWords = (u32*)&command.bytes;
-      for (int i = 0; i < 1 + command.size / 4; i += 4)
-        commandWords[i] = nextCommandDataWords[i];
+  SerializedCommand serializeCommand(u8 type, bool withData = false) {
+    SerializedCommand serializedCommand;
+    u8 dataSize = withData ? (u8)nextCommandDataSize : 0;
+
+    // Magic Bytes
+    serializedCommand.bytes[0] = COMMAND_MAGIC_VALUE_HIGH;
+    serializedCommand.bytes[1] = COMMAND_MAGIC_VALUE_LOW;
+
+    // Packet Header
+    serializedCommand.bytes[2] = type;
+    serializedCommand.bytes[3] = 0;
+    serializedCommand.bytes[4] = 0;
+    serializedCommand.bytes[5] = dataSize;
+
+    // Packet Data
+    u32 padding = 0;
+    u16 checksum = type + dataSize;
+    if (isSIO32Mode() && dataSize % 4 != 0)
+      padding = 4 - dataSize % 4;
+    for (u32 i = 0; i < dataSize + padding; i++) {
+      serializedCommand.bytes[PREAMBLE_SIZE + i] = nextCommandData[i];
+      checksum += nextCommandData[i];
     }
-    u16 checksum = command.checksum();
-    command.checksumHigh = msB16(checksum);
-    command.checksumLow = lsB16(checksum);
+    u32 mainSize = PREAMBLE_SIZE + dataSize + padding;
+    serializedCommand.mainSize = mainSize;
+
+    // Packet Checksum
+    serializedCommand.bytes[mainSize] = msB16(checksum);
+    serializedCommand.bytes[mainSize + 1] = lsB16(checksum);
+
+    // Acknowledgement Signal
+    serializedCommand.bytes[mainSize + 2] = DEVICE_GBA | OR_VALUE;
+    serializedCommand.bytes[mainSize + 3] = 0;
+    serializedCommand.totalSize = mainSize + 4;
+    if (isSIO32Mode()) {
+      for (u32 i = 0; i < 2; i++)
+        serializedCommand.bytes[mainSize + 4 + i] = 0;
+      serializedCommand.totalSize += 2;
+    }
+
+    // TODO: CHECK SIZE IN SIO32. IT HAS TO BE MULTIPLE OF 4
 
     return command;
   }
