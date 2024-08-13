@@ -131,7 +131,7 @@ class LinkMobile {
     LINK_MOBILE_BARRIER;
 
     if (!success) {
-      deactivate();
+      deactivate(false);
       return false;
     }
 
@@ -139,13 +139,20 @@ class LinkMobile {
     return true;
   }
 
-  bool deactivate() {
+  bool deactivate(bool logoutFirst = true) {
+    bool success = true;
+
+    if (logoutFirst) {
+      activate();
+      success = logout();
+    }
+
     lastError = NONE;
     isEnabled = false;
     resetState();
     stop();
 
-    return true;
+    return success;
   }
 
   [[nodiscard]] State getState() { return state; }
@@ -354,6 +361,8 @@ class LinkMobile {
     isEnabled = true;
     LINK_MOBILE_BARRIER;
 
+    logout();
+
     if (!login())
       return false;
 
@@ -397,6 +406,12 @@ class LinkMobile {
     }
 
     return true;
+  }
+
+  bool logout() {
+    auto command = buildCommand(COMMAND_END_SESSION, true);
+    auto response = sendCommandWithResponse(command);
+    return response.result == CommandResult::SUCCESS;
   }
 
   CommandResponse sendCommandWithResponse(Command command) {

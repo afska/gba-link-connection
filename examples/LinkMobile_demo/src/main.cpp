@@ -78,9 +78,7 @@ again:
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // Menu
-    log(std::string("") +
-        "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
-        "(SELECT = cancel)\n (START = activate)");
+    log(std::string("") + "L = Read Configuration\n\n(START = activate)");
 
     // SELECT = back
     if (keys & KEY_SELECT) {
