@@ -745,13 +745,15 @@ class LinkMobile {
 
       if (asyncCommand.cmd.header.size > 0) {
         u16 firstData = lsB32(newData);
-        asyncCommand.cmd.data.bytes[0] = msB16(firstData);
-        asyncCommand.cmd.data.bytes[1] = lsB16(firstData);
+        u8 b0 = msB16(firstData), b1 = lsB16(firstData);
+        asyncCommand.cmd.data.bytes[0] = b0;
+        asyncCommand.cmd.data.bytes[1] = b1;
+        asyncCommand.expectedChecksum += b0 + b1;
       } else {
         u16 checksum = lsB32(newData);
-        // if (msB16(checksum) != msB16(asyncCommand.expectedChecksum) ||
-        //     lsB16(checksum) != msB16(asyncCommand.expectedChecksum))
-        //   return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
+        if (msB16(checksum) != msB16(asyncCommand.expectedChecksum) ||
+            lsB16(checksum) != msB16(asyncCommand.expectedChecksum))
+          return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
         asyncCommand.cmd.checksum.high = msB16(checksum);
         asyncCommand.cmd.checksum.low = lsB16(checksum);
       }
@@ -773,13 +775,14 @@ class LinkMobile {
         advance32(GBA_WAITING_32BIT);
       } else {
         u16 lastData = msB32(newData);
-        asyncCommand.cmd.data.bytes[transferredDataCount] = msB16(lastData);
-        asyncCommand.cmd.data.bytes[transferredDataCount + 1] = lsB16(lastData);
-        asyncCommand.expectedChecksum += msB16(lastData) + lsB16(lastData);
+        u8 b0 = msB16(lastData), b1 = lsB16(lastData);
+        asyncCommand.cmd.data.bytes[transferredDataCount] = b0;
+        asyncCommand.cmd.data.bytes[transferredDataCount + 1] = b1;
+        asyncCommand.expectedChecksum += b0 + b1;
         u16 checksum = lsB32(newData);
-        // if (msB16(checksum) != msB16(asyncCommand.expectedChecksum) ||
-        //     lsB16(checksum) != msB16(asyncCommand.expectedChecksum))
-        //   return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
+        if (msB16(checksum) != msB16(asyncCommand.expectedChecksum) ||
+            lsB16(checksum) != lsB16(asyncCommand.expectedChecksum))
+          return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
         asyncCommand.cmd.checksum.high = msB16(checksum);
         asyncCommand.cmd.checksum.low = lsB16(checksum);
         advance32(buildU32(DEVICE_GBA | OR_VALUE,
