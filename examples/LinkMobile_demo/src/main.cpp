@@ -18,6 +18,7 @@
   }
 
 void activate();
+void readConfiguration();
 void log(std::string text);
 void waitFor(u16 key);
 void wait(u32 verticalLines);
@@ -73,12 +74,15 @@ again:
   }
 
   bool activating = false;
+  bool reading = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // Menu
-    log(std::string("") + "L = Read Configuration\n\n(START = activate)");
+    log(std::string("") +
+        "L = Read Configuration\n\n "
+        "(SELECT = cancel)\n (START = reactivate)");
 
     // SELECT = back
     if (keys & KEY_SELECT) {
@@ -96,21 +100,13 @@ again:
     if (activating && !(keys & KEY_START))
       activating = false;
 
-    // L = Serve
-    // if ((keys & KEY_L) && !serving) {
-    //   serving = true;
-    //   serve();
-    // }
-    // if (serving && !(keys & KEY_L))
-    //   serving = false;
-
-    // R = Connect
-    // if (!connecting && (keys & KEY_R)) {
-    //   connecting = true;
-    //   connect();
-    // }
-    // if (connecting && !(keys & KEY_R))
-    //   connecting = false;
+    // L = Read Configuration
+    if ((keys & KEY_L) && !reading) {
+      reading = true;
+      readConfiguration();
+    }
+    if (reading && !(keys & KEY_L))
+      reading = false;
 
     VBlankIntrWait();
   }
@@ -126,6 +122,40 @@ void activate() {
   else
     log("Activation failed! :(");
 
+  hang();
+}
+
+std::string toStr(char* chars, int size) {
+  char copiedChars[255];
+  for (int i = 0; i < size; i++)
+    copiedChars[i] = chars[i];
+  copiedChars[size] = '\0';
+  return std::string(copiedChars);
+}
+
+void readConfiguration() {
+  log("Reading...");
+
+  LinkMobile::ConfigurationData data;
+  if (!linkMobile->readConfiguration(data)) {
+    log("Read failed :(");
+    hang();
+    return;
+  }
+
+  log("Magic:\n  " + toStr(data.magic, 2) + "\nIsRegistering:\n  " +
+      (data.isRegistering ? "Yes" : "No") + "\nPrimary DNS:\n  " +
+      std::to_string(data.primaryDNS[0]) + "." +
+      std::to_string(data.primaryDNS[1]) + "." +
+      std::to_string(data.primaryDNS[2]) + "." +
+      std::to_string(data.primaryDNS[3]) + "\nSecondary DNS:\n  " +
+      std::to_string(data.secondaryDNS[0]) + "." +
+      std::to_string(data.secondaryDNS[1]) + "." +
+      std::to_string(data.secondaryDNS[2]) + "." +
+      std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
+      toStr(data.loginID, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
+      "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) + "\nPOP Server:\n  " +
+      toStr(data.popServer, 19));
   hang();
 }
 

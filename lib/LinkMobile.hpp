@@ -65,6 +65,7 @@ class LinkMobile {
   static constexpr int DEVICE_ADAPTER_YELLOW = 0x9;
   static constexpr int DEVICE_ADAPTER_GREEN = 0xA;
   static constexpr int DEVICE_ADAPTER_RED = 0xB;
+  static constexpr int CONFIGURATION_DATA_SIZE = 192;
   static constexpr int COMMAND_BEGIN_SESSION = 0x10;
   static constexpr int COMMAND_END_SESSION = 0x11;
   static constexpr int COMMAND_DIAL_TELEPHONE = 0x12;
@@ -111,6 +112,26 @@ class LinkMobile {
     // ...
   };
 
+  struct ConfigurationData {
+    char magic[2];
+    bool isRegistering;
+    u8 _unused1_;
+    u8 primaryDNS[4];
+    u8 secondaryDNS[4];
+    char loginID[10];
+    u8 _unused2_[22];
+    char email[24];
+    u8 _unused3_[6];
+    char smtpServer[20];
+    char popServer[19];
+    u8 _unused4_[5];
+    u8 configurationSlot1[24];
+    u8 configurationSlot2[24];
+    u8 configurationSlot3[24];
+    u8 checksumHigh;
+    u8 checksumLow;
+  } __attribute__((packed));
+
   explicit LinkMobile(u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
     this->config.timerId = timerId;
   }
@@ -153,6 +174,37 @@ class LinkMobile {
     stop();
 
     return success;
+  }
+
+  bool readConfiguration(ConfigurationData& configurationData) {
+    static constexpr u8 CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
+    u8* configurationDataBytes = (u8*)&configurationData;
+
+    addData(0, true);
+    addData(CONFIGURATION_DATA_CHUNK);
+    auto response1 = sendCommandWithResponse(
+        buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+    if (response1.result != CommandResult::SUCCESS ||
+        response1.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
+      return false;
+
+    addData(CONFIGURATION_DATA_CHUNK, true);
+    addData(CONFIGURATION_DATA_CHUNK);
+    auto response2 = sendCommandWithResponse(
+        buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+    if (response2.result != CommandResult::SUCCESS ||
+        response2.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
+      return false;
+
+    u8* response1Bytes = (u8*)&response1.command.data.bytes;
+    u8* response2Bytes = (u8*)&response2.command.data.bytes;
+    for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
+      configurationDataBytes[i] = response1Bytes[1 + i];
+    for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
+      configurationDataBytes[CONFIGURATION_DATA_CHUNK + i] =
+          response2Bytes[1 + i];
+
+    return true;
   }
 
   [[nodiscard]] State getState() { return state; }
