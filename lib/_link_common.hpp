@@ -2,7 +2,8 @@
 #define LINK_COMMON_H
 
 /**
- * @brief This namespace contains the parts of libtonc used by this library.
+ * @brief This namespace contains shared code between all libraries.
+ * \warning Most of these things are borrowed from libtonc.
  */
 namespace Link {
 
@@ -141,6 +142,72 @@ static inline int _max(int a, int b) {
 static inline int _min(int a, int b) {
   return (a < b) ? (a) : (b);
 }
+
+template <typename T>
+struct DefaultNullValue {
+  static constexpr T value = T{};
+};
+
+template <typename T, u32 Size, T NullValue = 0, bool Overwrite = true>
+class Queue {
+ public:
+  void push(T item) {
+    if (isFull()) {
+      if constexpr (Overwrite) {
+        pop();
+      } else {
+        return;
+      }
+    }
+
+    rear = (rear + 1) % Size;
+    arr[rear] = item;
+    count++;
+  }
+
+  T pop() {
+    if (isEmpty())
+      return NullValue;
+
+    auto x = arr[front];
+    front = (front + 1) % Size;
+    count--;
+
+    return x;
+  }
+
+  T peek() {
+    if (isEmpty())
+      return NullValue;
+    return arr[front];
+  }
+
+  template <typename F>
+  void forEach(F action) {
+    vs32 currentFront = front;
+
+    for (u32 i = 0; i < count; i++) {
+      if (!action(arr[currentFront]))
+        return;
+      currentFront = (currentFront + 1) % Size;
+    }
+  }
+
+  void clear() {
+    front = count = 0;
+    rear = -1;
+  }
+
+  u32 size() { return count; }
+  bool isEmpty() { return size() == 0; }
+  bool isFull() { return size() == Size; }
+
+ private:
+  T arr[Size];
+  vs32 front = 0;
+  vs32 rear = -1;
+  vu32 count = 0;
+};
 
 }  // namespace Link
 

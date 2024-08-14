@@ -45,6 +45,7 @@ class LinkUART {
   using u8 = unsigned char;
   using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
+  using U8Queue = Link::Queue<u8, LINK_UART_QUEUE_SIZE>;
 
   static constexpr int BIT_CTS = 2;
   static constexpr int BIT_PARITY_CONTROL = 3;
@@ -301,51 +302,6 @@ class LinkUART {
   }
 
  private:
-  class U8Queue {
-   public:
-    void push(u8 item) {
-      if (isFull())
-        pop();
-
-      rear = (rear + 1) % LINK_UART_QUEUE_SIZE;
-      arr[rear] = item;
-      count++;
-    }
-
-    u16 pop() {
-      if (isEmpty())
-        return 0;
-
-      auto x = arr[front];
-      front = (front + 1) % LINK_UART_QUEUE_SIZE;
-      count--;
-
-      return x;
-    }
-
-    u16 peek() {
-      if (isEmpty())
-        return 0;
-
-      return arr[front];
-    }
-
-    void clear() {
-      front = count = 0;
-      rear = -1;
-    }
-
-    u32 size() { return count; }
-    bool isEmpty() { return size() == 0; }
-    bool isFull() { return size() == LINK_UART_QUEUE_SIZE; }
-
-   private:
-    u8 arr[LINK_UART_QUEUE_SIZE];
-    vs32 front = 0;
-    vs32 rear = -1;
-    vu32 count = 0;
-  };
-
   struct Config {
     BaudRate baudRate;
     DataSize dataSize;
@@ -363,7 +319,7 @@ class LinkUART {
   bool canReceive() { return !isBitHigh(BIT_RECEIVE_DATA_FLAG); }
   bool canTransfer() { return !isBitHigh(BIT_SEND_DATA_FLAG); }
   bool hasError() { return isBitHigh(BIT_ERROR_FLAG); }
-  bool needsTransfer() { return outgoingQueue.size() > 0; }
+  bool needsTransfer() { return !outgoingQueue.isEmpty(); }
 
   void reset() {
     resetState();

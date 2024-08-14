@@ -76,6 +76,7 @@ class LinkCable {
   using u8 = unsigned char;
   using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
+  using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE, LINK_CABLE_NO_DATA>;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
@@ -95,51 +96,6 @@ class LinkCable {
     BAUD_RATE_1,  // 38400 bps
     BAUD_RATE_2,  // 57600 bps
     BAUD_RATE_3   // 115200 bps
-  };
-
-  class U16Queue {
-   public:
-    void push(u16 item) {
-      if (isFull())
-        pop();
-
-      rear = (rear + 1) % LINK_CABLE_QUEUE_SIZE;
-      arr[rear] = item;
-      count++;
-    }
-
-    u16 pop() {
-      if (isEmpty())
-        return LINK_CABLE_NO_DATA;
-
-      auto x = arr[front];
-      front = (front + 1) % LINK_CABLE_QUEUE_SIZE;
-      count--;
-
-      return x;
-    }
-
-    u16 peek() {
-      if (isEmpty())
-        return LINK_CABLE_NO_DATA;
-
-      return arr[front];
-    }
-
-    void clear() {
-      front = count = 0;
-      rear = -1;
-    }
-
-    u32 size() { return count; }
-    bool isEmpty() { return size() == 0; }
-    bool isFull() { return size() == LINK_CABLE_QUEUE_SIZE; }
-
-   private:
-    u16 arr[LINK_CABLE_QUEUE_SIZE];
-    vs32 front = 0;
-    vs32 rear = -1;
-    vu32 count = 0;
   };
 
   /**
