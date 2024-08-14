@@ -1039,6 +1039,8 @@ class LinkWireless {
   State state = NEEDS_RESET;
   u32 nextCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
   u32 nextCommandDataSize = 0;
+  u32 nextAsyncCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+  u32 nextAsyncCommandDataSize = 0;
   volatile bool isReadingMessages = false;
   volatile bool isAddingMessage = false;
   volatile bool isPendingClearActive = false;
@@ -1161,7 +1163,7 @@ class LinkWireless {
   int setDataFromOutgoingMessages() {  // (irq only)
     u32 maxTransferLength = getDeviceTransferLength();
 
-    addData(0, true);
+    addAsyncData(0, true);
 
     if (config.retransmission)
       addConfirmations();
@@ -1170,27 +1172,28 @@ class LinkWireless {
 
     int lastPacketId = -1;
 
-    sessionState.outgoingMessages.forEach(
-        [this, maxTransferLength, &lastPacketId](Message message) {
-          u16 header = buildMessageHeader(message.playerId, message.packetId,
-                                          buildChecksum(message.data));
-          u32 rawMessage = buildU32(header, message.data);
+    sessionState.outgoingMessages.forEach([this, maxTransferLength,
+                                           &lastPacketId](Message message) {
+      u16 header = buildMessageHeader(message.playerId, message.packetId,
+                                      buildChecksum(message.data));
+      u32 rawMessage = buildU32(header, message.data);
 
-          if (nextCommandDataSize /* -1 (wireless header) + 1 (rawMessage) */ >
-              maxTransferLength)
-            return false;
+      if (nextAsyncCommandDataSize /* -1 (wireless header) + 1 (rawMessage) */ >
+          maxTransferLength)
+        return false;
 
-          addData(rawMessage);
-          lastPacketId = message.packetId;
+      addAsyncData(rawMessage);
+      lastPacketId = message.packetId;
 
-          return true;
-        });
+      return true;
+    });
 
     // (add wireless header)
-    u32 bytes = (nextCommandDataSize - 1) * 4;
-    nextCommandData[0] = sessionState.currentPlayerId == 0
-                             ? bytes
-                             : bytes << (3 + sessionState.currentPlayerId * 5);
+    u32 bytes = (nextAsyncCommandDataSize - 1) * 4;
+    nextAsyncCommandData[0] =
+        sessionState.currentPlayerId == 0
+            ? bytes
+            : bytes << (3 + sessionState.currentPlayerId * 5);
 
     return lastPacketId;
   }
@@ -1297,21 +1300,21 @@ class LinkWireless {
         u32 lastPacketId = sessionState.lastPacketId;
         u16 header = buildConfirmationHeader(0, lastPacketId);
         u32 rawMessage = buildU32(header, lastPacketId & 0xffff);
-        addData(rawMessage);
+        addAsyncData(rawMessage);
       }
 
       for (int i = 0; i < config.maxPlayers - 1; i++) {
         u32 confirmationData = sessionState.lastPacketIdFromClients[1 + i];
         u16 header = buildConfirmationHeader(1 + i, confirmationData);
         u32 rawMessage = buildU32(header, confirmationData & 0xffff);
-        addData(rawMessage);
+        addAsyncData(rawMessage);
       }
     } else {
       u32 confirmationData = sessionState.lastPacketIdFromServer;
       u16 header = buildConfirmationHeader(sessionState.currentPlayerId,
                                            confirmationData);
       u32 rawMessage = buildU32(header, confirmationData & 0xffff);
-      addData(rawMessage);
+      addAsyncData(rawMessage);
     }
   }
 
@@ -1447,6 +1450,13 @@ class LinkWireless {
     nextCommandDataSize++;
   }
 
+  void addAsyncData(u32 value, bool start = false) {
+    if (start)
+      nextAsyncCommandDataSize = 0;
+    nextAsyncCommandData[nextAsyncCommandDataSize] = value;
+    nextAsyncCommandDataSize++;
+  }
+
   void startACKTimer() {
     Link::_REG_TM[config.asyncACKTimerId].start = -1;
     Link::_REG_TM[config.asyncACKTimerId].cnt =
@@ -1518,6 +1528,7 @@ class LinkWireless {
     }
     this->asyncCommand.isActive = false;
     this->nextCommandDataSize = 0;
+    this->nextAsyncCommandDataSize = 0;
 
     if (!isReadingMessages)
       this->sessionState.incomingMessages.clear();
@@ -1672,14 +1683,14 @@ class LinkWireless {
 
     asyncCommand.type = type;
     if (withData) {
-      for (u32 i = 0; i < nextCommandDataSize; i++)
-        asyncCommand.parameters[i] = nextCommandData[i];
+      for (u32 i = 0; i < nextAsyncCommandDataSize; i++)
+        asyncCommand.parameters[i] = nextAsyncCommandData[i];
     }
     asyncCommand.result.success = false;
     asyncCommand.state = AsyncCommand::State::PENDING;
     asyncCommand.step = AsyncCommand::Step::COMMAND_HEADER;
     asyncCommand.sentParameters = 0;
-    asyncCommand.totalParameters = withData ? nextCommandDataSize : 0;
+    asyncCommand.totalParameters = withData ? nextAsyncCommandDataSize : 0;
     asyncCommand.receivedResponses = 0;
     asyncCommand.totalResponses = 0;
     asyncCommand.pendingData = 0;
