@@ -143,8 +143,8 @@ class LinkWireless {
   using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
-  using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
+  using vs32 = volatile signed int;
   using s8 = signed char;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
@@ -954,6 +954,10 @@ class LinkWireless {
     s8 asyncACKTimerId;
   };
 
+  /**
+   * @brief LinkWireless configuration.
+   * \warning `deactivate()` first, change the config, and `activate()` again!
+   */
   Config config;
 
  private:

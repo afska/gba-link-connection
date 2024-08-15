@@ -74,8 +74,8 @@ class LinkCable {
   using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
-  using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
+  using vs32 = volatile signed int;
   using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE, LINK_CABLE_NO_DATA>;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;

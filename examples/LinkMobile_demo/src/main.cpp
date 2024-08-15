@@ -1,3 +1,5 @@
+#define LINK_ENABLE_DEBUG_LOGS 1
+
 // (0) Include the header
 #include "../../../lib/LinkMobile.hpp"
 
@@ -6,16 +8,6 @@
 #include <string>
 #include <vector>
 #include "../../_lib/interrupt.h"
-
-#define CHECK_ERRORS(MESSAGE)                                             \
-  if ((lastError = linkMobile->getLastError()) ||                         \
-      linkMobile->getState() == LinkMobile::State::NEEDS_RESET) {         \
-    log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ") [" + \
-        std::to_string(linkMobile->getState()) + "]");                    \
-    hang();                                                               \
-    linkMobile->activate();                                               \
-    return;                                                               \
-  }
 
 void activate();
 void readConfiguration();
@@ -50,7 +42,6 @@ start:
 
   // (1) Create a LinkMobile instance
   linkMobile = new LinkMobile();
-  linkMobile->debug = [](std::string str) { log(str); };
 
   if (firstTime) {
     // (2) Add the required interrupt service routines
@@ -67,11 +58,7 @@ start:
 
 again:
   // (3) Initialize the library
-  if (!linkMobile->activate()) {
-    log("Adapter not connected!\n\nPress A to try again");
-    waitFor(KEY_A);
-    goto again;
-  }
+  linkMobile->activate();
 
   bool activating = false;
   bool reading = false;
@@ -115,14 +102,7 @@ again:
 }
 
 void activate() {
-  log("Trying...");
-
-  if (linkMobile->activate())
-    log("Activated!");
-  else
-    log("Activation failed! :(");
-
-  hang();
+  linkMobile->activate();
 }
 
 std::string toStr(char* chars, int size) {

@@ -78,6 +78,7 @@ class LinkUniversal {
   using u16 = unsigned short;
   using u8 = unsigned char;
   using s8 = signed char;
+  using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE, LINK_CABLE_NO_DATA>;
 
   static constexpr int MAX_ROOM_NUMBER = 32000;
   static constexpr int INIT_WAIT_FRAMES = 10;
@@ -452,7 +453,7 @@ class LinkUniversal {
     const char* gameName;
   };
 
-  LinkCable::U16Queue incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
+  U16Queue incomingMessages[LINK_UNIVERSAL_MAX_PLAYERS];
   Config config;
   State state = INITIALIZING;
   Mode mode = LINK_CABLE;

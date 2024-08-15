@@ -43,8 +43,8 @@ class LinkUART {
   using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
-  using vs32 = volatile signed int;
   using vu32 = volatile unsigned int;
+  using vs32 = volatile signed int;
   using U8Queue = Link::Queue<u8, LINK_UART_QUEUE_SIZE>;
 
   static constexpr int BIT_CTS = 2;

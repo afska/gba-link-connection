@@ -2,6 +2,18 @@
 #define LINK_COMMON_H
 
 /**
+ * @brief Enable mGBA debug logging.
+ */
+#ifndef LINK_ENABLE_DEBUG_LOGS
+#define LINK_ENABLE_DEBUG_LOGS 0
+#endif
+
+#if LINK_ENABLE_DEBUG_LOGS != 0
+#include <stdarg.h>
+#include <stdio.h>
+#endif
+
+/**
  * @brief This namespace contains shared code between all libraries.
  * \warning Most of these things are borrowed from libtonc.
  */
@@ -13,10 +25,13 @@ using u32 = unsigned int;
 using u16 = unsigned short;
 using u8 = unsigned char;
 
-using vs32 = volatile signed int;
-using vu32 = volatile unsigned int;
 using s16 = signed short;
 using s8 = signed char;
+
+using vu32 = volatile unsigned int;
+using vs32 = volatile signed int;
+using vu16 = volatile unsigned short;
+using vs16 = volatile signed short;
 
 // Structs
 
@@ -55,41 +70,18 @@ typedef struct {
 
 constexpr u32 _REG_BASE = 0x04000000;
 
-inline volatile u16& _REG_RCNT =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0134);
-
-inline volatile u16& _REG_SIOCNT =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0128);
-
-inline volatile u32& _REG_SIODATA32 =
-    *reinterpret_cast<volatile u32*>(_REG_BASE + 0x0120);
-
-inline volatile u16& _REG_SIODATA8 =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x012A);
-
-inline volatile u16& _REG_SIOMLT_SEND =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x012A);
-
-inline volatile u16* const _REG_SIOMULTI =
-    reinterpret_cast<volatile u16*>(_REG_BASE + 0x0120);
-
-inline volatile u16& _REG_VCOUNT =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0006);
-
-inline volatile u16& _REG_KEYS =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0130);
-
-inline volatile u16& _REG_TM1CNT_L =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0104);
-
-inline volatile u16& _REG_TM1CNT_H =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0106);
-
-inline volatile u16& _REG_TM2CNT_L =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x0108);
-
-inline volatile u16& _REG_TM2CNT_H =
-    *reinterpret_cast<volatile u16*>(_REG_BASE + 0x010a);
+inline vu16& _REG_RCNT = *reinterpret_cast<vu16*>(_REG_BASE + 0x0134);
+inline vu16& _REG_SIOCNT = *reinterpret_cast<vu16*>(_REG_BASE + 0x0128);
+inline vu32& _REG_SIODATA32 = *reinterpret_cast<vu32*>(_REG_BASE + 0x0120);
+inline vu16& _REG_SIODATA8 = *reinterpret_cast<vu16*>(_REG_BASE + 0x012A);
+inline vu16& _REG_SIOMLT_SEND = *reinterpret_cast<vu16*>(_REG_BASE + 0x012A);
+inline vu16* const _REG_SIOMULTI = reinterpret_cast<vu16*>(_REG_BASE + 0x0120);
+inline vu16& _REG_VCOUNT = *reinterpret_cast<vu16*>(_REG_BASE + 0x0006);
+inline vu16& _REG_KEYS = *reinterpret_cast<vu16*>(_REG_BASE + 0x0130);
+inline vu16& _REG_TM1CNT_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0104);
+inline vu16& _REG_TM1CNT_H = *reinterpret_cast<vu16*>(_REG_BASE + 0x0106);
+inline vu16& _REG_TM2CNT_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0108);
+inline vu16& _REG_TM2CNT_H = *reinterpret_cast<vu16*>(_REG_BASE + 0x010a);
 
 inline volatile _TMR_REC* const _REG_TM =
     reinterpret_cast<volatile _TMR_REC*>(_REG_BASE + 0x0100);
@@ -266,6 +258,26 @@ class ObjectQueue {
   vs32 rear = -1;
   vu32 count = 0;
 };
+
+// mGBA Logging
+
+#if LINK_ENABLE_DEBUG_LOGS != 0
+inline vu16& _REG_LOG_ENABLE = *reinterpret_cast<vu16*>(0x4FFF780);
+inline vu16& _REG_LOG_LEVEL = *reinterpret_cast<vu16*>(0x4FFF700);
+
+static inline void log(const char* fmt, ...) {
+  _REG_LOG_ENABLE = 0xC0DE;
+
+  va_list args;
+  va_start(args, fmt);
+
+  char* const log = (char*)0x4FFF600;
+  vsnprintf(log, 0x100, fmt, args);
+  _REG_LOG_LEVEL = 0x102;  // Level: WARN
+
+  va_end(args);
+}
+#endif
 
 }  // namespace Link
 

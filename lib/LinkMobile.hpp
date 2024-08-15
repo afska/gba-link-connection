@@ -22,23 +22,15 @@
 
 #include "_link_common.hpp"
 
-#include <cstring>
+#include <cstring>  // TODO: for std::strlen
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
-// TODO: Remove
-#include <functional>
-#include <string>
-#include "_link_tonc_mgba.h"
-
-#define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
-
-#define LINK_MOBILE_RESET_IF_NEEDED \
-  if (!isEnabled)                   \
-    return false;                   \
-  if (state == NEEDS_RESET)         \
-    if (!reset())                   \
-      return false;
+/**
+ * @brief ...
+ *
+ */
+#define LINK_MOBILE_TODO_KNOB 10
 
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
@@ -46,6 +38,13 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
+#define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
+
+#if LINK_ENABLE_DEBUG_LOGS != 0
+#define _LMLOG_(...) Link::log(__VA_ARGS__)
+#else
+#define _LMLOG_(str)
+#endif
 
 class LinkMobile {
  private:
@@ -54,9 +53,7 @@ class LinkMobile {
   using u8 = unsigned char;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
-  static constexpr int FRAME_LINES = 228;
-  static constexpr int PING_WAIT = FRAME_LINES * 7;
-  static constexpr int CMD_TIMEOUT = FRAME_LINES * 5;
+  static constexpr int PING_WAIT_FRAMES = 7;
   static constexpr int ADAPTER_WAITING = 0xD2;
   static constexpr u32 ADAPTER_WAITING_32BIT = 0xD2D2D2D2;
   static constexpr int GBA_WAITING = 0x4B;
@@ -78,7 +75,6 @@ class LinkMobile {
   static constexpr int COMMAND_WAIT_FOR_TELEPHONE_CALL = 0x14;
   static constexpr int COMMAND_TRANSFER_DATA = 0x15;
   static constexpr int COMMAND_RESET = 0x16;
-  static constexpr int COMMAND_TELEPHONE_STATUS = 0x17;
   static constexpr int COMMAND_SIO32 = 0x18;
   static constexpr int COMMAND_READ_CONFIGURATION_DATA = 0x19;
   static constexpr int COMMAND_ISP_LOGIN = 0x21;
@@ -90,31 +86,38 @@ class LinkMobile {
   static constexpr int COMMAND_DNS_QUERY = 0x28;
   static constexpr int COMMAND_ERROR_STATUS = 0x6E | OR_VALUE;
 
+  static constexpr u8 WAIT_TICKS[] = {4, 8};
   static constexpr int LOGIN_PARTS_SIZE = 8;
   static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
                                        0x45, 0x4e, 0x44, 0x4f};
-  static constexpr u8 WAIT_TICKS[] = {4, 8};
-
   static constexpr int SUPPORTED_DEVICES_SIZE = 4;
   static constexpr u8 SUPPORTED_DEVICES[] = {
       DEVICE_ADAPTER_BLUE, DEVICE_ADAPTER_YELLOW, DEVICE_ADAPTER_GREEN,
       DEVICE_ADAPTER_RED};
 
  public:
-  std::function<void(std::string str)> debug;  // TODO: REMOVE
-
   enum State {
     NEEDS_RESET,
-    AUTHENTICATING,
+    PINGING,
+    WAITING_TO_START,
+    ENDING_SESSION,
+    STARTING_SESSION,
+    ACTIVATING_SIO32,
+    WAITING_TO_SWITCH,
+    READING_CONFIGURATION,
     SESSION_ACTIVE,
+    SESSION_ACTIVE_CALL,
+    SESSION_ACTIVE_ISP
   };
 
   enum Error {
     // User errors
-    NONE = 0,
-    WRONG_STATE = 1,
+    NONE,
+    WRONG_STATE,
     // Communication errors
-    // ...
+    NOT_CONNECTED,
+    FAILURE_ACTIVATING_SIO32,
+    FAILURE_READING_CONFIGURATION,
   };
 
   struct ConfigurationData {
@@ -145,89 +148,81 @@ class LinkMobile {
 
   /**
    * @brief ...
-   *
-   * \warning Blocks the system for ~15 frames!
    */
-  bool activate() {
+  void activate() {
     lastError = NONE;
+
+    LINK_MOBILE_BARRIER;
     isEnabled = false;
-
-    LINK_MOBILE_BARRIER;
-    bool success = reset();
     LINK_MOBILE_BARRIER;
 
-    if (!success) {
-      deactivate(false);
-      return false;
-    }
+    resetState();
+    stop();
 
+    LINK_MOBILE_BARRIER;
     isEnabled = true;
-    return true;
+    LINK_MOBILE_BARRIER;
+
+    start();
   }
 
-  bool deactivate(bool logoutFirst = true) {
-    bool success = true;
-
-    if (logoutFirst) {
-      activate();
-      success = logout();
-    }
-
+  void deactivate() {
     lastError = NONE;
     isEnabled = false;
     resetState();
     stop();
-
-    return success;
   }
 
+  // TODO: REFACTOR
   bool readConfiguration(ConfigurationData& configurationData) {
-    while (linkSPI->getAsyncState() != LinkSPI::AsyncState::IDLE)
-      ;  // wait
+    // while (linkSPI->getAsyncState() != LinkSPI::AsyncState::IDLE)
+    //   ;  // wait
 
-    mgbalog("READING CONFIGURATION!!!");
-    addData(1, true);
-    auto sio32Response =
-        sendCommandWithResponse(buildCommand(COMMAND_SIO32, true));
-    if (sio32Response.result != CommandResult::SUCCESS) {
-      mgbalog("SIO32 FAILED!!!");
-      return false;
-    }
-    if (sio32Response.command.header.commandId != (COMMAND_RESET | OR_VALUE)) {
-      wait(PING_WAIT);
-      linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                        LinkSPI::DataSize::SIZE_32BIT);
-      mgbalog("SIO32 ACTIVATED!!! now sending read configuration");
-    } else {
-      mgbalog("Adapter returned RESET, keeping SIO8 mode");
-    }
+    // _LMLOG_("READING CONFIGURATION!!!");
+    // // TODO: FIX THIS MESS
+    // addData(1, true);
+    // auto sio32Response =
+    //     sendCommandWithResponse(buildCommand(COMMAND_SIO32, true));
+    // if (sio32Response.result != CommandResult::SUCCESS) {
+    //   _LMLOG_("SIO32 FAILED!!!");
+    //   return false;
+    // }
+    // if (sio32Response.command.header.commandId != (COMMAND_RESET | OR_VALUE))
+    // {
+    //   wait(PING_WAIT);
+    //   linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+    //                     LinkSPI::DataSize::SIZE_32BIT);
+    //   _LMLOG_("SIO32 ACTIVATED!!! now sending read configuration");
+    // } else {
+    //   _LMLOG_("Adapter returned RESET, keeping SIO8 mode");
+    // }
 
-    static constexpr u8 CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
-    u8* configurationDataBytes = (u8*)&configurationData;
+    // static constexpr u8 CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE /
+    // 2; u8* configurationDataBytes = (u8*)&configurationData;
 
-    addData(0, true);
-    addData(CONFIGURATION_DATA_CHUNK);
-    auto response1 = sendCommandWithResponse(
-        buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
-    if (response1.result != CommandResult::SUCCESS ||
-        response1.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
-      return false;
+    // addData(0, true);
+    // addData(CONFIGURATION_DATA_CHUNK);
+    // auto response1 = sendCommandWithResponse(
+    //     buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+    // if (response1.result != CommandResult::SUCCESS ||
+    //     response1.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
+    //   return false;
 
-    addData(CONFIGURATION_DATA_CHUNK, true);
-    addData(CONFIGURATION_DATA_CHUNK);
-    auto response2 = sendCommandWithResponse(
-        buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
-    if (response2.result != CommandResult::SUCCESS ||
-        response2.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
-      return false;
+    // addData(CONFIGURATION_DATA_CHUNK, true);
+    // addData(CONFIGURATION_DATA_CHUNK);
+    // auto response2 = sendCommandWithResponse(
+    //     buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+    // if (response2.result != CommandResult::SUCCESS ||
+    //     response2.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
+    //   return false;
 
-    u8* response1Bytes = (u8*)&response1.command.data.bytes;
-    u8* response2Bytes = (u8*)&response2.command.data.bytes;
-    for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
-      configurationDataBytes[i] = response1Bytes[1 + i];
-    for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
-      configurationDataBytes[CONFIGURATION_DATA_CHUNK + i] =
-          response2Bytes[1 + i];
+    // u8* response1Bytes = (u8*)&response1.command.data.bytes;
+    // u8* response2Bytes = (u8*)&response2.command.data.bytes;
+    // for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
+    //   configurationDataBytes[i] = response1Bytes[1 + i];
+    // for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
+    //   configurationDataBytes[CONFIGURATION_DATA_CHUNK + i] =
+    //       response2Bytes[1 + i];
 
     return true;
   }
@@ -246,10 +241,7 @@ class LinkMobile {
     if (!isEnabled)
       return;
 
-    // if (!asyncCommand.isActive &&
-    //     linkSPI->getAsyncState() == LinkSPI::AsyncState::IDLE) {
-    //   linkSPI->transfer(GBA_WAITING);
-    // }
+    processNewFrame();
   }
 
   void _onSerial() {
@@ -257,12 +249,7 @@ class LinkMobile {
       return;
 
     linkSPI->_onSerial();
-    if (linkSPI->getAsyncState() != LinkSPI::AsyncState::READY)
-      return;
     u32 newData = linkSPI->getAsyncData();
-
-    if (state == NEEDS_RESET)
-      return;
 
     if (asyncCommand.isActive) {
       if (asyncCommand.state == AsyncCommand::State::PENDING) {
@@ -279,26 +266,32 @@ class LinkMobile {
         }
 
         if (asyncCommand.state == AsyncCommand::State::COMPLETED) {
-          mgbalog("completed?! %d", asyncCommand.result);
+          asyncCommand.isActive = false;
           processAsyncCommand();
         }
       }
+    } else {
+      processLoosePacket(newData);
     }
   }
 
   void _onTimer() {
-    if (!isEnabled || !asyncCommand.isActive || !asyncCommand.isWaiting)
+    if (!isEnabled || !hasPendingTransfer)
       return;
 
-    linkSPI->transferAsync(asyncCommand.pendingData);
+    linkSPI->transferAsync(pendingTransfer);
     stopTimer();
-    asyncCommand.isWaiting = false;
+    hasPendingTransfer = false;
   }
 
   struct Config {
     u32 timerId;
   };
 
+  /**
+   * @brief LinkMobile configuration.
+   * \warning `deactivate()` first, change the config, and `activate()` again!
+   */
   Config config;
 
   //  private: // TODO: RECOVER
@@ -355,15 +348,14 @@ class LinkMobile {
     enum State { PENDING, COMPLETED };
     enum Direction { SENDING, RECEIVING };
 
-    volatile State state;
-    volatile CommandResult result;
-    volatile u32 transferred;
+    State state;
+    CommandResult result;
+    u32 transferred;
     Command cmd;
-    volatile Direction direction;
-    volatile u16 expectedChecksum;
-    volatile u32 pendingData;
-    volatile bool isWaiting;
-    volatile bool isActive = false;
+    Direction direction;
+    u16 expectedChecksum;
+    bool expectsResponse;
+    bool isActive = false;
 
     void reset() {
       state = AsyncCommand::State::PENDING;
@@ -372,15 +364,19 @@ class LinkMobile {
       cmd = Command{};
       direction = AsyncCommand::Direction::SENDING;
       expectedChecksum = 0;
-      pendingData = 0;
-      isWaiting = false;
+      expectsResponse = false;
       isActive = true;
+    }
+
+    bool respondsTo(u8 commandId) {
+      return direction == AsyncCommand::Direction::RECEIVING &&
+             cmd.header.commandId == (commandId | OR_VALUE);
     }
 
     void fail(CommandResult _result) {
       result = _result;
       state = AsyncCommand::State::COMPLETED;
-      mgbalog("COMPLETED FAIL %d", result);
+      // TODO: Command fail log
     }
   };
 
@@ -389,17 +385,130 @@ class LinkMobile {
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
   AsyncCommand asyncCommand;
+  u32 waitFrames = 0;
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   PacketData nextCommandData;
   u32 nextCommandDataSize = 0;
+  bool hasPendingTransfer = false;
+  u32 pendingTransfer = 0;
   Error lastError = NONE;
   volatile bool isEnabled = false;
 
+  void processNewFrame() {
+    switch (state) {
+      case WAITING_TO_START: {
+        waitFrames--;
+        if (waitFrames == 0) {
+          auto command = buildCommand(COMMAND_END_SESSION, true);
+          sendCommandAsync(command, true);
+          setState(ENDING_SESSION);
+        }
+        break;
+      }
+      case WAITING_TO_SWITCH: {
+        waitFrames--;
+        if (waitFrames == 0) {
+          linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+                            LinkSPI::DataSize::SIZE_32BIT);
+          setState(SESSION_ACTIVE);
+        }
+        break;
+      }
+      default: {
+      }
+    }
+  }
+
   void processAsyncCommand() {
-    asyncCommand.isActive = false;
-    mgbalog("PROCESSED! %d", asyncCommand.result);
-    // TODO: IMPLEMENT
+    // TODO: Command success log
+
+    // TODO: PARSE ERRORS
+    /*
+        auto remoteCommand = response.command.header.commandId;
+    if (remoteCommand == COMMAND_ERROR_STATUS) {
+      if (response.command.header.size != 2 ||
+          response.command.data.bytes[0] != command.header.commandId) {
+        response.result = CommandResult::UNEXPECTED_RESPONSE;
+        return response;
+      } else {
+        response.result = CommandResult::ERROR;
+        return response;
+      }
+    }
+    */
+    if (asyncCommand.expectsResponse) {
+      if (asyncCommand.result != CommandResult::SUCCESS) {
+        // lastError = Error::;
+        reset();
+        return;
+      }
+      receiveCommandAsync();
+      return;
+    }
+
+    switch (state) {
+      case ENDING_SESSION: {
+        if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
+          return;
+
+        for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
+          addData(LOGIN_PARTS[i], i == 0);
+        sendCommandAsync(buildCommand(COMMAND_BEGIN_SESSION, true), true);
+        setState(STARTING_SESSION);
+        break;
+      }
+      case STARTING_SESSION: {
+        if (!asyncCommand.respondsTo(COMMAND_BEGIN_SESSION))
+          return;
+        if (asyncCommand.result != CommandResult::SUCCESS) {
+          reset();
+          return;
+        }
+
+        if (asyncCommand.cmd.header.size != LOGIN_PARTS_SIZE) {
+          reset();
+          return;
+        }
+        for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++) {
+          if (asyncCommand.cmd.data.bytes[i] != LOGIN_PARTS[i]) {
+            reset();
+            return;
+          }
+        }
+
+        addData(1, true);
+        sendCommandAsync(buildCommand(COMMAND_SIO32, true), true);
+        setState(ACTIVATING_SIO32);
+
+        break;
+      }
+      case ACTIVATING_SIO32: {
+        if (!asyncCommand.respondsTo(COMMAND_SIO32))
+          return;  // TODO: Also react to 0x16
+        if (asyncCommand.result != CommandResult::SUCCESS) {
+          reset();
+          return;
+        }
+
+        waitFrames = PING_WAIT_FRAMES;
+        setState(WAITING_TO_SWITCH);
+
+        break;
+      }
+    }
+  }
+
+  void processLoosePacket(u32 newData) {
+    switch (state) {
+      case PINGING: {
+        waitFrames = PING_WAIT_FRAMES;
+        setState(WAITING_TO_START);
+        break;
+      }
+      default: {
+      }
+    }
   }
 
   void addData(u8 value, bool start = false) {
@@ -411,25 +520,35 @@ class LinkMobile {
     nextCommandDataSize++;
   }
 
-  void copyName(char* target, const char* source, u32 length) {
-    u32 len = std::strlen(source);
+  // TODO: USE
+  // void copyName(char* target, const char* source, u32 length) {
+  //   u32 len = std::strlen(source);
 
-    for (u32 i = 0; i < length + 1; i++)
-      if (i < len)
-        target[i] = source[i];
-      else
-        target[i] = '\0';
+  //   for (u32 i = 0; i < length + 1; i++)
+  //     if (i < len)
+  //       target[i] = source[i];
+  //     else
+  //       target[i] = '\0';
+  // }
+
+  void setState(State newState) {
+    state = newState;
+    _LMLOG_("!! New state: %d", newState);
   }
 
-  bool reset() {
+  void reset() {
     resetState();
     stop();
-    return start();
+    start();
   }
 
   void resetState() {
+    setState(NEEDS_RESET);
+
     this->asyncCommand.isActive = false;
-    this->state = NEEDS_RESET;
+    this->waitFrames = 0;
+    this->hasPendingTransfer = false;
+    this->pendingTransfer = 0;
   }
 
   void stop() {
@@ -437,28 +556,12 @@ class LinkMobile {
     linkSPI->deactivate();
   }
 
-  bool start() {
+  void start() {
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                       LinkSPI::DataSize::SIZE_8BIT);
 
-    pingAdapter();
-
-    LINK_MOBILE_BARRIER;
-    state = AUTHENTICATING;
-    isEnabled = true;
-    LINK_MOBILE_BARRIER;
-
-    bool logr = logout();
-    mgbalog("---logout--- %d", logr);
-
-    if (!login())
-      return false;
-
-    // TODO: SWITCH TO 32BITS?
-
-    state = SESSION_ACTIVE;
-
-    return true;
+    transferAsync(0);
+    setState(PINGING);
   }
 
   void stopTimer() {
@@ -472,117 +575,19 @@ class LinkMobile {
         Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
   }
 
-  void pingAdapter() {
-    transfer(0);
-    wait(PING_WAIT);
-  }
-
-  bool login() {
-    for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
-      addData(LOGIN_PARTS[i], i == 0);
-    auto command = buildCommand(COMMAND_BEGIN_SESSION, true);
-
-    auto response = sendCommandWithResponse(command);
-    if (response.result != CommandResult::SUCCESS)
-      return false;
-
-    if (response.command.header.size != LOGIN_PARTS_SIZE)
-      return false;
-    for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++) {
-      if (response.command.data.bytes[i] != LOGIN_PARTS[i])
-        return false;
-    }
-
-    return true;
-  }
-
-  bool logout() {
-    auto command = buildCommand(COMMAND_END_SESSION, true);
-    auto response = sendCommandWithResponse(command);
-    return response.result == CommandResult::SUCCESS;
-  }
-
-  CommandResponse sendCommandWithResponse(Command command) {
-    CommandResponse response;
-
-    sendCommandAsync(command);
-    waitUntilAsyncCommandFinishes();
-    if (asyncCommand.result != CommandResult::SUCCESS) {
-      mgbalog("not success? %d", asyncCommand.result);
-      response.result = asyncCommand.result;
-      return response;
-    }
-
-    receiveCommandAsync();
-    waitUntilAsyncCommandFinishes();
-    if (asyncCommand.result != CommandResult::SUCCESS) {
-      response.result = asyncCommand.result;
-      return response;
-    }
-
-    response.result = asyncCommand.result;
-    response.command = asyncCommand.cmd;
-
-    auto remoteCommand = response.command.header.commandId;
-    if (remoteCommand == COMMAND_ERROR_STATUS) {
-      if (response.command.header.size != 2 ||
-          response.command.data.bytes[0] != command.header.commandId) {
-        response.result = CommandResult::UNEXPECTED_RESPONSE;
-        return response;
-      } else {
-        response.result = CommandResult::ERROR;
-        return response;
-      }
-    }
-
-    if (remoteCommand != (command.header.commandId | OR_VALUE)) {
-      if (command.header.commandId == COMMAND_SIO32 &&
-          remoteCommand == (COMMAND_RESET | OR_VALUE)) {
-        // Exception
-        return response;
-      }
-
-      response.result = CommandResult::UNEXPECTED_RESPONSE;
-      return response;
-    }
-
-    return response;
-  }
-
-  void waitUntilAsyncCommandFinishes() {
-    u32 lines = 0;
-    u32 vCount = Link::_REG_VCOUNT;
-
-    while (asyncCommand.isActive)
-      if (cmdTimeout(lines, vCount)) {
-        asyncCommand.isActive = false;
-        asyncCommand.state = AsyncCommand::State::COMPLETED;
-        asyncCommand.result = CommandResult::TIMEOUT;
-        mgbalog("COMPLETED TIMEOUT %d", asyncCommand.result);
-        break;
-      }
-  }
-
-  bool sendCommandAsync(Command command) {
-    if (asyncCommand.isActive)
-      return false;
-
+  void sendCommandAsync(Command command, bool expectsResponse = false) {
     asyncCommand.reset();
     asyncCommand.cmd = command;
+    asyncCommand.expectsResponse = expectsResponse;
 
     if (isSIO32Mode())  // Magic+Header
       advance32(buildU32(command.magicBytes.magic1, command.magicBytes.magic2,
                          command.header.commandId, command.header._unused_));
     else  // Magic Bytes (1)
       advance8(command.magicBytes.magic1);
-
-    return true;
   }
 
-  bool receiveCommandAsync() {
-    if (asyncCommand.isActive)
-      return false;
-
+  void receiveCommandAsync() {
     asyncCommand.reset();
     asyncCommand.direction = AsyncCommand::Direction::RECEIVING;
 
@@ -590,8 +595,6 @@ class LinkMobile {
       transferAsync(GBA_WAITING_32BIT);
     else
       transferAsync(GBA_WAITING);
-
-    return true;
   }
 
   void sendAsyncCommandSIO8(u32 newData) {
@@ -624,7 +627,6 @@ class LinkMobile {
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
       asyncCommand.result = CommandResult::SUCCESS;
       asyncCommand.state = AsyncCommand::State::COMPLETED;
-      mgbalog("COMPLETED SUCCESS %d", asyncCommand.result);
     }
   }
 
@@ -636,10 +638,8 @@ class LinkMobile {
 
     bool isAcknowledgement = asyncCommand.transferred >= mainSize + 4;
     if (!isAcknowledgement && newData != ADAPTER_WAITING &&
-        newData != ADAPTER_WAITING_32BIT) {
-      mgbalog("NOT WAITING!!!");
+        newData != ADAPTER_WAITING_32BIT)
       return asyncCommand.fail(CommandResult::NOT_WAITING);
-    }
 
     if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
@@ -678,7 +678,6 @@ class LinkMobile {
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
       asyncCommand.result = CommandResult::SUCCESS;
       asyncCommand.state = AsyncCommand::State::COMPLETED;
-      mgbalog("COMPLETED SUCCESS %d", asyncCommand.result);
     }
   }
 
@@ -732,7 +731,6 @@ class LinkMobile {
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
       asyncCommand.result = CommandResult::SUCCESS;
       asyncCommand.state = AsyncCommand::State::COMPLETED;
-      mgbalog("COMPLETED SUCCESS %d", asyncCommand.result);
     }
   }
 
@@ -760,7 +758,6 @@ class LinkMobile {
       asyncCommand.cmd.header._unusedSizeHigh_ = msB16(secondHalfHeader);
       asyncCommand.cmd.header.size = lsB16(secondHalfHeader);
       asyncCommand.expectedChecksum = asyncCommand.cmd.header.sum();
-
       if (asyncCommand.cmd.header.size > 0) {
         u16 firstData = lsB32(newData);
         u8 b0 = msB16(firstData), b1 = lsB16(firstData);
@@ -813,7 +810,6 @@ class LinkMobile {
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
       asyncCommand.result = CommandResult::SUCCESS;
       asyncCommand.state = AsyncCommand::State::COMPLETED;
-      mgbalog("COMPLETED SUCCESS %d", asyncCommand.result);
     }
   }
 
@@ -854,48 +850,14 @@ class LinkMobile {
   }
 
   void transferAsync(u32 data) {
-    mgbalog("SENT %X", data);
-    asyncCommand.isWaiting = true;
-    asyncCommand.pendingData = data;
+    _LMLOG_(">> %X", data);
+    hasPendingTransfer = true;
+    pendingTransfer = data;
     startTimer(WAIT_TICKS[isSIO32Mode()]);
-  }
-
-  u32 transfer(u32 data) {
-    u32 lines = 0;
-    u32 vCount = Link::_REG_VCOUNT;
-    u32 receivedData = linkSPI->transfer(
-        data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); });
-
-    return receivedData;
   }
 
   bool isSIO32Mode() {
     return linkSPI->getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
-  }
-
-  bool cmdTimeout(u32& lines, u32& vCount) {
-    return timeout(CMD_TIMEOUT, lines, vCount);
-  }
-
-  bool timeout(u32 limit, u32& lines, u32& vCount) {
-    if (Link::_REG_VCOUNT != vCount) {
-      lines += Link::_max((int)Link::_REG_VCOUNT - (int)vCount, 0);
-      vCount = Link::_REG_VCOUNT;
-    }
-
-    return lines > limit;
-  }
-
-  void wait(u32 verticalLines) {
-    u32 count = 0;
-    u32 vCount = Link::_REG_VCOUNT;
-
-    while (count < verticalLines) {
-      if (Link::_REG_VCOUNT != vCount) {
-        count++;
-        vCount = Link::_REG_VCOUNT;
-      }
-    };
   }
 
   u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
@@ -922,4 +884,8 @@ inline void LINK_MOBILE_ISR_TIMER() {
   linkMobile->_onTimer();
 }
 
+#undef _LMLOG_
+
 #endif  // LINK_MOBILE_H
+
+// TODO: Implement state timeouts (e.g. PINGING)
