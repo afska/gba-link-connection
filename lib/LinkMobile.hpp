@@ -22,15 +22,8 @@
 
 #include "_link_common.hpp"
 
-#include <cstring>  // TODO: for std::strlen
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
-
-/**
- * @brief ...
- *
- */
-#define LINK_MOBILE_TODO_KNOB 10
 
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
@@ -54,6 +47,7 @@ class LinkMobile {
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int PING_WAIT_FRAMES = 7;
+  static constexpr int TIMEOUT_INIT_FRAMES = 30;
   static constexpr int ADAPTER_WAITING = 0xD2;
   static constexpr u32 ADAPTER_WAITING_32BIT = 0xD2D2D2D2;
   static constexpr int GBA_WAITING = 0x4B;
@@ -111,14 +105,35 @@ class LinkMobile {
     SESSION_ACTIVE_ISP
   };
 
-  enum Error {
-    // User errors
-    NONE,
-    WRONG_STATE,
-    // Communication errors
-    NOT_CONNECTED,
-    FAILURE_ACTIVATING_SIO32,
-    FAILURE_READING_CONFIGURATION,
+  enum CommandResult {
+    PENDING,
+    SUCCESS,
+    NOT_WAITING,
+    INVALID_DEVICE_ID,
+    INVALID_COMMAND_ACK,
+    INVALID_MAGIC_BYTES,
+    WEIRD_DATA_SIZE,
+    WRONG_CHECKSUM,
+    ERROR,
+    WEIRD_ERROR,
+    TIMEOUT
+  };
+
+  struct Error {
+    enum Type {
+      NONE,
+      ADAPTER_NOT_CONNECTED,
+      UNEXPECTED_FAILURE,
+      WEIRD_RESPONSE,
+      BAD_CONFIGURATION_CHECKSUM
+    };
+
+    Error::Type type = Error::Type::NONE;
+    State state = State::NEEDS_RESET;
+    u8 cmdId = 0;
+    CommandResult cmdResult = CommandResult::PENDING;
+    u8 cmdErrorCode = 0;
+    bool cmdIsSending = false;
   };
 
   struct ConfigurationData {
@@ -151,7 +166,7 @@ class LinkMobile {
    * @brief ...
    */
   void activate() {
-    lastError = NONE;
+    lastError = {};
 
     LINK_MOBILE_BARRIER;
     isEnabled = false;
@@ -168,7 +183,7 @@ class LinkMobile {
   }
 
   void deactivate() {
-    lastError = NONE;
+    lastError = {};
     isEnabled = false;
     resetState();
     stop();
@@ -189,9 +204,9 @@ class LinkMobile {
   }
 
   Error getLastError(bool clear = true) {
-    Error error = lastError;
+    auto error = lastError;
     if (clear)
-      lastError = NONE;
+      lastError = {};
     return error;
   }
 
@@ -200,6 +215,12 @@ class LinkMobile {
   void _onVBlank() {
     if (!isEnabled)
       return;
+
+    if (state > NEEDS_RESET && state < SESSION_ACTIVE) {
+      timeoutFrames++;
+      if (timeoutFrames >= TIMEOUT_INIT_FRAMES)
+        return abort(Error::Type::ADAPTER_NOT_CONNECTED);
+    }
 
     processNewFrame();
   }
@@ -303,20 +324,6 @@ class LinkMobile {
     PacketChecksum checksum;
   };
 
-  enum CommandResult {
-    PENDING,
-    SUCCESS,
-    NOT_WAITING,
-    INVALID_DEVICE_ID,
-    INVALID_COMMAND_ACK,
-    INVALID_MAGIC_BYTES,
-    WEIRD_DATA_SIZE,
-    WRONG_CHECKSUM,
-    ERROR,
-    UNEXPECTED_RESPONSE,
-    TIMEOUT
-  };
-
   struct CommandResponse {
     CommandResult result = CommandResult::PENDING;
     Command command;
@@ -333,6 +340,7 @@ class LinkMobile {
     Direction direction;
     u16 expectedChecksum;
     bool expectsResponse;
+    u8 errorCode;
     bool isActive = false;
 
     void reset() {
@@ -343,7 +351,8 @@ class LinkMobile {
       direction = AsyncCommand::Direction::SENDING;
       expectedChecksum = 0;
       expectsResponse = false;
-      isActive = true;
+      errorCode = 0;
+      isActive = false;
     }
 
     bool respondsTo(u8 commandId) {
@@ -351,10 +360,24 @@ class LinkMobile {
              cmd.header.commandId == (commandId | OR_VALUE);
     }
 
+    void finish() {
+      if (cmd.header.commandId == COMMAND_ERROR_STATUS) {
+        if (cmd.header.size != 2) {
+          result = CommandResult::WEIRD_ERROR;
+          errorCode = cmd.data.bytes[1];
+        } else {
+          result = CommandResult::ERROR;
+        }
+      } else {
+        result = CommandResult::SUCCESS;
+      }
+
+      state = AsyncCommand::State::COMPLETED;
+    }
+
     void fail(CommandResult _result) {
       result = _result;
       state = AsyncCommand::State::COMPLETED;
-      // TODO: Command fail log
     }
   };
 
@@ -365,13 +388,14 @@ class LinkMobile {
   AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
   u32 waitFrames = 0;
+  u32 timeoutFrames = 0;
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   PacketData nextCommandData;
   u32 nextCommandDataSize = 0;
   bool hasPendingTransfer = false;
   u32 pendingTransfer = 0;
-  Error lastError = NONE;
+  Error lastError = {};
   volatile bool isEnabled = false;
 
   void processNewFrame() {
@@ -402,36 +426,23 @@ class LinkMobile {
   }
 
   void processAsyncCommand() {
-    // TODO: PARSE ERRORS
-    // TODO: ADAPTER NOT CONNECTED ERROR
-
-    /*
-        auto remoteCommand = response.command.header.commandId;
-    if (remoteCommand == COMMAND_ERROR_STATUS) {
-      if (response.command.header.size != 2 ||
-          response.command.data.bytes[0] != command.header.commandId) {
-        response.result = CommandResult::UNEXPECTED_RESPONSE;
-        return response;
-      } else {
-        response.result = CommandResult::ERROR;
-        return response;
-      }
+    if (asyncCommand.result != CommandResult::SUCCESS) {
+      if (state >= STARTING_SESSION && state < SESSION_ACTIVE)
+        return abort(Error::Type::UNEXPECTED_FAILURE);
     }
-    */
+
     _LMLOG_("%s $%X [%d]",
             asyncCommand.direction == AsyncCommand::Direction::SENDING ? ">!"
                                                                        : "<!",
             asyncCommand.cmd.header.commandId & (~OR_VALUE),
             asyncCommand.cmd.header.size);
 
-    if (asyncCommand.expectsResponse) {
-      if (asyncCommand.result != CommandResult::SUCCESS) {
-        // lastError = Error::;
-        reset();
-        return;
+    if (asyncCommand.direction == AsyncCommand::Direction::SENDING) {
+      if (asyncCommand.expectsResponse) {
+        if (asyncCommand.result != CommandResult::SUCCESS)
+          return;
+        receiveCommandAsync();
       }
-
-      receiveCommandAsync();
       return;
     }
 
@@ -447,65 +458,58 @@ class LinkMobile {
       case STARTING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_BEGIN_SESSION))
           return;
-        if (asyncCommand.result != CommandResult::SUCCESS) {
-          reset();
-          return;
-        }
-
-        if (asyncCommand.cmd.header.size != LOGIN_PARTS_SIZE) {
-          reset();
-          return;
-        }
+        if (asyncCommand.cmd.header.size != LOGIN_PARTS_SIZE)
+          return abort(Error::Type::WEIRD_RESPONSE);
 
         for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++) {
-          if (asyncCommand.cmd.data.bytes[i] != LOGIN_PARTS[i]) {
-            reset();
-            return;
-          }
+          if (asyncCommand.cmd.data.bytes[i] != LOGIN_PARTS[i])
+            return abort(Error::Type::WEIRD_RESPONSE);
         }
 
         setState(ACTIVATING_SIO32);
         cmdSIO32();
-
         break;
       }
       case ACTIVATING_SIO32: {
-        if (!asyncCommand.respondsTo(COMMAND_SIO32))
-          return;  // TODO: Also react to 0x16
-        if (asyncCommand.result != CommandResult::SUCCESS) {
-          reset();
+        if (asyncCommand.respondsTo(COMMAND_RESET)) {
+          // If the adapter responds to a 0x16 instead of 0x18,
+          // it's libmobile telling us that SIO32 is not supported.
+          // In that case, we continue using SIO8.
+          setState(READING_CONFIGURATION);
+          cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
           return;
         }
+        if (!asyncCommand.respondsTo(COMMAND_SIO32))
+          return;
 
         setState(WAITING_TO_SWITCH);
         waitFrames = PING_WAIT_FRAMES;
-
         break;
       }
       case READING_CONFIGURATION: {
         if (!asyncCommand.respondsTo(COMMAND_READ_CONFIGURATION_DATA))
-          return;  // TODO: Also react to 0x16
+          return;
+
         u32 offset = asyncCommand.cmd.data.bytes[0];
         u32 sizeWithOffsetByte = asyncCommand.cmd.header.size;
         if (asyncCommand.result != CommandResult::SUCCESS ||
             sizeWithOffsetByte != CONFIGURATION_DATA_CHUNK + 1 ||
-            (offset != 0 && offset != CONFIGURATION_DATA_CHUNK)) {
-          reset();
-          return;
-        }
+            (offset != 0 && offset != CONFIGURATION_DATA_CHUNK))
+          return abort(Error::Type::WEIRD_RESPONSE);
 
         for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
           adapterConfiguration.bytes[offset + i] =
               asyncCommand.cmd.data.bytes[1 + i];
 
-        // TODO: USE adapterConfiguration.fields.isValid()
+        if (offset == CONFIGURATION_DATA_CHUNK &&
+            !adapterConfiguration.isValid())
+          return abort(Error::Type::BAD_CONFIGURATION_CHECKSUM);
 
         if (offset == 0)
           cmdReadConfigurationData(CONFIGURATION_DATA_CHUNK,
                                    CONFIGURATION_DATA_CHUNK);
         else
           setState(SESSION_ACTIVE);
-
         break;
       }
       default: {
@@ -555,22 +559,32 @@ class LinkMobile {
     nextCommandDataSize++;
   }
 
-  // TODO: USE
-  // void copyName(char* target, const char* source, u32 length) {
-  //   u32 len = std::strlen(source);
-
-  //   for (u32 i = 0; i < length + 1; i++)
-  //     if (i < len)
-  //       target[i] = source[i];
-  //     else
-  //       target[i] = '\0';
-  // }
-
   void setState(State newState) {
     State oldState = state;
     state = newState;
+    timeoutFrames = 0;
     _LMLOG_("!! New state: %d -> %d", oldState, newState);
     (void)oldState;
+  }
+
+  void abort(Error::Type errorType) {
+    lastError =
+        Error{.type = errorType,
+              .state = state,
+              .cmdId = (u8)(asyncCommand.cmd.header.commandId & (~OR_VALUE)),
+              .cmdResult = asyncCommand.result,
+              .cmdErrorCode = asyncCommand.errorCode,
+              .cmdIsSending =
+                  asyncCommand.direction == AsyncCommand::Direction::SENDING};
+
+    _LMLOG_(
+        "!! aborted:\n  error:%d\n  cmdId=%s%d\n  cmdResult=%d\n  "
+        "cmdErrorCode=%d",
+        lastError.type, lastError.cmdIsSending ? ">" : "<", lastError.cmdId,
+        lastError.cmdResult, lastError.cmdErrorCode);
+
+    resetState();
+    stop();
   }
 
   void reset() {
@@ -583,8 +597,10 @@ class LinkMobile {
     setState(NEEDS_RESET);
 
     this->adapterConfiguration = AdapterConfiguration{};
-    this->asyncCommand.isActive = false;
+    this->asyncCommand.reset();
     this->waitFrames = 0;
+    this->timeoutFrames = 0;
+    this->nextCommandDataSize = 0;
     this->hasPendingTransfer = false;
     this->pendingTransfer = 0;
   }
@@ -619,6 +635,7 @@ class LinkMobile {
     asyncCommand.reset();
     asyncCommand.cmd = command;
     asyncCommand.expectsResponse = expectsResponse;
+    asyncCommand.isActive = true;
 
     if (isSIO32Mode())  // Magic+Header
       advance32(buildU32(command.magicBytes.magic1, command.magicBytes.magic2,
@@ -631,6 +648,7 @@ class LinkMobile {
     _LMLOG_("<< ...");
     asyncCommand.reset();
     asyncCommand.direction = AsyncCommand::Direction::RECEIVING;
+    asyncCommand.isActive = true;
 
     if (isSIO32Mode())
       transferAsync(GBA_WAITING_32BIT);
@@ -666,8 +684,7 @@ class LinkMobile {
       // Acknowledgement Signal (3)
       if (newData != (asyncCommand.cmd.header.commandId ^ OR_VALUE))
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
-      asyncCommand.result = CommandResult::SUCCESS;
-      asyncCommand.state = AsyncCommand::State::COMPLETED;
+      asyncCommand.finish();
     }
   }
 
@@ -717,8 +734,7 @@ class LinkMobile {
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
       if (lsB16(ackData) != (asyncCommand.cmd.header.commandId ^ OR_VALUE))
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
-      asyncCommand.result = CommandResult::SUCCESS;
-      asyncCommand.state = AsyncCommand::State::COMPLETED;
+      asyncCommand.finish();
     }
   }
 
@@ -770,8 +786,7 @@ class LinkMobile {
       // Acknowledgement Signal (2)
       if (newData != ACK_SENDER)
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
-      asyncCommand.result = CommandResult::SUCCESS;
-      asyncCommand.state = AsyncCommand::State::COMPLETED;
+      asyncCommand.finish();
     }
   }
 
@@ -849,8 +864,7 @@ class LinkMobile {
       u32 ackData = msB32(newData);
       if (!isSupportedAdapter(msB16(ackData)) || lsB16(ackData) != ACK_SENDER)
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
-      asyncCommand.result = CommandResult::SUCCESS;
-      asyncCommand.state = AsyncCommand::State::COMPLETED;
+      asyncCommand.finish();
     }
   }
 
@@ -928,5 +942,3 @@ inline void LINK_MOBILE_ISR_TIMER() {
 #undef _LMLOG_
 
 #endif  // LINK_MOBILE_H
-
-// TODO: Implement state timeouts (e.g. PINGING)
