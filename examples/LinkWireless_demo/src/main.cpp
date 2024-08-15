@@ -443,10 +443,14 @@ void messageLoop() {
   }
 }
 
+std::string lastLoggedText = "";
 void log(std::string text) {
+  if (text == lastLoggedText)
+    return;
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
+  lastLoggedText = text;
 }
 
 void waitFor(u16 key) {
