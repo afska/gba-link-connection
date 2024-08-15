@@ -54,9 +54,9 @@ static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #include <string>
-#define LWMLOG(str) logger(str)
+#define _LWMLOG_(str) logger(str)
 #else
-#define LWMLOG(str)
+#define _LWMLOG_(str)
 #endif
 
 /**
@@ -151,23 +151,23 @@ class LinkWirelessMultiboot {
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
 
-    LWMLOG("starting...");
+    _LWMLOG_("starting...");
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
     progress.state = INITIALIZING;
     LINK_WIRELESS_MULTIBOOT_TRY(initialize(gameName, userName, gameId, players))
 
-    LWMLOG("waiting for connections...");
+    _LWMLOG_("waiting for connections...");
     progress.state = WAITING;
     LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, cancel))
 
-    LWMLOG("all players are connected");
+    _LWMLOG_("all players are connected");
     progress.state = PREPARING;
     linkRawWireless->wait(FRAME_LINES);
 
-    LWMLOG("rom start command...");
+    _LWMLOG_("rom start command...");
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(cancel))
 
-    LWMLOG("SENDING ROM!");
+    _LWMLOG_("SENDING ROM!");
     progress.state = SENDING;
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, cancel))
     linkRawWireless->wait(FRAME_LINES);
@@ -175,7 +175,7 @@ class LinkWirelessMultiboot {
     progress.state = CONFIRMING;
     LINK_WIRELESS_MULTIBOOT_TRY(confirm(cancel))
 
-    LWMLOG("SUCCESS!");
+    _LWMLOG_("SUCCESS!");
     return finish(SUCCESS);
   }
 
@@ -334,10 +334,10 @@ class LinkWirelessMultiboot {
 
   __attribute__((noinline)) Result activate() {
     if (!linkRawWireless->activate()) {
-      LWMLOG("! adapter not detected");
+      _LWMLOG_("! adapter not detected");
       return ADAPTER_NOT_DETECTED;
     }
-    LWMLOG("activated");
+    _LWMLOG_("activated");
 
     return SUCCESS;
   }
@@ -348,23 +348,23 @@ class LinkWirelessMultiboot {
                                               u8 players) {
     if (!linkRawWireless->setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
                                 SETUP_MAGIC)) {
-      LWMLOG("! setup failed");
+      _LWMLOG_("! setup failed");
       return FAILURE;
     }
-    LWMLOG("setup ok");
+    _LWMLOG_("setup ok");
 
     if (!linkRawWireless->broadcast(gameName, userName,
                                     gameId | GAME_ID_MULTIBOOT_FLAG)) {
-      LWMLOG("! broadcast failed");
+      _LWMLOG_("! broadcast failed");
       return FAILURE;
     }
-    LWMLOG("broadcast data set");
+    _LWMLOG_("broadcast data set");
 
     if (!linkRawWireless->startHost()) {
-      LWMLOG("! start host failed");
+      _LWMLOG_("! start host failed");
       return FAILURE;
     }
-    LWMLOG("host started");
+    _LWMLOG_("host started");
 
     return SUCCESS;
   }
@@ -400,7 +400,7 @@ class LinkWirelessMultiboot {
     ClientPacket handshakePackets[2];
     volatile bool hasReceivedName = false;
 
-    LWMLOG("new client: " + std::to_string(clientNumber));
+    _LWMLOG_("new client: " + std::to_string(clientNumber));
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this](LinkRawWireless::ReceiveDataResponse& response) {
@@ -409,7 +409,7 @@ class LinkWirelessMultiboot {
         [](ClientPacket packet) { return true; }, cancel))
     // (initial client packet received)
 
-    LWMLOG("handshake (1/2)...");
+    _LWMLOG_("handshake (1/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
         [](ClientPacket packet) {
@@ -419,7 +419,7 @@ class LinkWirelessMultiboot {
         cancel))
     // (n = 2, commState = 1)
 
-    LWMLOG("handshake (2/2)...");
+    _LWMLOG_("handshake (2/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
         [&handshakePackets](ClientPacket packet) {
@@ -433,7 +433,7 @@ class LinkWirelessMultiboot {
         cancel))
     // (n = 1, commState = 2)
 
-    LWMLOG("receiving name...");
+    _LWMLOG_("receiving name...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
         [this, &handshakePackets, &hasReceivedName](ClientPacket packet) {
@@ -449,20 +449,20 @@ class LinkWirelessMultiboot {
         cancel))
     // (commState = 0)
 
-    LWMLOG("validating name...");
+    _LWMLOG_("validating name...");
     for (u32 i = 0; i < 2; i++) {
       auto receivedPayload = handshakePackets[i].payload;
       auto expectedPayload = BOOTLOADER_HANDSHAKE[i];
 
       for (u32 j = 0; j < BOOTLOADER_HANDSHAKE_SIZE; j++) {
         if (!hasReceivedName || receivedPayload[j] != expectedPayload[j]) {
-          LWMLOG("! bad payload");
+          _LWMLOG_("! bad payload");
           return finish(BAD_HANDSHAKE);
         }
       }
     }
 
-    LWMLOG("draining queue...");
+    _LWMLOG_("draining queue...");
     volatile bool hasFinished = false;
     while (!hasFinished) {
       if (cancel(progress))
@@ -475,7 +475,7 @@ class LinkWirelessMultiboot {
     }
     // (no more client packets)
 
-    LWMLOG("client " + std::to_string(clientNumber) + " accepted");
+    _LWMLOG_("client " + std::to_string(clientNumber) + " accepted");
 
     return SUCCESS;
   }
@@ -549,7 +549,7 @@ class LinkWirelessMultiboot {
           100);
       if (newPercentage != progress.percentage) {
         progress.percentage = newPercentage;
-        LWMLOG("-> " + std::to_string(newPercentage));
+        _LWMLOG_("-> " + std::to_string(newPercentage));
       }
     }
 
@@ -591,7 +591,7 @@ class LinkWirelessMultiboot {
 
   template <typename C>
   __attribute__((noinline)) Result confirm(C cancel) {
-    LWMLOG("confirming (1/2)...");
+    _LWMLOG_("confirming (1/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY(
           exchangeNewData(i,
@@ -602,7 +602,7 @@ class LinkWirelessMultiboot {
 
     LINK_WIRELESS_MULTIBOOT_BARRIER;
 
-    LWMLOG("confirming (2/2)...");
+    _LWMLOG_("confirming (2/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY(
@@ -697,15 +697,15 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_BARRIER;
 
     if (!success) {
-      LWMLOG("! sendDataAndWait failed");
+      _LWMLOG_("! sendDataAndWait failed");
       return FAILURE;
     }
 
     LINK_WIRELESS_MULTIBOOT_BARRIER;
 
     if (remoteCommand.commandId != 0x28) {
-      LWMLOG("! expected EVENT 0x28");
-      LWMLOG("! but got " + toHex(remoteCommand.commandId));
+      _LWMLOG_("! expected EVENT 0x28");
+      _LWMLOG_("! but got " + toHex(remoteCommand.commandId));
       return FAILURE;
     }
 
@@ -719,9 +719,9 @@ class LinkWirelessMultiboot {
           (remoteCommand.params[0] >> 8) & expectedActiveChildren;
 
       if (activeChildren != expectedActiveChildren) {
-        LWMLOG("! client timeout [" + std::to_string(activeChildren) + "]");
-        LWMLOG("! vs expected: [" + std::to_string(expectedActiveChildren) +
-               "]");
+        _LWMLOG_("! client timeout [" + std::to_string(activeChildren) + "]");
+        _LWMLOG_("! vs expected: [" + std::to_string(expectedActiveChildren) +
+                 "]");
         return FAILURE;
       }
     }
@@ -733,7 +733,7 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_BARRIER;
 
     if (!success) {
-      LWMLOG("! receiveData failed");
+      _LWMLOG_("! receiveData failed");
       return FAILURE;
     }
 
@@ -768,6 +768,6 @@ class LinkWirelessMultiboot {
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
 
-#undef LWMLOG
+#undef _LWMLOG_
 
 #endif  // LINK_WIRELESS_MULTIBOOT_H
