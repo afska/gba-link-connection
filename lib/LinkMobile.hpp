@@ -166,7 +166,7 @@ class LinkMobile {
    * @brief ...
    */
   void activate() {
-    lastError = {};
+    error = {};
 
     LINK_MOBILE_BARRIER;
     isEnabled = false;
@@ -183,7 +183,7 @@ class LinkMobile {
   }
 
   void deactivate() {
-    lastError = {};
+    error = {};
     isEnabled = false;
     resetState();
     stop();
@@ -203,11 +203,11 @@ class LinkMobile {
     return linkSPI->getDataSize();
   }
 
-  Error getLastError(bool clear = true) {
-    auto error = lastError;
+  Error getError(bool clear = true) {
+    auto err = error;
     if (clear)
-      lastError = {};
-    return error;
+      error = {};
+    return err;
   }
 
   ~LinkMobile() { delete linkSPI; }
@@ -395,7 +395,7 @@ class LinkMobile {
   u32 nextCommandDataSize = 0;
   bool hasPendingTransfer = false;
   u32 pendingTransfer = 0;
-  Error lastError = {};
+  Error error = {};
   volatile bool isEnabled = false;
 
   void processNewFrame() {
@@ -568,7 +568,7 @@ class LinkMobile {
   }
 
   void abort(Error::Type errorType) {
-    lastError =
+    error =
         Error{.type = errorType,
               .state = state,
               .cmdId = (u8)(asyncCommand.cmd.header.commandId & (~OR_VALUE)),
@@ -578,10 +578,10 @@ class LinkMobile {
                   asyncCommand.direction == AsyncCommand::Direction::SENDING};
 
     _LMLOG_(
-        "!! aborted:\n  error:%d\n  cmdId=%s%d\n  cmdResult=%d\n  "
-        "cmdErrorCode=%d",
-        lastError.type, lastError.cmdIsSending ? ">" : "<", lastError.cmdId,
-        lastError.cmdResult, lastError.cmdErrorCode);
+        "!! aborted:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "
+        "cmdErrorCode: %d",
+        error.type, error.cmdIsSending ? ">" : "<", error.cmdId,
+        error.cmdResult, error.cmdErrorCode);
 
     resetState();
     stop();

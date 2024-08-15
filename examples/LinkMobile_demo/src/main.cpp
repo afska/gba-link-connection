@@ -16,7 +16,6 @@ void waitFor(u16 key);
 void wait(u32 verticalLines);
 void hang();
 
-LinkMobile::Error lastError;
 LinkMobile* linkMobile = NULL;
 
 void init() {
@@ -31,14 +30,9 @@ int main() {
 
 start:
   // Options
-  log("LinkMobile_demo (v6.7.0)\n\n\n\n"
+  log("LinkMobile_demo (v7.0.0)\n\n"
       "Press A to start");
   waitFor(KEY_A);
-  // u16 initialKeys = ~REG_KEYS & KEY_ANY;
-  // forwarding = !(initialKeys & KEY_LEFT);
-  // retransmission = !(initialKeys & KEY_UP);
-  // maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_MOBILE_MAX_PLAYERS;
-  // asyncACK = initialKeys & KEY_START;
 
   // (1) Create a LinkMobile instance
   linkMobile = new LinkMobile();
@@ -59,16 +53,16 @@ start:
   // (3) Initialize the library
   linkMobile->activate();
 
-  bool activating = false;
   bool reading = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // Menu
-    log(std::string("") +
+    log(std::string("") + "State = " + std::to_string(linkMobile->getState()) +
+        "\n\n" +
         "L = Read Configuration\n\n (DOWN = ok)\n "
-        "(SELECT = cancel)\n (START = reactivate)");
+        "(SELECT = stop)");
 
     // SELECT = back
     if (keys & KEY_SELECT) {
@@ -77,14 +71,6 @@ start:
       linkMobile = NULL;
       goto start;
     }
-
-    // START = Activate
-    if ((keys & KEY_START) && !activating) {
-      activating = true;
-      activate();
-    }
-    if (activating && !(keys & KEY_START))
-      activating = false;
 
     // L = Read Configuration
     if ((keys & KEY_L) && !reading) {
