@@ -43,7 +43,7 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 #if LINK_ENABLE_DEBUG_LOGS != 0
 #define _LMLOG_(...) Link::log(__VA_ARGS__)
 #else
-#define _LMLOG_(str)
+#define _LMLOG_(...)
 #endif
 
 class LinkMobile {
@@ -68,6 +68,7 @@ class LinkMobile {
   static constexpr int DEVICE_ADAPTER_RED = 0xB;
   static constexpr int ACK_SENDER = 0;
   static constexpr int CONFIGURATION_DATA_SIZE = 192;
+  static constexpr int CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
   static constexpr int COMMAND_BEGIN_SESSION = 0x10;
   static constexpr int COMMAND_END_SESSION = 0x11;
   static constexpr int COMMAND_DIAL_TELEPHONE = 0x12;
@@ -173,61 +174,20 @@ class LinkMobile {
     stop();
   }
 
-  // TODO: REFACTOR
   bool readConfiguration(ConfigurationData& configurationData) {
-    // while (linkSPI->getAsyncState() != LinkSPI::AsyncState::IDLE)
-    //   ;  // wait
+    if (state != SESSION_ACTIVE)
+      return false;
 
-    // _LMLOG_("READING CONFIGURATION!!!");
-    // // TODO: FIX THIS MESS
-    // addData(1, true);
-    // auto sio32Response =
-    //     sendCommandWithResponse(buildCommand(COMMAND_SIO32, true));
-    // if (sio32Response.result != CommandResult::SUCCESS) {
-    //   _LMLOG_("SIO32 FAILED!!!");
-    //   return false;
-    // }
-    // if (sio32Response.command.header.commandId != (COMMAND_RESET | OR_VALUE))
-    // {
-    //   wait(PING_WAIT);
-    //   linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-    //                     LinkSPI::DataSize::SIZE_32BIT);
-    //   _LMLOG_("SIO32 ACTIVATED!!! now sending read configuration");
-    // } else {
-    //   _LMLOG_("Adapter returned RESET, keeping SIO8 mode");
-    // }
-
-    // static constexpr u8 CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE /
-    // 2; u8* configurationDataBytes = (u8*)&configurationData;
-
-    // addData(0, true);
-    // addData(CONFIGURATION_DATA_CHUNK);
-    // auto response1 = sendCommandWithResponse(
-    //     buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
-    // if (response1.result != CommandResult::SUCCESS ||
-    //     response1.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
-    //   return false;
-
-    // addData(CONFIGURATION_DATA_CHUNK, true);
-    // addData(CONFIGURATION_DATA_CHUNK);
-    // auto response2 = sendCommandWithResponse(
-    //     buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
-    // if (response2.result != CommandResult::SUCCESS ||
-    //     response2.command.header.size != CONFIGURATION_DATA_CHUNK + 1)
-    //   return false;
-
-    // u8* response1Bytes = (u8*)&response1.command.data.bytes;
-    // u8* response2Bytes = (u8*)&response2.command.data.bytes;
-    // for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
-    //   configurationDataBytes[i] = response1Bytes[1 + i];
-    // for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
-    //   configurationDataBytes[CONFIGURATION_DATA_CHUNK + i] =
-    //       response2Bytes[1 + i];
-
+    configurationData = adapterConfiguration.fields;
     return true;
   }
 
   [[nodiscard]] State getState() { return state; }
+
+  [[nodiscard]] LinkSPI::DataSize getDataSize() {
+    return linkSPI->getDataSize();
+  }
+
   Error getLastError(bool clear = true) {
     Error error = lastError;
     if (clear)
@@ -294,7 +254,25 @@ class LinkMobile {
    */
   Config config;
 
-  //  private: // TODO: RECOVER
+ private:
+  union AdapterConfiguration {
+    ConfigurationData fields;
+    char bytes[CONFIGURATION_DATA_SIZE];
+
+    bool isValid() { return calculatedChecksum() == reportedChecksum(); }
+
+    u16 calculatedChecksum() {
+      u16 result = 0;
+      for (u32 i = 0; i < CONFIGURATION_DATA_SIZE - 2; i++)
+        result += bytes[i];
+      return result;
+    }
+
+    u16 reportedChecksum() {
+      return buildU16(fields.checksumHigh, fields.checksumLow);
+    }
+  };
+
   struct MagicBytes {
     u8 magic1 = COMMAND_MAGIC_VALUE1;
     u8 magic2 = COMMAND_MAGIC_VALUE2;
@@ -384,6 +362,7 @@ class LinkMobile {
       sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
+  AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
   u32 waitFrames = 0;
   LinkSPI* linkSPI = new LinkSPI();
@@ -399,19 +378,21 @@ class LinkMobile {
     switch (state) {
       case WAITING_TO_START: {
         waitFrames--;
+
         if (waitFrames == 0) {
-          auto command = buildCommand(COMMAND_END_SESSION, true);
-          sendCommandAsync(command, true);
           setState(ENDING_SESSION);
+          cmdEndSession();
         }
         break;
       }
       case WAITING_TO_SWITCH: {
         waitFrames--;
+
         if (waitFrames == 0) {
           linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                             LinkSPI::DataSize::SIZE_32BIT);
-          setState(SESSION_ACTIVE);
+          setState(READING_CONFIGURATION);
+          cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
         }
         break;
       }
@@ -421,9 +402,9 @@ class LinkMobile {
   }
 
   void processAsyncCommand() {
-    // TODO: Command success log
-
     // TODO: PARSE ERRORS
+    // TODO: ADAPTER NOT CONNECTED ERROR
+
     /*
         auto remoteCommand = response.command.header.commandId;
     if (remoteCommand == COMMAND_ERROR_STATUS) {
@@ -437,12 +418,19 @@ class LinkMobile {
       }
     }
     */
+    _LMLOG_("%s $%X [%d]",
+            asyncCommand.direction == AsyncCommand::Direction::SENDING ? ">!"
+                                                                       : "<!",
+            asyncCommand.cmd.header.commandId & (~OR_VALUE),
+            asyncCommand.cmd.header.size);
+
     if (asyncCommand.expectsResponse) {
       if (asyncCommand.result != CommandResult::SUCCESS) {
         // lastError = Error::;
         reset();
         return;
       }
+
       receiveCommandAsync();
       return;
     }
@@ -452,10 +440,8 @@ class LinkMobile {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
           return;
 
-        for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
-          addData(LOGIN_PARTS[i], i == 0);
-        sendCommandAsync(buildCommand(COMMAND_BEGIN_SESSION, true), true);
         setState(STARTING_SESSION);
+        cmdBeginSession();
         break;
       }
       case STARTING_SESSION: {
@@ -470,6 +456,7 @@ class LinkMobile {
           reset();
           return;
         }
+
         for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++) {
           if (asyncCommand.cmd.data.bytes[i] != LOGIN_PARTS[i]) {
             reset();
@@ -477,9 +464,8 @@ class LinkMobile {
           }
         }
 
-        addData(1, true);
-        sendCommandAsync(buildCommand(COMMAND_SIO32, true), true);
         setState(ACTIVATING_SIO32);
+        cmdSIO32();
 
         break;
       }
@@ -491,10 +477,38 @@ class LinkMobile {
           return;
         }
 
-        waitFrames = PING_WAIT_FRAMES;
         setState(WAITING_TO_SWITCH);
+        waitFrames = PING_WAIT_FRAMES;
 
         break;
+      }
+      case READING_CONFIGURATION: {
+        if (!asyncCommand.respondsTo(COMMAND_READ_CONFIGURATION_DATA))
+          return;  // TODO: Also react to 0x16
+        u32 offset = asyncCommand.cmd.data.bytes[0];
+        u32 sizeWithOffsetByte = asyncCommand.cmd.header.size;
+        if (asyncCommand.result != CommandResult::SUCCESS ||
+            sizeWithOffsetByte != CONFIGURATION_DATA_CHUNK + 1 ||
+            (offset != 0 && offset != CONFIGURATION_DATA_CHUNK)) {
+          reset();
+          return;
+        }
+
+        for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
+          adapterConfiguration.bytes[offset + i] =
+              asyncCommand.cmd.data.bytes[1 + i];
+
+        // TODO: USE adapterConfiguration.fields.isValid()
+
+        if (offset == 0)
+          cmdReadConfigurationData(CONFIGURATION_DATA_CHUNK,
+                                   CONFIGURATION_DATA_CHUNK);
+        else
+          setState(SESSION_ACTIVE);
+
+        break;
+      }
+      default: {
       }
     }
   }
@@ -502,13 +516,34 @@ class LinkMobile {
   void processLoosePacket(u32 newData) {
     switch (state) {
       case PINGING: {
-        waitFrames = PING_WAIT_FRAMES;
         setState(WAITING_TO_START);
+        waitFrames = PING_WAIT_FRAMES;
         break;
       }
       default: {
       }
     }
+  }
+
+  void cmdBeginSession() {
+    for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
+      addData(LOGIN_PARTS[i], i == 0);
+    sendCommandAsync(buildCommand(COMMAND_BEGIN_SESSION, true), true);
+  }
+
+  void cmdEndSession() {
+    sendCommandAsync(buildCommand(COMMAND_END_SESSION, true), true);
+  }
+
+  void cmdSIO32() {
+    addData(1, true);
+    sendCommandAsync(buildCommand(COMMAND_SIO32, true), true);
+  }
+
+  void cmdReadConfigurationData(u8 offset, u8 size) {
+    addData(offset, true);
+    addData(CONFIGURATION_DATA_CHUNK);
+    sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true), true);
   }
 
   void addData(u8 value, bool start = false) {
@@ -532,8 +567,10 @@ class LinkMobile {
   // }
 
   void setState(State newState) {
+    State oldState = state;
     state = newState;
-    _LMLOG_("!! New state: %d", newState);
+    _LMLOG_("!! New state: %d -> %d", oldState, newState);
+    (void)oldState;
   }
 
   void reset() {
@@ -545,6 +582,7 @@ class LinkMobile {
   void resetState() {
     setState(NEEDS_RESET);
 
+    this->adapterConfiguration = AdapterConfiguration{};
     this->asyncCommand.isActive = false;
     this->waitFrames = 0;
     this->hasPendingTransfer = false;
@@ -560,8 +598,8 @@ class LinkMobile {
     linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                       LinkSPI::DataSize::SIZE_8BIT);
 
-    transferAsync(0);
     setState(PINGING);
+    transferAsync(0);
   }
 
   void stopTimer() {
@@ -576,6 +614,8 @@ class LinkMobile {
   }
 
   void sendCommandAsync(Command command, bool expectsResponse = false) {
+    _LMLOG_(">> $%X [%d]%s", command.header.commandId, command.header.size,
+            expectsResponse ? " (...)" : "");
     asyncCommand.reset();
     asyncCommand.cmd = command;
     asyncCommand.expectsResponse = expectsResponse;
@@ -588,6 +628,7 @@ class LinkMobile {
   }
 
   void receiveCommandAsync() {
+    _LMLOG_("<< ...");
     asyncCommand.reset();
     asyncCommand.direction = AsyncCommand::Direction::RECEIVING;
 
@@ -850,7 +891,6 @@ class LinkMobile {
   }
 
   void transferAsync(u32 data) {
-    _LMLOG_(">> %X", data);
     hasPendingTransfer = true;
     pendingTransfer = data;
     startTimer(WAIT_TICKS[isSIO32Mode()]);
@@ -860,14 +900,15 @@ class LinkMobile {
     return linkSPI->getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
   }
 
-  u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
+  static u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
     return ((msB & 0xFF) << 24) | ((byte2 & 0xFF) << 16) |
            ((byte3 & 0xFF) << 8) | (lsB & 0xFF);
   }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
-  u8 msB16(u16 value) { return value >> 8; }
-  u8 lsB16(u16 value) { return value & 0xff; }
+  static u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
+  static u16 msB32(u32 value) { return value >> 16; }
+  static u16 lsB32(u32 value) { return value & 0xffff; }
+  static u8 msB16(u16 value) { return value >> 8; }
+  static u8 lsB16(u16 value) { return value & 0xff; }
 };
 
 extern LinkMobile* linkMobile;
