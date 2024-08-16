@@ -325,6 +325,7 @@ class LinkMobile {
     u8 size = 0;
 
     u16 sum() { return commandId + _unused_ + _unusedSizeHigh_ + size; }
+    u8 pureCommandId() { return commandId & ~(OR_VALUE); }
   } __attribute__((packed));
 
   struct PacketChecksum {
@@ -469,7 +470,7 @@ class LinkMobile {
     _LMLOG_("%s $%X [%d]",
             asyncCommand.direction == AsyncCommand::Direction::SENDING ? ">!"
                                                                        : "<!",
-            asyncCommand.cmd.header.commandId & (~OR_VALUE),
+            asyncCommand.cmd.header.pureCommandId(),
             asyncCommand.cmd.header.size);
 
     if (asyncCommand.direction == AsyncCommand::Direction::SENDING) {
@@ -620,7 +621,7 @@ class LinkMobile {
     auto newError =
         Error{.type = errorType,
               .state = state,
-              .cmdId = (u8)(asyncCommand.cmd.header.commandId & (~OR_VALUE)),
+              .cmdId = (u8)(asyncCommand.cmd.header.pureCommandId()),
               .cmdResult = asyncCommand.result,
               .cmdErrorCode = asyncCommand.errorCode,
               .cmdIsSending =
