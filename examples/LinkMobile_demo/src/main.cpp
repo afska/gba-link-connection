@@ -60,7 +60,7 @@ start:
 
     // Menu
     std::string output = "";
-    bool wait = false;
+    bool shouldHang = false;
     output += "State = " + getStateString(linkMobile->getState()) + "\n\n";
 
     auto error = linkMobile->getError();
@@ -76,36 +76,47 @@ start:
           "  CmdErrorCode: " + std::to_string(error.cmdErrorCode) + "\n\n";
 
       output += " (SELECT = stop)";
-    } else if (linkMobile->getState() == LinkMobile::SESSION_ACTIVE) {
+    } else if (linkMobile->isSessionActive()) {
       output += "L = Read Configuration\n\n";
       output += " (DOWN = ok)\n (SELECT = stop)";
     } else {
       output += " (SELECT = stop)";
     }
 
-    // SELECT = back
+    // SELECT = stop
     if (keys & KEY_SELECT) {
-      linkMobile->deactivate();
-      interrupt_disable(INTR_VBLANK);
-      interrupt_disable(INTR_SERIAL);
-      interrupt_disable(INTR_TIMER3);
-      delete linkMobile;
-      linkMobile = NULL;
-      goto start;
+      bool didShutdown = linkMobile->getState() == LinkMobile::State::SHUTDOWN;
+      if (hasError || didShutdown) {
+        linkMobile->deactivate();
+        interrupt_disable(INTR_VBLANK);
+        interrupt_disable(INTR_SERIAL);
+        interrupt_disable(INTR_TIMER3);
+        delete linkMobile;
+        linkMobile = NULL;
+
+        if (!didShutdown) {
+          log("Waiting...");
+          wait(228 * 60 * 3);
+        }
+
+        goto start;
+      } else if (linkMobile->isSessionActive()) {
+        linkMobile->shutdown();
+      }
     }
 
     // L = Read Configuration
     if ((keys & KEY_L) && !reading) {
       reading = true;
       output = readConfiguration();
-      wait = true;
+      shouldHang = true;
     }
     if (reading && !(keys & KEY_L))
       reading = false;
 
     VBlankIntrWait();
     log(output);
-    if (wait)
+    if (shouldHang)
       hang();
   }
 
@@ -155,18 +166,26 @@ std::string getStateString(LinkMobile::State state) {
       return "PINGING";
     case LinkMobile::State::WAITING_TO_START:
       return "WAITING_TO_START";
-    case LinkMobile::State::ENDING_SESSION:
-      return "ENDING_SESSION";
     case LinkMobile::State::STARTING_SESSION:
       return "STARTING_SESSION";
     case LinkMobile::State::ACTIVATING_SIO32:
       return "ACTIVATING_SIO32";
-    case LinkMobile::State::WAITING_TO_SWITCH:
-      return "WAITING_TO_SWITCH";
+    case LinkMobile::State::WAITING_32BIT_SWITCH:
+      return "WAITING_32BIT_SWITCH";
     case LinkMobile::State::READING_CONFIGURATION:
       return "READING_CONFIGURATION";
     case LinkMobile::State::SESSION_ACTIVE:
       return "SESSION_ACTIVE";
+    case LinkMobile::State::SHUTDOWN_REQUESTED:
+      return "SHUTDOWN_REQUESTED";
+    case LinkMobile::State::DEACTIVATING_SIO32:
+      return "DEACTIVATING_SIO32";
+    case LinkMobile::State::WAITING_8BIT_SWITCH:
+      return "WAITING_8BIT_SWITCH";
+    case LinkMobile::State::ENDING_SESSION:
+      return "ENDING_SESSION";
+    case LinkMobile::State::SHUTDOWN:
+      return "SHUTDOWN";
     default:
       return "???";
   }

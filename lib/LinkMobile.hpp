@@ -95,14 +95,18 @@ class LinkMobile {
     NEEDS_RESET,
     PINGING,
     WAITING_TO_START,
-    ENDING_SESSION,
     STARTING_SESSION,
     ACTIVATING_SIO32,
-    WAITING_TO_SWITCH,
+    WAITING_32BIT_SWITCH,
     READING_CONFIGURATION,
     SESSION_ACTIVE,
     SESSION_ACTIVE_CALL,
-    SESSION_ACTIVE_ISP
+    SESSION_ACTIVE_ISP,
+    SHUTDOWN_REQUESTED,
+    DEACTIVATING_SIO32,
+    WAITING_8BIT_SWITCH,
+    ENDING_SESSION,
+    SHUTDOWN
   };
 
   enum CommandResult {
@@ -182,6 +186,15 @@ class LinkMobile {
     start();
   }
 
+  bool shutdown() {
+    if (!isSessionActive())
+      return false;
+
+    error = {};
+    setState(SHUTDOWN_REQUESTED);
+    return true;
+  }
+
   void deactivate() {
     error = {};
     isEnabled = false;
@@ -190,7 +203,7 @@ class LinkMobile {
   }
 
   bool readConfiguration(ConfigurationData& configurationData) {
-    if (state != SESSION_ACTIVE)
+    if (!isSessionActive())
       return false;
 
     configurationData = adapterConfiguration.fields;
@@ -198,6 +211,13 @@ class LinkMobile {
   }
 
   [[nodiscard]] State getState() { return state; }
+
+  /**
+   * @brief Returns `true` if the session is active.
+   */
+  [[nodiscard]] bool isSessionActive() {
+    return state >= SESSION_ACTIVE && state < SHUTDOWN_REQUESTED;
+  }
 
   [[nodiscard]] LinkSPI::DataSize getDataSize() {
     return linkSPI->getDataSize();
@@ -249,6 +269,8 @@ class LinkMobile {
     } else {
       processLoosePacket(newData);
     }
+
+    _LMLOG_("<<<< %X", newData);
   }
 
   void _onTimer() {
@@ -399,12 +421,12 @@ class LinkMobile {
         waitFrames--;
 
         if (waitFrames == 0) {
-          setState(ENDING_SESSION);
-          cmdEndSession();
+          setState(STARTING_SESSION);
+          cmdBeginSession();
         }
         break;
       }
-      case WAITING_TO_SWITCH: {
+      case WAITING_32BIT_SWITCH: {
         waitFrames--;
 
         if (waitFrames == 0) {
@@ -412,6 +434,24 @@ class LinkMobile {
                             LinkSPI::DataSize::SIZE_32BIT);
           setState(READING_CONFIGURATION);
           cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
+        }
+        break;
+      }
+      case SHUTDOWN_REQUESTED: {
+        if (!asyncCommand.isActive) {
+          setState(DEACTIVATING_SIO32);
+          cmdSIO32(false);
+        }
+        break;
+      }
+      case WAITING_8BIT_SWITCH: {
+        waitFrames--;
+
+        if (waitFrames == 0) {
+          linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+                            LinkSPI::DataSize::SIZE_8BIT);
+          setState(ENDING_SESSION);
+          cmdEndSession();
         }
         break;
       }
@@ -444,14 +484,6 @@ class LinkMobile {
     }
 
     switch (state) {
-      case ENDING_SESSION: {
-        if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
-          return;
-
-        setState(STARTING_SESSION);
-        cmdBeginSession();
-        break;
-      }
       case STARTING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_BEGIN_SESSION))
           return;
@@ -464,7 +496,7 @@ class LinkMobile {
         }
 
         setState(ACTIVATING_SIO32);
-        cmdSIO32();
+        cmdSIO32(true);
         break;
       }
       case ACTIVATING_SIO32: {
@@ -479,7 +511,7 @@ class LinkMobile {
         if (!asyncCommand.respondsTo(COMMAND_SIO32))
           return;
 
-        setState(WAITING_TO_SWITCH);
+        setState(WAITING_32BIT_SWITCH);
         waitFrames = PING_WAIT_FRAMES;
         break;
       }
@@ -509,6 +541,22 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
         break;
       }
+      case DEACTIVATING_SIO32: {
+        if (!asyncCommand.respondsTo(COMMAND_SIO32) &&
+            !asyncCommand.respondsTo(COMMAND_RESET))
+          return abort(Error::Type::WEIRD_RESPONSE);
+
+        setState(WAITING_8BIT_SWITCH);
+        waitFrames = PING_WAIT_FRAMES;
+        break;
+      }
+      case ENDING_SESSION: {
+        if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
+          return;
+
+        setState(SHUTDOWN);
+        break;
+      }
       default: {
       }
     }
@@ -536,8 +584,8 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_END_SESSION), true);
   }
 
-  void cmdSIO32() {
-    addData(1, true);
+  void cmdSIO32(bool enabled) {
+    addData(enabled, true);
     sendCommandAsync(buildCommand(COMMAND_SIO32, true), true);
   }
 
@@ -568,7 +616,7 @@ class LinkMobile {
     State oldState = state;
     state = newState;
     timeoutFrames = 0;
-    _LMLOG_("!! New state: %d -> %d", oldState, newState);
+    _LMLOG_("!! new state: %d -> %d", oldState, newState);
     (void)oldState;
   }
 
@@ -673,7 +721,7 @@ class LinkMobile {
     bool isAcknowledgement =
         asyncCommand.transferred >= mainSize + CHECKSUM_SIZE + 1;
     if (!isAcknowledgement && newData != ADAPTER_WAITING) {
-      _LMLOG_("NOT WAITING: %X", newData);  // TODO: REMOVE
+      _LMLOG_("!! not waiting: %X", newData);
       return asyncCommand.fail(CommandResult::NOT_WAITING);
     }
 
@@ -708,8 +756,10 @@ class LinkMobile {
 
     bool isAcknowledgement = asyncCommand.transferred >= mainSize + 4;
     if (!isAcknowledgement && newData != ADAPTER_WAITING &&
-        newData != ADAPTER_WAITING_32BIT)
+        newData != ADAPTER_WAITING_32BIT) {
+      _LMLOG_("!! not waiting: %X", newData);
       return asyncCommand.fail(CommandResult::NOT_WAITING);
+    }
 
     if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
@@ -917,6 +967,8 @@ class LinkMobile {
   }
 
   void transferAsync(u32 data) {
+    _LMLOG_(">>>> %X", data);
+
     hasPendingTransfer = true;
     pendingTransfer = data;
     startTimer(WAIT_TICKS[isSIO32Mode()]);
