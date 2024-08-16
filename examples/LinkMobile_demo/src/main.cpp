@@ -38,9 +38,11 @@ start:
   log("LinkMobile_demo (v7.0.0)\n\n"
       "Press A to start");
   waitFor(KEY_A);
+  u16 initialKeys = ~REG_KEYS & KEY_ANY;
+  bool dontReceiveCalls = (initialKeys & KEY_START);  // TODO: REMOVE
 
   // (1) Create a LinkMobile instance
-  linkMobile = new LinkMobile();
+  linkMobile = new LinkMobile(dontReceiveCalls);
 
   // (2) Add the required interrupt service routines
   interrupt_init();

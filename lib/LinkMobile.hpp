@@ -169,7 +169,10 @@ class LinkMobile {
     u8 checksumLow;
   } __attribute__((packed));
 
-  explicit LinkMobile(u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
+  bool dontReceiveCalls = false;  // TODO: REMOVE
+  explicit LinkMobile(bool _dontReceiveCalls,
+                      u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
+    this->dontReceiveCalls = _dontReceiveCalls;
     this->config.timerId = timerId;
   }
 
@@ -526,8 +529,11 @@ class LinkMobile {
         break;
       }
       case SESSION_ACTIVE: {
-        if (!asyncCommand.isActive)
-          cmdWaitForTelephoneCall();
+        // TODO: Allow users to opt-out receiving calls (move to config)
+        if (!dontReceiveCalls) {
+          if (!asyncCommand.isActive)
+            cmdWaitForTelephoneCall();
+        }
 
         break;
       }
@@ -625,7 +631,6 @@ class LinkMobile {
         break;
       }
       case SESSION_ACTIVE: {
-        // TODO: Allow users to opt-out receiving calls
         if (asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL)) {
           if (asyncCommand.result == CommandResult::SUCCESS) {
             setState(CALL_ESTABLISHED);
