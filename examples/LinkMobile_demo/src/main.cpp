@@ -9,12 +9,13 @@
 #include <vector>
 #include "../../_lib/interrupt.h"
 
-void activate();
 std::string readConfiguration();
 std::string getStateString(LinkMobile::State state);
-std::string getErrorString(LinkMobile::Error::Type errorType);
+std::string getErrorString(LinkMobile::Error error);
+std::string getErrorTypeString(LinkMobile::Error::Type errorType);
 std::string getResultString(LinkMobile::CommandResult cmdResult);
 void log(std::string text);
+std::string toStr(char* chars, int size);
 void waitFor(u16 key);
 void wait(u32 verticalLines);
 void hang();
@@ -54,6 +55,7 @@ start:
   linkMobile->activate();
 
   bool reading = false;
+  bool calling = false;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -66,18 +68,11 @@ start:
     auto error = linkMobile->getError();
     bool hasError = error.type != LinkMobile::Error::NONE;
     if (hasError) {
-      output += "ERROR\n";
-      output += "  Type: " + getErrorString(error.type) + "\n";
-      output += "  State: " + getStateString(error.state) + "\n";
-      output += "  CmdID: " + std::string(error.cmdIsSending ? ">" : "<") +
-                "$" + toHex(error.cmdId) + "\n";
-      output += "  CmdResult: " + getResultString(error.cmdResult) + "\n";
-      output +=
-          "  CmdErrorCode: " + std::to_string(error.cmdErrorCode) + "\n\n";
-
+      output += getErrorString(error);
       output += " (SELECT = stop)";
     } else if (linkMobile->isSessionActive()) {
-      output += "L = Read Configuration\n\n";
+      output += "L = Read Configuration\n";
+      output += "R = Call localhost\n\n";
       output += " (DOWN = ok)\n (SELECT = stop)";
     } else {
       output += " (SELECT = stop)";
@@ -114,6 +109,14 @@ start:
     if (reading && !(keys & KEY_L))
       reading = false;
 
+    // R = Call localhost
+    if ((keys & KEY_R) && !calling) {
+      calling = true;
+      // TODO: CALL
+    }
+    if (calling && !(keys & KEY_R))
+      calling = false;
+
     VBlankIntrWait();
     log(output);
     if (shouldHang)
@@ -121,18 +124,6 @@ start:
   }
 
   return 0;
-}
-
-void activate() {
-  linkMobile->activate();
-}
-
-std::string toStr(char* chars, int size) {
-  char copiedChars[255];
-  for (int i = 0; i < size; i++)
-    copiedChars[i] = chars[i];
-  copiedChars[size] = '\0';
-  return std::string(copiedChars);
 }
 
 std::string readConfiguration() {
@@ -189,7 +180,18 @@ std::string getStateString(LinkMobile::State state) {
   }
 }
 
-std::string getErrorString(LinkMobile::Error::Type errorType) {
+std::string getErrorString(LinkMobile::Error error) {
+  return "ERROR"
+         "\n  Type: " +
+         getErrorTypeString(error.type) +
+         "\n  State: " + getStateString(error.state) +
+         "\n  CmdID: " + std::string(error.cmdIsSending ? ">" : "<") + "$" +
+         toHex(error.cmdId) +
+         "\n  CmdResult: " + getResultString(error.cmdResult) +
+         "\n  CmdErrorCode: " + std::to_string(error.cmdErrorCode) + "\n\n";
+}
+
+std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
   switch (errorType) {
     case LinkMobile::Error::Type::ADAPTER_NOT_CONNECTED:
       return "ADAPTER_NOT_CONNECTED";
@@ -241,6 +243,14 @@ void log(std::string text) {
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
   lastLoggedText = text;
+}
+
+std::string toStr(char* chars, int size) {
+  char copiedChars[255];
+  for (int i = 0; i < size; i++)
+    copiedChars[i] = chars[i];
+  copiedChars[size] = '\0';
+  return std::string(copiedChars);
 }
 
 void waitFor(u16 key) {

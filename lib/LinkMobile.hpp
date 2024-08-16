@@ -89,6 +89,7 @@ class LinkMobile {
   static constexpr u8 SUPPORTED_DEVICES[] = {
       DEVICE_ADAPTER_BLUE, DEVICE_ADAPTER_YELLOW, DEVICE_ADAPTER_GREEN,
       DEVICE_ADAPTER_RED};
+  static constexpr u8 DIAL_PHONE_FIRST_BYTE[] = {0, 2, 1, 1};
 
  public:
   enum State {
@@ -201,6 +202,14 @@ class LinkMobile {
     stop();
   }
 
+  // phoneNumber = 32 bytes
+  bool call(char* phoneNumber) {
+    if (!isSessionActive())
+      return false;
+
+    // TODO: IMPLEMENT
+  }
+
   bool readConfiguration(ConfigurationData& configurationData) {
     if (!isSessionActive())
       return false;
@@ -290,6 +299,8 @@ class LinkMobile {
   Config config;
 
  private:
+  enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
+
   union AdapterConfiguration {
     ConfigurationData fields;
     char bytes[CONFIGURATION_DATA_SIZE];
@@ -420,6 +431,7 @@ class LinkMobile {
   u32 nextCommandDataSize = 0;
   bool hasPendingTransfer = false;
   u32 pendingTransfer = 0;
+  AdapterType adapterType = AdapterType::UNKNOWN;
   Error error = {};
   volatile bool isEnabled = false;
 
@@ -677,6 +689,7 @@ class LinkMobile {
     this->nextCommandDataSize = 0;
     this->hasPendingTransfer = false;
     this->pendingTransfer = 0;
+    this->adapterType = AdapterType::UNKNOWN;
   }
 
   void stop() {
@@ -946,8 +959,12 @@ class LinkMobile {
 
   bool isSupportedAdapter(u8 ack) {
     for (u32 i = 0; i < SUPPORTED_DEVICES_SIZE; i++) {
-      if ((SUPPORTED_DEVICES[i] | OR_VALUE) == ack)
+      if ((SUPPORTED_DEVICES[i] | OR_VALUE) == ack) {
+        if (adapterType == AdapterType::UNKNOWN)
+          adapterType = static_cast<AdapterType>(i);
+
         return true;
+      }
     }
 
     return false;
