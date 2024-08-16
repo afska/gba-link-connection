@@ -943,7 +943,5 @@ inline void LINK_MOBILE_ISR_TIMER() {
 
 #endif  // LINK_MOBILE_H
 
-// TODO: Stop keeps running commands and changing state
 // TODO: Error screen
 // TODO: Keep adapter alive with Wait For Telephone Call
-// TODO: Write text fast

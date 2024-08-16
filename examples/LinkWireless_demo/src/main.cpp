@@ -43,8 +43,6 @@ void init() {
 int main() {
   init();
 
-  bool firstTime = true;
-
 start:
   // Options
   log("LinkWireless_demo (v7.0.0)\n\n\n\n"
@@ -67,22 +65,18 @@ start:
       LINK_WIRELESS_DEFAULT_SEND_TIMER_ID, asyncACK ? 0 : -1);
   // linkWireless->debug = [](std::string str) { log(str); };
 
-  if (firstTime) {
-    // (2) Add the required interrupt service routines
-    interrupt_init();
-    interrupt_set_handler(INTR_VBLANK, LINK_WIRELESS_ISR_VBLANK);
-    interrupt_enable(INTR_VBLANK);
-    interrupt_set_handler(INTR_SERIAL, LINK_WIRELESS_ISR_SERIAL);
-    interrupt_enable(INTR_SERIAL);
-    interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
-    interrupt_enable(INTR_TIMER3);
+  // (2) Add the required interrupt service routines
+  interrupt_init();
+  interrupt_set_handler(INTR_VBLANK, LINK_WIRELESS_ISR_VBLANK);
+  interrupt_enable(INTR_VBLANK);
+  interrupt_set_handler(INTR_SERIAL, LINK_WIRELESS_ISR_SERIAL);
+  interrupt_enable(INTR_SERIAL);
+  interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
+  interrupt_enable(INTR_TIMER3);
 
-    // (only required when using async ACK)
-    interrupt_set_handler(INTR_TIMER0, LINK_WIRELESS_ISR_ACK_TIMER);
-    interrupt_enable(INTR_TIMER0);
-
-    firstTime = false;
-  }
+  // (only required when using async ACK)
+  interrupt_set_handler(INTR_TIMER0, LINK_WIRELESS_ISR_ACK_TIMER);
+  interrupt_enable(INTR_TIMER0);
 
   // (3) Initialize the library
   linkWireless->activate();
@@ -106,6 +100,10 @@ start:
     // SELECT = back
     if (keys & KEY_SELECT) {
       linkWireless->deactivate();
+      interrupt_disable(INTR_VBLANK);
+      interrupt_disable(INTR_SERIAL);
+      interrupt_disable(INTR_TIMER3);
+      interrupt_disable(INTR_TIMER0);
       delete linkWireless;
       linkWireless = NULL;
       goto start;

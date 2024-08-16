@@ -26,8 +26,6 @@ void init() {
 int main() {
   init();
 
-  bool firstTime = true;
-
 start:
   // Options
   log("LinkMobile_demo (v7.0.0)\n\n"
@@ -37,18 +35,14 @@ start:
   // (1) Create a LinkMobile instance
   linkMobile = new LinkMobile();
 
-  if (firstTime) {
-    // (2) Add the required interrupt service routines
-    interrupt_init();
-    interrupt_set_handler(INTR_VBLANK, LINK_MOBILE_ISR_VBLANK);
-    interrupt_enable(INTR_VBLANK);
-    interrupt_set_handler(INTR_SERIAL, LINK_MOBILE_ISR_SERIAL);
-    interrupt_enable(INTR_SERIAL);
-    interrupt_set_handler(INTR_TIMER3, LINK_MOBILE_ISR_TIMER);
-    interrupt_enable(INTR_TIMER3);
-
-    firstTime = false;
-  }
+  // (2) Add the required interrupt service routines
+  interrupt_init();
+  interrupt_set_handler(INTR_VBLANK, LINK_MOBILE_ISR_VBLANK);
+  interrupt_enable(INTR_VBLANK);
+  interrupt_set_handler(INTR_SERIAL, LINK_MOBILE_ISR_SERIAL);
+  interrupt_enable(INTR_SERIAL);
+  interrupt_set_handler(INTR_TIMER3, LINK_MOBILE_ISR_TIMER);
+  interrupt_enable(INTR_TIMER3);
 
   // (3) Initialize the library
   linkMobile->activate();
@@ -67,6 +61,9 @@ start:
     // SELECT = back
     if (keys & KEY_SELECT) {
       linkMobile->deactivate();
+      interrupt_disable(INTR_VBLANK);
+      interrupt_disable(INTR_SERIAL);
+      interrupt_disable(INTR_TIMER3);
       delete linkMobile;
       linkMobile = NULL;
       goto start;
