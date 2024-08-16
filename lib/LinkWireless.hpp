@@ -599,20 +599,7 @@ class LinkWireless {
     message.playerId = _author >= 0 ? _author : sessionState.currentPlayerId;
     message.data = data;
 
-    LINK_WIRELESS_BARRIER;
-    isAddingMessage = true;
-    LINK_WIRELESS_BARRIER;
-
-    sessionState.newOutgoingMessages.push(message);
-
-    LINK_WIRELESS_BARRIER;
-    isAddingMessage = false;
-    LINK_WIRELESS_BARRIER;
-
-    if (isPendingClearActive) {
-      sessionState.newOutgoingMessages.clear();
-      isPendingClearActive = false;
-    }
+    sessionState.newOutgoingMessages.syncPush(message);
 
     return true;
   }
@@ -627,7 +614,7 @@ class LinkWireless {
       return false;
 
     LINK_WIRELESS_BARRIER;
-    isReadingMessages = true;
+    sessionState.incomingMessages.startReading();
     LINK_WIRELESS_BARRIER;
 
     u32 i = 0;
@@ -639,7 +626,7 @@ class LinkWireless {
     }
 
     LINK_WIRELESS_BARRIER;
-    isReadingMessages = false;
+    sessionState.incomingMessages.stopReading();
     LINK_WIRELESS_BARRIER;
 
     return true;
@@ -1044,9 +1031,6 @@ class LinkWireless {
   u32 nextCommandDataSize = 0;
   u32 nextAsyncCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
   u32 nextAsyncCommandDataSize = 0;
-  volatile bool isReadingMessages = false;
-  volatile bool isAddingMessage = false;
-  volatile bool isPendingClearActive = false;
   volatile bool isSendingSyncCommand = false;
   Error lastError = NONE;
   volatile bool isEnabled = false;
@@ -1419,7 +1403,7 @@ class LinkWireless {
   }
 
   void copyOutgoingState() {  // (irq only)
-    if (isAddingMessage)
+    if (sessionState.newOutgoingMessages.isWriting())
       return;
 
     while (!sessionState.newOutgoingMessages.isEmpty()) {
@@ -1433,7 +1417,7 @@ class LinkWireless {
   }
 
   void copyIncomingState() {  // (irq only)
-    if (isReadingMessages)
+    if (sessionState.newIncomingMessages.isReading())
       return;
 
     while (!sessionState.newIncomingMessages.isEmpty()) {
@@ -1533,15 +1517,11 @@ class LinkWireless {
     this->nextCommandDataSize = 0;
     this->nextAsyncCommandDataSize = 0;
 
-    if (!isReadingMessages)
-      this->sessionState.incomingMessages.clear();
+    this->sessionState.incomingMessages.syncClear();
     this->sessionState.outgoingMessages.clear();
 
     this->sessionState.newIncomingMessages.clear();
-    if (!isAddingMessage)
-      this->sessionState.newOutgoingMessages.clear();
-    else
-      isPendingClearActive = true;
+    this->sessionState.newOutgoingMessages.syncClear();
 
     isSendingSyncCommand = false;
   }

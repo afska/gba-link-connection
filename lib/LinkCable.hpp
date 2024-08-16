@@ -260,20 +260,7 @@ class LinkCable {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
       return;
 
-    LINK_CABLE_BARRIER;
-    isAddingMessage = true;
-    LINK_CABLE_BARRIER;
-
-    _state.outgoingMessages.push(data);
-
-    LINK_CABLE_BARRIER;
-    isAddingMessage = false;
-    LINK_CABLE_BARRIER;
-
-    if (isAddingWhileResetting) {
-      _state.outgoingMessages.clear();
-      isAddingWhileResetting = false;
-    }
+    _state.outgoingMessages.syncPush(data);
   }
 
   /**
@@ -392,8 +379,6 @@ class LinkCable {
   InternalState _state;
   volatile bool isEnabled = false;
   volatile bool isReadingMessages = false;
-  volatile bool isAddingMessage = false;
-  volatile bool isAddingWhileResetting = false;
 
   bool isMaster() { return !isBitHigh(BIT_SLAVE); }
   bool isReady() { return isBitHigh(BIT_READY); }
@@ -402,7 +387,7 @@ class LinkCable {
   bool didTimeout() { return _state.IRQTimeout >= config.timeout; }
 
   void sendPendingData() {
-    if (isAddingMessage)
+    if (_state.outgoingMessages.isWriting())
       return;
 
     LINK_CABLE_BARRIER;
@@ -427,10 +412,7 @@ class LinkCable {
     state.playerCount = 0;
     state.currentPlayerId = 0;
 
-    if (isAddingMessage || isAddingWhileResetting)
-      isAddingWhileResetting = true;
-    else
-      _state.outgoingMessages.clear();
+    _state.outgoingMessages.syncClear();
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       if (!isReadingMessages)

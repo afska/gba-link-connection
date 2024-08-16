@@ -187,15 +187,50 @@ class Queue {
     rear = -1;
   }
 
+  void startReading() { _isReading = true; }
+  void stopReading() { _isReading = false; }
+
+  void syncPush(T item) {
+    _isWriting = true;
+    asm volatile("" ::: "memory");
+
+    push(item);
+
+    asm volatile("" ::: "memory");
+    _isWriting = false;
+    asm volatile("" ::: "memory");
+
+    if (_needsClear) {
+      clear();
+      _needsClear = false;
+    }
+  }
+
+  void syncClear() {
+    if (_isReading)
+      return;  // (it will be cleared later anyway)
+
+    if (!_isWriting)
+      clear();
+    else
+      _needsClear = true;
+  }
+
   u32 size() { return count; }
   bool isEmpty() { return size() == 0; }
   bool isFull() { return size() == Size; }
+  bool isReading() { return _isReading; }
+  bool isWriting() { return _isWriting; }
+  bool canMutate() { return !_isReading && !_isWriting; }
 
  private:
   T arr[Size];
   vs32 front = 0;
   vs32 rear = -1;
   vu32 count = 0;
+  volatile bool _isReading = false;
+  volatile bool _isWriting = false;
+  volatile bool _needsClear = false;
 };
 
 // mGBA Logging
