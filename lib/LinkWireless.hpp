@@ -230,9 +230,6 @@ class LinkWireless {
     u8 playerId = 0;
   };
 
- private:
-  using MessageQueue = Link::ObjectQueue<Message, LINK_WIRELESS_QUEUE_SIZE>;
-
  public:
   struct Server {
     u16 id = 0;
@@ -961,6 +958,8 @@ class LinkWireless {
   Config config;
 
  private:
+  using MessageQueue = Link::ObjectQueue<Message, LINK_WIRELESS_QUEUE_SIZE>;
+
   struct SessionState {
     MessageQueue incomingMessages;     // read by user, write by irq&user
     MessageQueue outgoingMessages;     // read and write by irq

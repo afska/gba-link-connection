@@ -25,9 +25,15 @@
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
+/**
+ * @brief ...
+ */
+#define LINK_MOBILE_QUEUE_SIZE 10
+
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
+#define LINK_MOBILE_MAX_PHONE_NUMBER_SIZE 32
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
@@ -101,7 +107,9 @@ class LinkMobile {
     WAITING_32BIT_SWITCH,
     READING_CONFIGURATION,
     SESSION_ACTIVE,
-    SESSION_ACTIVE_CALL,
+    CALL_REQUESTED,
+    CALLING,
+    CALL_ESTABLISHED,
     SESSION_ACTIVE_ISP,
     SHUTDOWN_REQUESTED,
     ENDING_SESSION,
@@ -187,11 +195,10 @@ class LinkMobile {
   }
 
   bool shutdown() {
-    if (!isSessionActive())
+    if (!isSessionActive() || userRequests.isFull())
       return false;
 
-    error = {};
-    setState(SHUTDOWN_REQUESTED);
+    pushRequest(UserRequest{.type = UserRequest::Type::SHUTDOWN});
     return true;
   }
 
@@ -204,7 +211,7 @@ class LinkMobile {
 
   // phoneNumber = 32 bytes
   bool call(char* phoneNumber) {
-    if (!isSessionActive())
+    if (state != SESSION_ACTIVE)
       return false;
 
     // TODO: IMPLEMENT
@@ -245,6 +252,7 @@ class LinkMobile {
         return abort(Error::Type::ADAPTER_NOT_CONNECTED);
     }
 
+    processUserRequests();
     processNewFrame();
   }
 
@@ -300,6 +308,13 @@ class LinkMobile {
 
  private:
   enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
+
+  struct UserRequest {
+    enum Type { CALL, SHUTDOWN };
+
+    Type type;
+    char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_SIZE];
+  };
 
   union AdapterConfiguration {
     ConfigurationData fields;
@@ -365,7 +380,6 @@ class LinkMobile {
     Command cmd;
     Direction direction;
     u16 expectedChecksum;
-    bool expectsResponse;
     u8 errorCommandId;
     u8 errorCode;
     bool isActive = false;
@@ -377,7 +391,6 @@ class LinkMobile {
       cmd = Command{};
       direction = AsyncCommand::Direction::SENDING;
       expectedChecksum = 0;
-      expectsResponse = false;
       errorCommandId = 0;
       errorCode = 0;
       isActive = false;
@@ -421,6 +434,9 @@ class LinkMobile {
       sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
+  using RequestQueue = Link::ObjectQueue<UserRequest, LINK_MOBILE_QUEUE_SIZE>;
+
+  RequestQueue userRequests;
   AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
   u32 waitFrames = 0;
@@ -432,8 +448,27 @@ class LinkMobile {
   bool hasPendingTransfer = false;
   u32 pendingTransfer = 0;
   AdapterType adapterType = AdapterType::UNKNOWN;
+  volatile bool isPushingRequest = false;
+  volatile bool isPendingClearActive = false;
   Error error = {};
   volatile bool isEnabled = false;
+
+  void processUserRequests() {
+    if (isPushingRequest || userRequests.isEmpty())
+      return;
+
+    auto request = userRequests.pop();
+
+    switch (request.type) {
+      case UserRequest::Type::SHUTDOWN: {
+        if (isSessionActive())
+          setState(SHUTDOWN_REQUESTED);
+        break;
+      }
+      default: {
+      }
+    }
+  }
 
   void processNewFrame() {
     switch (state) {
@@ -476,6 +511,7 @@ class LinkMobile {
         if (waitFrames == 0) {
           linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                             LinkSPI::DataSize::SIZE_8BIT);
+          error = {};
           setState(SHUTDOWN);
         }
         break;
@@ -500,8 +536,7 @@ class LinkMobile {
             asyncCommand.cmd.header.size);
 
     if (asyncCommand.direction == AsyncCommand::Direction::SENDING) {
-      if (asyncCommand.expectsResponse)
-        receiveCommandAsync();
+      receiveCommandAsync();
       return;
     }
 
@@ -597,29 +632,45 @@ class LinkMobile {
     }
   }
 
+  // TODO: Reify this idea as synchronized queue
+  void pushRequest(UserRequest userRequest) {
+    LINK_MOBILE_BARRIER;
+    isPushingRequest = true;
+    LINK_MOBILE_BARRIER;
+
+    userRequests.push(userRequest);
+
+    LINK_MOBILE_BARRIER;
+    isPushingRequest = false;
+    LINK_MOBILE_BARRIER;
+
+    if (isPendingClearActive) {
+      userRequests.clear();
+      isPendingClearActive = false;
+    }
+  }
+
   void cmdBeginSession() {
     for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
       addData(LOGIN_PARTS[i], i == 0);
-    sendCommandAsync(buildCommand(COMMAND_BEGIN_SESSION, true), true);
+    sendCommandAsync(buildCommand(COMMAND_BEGIN_SESSION, true));
   }
 
-  void cmdEndSession() {
-    sendCommandAsync(buildCommand(COMMAND_END_SESSION), true);
-  }
+  void cmdEndSession() { sendCommandAsync(buildCommand(COMMAND_END_SESSION)); }
 
   void cmdWaitForTelephoneCall() {
-    sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL), true);
+    sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL));
   }
 
   void cmdSIO32(bool enabled) {
     addData(enabled, true);
-    sendCommandAsync(buildCommand(COMMAND_SIO32, true), true);
+    sendCommandAsync(buildCommand(COMMAND_SIO32, true));
   }
 
   void cmdReadConfigurationData(u8 offset, u8 size) {
     addData(offset, true);
     addData(CONFIGURATION_DATA_CHUNK);
-    sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true), true);
+    sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
   }
 
   bool shouldAbortOnTimeout() {
@@ -683,6 +734,7 @@ class LinkMobile {
     setState(NEEDS_RESET);
 
     this->adapterConfiguration = AdapterConfiguration{};
+    this->userRequests.clear();
     this->asyncCommand.reset();
     this->waitFrames = 0;
     this->timeoutFrames = 0;
@@ -690,6 +742,11 @@ class LinkMobile {
     this->hasPendingTransfer = false;
     this->pendingTransfer = 0;
     this->adapterType = AdapterType::UNKNOWN;
+
+    if (!isPushingRequest)
+      userRequests.clear();
+    else
+      isPendingClearActive = true;
   }
 
   void stop() {
@@ -716,12 +773,10 @@ class LinkMobile {
         Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
   }
 
-  void sendCommandAsync(Command command, bool expectsResponse = false) {
-    _LMLOG_(">> $%X [%d]%s", command.header.commandId, command.header.size,
-            expectsResponse ? " (...)" : "");
+  void sendCommandAsync(Command command) {
+    _LMLOG_(">> $%X [%d] (...)", command.header.commandId, command.header.size);
     asyncCommand.reset();
     asyncCommand.cmd = command;
-    asyncCommand.expectsResponse = expectsResponse;
     asyncCommand.isActive = true;
 
     if (isSIO32Mode())  // Magic+Header
@@ -1035,5 +1090,3 @@ inline void LINK_MOBILE_ISR_TIMER() {
 #undef _LMLOG_
 
 #endif  // LINK_MOBILE_H
-
-// TODO: Keep adapter alive with Wait For Telephone Call

@@ -167,6 +167,12 @@ std::string getStateString(LinkMobile::State state) {
       return "READING_CONFIGURATION";
     case LinkMobile::State::SESSION_ACTIVE:
       return "SESSION_ACTIVE";
+    case LinkMobile::State::CALL_REQUESTED:
+      return "CALL_REQUESTED";
+    case LinkMobile::State::CALLING:
+      return "CALLING";
+    case LinkMobile::State::CALL_ESTABLISHED:
+      return "CALL_ESTABLISHED";
     case LinkMobile::State::SHUTDOWN_REQUESTED:
       return "SHUTDOWN_REQUESTED";
     case LinkMobile::State::ENDING_SESSION:
