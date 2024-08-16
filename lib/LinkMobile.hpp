@@ -114,9 +114,9 @@ class LinkMobile {
     INVALID_MAGIC_BYTES,
     WEIRD_DATA_SIZE,
     WRONG_CHECKSUM,
-    ERROR,
-    WEIRD_ERROR,
-    TIMEOUT
+    ERROR_CODE,
+    WEIRD_ERROR_CODE,
+    TIMEOUT  // TODO: USE
   };
 
   struct Error {
@@ -203,12 +203,7 @@ class LinkMobile {
     return linkSPI->getDataSize();
   }
 
-  Error getError(bool clear = true) {
-    auto err = error;
-    if (clear)
-      error = {};
-    return err;
-  }
+  [[nodiscard]] Error getError() { return error; }
 
   ~LinkMobile() { delete linkSPI; }
 
@@ -216,7 +211,7 @@ class LinkMobile {
     if (!isEnabled)
       return;
 
-    if (state > NEEDS_RESET && state < SESSION_ACTIVE) {
+    if (shouldAbortOnTimeout()) {
       timeoutFrames++;
       if (timeoutFrames >= TIMEOUT_INIT_FRAMES)
         return abort(Error::Type::ADAPTER_NOT_CONNECTED);
@@ -363,10 +358,10 @@ class LinkMobile {
     void finish() {
       if (cmd.header.commandId == COMMAND_ERROR_STATUS) {
         if (cmd.header.size != 2) {
-          result = CommandResult::WEIRD_ERROR;
-          errorCode = cmd.data.bytes[1];
+          result = CommandResult::WEIRD_ERROR_CODE;
         } else {
-          result = CommandResult::ERROR;
+          result = CommandResult::ERROR_CODE;
+          errorCode = cmd.data.bytes[1];
         }
       } else {
         result = CommandResult::SUCCESS;
@@ -427,8 +422,10 @@ class LinkMobile {
 
   void processAsyncCommand() {
     if (asyncCommand.result != CommandResult::SUCCESS) {
-      if (state >= STARTING_SESSION && state < SESSION_ACTIVE)
+      if (shouldAbortOnCommandFailure())
         return abort(Error::Type::UNEXPECTED_FAILURE);
+      else
+        abort(Error::Type::UNEXPECTED_FAILURE, false);  // (log the error)
     }
 
     _LMLOG_("%s $%X [%d]",
@@ -536,7 +533,7 @@ class LinkMobile {
   }
 
   void cmdEndSession() {
-    sendCommandAsync(buildCommand(COMMAND_END_SESSION, true), true);
+    sendCommandAsync(buildCommand(COMMAND_END_SESSION), true);
   }
 
   void cmdSIO32() {
@@ -548,6 +545,14 @@ class LinkMobile {
     addData(offset, true);
     addData(CONFIGURATION_DATA_CHUNK);
     sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true), true);
+  }
+
+  bool shouldAbortOnTimeout() {
+    return state > NEEDS_RESET && state < SESSION_ACTIVE;
+  }
+
+  bool shouldAbortOnCommandFailure() {
+    return state >= STARTING_SESSION && state < SESSION_ACTIVE;
   }
 
   void addData(u8 value, bool start = false) {
@@ -567,8 +572,8 @@ class LinkMobile {
     (void)oldState;
   }
 
-  void abort(Error::Type errorType) {
-    error =
+  void abort(Error::Type errorType, bool fatal = true) {
+    auto newError =
         Error{.type = errorType,
               .state = state,
               .cmdId = (u8)(asyncCommand.cmd.header.commandId & (~OR_VALUE)),
@@ -578,13 +583,18 @@ class LinkMobile {
                   asyncCommand.direction == AsyncCommand::Direction::SENDING};
 
     _LMLOG_(
-        "!! aborted:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "
+        "!! %s:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "
         "cmdErrorCode: %d",
-        error.type, error.cmdIsSending ? ">" : "<", error.cmdId,
-        error.cmdResult, error.cmdErrorCode);
+        fatal ? "aborted" : "failed", newError.type,
+        newError.cmdIsSending ? ">" : "<", newError.cmdId, newError.cmdResult,
+        newError.cmdErrorCode);
+    (void)newError;
 
-    resetState();
-    stop();
+    if (fatal) {
+      error = newError;
+      resetState();
+      stop();
+    }
   }
 
   void reset() {
@@ -662,8 +672,10 @@ class LinkMobile {
 
     bool isAcknowledgement =
         asyncCommand.transferred >= mainSize + CHECKSUM_SIZE + 1;
-    if (!isAcknowledgement && newData != ADAPTER_WAITING)
+    if (!isAcknowledgement && newData != ADAPTER_WAITING) {
+      _LMLOG_("NOT WAITING: %X", newData);  // TODO: REMOVE
       return asyncCommand.fail(CommandResult::NOT_WAITING);
+    }
 
     if (asyncCommand.transferred < mainSize) {
       // Magic Bytes (2) + Packet Header + Packet Data
@@ -943,5 +955,4 @@ inline void LINK_MOBILE_ISR_TIMER() {
 
 #endif  // LINK_MOBILE_H
 
-// TODO: Error screen
 // TODO: Keep adapter alive with Wait For Telephone Call

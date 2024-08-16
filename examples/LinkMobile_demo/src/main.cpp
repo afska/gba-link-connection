@@ -10,11 +10,17 @@
 #include "../../_lib/interrupt.h"
 
 void activate();
-void readConfiguration();
+std::string readConfiguration();
+std::string getStateString(LinkMobile::State state);
+std::string getErrorString(LinkMobile::Error::Type errorType);
+std::string getResultString(LinkMobile::CommandResult cmdResult);
 void log(std::string text);
 void waitFor(u16 key);
 void wait(u32 verticalLines);
 void hang();
+
+template <typename I>
+[[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1);
 
 LinkMobile* linkMobile = NULL;
 
@@ -53,10 +59,29 @@ start:
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // Menu
-    log(std::string("") + "State = " + std::to_string(linkMobile->getState()) +
-        "\n\n" +
-        "L = Read Configuration\n\n (DOWN = ok)\n "
-        "(SELECT = stop)");
+    std::string output = "";
+    bool wait = false;
+    output += "State = " + getStateString(linkMobile->getState()) + "\n\n";
+
+    auto error = linkMobile->getError();
+    bool hasError = error.type != LinkMobile::Error::NONE;
+    if (hasError) {
+      output += "ERROR\n";
+      output += "  Type: " + getErrorString(error.type) + "\n";
+      output += "  State: " + getStateString(error.state) + "\n";
+      output += "  CmdID: " + std::string(error.cmdIsSending ? ">" : "<") +
+                "$" + toHex(error.cmdId) + "\n";
+      output += "  CmdResult: " + getResultString(error.cmdResult) + "\n";
+      output +=
+          "  CmdErrorCode: " + std::to_string(error.cmdErrorCode) + "\n\n";
+
+      output += " (SELECT = stop)";
+    } else if (linkMobile->getState() == LinkMobile::SESSION_ACTIVE) {
+      output += "L = Read Configuration\n\n";
+      output += " (DOWN = ok)\n (SELECT = stop)";
+    } else {
+      output += " (SELECT = stop)";
+    }
 
     // SELECT = back
     if (keys & KEY_SELECT) {
@@ -72,12 +97,16 @@ start:
     // L = Read Configuration
     if ((keys & KEY_L) && !reading) {
       reading = true;
-      readConfiguration();
+      output = readConfiguration();
+      wait = true;
     }
     if (reading && !(keys & KEY_L))
       reading = false;
 
     VBlankIntrWait();
+    log(output);
+    if (wait)
+      hang();
   }
 
   return 0;
@@ -95,36 +124,96 @@ std::string toStr(char* chars, int size) {
   return std::string(copiedChars);
 }
 
-void readConfiguration() {
-  log("Reading...");
-
-  while (linkMobile->getState() != LinkMobile::State::SESSION_ACTIVE)
-    ;
-
+std::string readConfiguration() {
   LinkMobile::ConfigurationData data;
-  if (!linkMobile->readConfiguration(data)) {
-    log("Read failed :(");
-    hang();
-    return;
-  }
+  if (!linkMobile->readConfiguration(data))
+    return "Read failed :(";
 
-  log("Magic:\n  " + toStr(data.magic, 2) + "\nIsRegistering:\n  " +
-      (data.isRegistering ? "Yes" : "No") + "\nPrimary DNS:\n  " +
-      std::to_string(data.primaryDNS[0]) + "." +
-      std::to_string(data.primaryDNS[1]) + "." +
-      std::to_string(data.primaryDNS[2]) + "." +
-      std::to_string(data.primaryDNS[3]) + "\nSecondary DNS:\n  " +
-      std::to_string(data.secondaryDNS[0]) + "." +
-      std::to_string(data.secondaryDNS[1]) + "." +
-      std::to_string(data.secondaryDNS[2]) + "." +
-      std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
-      toStr(data.loginID, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
-      "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) + "\nPOP Server:\n  " +
-      toStr(data.popServer, 19) + "\n\nMode: " +
-      (linkMobile->getDataSize() == LinkSPI::DataSize::SIZE_32BIT ? "SIO32"
-                                                                  : "SIO8"));
-  while (true)
-    ;
+  return ("Magic:\n  " + toStr(data.magic, 2) + "\nIsRegistering:\n  " +
+          (data.isRegistering ? "Yes" : "No") + "\nPrimary DNS:\n  " +
+          std::to_string(data.primaryDNS[0]) + "." +
+          std::to_string(data.primaryDNS[1]) + "." +
+          std::to_string(data.primaryDNS[2]) + "." +
+          std::to_string(data.primaryDNS[3]) + "\nSecondary DNS:\n  " +
+          std::to_string(data.secondaryDNS[0]) + "." +
+          std::to_string(data.secondaryDNS[1]) + "." +
+          std::to_string(data.secondaryDNS[2]) + "." +
+          std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
+          toStr(data.loginID, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
+          "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) +
+          "\nPOP Server:\n  " + toStr(data.popServer, 19) + "\n\nMode: " +
+          (linkMobile->getDataSize() == LinkSPI::DataSize::SIZE_32BIT
+               ? "SIO32"
+               : "SIO8"));
+}
+
+std::string getStateString(LinkMobile::State state) {
+  switch (state) {
+    case LinkMobile::State::NEEDS_RESET:
+      return "NEEDS_RESET";
+    case LinkMobile::State::PINGING:
+      return "PINGING";
+    case LinkMobile::State::WAITING_TO_START:
+      return "WAITING_TO_START";
+    case LinkMobile::State::ENDING_SESSION:
+      return "ENDING_SESSION";
+    case LinkMobile::State::STARTING_SESSION:
+      return "STARTING_SESSION";
+    case LinkMobile::State::ACTIVATING_SIO32:
+      return "ACTIVATING_SIO32";
+    case LinkMobile::State::WAITING_TO_SWITCH:
+      return "WAITING_TO_SWITCH";
+    case LinkMobile::State::READING_CONFIGURATION:
+      return "READING_CONFIGURATION";
+    case LinkMobile::State::SESSION_ACTIVE:
+      return "SESSION_ACTIVE";
+    default:
+      return "???";
+  }
+}
+
+std::string getErrorString(LinkMobile::Error::Type errorType) {
+  switch (errorType) {
+    case LinkMobile::Error::Type::ADAPTER_NOT_CONNECTED:
+      return "ADAPTER_NOT_CONNECTED";
+    case LinkMobile::Error::Type::UNEXPECTED_FAILURE:
+      return "UNEXPECTED_FAILURE";
+    case LinkMobile::Error::Type::WEIRD_RESPONSE:
+      return "WEIRD_RESPONSE";
+    case LinkMobile::Error::Type::BAD_CONFIGURATION_CHECKSUM:
+      return "BAD_CONFIGURATION_CHECKSUM";
+    default:
+      return "???";
+  }
+}
+
+std::string getResultString(LinkMobile::CommandResult cmdResult) {
+  switch (cmdResult) {
+    case LinkMobile::CommandResult::PENDING:
+      return "PENDING";
+    case LinkMobile::CommandResult::SUCCESS:
+      return "SUCCESS";
+    case LinkMobile::CommandResult::NOT_WAITING:
+      return "NOT_WAITING";
+    case LinkMobile::CommandResult::INVALID_DEVICE_ID:
+      return "INVALID_DEVICE_ID";
+    case LinkMobile::CommandResult::INVALID_COMMAND_ACK:
+      return "INVALID_COMMAND_ACK";
+    case LinkMobile::CommandResult::INVALID_MAGIC_BYTES:
+      return "INVALID_MAGIC_BYTES";
+    case LinkMobile::CommandResult::WEIRD_DATA_SIZE:
+      return "WEIRD_DATA_SIZE";
+    case LinkMobile::CommandResult::WRONG_CHECKSUM:
+      return "WRONG_CHECKSUM";
+    case LinkMobile::CommandResult::ERROR_CODE:
+      return "ERROR_CODE";
+    case LinkMobile::CommandResult::WEIRD_ERROR_CODE:
+      return "WEIRD_ERROR_CODE";
+    case LinkMobile::CommandResult::TIMEOUT:
+      return "TIMEOUT";
+    default:
+      return "???";
+  }
 }
 
 std::string lastLoggedText = "";
@@ -158,4 +247,13 @@ void wait(u32 verticalLines) {
 
 void hang() {
   waitFor(KEY_DOWN);
+}
+
+template <typename I>
+[[nodiscard]] std::string toHex(I w, size_t hex_len) {
+  static const char* digits = "0123456789ABCDEF";
+  std::string rc(hex_len, '0');
+  for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+    rc[i] = digits[(w >> j) & 0x0f];
+  return rc;
 }
