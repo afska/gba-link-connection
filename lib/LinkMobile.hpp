@@ -537,6 +537,12 @@ class LinkMobile {
 
         break;
       }
+      case CALL_ESTABLISHED: {
+        const char* newData = dontReceiveCalls ? "call" : "recv";
+        if (!asyncCommand.isActive)
+          cmdTransferData(0xff, (u8*)newData, 5);
+        break;
+      }
       case WAITING_8BIT_SWITCH: {
         waitFrames--;
 
@@ -650,6 +656,20 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
         break;
       }
+      case CALL_ESTABLISHED: {
+        if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
+          return;
+
+        if (asyncCommand.result == CommandResult::SUCCESS) {
+          char received[254];
+          received[0] = '\0';
+          for (u32 i = 0; i < 5; i++)
+            received[i] = asyncCommand.cmd.data.bytes[1 + i];
+          _LMLOG_("!! received: %s", received);
+        } else {
+          setState(SESSION_ACTIVE);
+        }
+      }
       case ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
           return;
@@ -696,6 +716,13 @@ class LinkMobile {
 
   void cmdWaitForTelephoneCall() {
     sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL));
+  }
+
+  void cmdTransferData(u8 connectionId, u8* data, u8 size) {
+    addData(connectionId, true);
+    for (u32 i = 0; i < size; i++)
+      addData(data[i]);
+    sendCommandAsync(buildCommand(COMMAND_TRANSFER_DATA, true));
   }
 
   void cmdSIO32(bool enabled) {
@@ -1132,7 +1159,5 @@ inline void LINK_MOBILE_ISR_TIMER() {
 }
 
 #undef _LMLOG_
-
-// TODO: Wait for calls every second instead of every frame
 
 #endif  // LINK_MOBILE_H
