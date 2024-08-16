@@ -434,7 +434,7 @@ class LinkMobile {
       sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
-  using RequestQueue = Link::ObjectQueue<UserRequest, LINK_MOBILE_QUEUE_SIZE>;
+  using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE, false>;
 
   RequestQueue userRequests;
   AdapterConfiguration adapterConfiguration;

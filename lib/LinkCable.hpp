@@ -76,7 +76,7 @@ class LinkCable {
   using u8 = unsigned char;
   using vu32 = volatile unsigned int;
   using vs32 = volatile signed int;
-  using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE, LINK_CABLE_NO_DATA>;
+  using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE>;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;

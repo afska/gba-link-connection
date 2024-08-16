@@ -958,7 +958,7 @@ class LinkWireless {
   Config config;
 
  private:
-  using MessageQueue = Link::ObjectQueue<Message, LINK_WIRELESS_QUEUE_SIZE>;
+  using MessageQueue = Link::Queue<Message, LINK_WIRELESS_QUEUE_SIZE, false>;
 
   struct SessionState {
     MessageQueue incomingMessages;     // read by user, write by irq&user
