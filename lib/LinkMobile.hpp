@@ -269,8 +269,6 @@ class LinkMobile {
     } else {
       processLoosePacket(newData);
     }
-
-    _LMLOG_("<<<< %X", newData);
   }
 
   void _onTimer() {
@@ -599,9 +597,7 @@ class LinkMobile {
     return state > NEEDS_RESET && state < SESSION_ACTIVE;
   }
 
-  bool shouldAbortOnCommandFailure() {
-    return state >= STARTING_SESSION && state < SESSION_ACTIVE;
-  }
+  bool shouldAbortOnCommandFailure() { return true; }
 
   void addData(u8 value, bool start = false) {
     if (start) {
@@ -754,7 +750,7 @@ class LinkMobile {
     u32 padding = alignment != 0 ? 4 - alignment : 0;
     u32 mainSize = PREAMBLE_SIZE + dataSize + padding;
 
-    bool isAcknowledgement = asyncCommand.transferred >= mainSize + 4;
+    bool isAcknowledgement = asyncCommand.transferred >= mainSize;
     if (!isAcknowledgement && newData != ADAPTER_WAITING &&
         newData != ADAPTER_WAITING_32BIT) {
       _LMLOG_("!! not waiting: %X", newData);
@@ -786,7 +782,7 @@ class LinkMobile {
                          asyncCommand.cmd.data.bytes[transferredDataCount + 1],
                          asyncCommand.cmd.checksum.high,
                          asyncCommand.cmd.checksum.low));
-    } else if (!isAcknowledgement) {
+    } else if (asyncCommand.transferred < mainSize + 4) {
       // Acknowledgement Signal (1)
       advance32(buildU32(DEVICE_GBA | OR_VALUE, ACK_SENDER, 0, 0));
     } else {
@@ -884,8 +880,7 @@ class LinkMobile {
         asyncCommand.expectedChecksum += b0 + b1;
       } else {
         u16 checksum = lsB32(newData);
-        if (msB16(checksum) != msB16(asyncCommand.expectedChecksum) ||
-            lsB16(checksum) != msB16(asyncCommand.expectedChecksum))
+        if (checksum != asyncCommand.expectedChecksum)
           return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
         asyncCommand.cmd.checksum.high = msB16(checksum);
         asyncCommand.cmd.checksum.low = lsB16(checksum);
@@ -913,8 +908,7 @@ class LinkMobile {
         asyncCommand.cmd.data.bytes[transferredDataCount + 1] = b1;
         asyncCommand.expectedChecksum += b0 + b1;
         u16 checksum = lsB32(newData);
-        if (msB16(checksum) != msB16(asyncCommand.expectedChecksum) ||
-            lsB16(checksum) != lsB16(asyncCommand.expectedChecksum))
+        if (checksum != asyncCommand.expectedChecksum)
           return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
         asyncCommand.cmd.checksum.high = msB16(checksum);
         asyncCommand.cmd.checksum.low = lsB16(checksum);
@@ -967,8 +961,6 @@ class LinkMobile {
   }
 
   void transferAsync(u32 data) {
-    _LMLOG_(">>>> %X", data);
-
     hasPendingTransfer = true;
     pendingTransfer = data;
     startTimer(WAIT_TICKS[isSIO32Mode()]);
