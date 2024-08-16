@@ -178,12 +178,10 @@ std::string getStateString(LinkMobile::State state) {
       return "SESSION_ACTIVE";
     case LinkMobile::State::SHUTDOWN_REQUESTED:
       return "SHUTDOWN_REQUESTED";
-    case LinkMobile::State::DEACTIVATING_SIO32:
-      return "DEACTIVATING_SIO32";
-    case LinkMobile::State::WAITING_8BIT_SWITCH:
-      return "WAITING_8BIT_SWITCH";
     case LinkMobile::State::ENDING_SESSION:
       return "ENDING_SESSION";
+    case LinkMobile::State::WAITING_8BIT_SWITCH:
+      return "WAITING_8BIT_SWITCH";
     case LinkMobile::State::SHUTDOWN:
       return "SHUTDOWN";
     default:

@@ -103,9 +103,8 @@ class LinkMobile {
     SESSION_ACTIVE_CALL,
     SESSION_ACTIVE_ISP,
     SHUTDOWN_REQUESTED,
-    DEACTIVATING_SIO32,
-    WAITING_8BIT_SWITCH,
     ENDING_SESSION,
+    WAITING_8BIT_SWITCH,
     SHUTDOWN
   };
 
@@ -438,8 +437,8 @@ class LinkMobile {
       }
       case SHUTDOWN_REQUESTED: {
         if (!asyncCommand.isActive) {
-          setState(DEACTIVATING_SIO32);
-          cmdSIO32(false);
+          setState(ENDING_SESSION);
+          cmdEndSession();
         }
         break;
       }
@@ -449,8 +448,7 @@ class LinkMobile {
         if (waitFrames == 0) {
           linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
                             LinkSPI::DataSize::SIZE_8BIT);
-          setState(ENDING_SESSION);
-          cmdEndSession();
+          setState(SHUTDOWN);
         }
         break;
       }
@@ -540,20 +538,12 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
         break;
       }
-      case DEACTIVATING_SIO32: {
-        if (!asyncCommand.respondsTo(COMMAND_SIO32) &&
-            !asyncCommand.respondsTo(COMMAND_RESET))
-          return abort(Error::Type::WEIRD_RESPONSE);
-
-        setState(WAITING_8BIT_SWITCH);
-        waitFrames = PING_WAIT_FRAMES;
-        break;
-      }
       case ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
           return;
 
-        setState(SHUTDOWN);
+        setState(WAITING_8BIT_SWITCH);
+        waitFrames = PING_WAIT_FRAMES;
         break;
       }
       default: {
