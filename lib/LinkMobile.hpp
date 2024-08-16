@@ -22,6 +22,7 @@
 
 #include "_link_common.hpp"
 
+#include <cstring>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
@@ -195,7 +196,7 @@ class LinkMobile {
   }
 
   bool shutdown() {
-    if (!isSessionActive() || userRequests.isFull())
+    if (!canShutdown() || userRequests.isFull())
       return false;
 
     pushRequest(UserRequest{.type = UserRequest::Type::SHUTDOWN});
@@ -209,12 +210,15 @@ class LinkMobile {
     stop();
   }
 
-  // phoneNumber = 32 bytes
-  bool call(char* phoneNumber) {
-    if (state != SESSION_ACTIVE)
+  bool call(const char* phoneNumber) {
+    if (state != SESSION_ACTIVE || userRequests.isFull())
       return false;
 
-    // TODO: IMPLEMENT
+    auto request = UserRequest{.type = UserRequest::Type::CALL};
+    copyString(request.phoneNumber, phoneNumber,
+               LINK_MOBILE_MAX_PHONE_NUMBER_SIZE);
+    pushRequest(request);
+    return true;
   }
 
   bool readConfiguration(ConfigurationData& configurationData) {
@@ -231,7 +235,11 @@ class LinkMobile {
    * @brief Returns `true` if the session is active.
    */
   [[nodiscard]] bool isSessionActive() {
-    return state >= SESSION_ACTIVE && state < SHUTDOWN_REQUESTED;
+    return state >= SESSION_ACTIVE && state <= SHUTDOWN_REQUESTED;
+  }
+
+  [[nodiscard]] bool canShutdown() {
+    return isSessionActive() && state != SHUTDOWN_REQUESTED;
   }
 
   [[nodiscard]] LinkSPI::DataSize getDataSize() {
@@ -313,7 +321,7 @@ class LinkMobile {
     enum Type { CALL, SHUTDOWN };
 
     Type type;
-    char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_SIZE];
+    char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_SIZE + 1];
   };
 
   union AdapterConfiguration {
@@ -448,21 +456,46 @@ class LinkMobile {
   bool hasPendingTransfer = false;
   u32 pendingTransfer = 0;
   AdapterType adapterType = AdapterType::UNKNOWN;
-  volatile bool isPushingRequest = false;
-  volatile bool isPendingClearActive = false;
   Error error = {};
   volatile bool isEnabled = false;
 
   void processUserRequests() {
-    if (isPushingRequest || userRequests.isEmpty())
+    if (!userRequests.canMutate() || userRequests.isEmpty())
       return;
 
-    auto request = userRequests.pop();
+    auto request = userRequests.peek();
 
     switch (request.type) {
+      case UserRequest::Type::CALL: {
+        if (!isSessionActive()) {
+          userRequests.pop();
+          return;
+        }
+
+        if (state != CALL_REQUESTED)
+          setState(CALL_REQUESTED);
+
+        if (!asyncCommand.isActive) {
+          setState(CALLING);
+          cmdDialTelephone(request.phoneNumber);
+          userRequests.pop();
+        }
+        break;
+      }
       case UserRequest::Type::SHUTDOWN: {
-        if (isSessionActive())
+        if (!isSessionActive()) {
+          userRequests.pop();
+          return;
+        }
+
+        if (state != SHUTDOWN_REQUESTED)
           setState(SHUTDOWN_REQUESTED);
+
+        if (!asyncCommand.isActive) {
+          setState(ENDING_SESSION);
+          cmdEndSession();
+          userRequests.pop();
+        }
         break;
       }
       default: {
@@ -496,13 +529,6 @@ class LinkMobile {
         if (!asyncCommand.isActive)
           cmdWaitForTelephoneCall();
 
-        break;
-      }
-      case SHUTDOWN_REQUESTED: {
-        if (!asyncCommand.isActive) {
-          setState(ENDING_SESSION);
-          cmdEndSession();
-        }
         break;
       }
       case WAITING_8BIT_SWITCH: {
@@ -599,13 +625,25 @@ class LinkMobile {
         break;
       }
       case SESSION_ACTIVE: {
+        // TODO: Allow users to opt-out receiving calls
         if (asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL)) {
           if (asyncCommand.result == CommandResult::SUCCESS) {
-            // Call received
+            setState(CALL_ESTABLISHED);
           } else {
-            // No call received
+            // (no call received)
           }
         }
+        break;
+      }
+      case CALLING: {
+        if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
+          return;
+
+        if (asyncCommand.result == CommandResult::SUCCESS)
+          setState(CALL_ESTABLISHED);
+        else
+          setState(SESSION_ACTIVE);
+        break;
       }
       case ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
@@ -632,22 +670,8 @@ class LinkMobile {
     }
   }
 
-  // TODO: Reify this idea as synchronized queue
   void pushRequest(UserRequest userRequest) {
-    LINK_MOBILE_BARRIER;
-    isPushingRequest = true;
-    LINK_MOBILE_BARRIER;
-
-    userRequests.push(userRequest);
-
-    LINK_MOBILE_BARRIER;
-    isPushingRequest = false;
-    LINK_MOBILE_BARRIER;
-
-    if (isPendingClearActive) {
-      userRequests.clear();
-      isPendingClearActive = false;
-    }
+    userRequests.syncPush(userRequest);
   }
 
   void cmdBeginSession() {
@@ -657,6 +681,13 @@ class LinkMobile {
   }
 
   void cmdEndSession() { sendCommandAsync(buildCommand(COMMAND_END_SESSION)); }
+
+  void cmdDialTelephone(char* phoneNumber) {
+    addData(DIAL_PHONE_FIRST_BYTE[adapterType], true);
+    for (u32 i = 0; i < std::strlen(phoneNumber); i++)
+      addData(phoneNumber[i]);
+    sendCommandAsync(buildCommand(COMMAND_DIAL_TELEPHONE, true));
+  }
 
   void cmdWaitForTelephoneCall() {
     sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL));
@@ -680,7 +711,8 @@ class LinkMobile {
   bool shouldAbortOnCommandFailure() {
     u8 commandId = asyncCommand.relatedCommandId();
     return asyncCommand.direction == AsyncCommand::Direction::SENDING ||
-           (commandId != COMMAND_WAIT_FOR_TELEPHONE_CALL);
+           (commandId != COMMAND_WAIT_FOR_TELEPHONE_CALL &&
+            commandId != COMMAND_DIAL_TELEPHONE);
   }
 
   void addData(u8 value, bool start = false) {
@@ -690,6 +722,16 @@ class LinkMobile {
     }
     nextCommandData.bytes[nextCommandDataSize] = value;
     nextCommandDataSize++;
+  }
+
+  void copyString(char* target, const char* source, u32 length) {
+    u32 len = std::strlen(source);
+
+    for (u32 i = 0; i < length + 1; i++)
+      if (i < len)
+        target[i] = source[i];
+      else
+        target[i] = '\0';
   }
 
   void setState(State newState) {
@@ -743,10 +785,7 @@ class LinkMobile {
     this->pendingTransfer = 0;
     this->adapterType = AdapterType::UNKNOWN;
 
-    if (!isPushingRequest)
-      userRequests.clear();
-    else
-      isPendingClearActive = true;
+    userRequests.syncClear();
   }
 
   void stop() {
@@ -1088,5 +1127,7 @@ inline void LINK_MOBILE_ISR_TIMER() {
 }
 
 #undef _LMLOG_
+
+// TODO: Wait for calls every second instead of every frame
 
 #endif  // LINK_MOBILE_H

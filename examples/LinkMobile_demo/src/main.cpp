@@ -70,7 +70,7 @@ start:
     if (hasError) {
       output += getErrorString(error);
       output += " (SELECT = stop)";
-    } else if (linkMobile->isSessionActive()) {
+    } else if (linkMobile->getState() == LinkMobile::State::SESSION_ACTIVE) {
       output += "L = Read Configuration\n";
       output += "R = Call localhost\n\n";
       output += " (DOWN = ok)\n (SELECT = stop)";
@@ -95,7 +95,7 @@ start:
         }
 
         goto start;
-      } else if (linkMobile->isSessionActive()) {
+      } else if (linkMobile->canShutdown()) {
         linkMobile->shutdown();
       }
     }
@@ -112,7 +112,7 @@ start:
     // R = Call localhost
     if ((keys & KEY_R) && !calling) {
       calling = true;
-      // TODO: CALL
+      linkMobile->call("127000000001");
     }
     if (calling && !(keys & KEY_R))
       calling = false;
