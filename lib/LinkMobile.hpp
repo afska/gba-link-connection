@@ -126,7 +126,7 @@ class LinkMobile {
     enum Type {
       NONE,
       ADAPTER_NOT_CONNECTED,
-      UNEXPECTED_FAILURE,
+      COMMAND_FAILED,
       WEIRD_RESPONSE,
       BAD_CONFIGURATION_CHECKSUM
     };
@@ -324,7 +324,7 @@ class LinkMobile {
     u8 size = 0;
 
     u16 sum() { return commandId + _unused_ + _unusedSizeHigh_ + size; }
-    u8 pureCommandId() { return commandId & ~(OR_VALUE); }
+    u8 pureCommandId() { return commandId & (~OR_VALUE); }
   } __attribute__((packed));
 
   struct PacketChecksum {
@@ -355,6 +355,7 @@ class LinkMobile {
     Direction direction;
     u16 expectedChecksum;
     bool expectsResponse;
+    u8 errorCommandId;
     u8 errorCode;
     bool isActive = false;
 
@@ -366,13 +367,21 @@ class LinkMobile {
       direction = AsyncCommand::Direction::SENDING;
       expectedChecksum = 0;
       expectsResponse = false;
+      errorCommandId = 0;
       errorCode = 0;
       isActive = false;
     }
 
+    u8 relatedCommandId() {
+      return result == CommandResult::ERROR_CODE ? errorCommandId
+                                                 : cmd.header.pureCommandId();
+    }
+
     bool respondsTo(u8 commandId) {
       return direction == AsyncCommand::Direction::RECEIVING &&
-             cmd.header.commandId == (commandId | OR_VALUE);
+             (result == CommandResult::ERROR_CODE
+                  ? errorCommandId == commandId
+                  : cmd.header.commandId == (commandId | OR_VALUE));
     }
 
     void finish() {
@@ -381,6 +390,7 @@ class LinkMobile {
           result = CommandResult::WEIRD_ERROR_CODE;
         } else {
           result = CommandResult::ERROR_CODE;
+          errorCommandId = cmd.data.bytes[0];
           errorCode = cmd.data.bytes[1];
         }
       } else {
@@ -435,6 +445,12 @@ class LinkMobile {
         }
         break;
       }
+      case SESSION_ACTIVE: {
+        if (!asyncCommand.isActive)
+          cmdWaitForTelephoneCall();
+
+        break;
+      }
       case SHUTDOWN_REQUESTED: {
         if (!asyncCommand.isActive) {
           setState(ENDING_SESSION);
@@ -460,9 +476,9 @@ class LinkMobile {
   void processAsyncCommand() {
     if (asyncCommand.result != CommandResult::SUCCESS) {
       if (shouldAbortOnCommandFailure())
-        return abort(Error::Type::UNEXPECTED_FAILURE);
+        return abort(Error::Type::COMMAND_FAILED);
       else
-        abort(Error::Type::UNEXPECTED_FAILURE, false);  // (log the error)
+        abort(Error::Type::COMMAND_FAILED, false);  // (log the error)
     }
 
     _LMLOG_("%s $%X [%d]",
@@ -472,11 +488,8 @@ class LinkMobile {
             asyncCommand.cmd.header.size);
 
     if (asyncCommand.direction == AsyncCommand::Direction::SENDING) {
-      if (asyncCommand.expectsResponse) {
-        if (asyncCommand.result != CommandResult::SUCCESS)
-          return;
+      if (asyncCommand.expectsResponse)
         receiveCommandAsync();
-      }
       return;
     }
 
@@ -538,6 +551,15 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
         break;
       }
+      case SESSION_ACTIVE: {
+        if (asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL)) {
+          if (asyncCommand.result == CommandResult::SUCCESS) {
+            // Call received
+          } else {
+            // No call received
+          }
+        }
+      }
       case ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
           return;
@@ -573,6 +595,10 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_END_SESSION), true);
   }
 
+  void cmdWaitForTelephoneCall() {
+    sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL), true);
+  }
+
   void cmdSIO32(bool enabled) {
     addData(enabled, true);
     sendCommandAsync(buildCommand(COMMAND_SIO32, true), true);
@@ -588,7 +614,11 @@ class LinkMobile {
     return state > NEEDS_RESET && state < SESSION_ACTIVE;
   }
 
-  bool shouldAbortOnCommandFailure() { return true; }
+  bool shouldAbortOnCommandFailure() {
+    u8 commandId = asyncCommand.relatedCommandId();
+    return asyncCommand.direction == AsyncCommand::Direction::SENDING ||
+           (commandId != COMMAND_WAIT_FOR_TELEPHONE_CALL);
+  }
 
   void addData(u8 value, bool start = false) {
     if (start) {
@@ -608,14 +638,13 @@ class LinkMobile {
   }
 
   void abort(Error::Type errorType, bool fatal = true) {
-    auto newError =
-        Error{.type = errorType,
-              .state = state,
-              .cmdId = (u8)(asyncCommand.cmd.header.pureCommandId()),
-              .cmdResult = asyncCommand.result,
-              .cmdErrorCode = asyncCommand.errorCode,
-              .cmdIsSending =
-                  asyncCommand.direction == AsyncCommand::Direction::SENDING};
+    auto newError = Error{.type = errorType,
+                          .state = state,
+                          .cmdId = asyncCommand.relatedCommandId(),
+                          .cmdResult = asyncCommand.result,
+                          .cmdErrorCode = asyncCommand.errorCode,
+                          .cmdIsSending = asyncCommand.direction ==
+                                          AsyncCommand::Direction::SENDING};
 
     _LMLOG_(
         "!! %s:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "

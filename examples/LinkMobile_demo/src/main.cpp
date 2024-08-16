@@ -185,7 +185,7 @@ std::string getStateString(LinkMobile::State state) {
     case LinkMobile::State::SHUTDOWN:
       return "SHUTDOWN";
     default:
-      return "???";
+      return "?";
   }
 }
 
@@ -193,14 +193,14 @@ std::string getErrorString(LinkMobile::Error::Type errorType) {
   switch (errorType) {
     case LinkMobile::Error::Type::ADAPTER_NOT_CONNECTED:
       return "ADAPTER_NOT_CONNECTED";
-    case LinkMobile::Error::Type::UNEXPECTED_FAILURE:
-      return "UNEXPECTED_FAILURE";
+    case LinkMobile::Error::Type::COMMAND_FAILED:
+      return "COMMAND_FAILED";
     case LinkMobile::Error::Type::WEIRD_RESPONSE:
       return "WEIRD_RESPONSE";
     case LinkMobile::Error::Type::BAD_CONFIGURATION_CHECKSUM:
       return "BAD_CONFIGURATION_CHECKSUM";
     default:
-      return "???";
+      return "?";
   }
 }
 
@@ -229,7 +229,7 @@ std::string getResultString(LinkMobile::CommandResult cmdResult) {
     case LinkMobile::CommandResult::TIMEOUT:
       return "TIMEOUT";
     default:
-      return "???";
+      return "?";
   }
 }
 
