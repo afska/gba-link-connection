@@ -85,12 +85,14 @@ start:
       output += " (SELECT = stop)";
     }
 
-    if (linkMobile->getState() == LinkMobile::State::CALL_ESTABLISHED) {
+    if (linkMobile->isConnected()) {
       if (!isConnected) {
         isConnected = true;
         dataTransfer = {};
         lastCompletedTransfer = {};
-        transfer(dataTransfer, dontReceiveCalls ? "caller" : "receiver");
+        transfer(dataTransfer, linkMobile->getRole() == LinkMobile::Role::CALLER
+                                   ? "caller"
+                                   : "receiver");
       }
 
       if (dataTransfer.completed) {
@@ -99,8 +101,11 @@ start:
           counter++;
         }
 
-        transfer(dataTransfer, (dontReceiveCalls ? "caller: " : "receiver: ") +
-                                   std::to_string(counter));
+        transfer(
+            dataTransfer,
+            (linkMobile->getRole() == LinkMobile::Role::CALLER ? "caller: "
+                                                               : "receiver: ") +
+                std::to_string(counter));
       }
       if (lastCompletedTransfer.completed) {
         char received[LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH];

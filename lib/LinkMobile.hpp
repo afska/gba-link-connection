@@ -132,6 +132,8 @@ class LinkMobile {
     TIMEOUT  // TODO: USE (for `UserRequest`s)
   };
 
+  enum Role { NOT_CONNECTED, CALLER, RECEIVER };
+
   struct Error {
     enum Type {
       NONE,
@@ -259,12 +261,19 @@ class LinkMobile {
 
   [[nodiscard]] State getState() { return state; }
 
+  [[nodiscard]] Role getRole() { return role; }
+
   /**
    * @brief Returns `true` if the session is active.
    */
   [[nodiscard]] bool isSessionActive() {
     return state >= SESSION_ACTIVE && state <= SHUTDOWN_REQUESTED;
   }
+
+  /**
+   * @brief
+   */
+  [[nodiscard]] bool isConnected() { return state == CALL_ESTABLISHED; }
 
   [[nodiscard]] bool canShutdown() {
     return isSessionActive() && state != SHUTDOWN_REQUESTED;
@@ -480,6 +489,7 @@ class LinkMobile {
   AsyncCommand asyncCommand;
   u32 waitFrames = 0;
   u32 timeoutFrames = 0;
+  Role role = Role::NOT_CONNECTED;
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   PacketData nextCommandData;
@@ -672,6 +682,7 @@ class LinkMobile {
         if (asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL)) {
           if (asyncCommand.result == CommandResult::SUCCESS) {
             setState(CALL_ESTABLISHED);
+            role = Role::RECEIVER;
           } else {
             // (no call received)
           }
@@ -682,9 +693,10 @@ class LinkMobile {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
           return;
 
-        if (asyncCommand.result == CommandResult::SUCCESS)
+        if (asyncCommand.result == CommandResult::SUCCESS) {
           setState(CALL_ESTABLISHED);
-        else
+          role = Role::CALLER;
+        } else
           setState(SESSION_ACTIVE);
         break;
       }
@@ -803,6 +815,7 @@ class LinkMobile {
   }
 
   void setState(State newState) {
+    role = Role::NOT_CONNECTED;
     State oldState = state;
     state = newState;
     timeoutFrames = 0;
@@ -848,6 +861,7 @@ class LinkMobile {
     this->asyncCommand.reset();
     this->waitFrames = 0;
     this->timeoutFrames = 0;
+    this->role = Role::NOT_CONNECTED;
     this->nextCommandDataSize = 0;
     this->hasPendingTransfer = false;
     this->pendingTransfer = 0;
