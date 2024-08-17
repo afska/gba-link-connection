@@ -3,6 +3,7 @@
 
 // --------------------------------------------------------------------------
 // A high level driver for the Mobile Adapter GB.
+// Check out the REON project -> https://github.com/REONTeam
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -14,6 +15,21 @@
 //       irq_add(II_TIMER3, LINK_MOBILE_ISR_TIMER);
 // - 3) Initialize the library with:
 //       linkMobile->activate();
+//       // (do something until `linkMobile->isSessionActive()` returns `true`)
+// - 4) Call someone:
+//       linkMobile->call("127000000001");
+//       // (do something until `linkMobile->isConnected()` returns `true`)
+// - 5) Send/receive data:
+//       LinkMobile::DataTransfer dataTransfer = { .size = 5 };
+//       for (u32 i = 0; i < 5; i++)
+//         dataTransfer.data[i] = ((u8*)"hello")[i];
+//       linkMobile->transfer(dataTransfer, &dataTransfer);
+//       // (do something until `dataTransfer.completed` is `true`)
+//       // (use `dataTransfer` as the received data)
+// - 6) Hang up:
+//       linkMobile->hangUp();
+// - 7) Turn off the adapter:
+//       linkMobile->shutdown();
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That causes packet loss. You REALLY want to use libugba's instead.
@@ -27,7 +43,10 @@
 #include "LinkSPI.hpp"
 
 /**
- * @brief ...
+ * @brief Request queue size (how many commands can be queued at the same time).
+ * The default value is `10`, which seems fine for most games.
+ * \warning This affects how much memory is allocated. With the default value,
+ * it's around 3 KB.
  */
 #define LINK_MOBILE_QUEUE_SIZE 10
 
@@ -48,6 +67,10 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 #define _LMLOG_(...)
 #endif
 
+/**
+ * @brief A high level driver for the Mobile Adapter GB.
+ * \warning Check out the REON project -> https://github.com/REONTeam
+ */
 class LinkMobile {
  private:
   using u32 = unsigned int;
@@ -91,7 +114,6 @@ class LinkMobile {
   static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
   static constexpr int COMMAND_DNS_QUERY = 0x28;
   static constexpr int COMMAND_ERROR_STATUS = 0x6E | OR_VALUE;
-
   static constexpr u8 WAIT_TICKS[] = {4, 8};
   static constexpr int LOGIN_PARTS_SIZE = 8;
   static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
@@ -135,7 +157,7 @@ class LinkMobile {
     WEIRD_ERROR_CODE
   };
 
-  enum Role { NOT_CONNECTED, CALLER, RECEIVER };
+  enum Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
 
   struct Error {
     enum Type {
@@ -182,16 +204,27 @@ class LinkMobile {
     bool completed = false;
   };
 
+  /**
+   * @brief Constructs a new LinkMobile object.
+   * @param timeout Number of *frames* without completing a request to reset a
+   * connection.
+   * @param timerId GBA Timer to use for waiting.
+   */
   explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
                       u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
     this->config.timeout = timeout;
     this->config.timerId = timerId;
   }
 
+  /**
+   * @brief Returns whether the library is active or not.
+   */
   [[nodiscard]] bool isActive() { return isEnabled; }
 
   /**
-   * @brief ...
+   * @brief Activates the library. After some time, if an adapter is connected,
+   * the state will be changed to `SESSION_ACTIVE`. If not, the state will be
+   * `NEEDS_RESET`, and you can retrieve the error with `getError()`.
    */
   void activate() {
     error = {};
@@ -210,6 +243,25 @@ class LinkMobile {
     start();
   }
 
+  /**
+   * @brief Deactivates the library, resetting the serial mode to GPIO.
+   * Calling `shutdown()` first is recommended, but the adapter will put itself
+   * in sleep mode after 3 seconds anyway.
+   */
+  void deactivate() {
+    error = {};
+    isEnabled = false;
+    resetState();
+    stop();
+  }
+
+  /**
+   * @brief Gracefully shutdowns the adapter, closing all connections.
+   * After some time, the state will be changed to `SHUTDOWN`, and only then
+   * it's safe to call `deactivate()`.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active session or available request slots.
+   */
   bool shutdown() {
     if (!canShutdown() || userRequests.isFull())
       return false;
@@ -218,13 +270,16 @@ class LinkMobile {
     return true;
   }
 
-  void deactivate() {
-    error = {};
-    isEnabled = false;
-    resetState();
-    stop();
-  }
-
+  /**
+   * @brief Initiates a P2P connection with a `phoneNumber`. After some time,
+   * the state will be `CALL_ESTABLISHED`, or `ACTIVE_SESSION` if the
+   * connection fails or ends.
+   * @param phoneNumber The phone number to call. In REON/libmobile this can be
+   * a number assigned by the relay server, or a 12-digit IPv4 address (for
+   * example, "127000000001" would be 127.0.0.1).
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active session or available request slots.
+   */
   bool call(const char* phoneNumber) {
     if (state != SESSION_ACTIVE || userRequests.isFull())
       return false;
@@ -237,8 +292,14 @@ class LinkMobile {
   }
 
   /**
-   * @brief ...
-   * @param data The value to be sent.
+   * @brief Requests a data transfer within a P2P connection and responds the
+   * received data.
+   * @param dataToSend The data to send, up to 254 bytes.
+   * @param receivedData A pointer to a `LinkWireless::DataTransfer` struct that
+   * will be filled with data. It can point to `dataToSend`. When the transfer
+   * is completed, the `completed` field will be `true`.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active call or available request slots.
    */
   bool transfer(DataTransfer dataToSend, DataTransfer* receivedData) {
     if (state != CALL_ESTABLISHED || userRequests.isFull())
@@ -255,6 +316,11 @@ class LinkMobile {
     return true;
   }
 
+  /**
+   * @brief Hangs up the current P2P call.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active call or available request slots.
+   */
   bool hangUp() {
     if (state != CALL_ESTABLISHED || userRequests.isFull())
       return false;
@@ -263,7 +329,15 @@ class LinkMobile {
     return true;
   }
 
-  bool readConfiguration(ConfigurationData& configurationData) {
+  /**
+   * @brief Returns the adapter configuration.
+   * @param configurationData A structure that will be filled with the
+   * configuration data. If the adapter has an active session, the data is
+   * already loaded, so it's instantaneous.
+   * \warning Returns `true` if `configurationData` has been filled, or `false`
+   * if there's no active session.
+   */
+  [[nodiscard]] bool readConfiguration(ConfigurationData& configurationData) {
     if (!isSessionActive())
       return false;
 
@@ -271,8 +345,16 @@ class LinkMobile {
     return true;
   }
 
+  /**
+   * @brief Returns the current state.
+   * @return One of the enum values from `LinkMobile::State`.
+   */
   [[nodiscard]] State getState() { return state; }
 
+  /**
+   * @brief Returns the current role in the P2P connection.
+   * @return One of the enum values from `LinkMobile::Role`.
+   */
   [[nodiscard]] Role getRole() { return role; }
 
   /**
@@ -283,22 +365,38 @@ class LinkMobile {
   }
 
   /**
-   * @brief
+   * @brief Returns `true` if a P2P call is established (the state is
+   * `CALL_ESTABLISHED`).
    */
   [[nodiscard]] bool isConnected() { return state == CALL_ESTABLISHED; }
 
+  /**
+   * @brief Returns `true` if there's an active session and there's no previous
+   * shutdown requests.
+   */
   [[nodiscard]] bool canShutdown() {
     return isSessionActive() && state != SHUTDOWN_REQUESTED;
   }
 
+  /**
+   * @brief Returns the current operation mode (`LinkSPI::DataSize`).
+   */
   [[nodiscard]] LinkSPI::DataSize getDataSize() {
     return linkSPI->getDataSize();
   }
 
+  /**
+   * @brief Returns details about the last error that caused the connection to
+   * be aborted.
+   */
   [[nodiscard]] Error getError() { return error; }
 
   ~LinkMobile() { delete linkSPI; }
 
+  /**
+   * @brief This method is called by the VBLANK interrupt handler.
+   * \warning This is internal API!
+   */
   void _onVBlank() {
     if (!isEnabled)
       return;
@@ -320,6 +418,10 @@ class LinkMobile {
     processNewFrame();
   }
 
+  /**
+   * @brief This method is called by the SERIAL interrupt handler.
+   * \warning This is internal API!
+   */
   void _onSerial() {
     if (!isEnabled)
       return;
@@ -354,6 +456,10 @@ class LinkMobile {
     }
   }
 
+  /**
+   * @brief This method is called by the TIMER interrupt handler.
+   * \warning This is internal API!
+   */
   void _onTimer() {
     if (!isEnabled || !hasPendingTransfer)
       return;
@@ -514,7 +620,7 @@ class LinkMobile {
   u32 waitFrames = 0;
   u32 timeoutStateFrames = 0;
   u32 pingFrameCount = 0;
-  Role role = Role::NOT_CONNECTED;
+  Role role = Role::NO_P2P_CONNECTION;
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   PacketData nextCommandData;
@@ -885,7 +991,7 @@ class LinkMobile {
   }
 
   void setState(State newState) {
-    role = Role::NOT_CONNECTED;
+    role = Role::NO_P2P_CONNECTION;
     State oldState = state;
     state = newState;
     timeoutStateFrames = 0;
@@ -935,7 +1041,7 @@ class LinkMobile {
     this->asyncCommand.reset();
     this->waitFrames = 0;
     this->timeoutStateFrames = 0;
-    this->role = Role::NOT_CONNECTED;
+    this->role = Role::NO_P2P_CONNECTION;
     this->nextCommandDataSize = 0;
     this->hasPendingTransfer = false;
     this->pendingTransfer = 0;
@@ -1277,14 +1383,23 @@ class LinkMobile {
 
 extern LinkMobile* linkMobile;
 
+/**
+ * @brief VBLANK interrupt handler.
+ */
 inline void LINK_MOBILE_ISR_VBLANK() {
   linkMobile->_onVBlank();
 }
 
+/**
+ * @brief SERIAL interrupt handler.
+ */
 inline void LINK_MOBILE_ISR_SERIAL() {
   linkMobile->_onSerial();
 }
 
+/**
+ * @brief TIMER interrupt handler.
+ */
 inline void LINK_MOBILE_ISR_TIMER() {
   linkMobile->_onTimer();
 }

@@ -45,7 +45,7 @@ start:
       "Press A to start");
   waitForA();
 
-  // (1) Create a LinkMobile instance
+  // (1) Create a LinkWireless instance
   linkMobile = new LinkMobile();
 
   // (2) Add the required interrupt service routines
@@ -159,6 +159,7 @@ start:
 
         goto start;
       } else if (linkMobile->canShutdown()) {
+        // (7) Turn off the adapter
         linkMobile->shutdown();
       }
     }
@@ -174,15 +175,19 @@ start:
         // R = Call someone
         if (didPress(KEY_R, r)) {
           std::string number = getNumberInput();
-          if (number != "")
+          if (number != "") {
+            // (4) Call someone
             linkMobile->call(number.c_str());
+          }
         }
         break;
       }
       case LinkMobile::State::CALL_ESTABLISHED: {
         // L = hang up
-        if (didPress(KEY_L, l))
+        if (didPress(KEY_L, l)) {
+          // (6) Hang up
           linkMobile->hangUp();
+        }
         break;
       }
       default: {
@@ -199,6 +204,7 @@ start:
 }
 
 void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text) {
+  // (5) Send/receive data
   for (u32 i = 0; i < text.size(); i++)
     dataTransfer.data[i] = text[i];
   dataTransfer.data[text.size()] = '\0';
