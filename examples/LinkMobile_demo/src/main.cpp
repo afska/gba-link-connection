@@ -11,18 +11,23 @@
 
 void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text);
 std::string readConfiguration();
+std::string getNumberInput();
 std::string getStateString(LinkMobile::State state);
 std::string getErrorString(LinkMobile::Error error);
 std::string getErrorTypeString(LinkMobile::Error::Type errorType);
 std::string getResultString(LinkMobile::CommandResult cmdResult);
 void log(std::string text);
 std::string toStr(char* chars, int size);
-void waitFor(u16 key);
 void wait(u32 verticalLines);
-void hang();
+bool didPress(u16 key, bool& pressed);
+void waitForA();
 
 template <typename I>
 [[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1);
+bool left = false, right = false, up = false, down = false;
+bool a = false, b = false, l = false, r = false;
+bool start = false, select = false;
+std::string selectedNumber = "";
 
 LinkMobile* linkMobile = NULL;
 
@@ -38,12 +43,10 @@ start:
   // Options
   log("LinkMobile_demo (v7.0.0)\n\n"
       "Press A to start");
-  waitFor(KEY_A);
-  u16 initialKeys = ~REG_KEYS & KEY_ANY;
-  bool dontReceiveCalls = (initialKeys & KEY_START);  // TODO: REMOVE
+  waitForA();
 
   // (1) Create a LinkMobile instance
-  linkMobile = new LinkMobile(dontReceiveCalls);
+  linkMobile = new LinkMobile();
 
   // (2) Add the required interrupt service routines
   interrupt_init();
@@ -58,75 +61,88 @@ start:
   linkMobile->activate();
 
   bool isConnected = false;
-  bool reading = false;
-  bool calling = false;
-  bool hangingUp = false;
-  u32 counter = 0;
   LinkMobile::DataTransfer dataTransfer;
   LinkMobile::DataTransfer lastCompletedTransfer;
+  std::string outgoingData = "";
+  u32 counter = 0;
+  u32 frameCounter = 0;
 
   while (true) {
+    // (one transfer for every N frames)
+    constexpr static int TRANSFER_FREQUENCY = 30;
+
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     // Menu
     std::string output = "";
-    bool shouldHang = false;
-    output += "State = " + getStateString(linkMobile->getState()) + "\n\n";
+    bool shouldWaitForA = false;
+    output += "State = " + getStateString(linkMobile->getState()) + "\n";
 
     auto error = linkMobile->getError();
     bool hasError = error.type != LinkMobile::Error::NONE;
     if (hasError) {
       output += getErrorString(error);
-      output += " (SELECT = stop)";
+      output += "\n (SELECT = stop)";
     } else if (linkMobile->getState() == LinkMobile::State::SESSION_ACTIVE) {
-      output += "L = Read Configuration\n";
-      output += "R = Call localhost\n\n";
-      output += " (DOWN = ok)\n (SELECT = stop)";
+      output += "\nL = Read Configuration";
+      output += "\nR = Call someone\n";
+      output += "\n (A = ok)\n (SELECT = stop)";
     } else {
-      if (linkMobile->isConnected())
-        output += "\n (START = hang up)";
-      output += " (SELECT = stop)";
+      if (linkMobile->isConnected()) {
+        output += "\n (A = send)";
+        output += "\n (L = hang up)";
+      }
+      output += "\n (SELECT = stop)";
     }
 
     if (linkMobile->isConnected()) {
       if (!isConnected) {
         isConnected = true;
-        dataTransfer = {};
-        lastCompletedTransfer = {};
-        transfer(dataTransfer, linkMobile->getRole() == LinkMobile::Role::CALLER
-                                   ? "caller"
-                                   : "receiver");
+        outgoingData = linkMobile->getRole() == LinkMobile::Role::CALLER
+                           ? "caller!!!"
+                           : "receiver!!!";
+        transfer(dataTransfer, outgoingData);
       }
 
       if (dataTransfer.completed) {
-        if (dataTransfer.size > 0) {
+        if (dataTransfer.size > 0)
           lastCompletedTransfer = dataTransfer;
+
+        if (keys & KEY_A) {
           counter++;
+          outgoingData = (linkMobile->getRole() == LinkMobile::Role::CALLER
+                              ? "caller: "
+                              : "receiver: ") +
+                         std::to_string(counter);
         }
 
-        transfer(
-            dataTransfer,
-            (linkMobile->getRole() == LinkMobile::Role::CALLER ? "caller: "
-                                                               : "receiver: ") +
-                std::to_string(counter));
+        frameCounter++;
+        if (frameCounter >= TRANSFER_FREQUENCY) {
+          frameCounter = 0;
+          transfer(dataTransfer, outgoingData);
+        }
       }
       if (lastCompletedTransfer.completed) {
-        char received[LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH];
+        char received[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH];
         for (u32 i = 0; i < lastCompletedTransfer.size; i++)
           received[i] = lastCompletedTransfer.data[i];
         received[lastCompletedTransfer.size] = '\0';
-        output += "\n\n<< " + std::string(received);
+        output += "\n\n>> " + std::string(outgoingData);
+        output += "\n<< " + std::string(received);
       }
     } else {
       if (isConnected) {
         isConnected = false;
         dataTransfer = {};
         lastCompletedTransfer = {};
+        counter = 0;
+        frameCounter = 0;
+        outgoingData = "";
       }
     }
 
     // SELECT = stop
-    if (keys & KEY_SELECT) {
+    if (didPress(KEY_SELECT, select)) {
       bool didShutdown = linkMobile->getState() == LinkMobile::State::SHUTDOWN;
       if (hasError || didShutdown) {
         linkMobile->deactivate();
@@ -147,35 +163,36 @@ start:
       }
     }
 
-    // START = hang up
-    if ((keys & KEY_START) && !hangingUp) {
-      hangingUp = true;
-      linkMobile->hangUp();
-    }
-    if (hangingUp && !(keys & KEY_START))
-      hangingUp = false;
+    switch (linkMobile->getState()) {
+      case LinkMobile::State::SESSION_ACTIVE: {
+        // L = Read Configuration
+        if (didPress(KEY_L, l)) {
+          output = readConfiguration();
+          shouldWaitForA = true;
+        }
 
-    // L = Read Configuration
-    if ((keys & KEY_L) && !reading) {
-      reading = true;
-      output = readConfiguration();
-      shouldHang = true;
+        // R = Call someone
+        if (didPress(KEY_R, r)) {
+          std::string number = getNumberInput();
+          if (number != "")
+            linkMobile->call(number.c_str());
+        }
+        break;
+      }
+      case LinkMobile::State::CALL_ESTABLISHED: {
+        // L = hang up
+        if (didPress(KEY_L, l))
+          linkMobile->hangUp();
+        break;
+      }
+      default: {
+      }
     }
-    if (reading && !(keys & KEY_L))
-      reading = false;
-
-    // R = Call localhost
-    if ((keys & KEY_R) && !calling) {
-      calling = true;
-      linkMobile->call("127000000001");
-    }
-    if (calling && !(keys & KEY_R))
-      calling = false;
 
     VBlankIntrWait();
     log(output);
-    if (shouldHang)
-      hang();
+    if (shouldWaitForA)
+      waitForA();
   }
 
   return 0;
@@ -210,6 +227,75 @@ std::string readConfiguration() {
           (linkMobile->getDataSize() == LinkSPI::DataSize::SIZE_32BIT
                ? "SIO32"
                : "SIO8"));
+}
+
+std::string getNumberInput() {
+  VBlankIntrWait();
+
+  int selectedX = 0;
+  int selectedY = 0;
+  std::vector<std::vector<std::string>> rows;
+  rows.push_back({"1", "2", "3"});
+  rows.push_back({"4", "5", "6"});
+  rows.push_back({"7", "8", "9"});
+  rows.push_back({"*", "0", "#"});
+
+  while (true) {
+    std::string output = "Type a number:\n\n";
+    output += ">> " + selectedNumber + "\n\n";
+
+    if (didPress(KEY_RIGHT, right)) {
+      selectedX++;
+      if (selectedX >= (int)rows[0].size())
+        selectedX = rows[0].size() - 1;
+    }
+    if (didPress(KEY_LEFT, left)) {
+      selectedX--;
+      if (selectedX < 0)
+        selectedX = 0;
+    }
+    if (didPress(KEY_UP, up)) {
+      selectedY--;
+      if (selectedY < 0)
+        selectedY = 0;
+    }
+    if (didPress(KEY_DOWN, down)) {
+      selectedY++;
+      if (selectedY >= (int)rows.size())
+        selectedY = rows.size() - 1;
+    }
+    if (didPress(KEY_B, b)) {
+      if (selectedNumber.size() > 0)
+        selectedNumber = selectedNumber.substr(0, selectedNumber.size() - 1);
+      else
+        return "";
+    }
+    if (didPress(KEY_A, a)) {
+      if (selectedNumber.size() < LINK_MOBILE_MAX_PHONE_NUMBER_SIZE)
+        selectedNumber += rows[selectedY][selectedX];
+    }
+    if (didPress(KEY_SELECT, select))
+      selectedNumber = "127000000001";
+    if (didPress(KEY_START, start))
+      return selectedNumber;
+
+    for (int y = 0; y < (int)rows.size(); y++) {
+      for (int x = 0; x < (int)rows[y].size(); x++) {
+        bool isSelected = selectedX == x && selectedY == y;
+        output += std::string("") + "|" + (isSelected ? "<" : " ") +
+                  rows[y][x] + (isSelected ? ">" : " ") + "|";
+        output += " ";
+      }
+      output += "\n";
+    }
+
+    output +=
+        "\n (B = back)\n (A = select)\n (SELECT = localhost)\n (START = "
+        "confirm)";
+
+    VBlankIntrWait();
+    log(output);
+  }
 }
 
 std::string getStateString(LinkMobile::State state) {
@@ -257,7 +343,8 @@ std::string getErrorString(LinkMobile::Error error) {
          "\n  CmdID: " + std::string(error.cmdIsSending ? ">" : "<") + "$" +
          toHex(error.cmdId) +
          "\n  CmdResult: " + getResultString(error.cmdResult) +
-         "\n  CmdErrorCode: " + std::to_string(error.cmdErrorCode) + "\n\n";
+         "\n  CmdErrorCode: " + std::to_string(error.cmdErrorCode) +
+         "\n  ReqType: " + std::to_string(error.reqType) + "\n\n";
 }
 
 std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
@@ -322,13 +409,6 @@ std::string toStr(char* chars, int size) {
   return std::string(copiedChars);
 }
 
-void waitFor(u16 key) {
-  u16 keys;
-  do {
-    keys = ~REG_KEYS & KEY_ANY;
-  } while (!(keys & key));
-}
-
 void wait(u32 verticalLines) {
   u32 count = 0;
   u32 vCount = REG_VCOUNT;
@@ -341,8 +421,21 @@ void wait(u32 verticalLines) {
   };
 }
 
-void hang() {
-  waitFor(KEY_DOWN);
+bool didPress(u16 key, bool& pressed) {
+  u16 keys = ~REG_KEYS & KEY_ANY;
+  bool isPressedNow = false;
+  if ((keys & key) && !pressed) {
+    pressed = true;
+    isPressedNow = true;
+  }
+  if (pressed && !(keys & key))
+    pressed = false;
+  return isPressedNow;
+}
+
+void waitForA() {
+  while (!didPress(KEY_A, a))
+    ;
 }
 
 template <typename I>
@@ -353,6 +446,3 @@ template <typename I>
     rc[i] = digits[(w >> j) & 0x0f];
   return rc;
 }
-
-// TODO: ADD NUMPAD
-// TODO: ADD SELECTIVE SEND

@@ -33,11 +33,12 @@
 
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
-#define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 254
+#define LINK_MOBILE_MAX_USER_TRANSFER_LENGTH 254
+#define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
 #define LINK_MOBILE_MAX_PHONE_NUMBER_SIZE 32
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
-#define LINK_MOBILE_DEFAULT_TIMEOUT 480
+#define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 3)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
 #define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
 
@@ -152,6 +153,7 @@ class LinkMobile {
     CommandResult cmdResult = CommandResult::PENDING;
     u8 cmdErrorCode = 0;
     bool cmdIsSending = false;
+    int reqType = -1;
   };
 
   struct ConfigurationData {
@@ -175,7 +177,7 @@ class LinkMobile {
   } __attribute__((packed));
 
   struct DataTransfer {
-    u8 data[LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH] = {};
+    u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
     u8 size = 0;
     bool completed = false;
   };
@@ -534,7 +536,7 @@ class LinkMobile {
 
     auto request = userRequests.peek();
     request.timeout++;
-    if (request.timeout >= config.timeout)
+    if (shouldAbortOnRequestTimeout() && request.timeout >= config.timeout)
       return abort(Error::Type::TIMEOUT);
 
     switch (request.type) {
@@ -843,13 +845,17 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
   }
 
-  void pushRequest(UserRequest userRequest) {
-    userRequest.timeout = 0;
-    userRequests.syncPush(userRequest);
+  void pushRequest(UserRequest request) {
+    request.timeout = 0;
+    userRequests.syncPush(request);
   }
 
   bool shouldAbortOnStateTimeout() {
     return state > NEEDS_RESET && state < SESSION_ACTIVE;
+  }
+
+  bool shouldAbortOnRequestTimeout() {
+    return userRequests.peek().type != UserRequest::Type::CALL;
   }
 
   bool shouldAbortOnCommandFailure() {
@@ -889,13 +895,16 @@ class LinkMobile {
   }
 
   void abort(Error::Type errorType, bool fatal = true) {
-    auto newError = Error{.type = errorType,
-                          .state = state,
-                          .cmdId = asyncCommand.relatedCommandId(),
-                          .cmdResult = asyncCommand.result,
-                          .cmdErrorCode = asyncCommand.errorCode,
-                          .cmdIsSending = asyncCommand.direction ==
-                                          AsyncCommand::Direction::SENDING};
+    auto newError = Error{
+        .type = errorType,
+        .state = state,
+        .cmdId = asyncCommand.relatedCommandId(),
+        .cmdResult = asyncCommand.result,
+        .cmdErrorCode = asyncCommand.errorCode,
+        .cmdIsSending =
+            asyncCommand.direction == AsyncCommand::Direction::SENDING,
+
+        .reqType = userRequests.isEmpty() ? -1 : userRequests.peek().type};
 
     _LMLOG_(
         "!! %s:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "

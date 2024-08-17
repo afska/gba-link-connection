@@ -27,6 +27,7 @@ void connect();
 void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
+bool didPress(u16 key, bool& pressed);
 void wait(u32 verticalLines);
 void hang();
 
@@ -110,28 +111,16 @@ start:
     }
 
     // START = Activate
-    if ((keys & KEY_START) && !activating) {
-      activating = true;
+    if (didPress(KEY_START, activating))
       activate();
-    }
-    if (activating && !(keys & KEY_START))
-      activating = false;
 
     // L = Serve
-    if ((keys & KEY_L) && !serving) {
-      serving = true;
+    if (didPress(KEY_L, serving))
       serve();
-    }
-    if (serving && !(keys & KEY_L))
-      serving = false;
 
     // R = Connect
-    if (!connecting && (keys & KEY_R)) {
-      connecting = true;
+    if (didPress(KEY_R, connecting))
       connect();
-    }
-    if (connecting && !(keys & KEY_R))
-      connecting = false;
 
     VBlankIntrWait();
   }
@@ -346,8 +335,7 @@ void messageLoop() {
     }
 
     // Packet loss check setting
-    if (!switching && (keys & KEY_UP)) {
-      switching = true;
+    if (didPress(KEY_UP, switching)) {
       altView = !altView;
 #ifndef PROFILING_ENABLED
       if (!altView) {
@@ -358,8 +346,6 @@ void messageLoop() {
       }
 #endif
     }
-    if (switching && (!(keys & KEY_UP)))
-      switching = false;
 
     // Normal output
     std::string output =
@@ -456,6 +442,18 @@ void waitFor(u16 key) {
   do {
     keys = ~REG_KEYS & KEY_ANY;
   } while (!(keys & key));
+}
+
+bool didPress(u16 key, bool& pressed) {
+  u16 keys = ~REG_KEYS & KEY_ANY;
+  bool isPressedNow = false;
+  if ((keys & key) && !pressed) {
+    pressed = true;
+    isPressedNow = true;
+  }
+  if (pressed && !(keys & key))
+    pressed = false;
+  return isPressedNow;
 }
 
 void wait(u32 verticalLines) {
