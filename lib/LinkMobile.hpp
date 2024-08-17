@@ -207,7 +207,7 @@ class LinkMobile {
   /**
    * @brief Constructs a new LinkMobile object.
    * @param timeout Number of *frames* without completing a request to reset a
-   * connection.
+   * connection. Defaults to 180 (3 seconds).
    * @param timerId GBA Timer to use for waiting.
    */
   explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
@@ -245,8 +245,8 @@ class LinkMobile {
 
   /**
    * @brief Deactivates the library, resetting the serial mode to GPIO.
-   * Calling `shutdown()` first is recommended, but the adapter will put itself
-   * in sleep mode after 3 seconds anyway.
+   * \warning Calling `shutdown()` first is recommended, but the adapter will
+   * put itself in sleep mode after 3 seconds anyway.
    */
   void deactivate() {
     error = {};
@@ -256,7 +256,7 @@ class LinkMobile {
   }
 
   /**
-   * @brief Gracefully shutdowns the adapter, closing all connections.
+   * @brief Gracefully shuts down the adapter, closing all connections.
    * After some time, the state will be changed to `SHUTDOWN`, and only then
    * it's safe to call `deactivate()`.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
@@ -330,7 +330,7 @@ class LinkMobile {
   }
 
   /**
-   * @brief Returns the adapter configuration.
+   * @brief Retrieves the adapter configuration.
    * @param configurationData A structure that will be filled with the
    * configuration data. If the adapter has an active session, the data is
    * already loaded, so it's instantaneous.
@@ -358,17 +358,17 @@ class LinkMobile {
   [[nodiscard]] Role getRole() { return role; }
 
   /**
+   * @brief Returns `true` if a P2P call is established (the state is
+   * `CALL_ESTABLISHED`).
+   */
+  [[nodiscard]] bool isConnected() { return state == CALL_ESTABLISHED; }
+
+  /**
    * @brief Returns `true` if the session is active.
    */
   [[nodiscard]] bool isSessionActive() {
     return state >= SESSION_ACTIVE && state <= SHUTDOWN_REQUESTED;
   }
-
-  /**
-   * @brief Returns `true` if a P2P call is established (the state is
-   * `CALL_ESTABLISHED`).
-   */
-  [[nodiscard]] bool isConnected() { return state == CALL_ESTABLISHED; }
 
   /**
    * @brief Returns `true` if there's an active session and there's no previous

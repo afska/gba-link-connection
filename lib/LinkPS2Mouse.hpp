@@ -23,7 +23,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - `activate()` or `report(...)` could freeze the system if not connected!
-// - detecting timeouts using timer interrupts is the user's responsibility!
+// - detecting timeouts using interrupts is the user's responsibility!
 // --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |

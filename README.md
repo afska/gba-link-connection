@@ -13,6 +13,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [⏱️](#%EF%B8%8F-LinkUART) [LinkUART.hpp](lib/LinkUART.hpp): Easily connect to **any PC** using a USB to UART cable!
+- [📱](#-LinkMobile) [LinkMobile.hpp](lib/LinkMobile.hpp): Connect to **the internet** using the *Mobile Adapter GB*, brought back to life thanks to the [REON](https://github.com/REONTeam) project!
 - [🖱️](#%EF%B8%8F-LinkPS2Mouse) [LinkPS2Mouse.hpp](lib/LinkPS2Mouse.hpp): Connect a **PS/2 mouse** to the GBA for extended controls!
 - [⌨️](#%EF%B8%8F-LinkPS2Keyboard) [LinkPS2Keyboard.hpp](lib/LinkPS2Keyboard.hpp): Connect a **PS/2 keyboard** to the GBA for extended controls!
 
@@ -402,11 +403,61 @@ The GBA operates using `1` stop bit, but everything else can be configured. By d
 - Green wire (`TX`) -> GBA `SI`.
 - White wire (`RX`) -> GBA `SO`.
 
+# 📱 LinkMobile
+
+*(aka Mobile Adapter GB)*
+
+This is a driver for an accessory that enables online P2P connections between 2 players, or up to two TCP/UDP connections. The protocol was reverse-engineered by the *REON Team*.
+
+The original accessory was sold in Japan only and doesn't work anymore since it relies on old tech, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
+
+![screenshot](https://github.com/user-attachments/assets/ff0ea09f-807c-4ba9-9dac-9cae8f831408)
+
+## Constructor
+
+`new LinkMobile(...)` accepts these **optional** parameters:
+
+Name | Type | Default | Description
+--- | --- | --- | ---
+`timeout` | **u32** | `180` | Number of *frames* without completing a request to reset a connection.
+`timerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
+
+You can update these values at any time without creating a new instance:
+- Call `deactivate()`.
+- Mutate the `config` property.
+- Call `activate()`.
+
+You can also change these compile-time constants:
+- `LINK_MOBILE_QUEUE_SIZE`: to set a custom request queue size (how many commands can be queued at the same time). The default value is `10`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's around `3` KB.
+
+## Methods
+
+- All actions are asynchronous/nonblocking. That means, they will return `true` if nothing is awfully wrong, but the actual consequence will occur some frames later. You can call `getState()` at any time to know what it's doing.
+- On fatal errors, the library will transition to a `NEEDS_RESET` state. In that case, you can call `getError()` to know more details on what happened, and then `activate()` to restart.
+- When calling `deactivate()`, the adapter automatically turns itself off after `3` seconds of inactivity. However, to gracefully turn it off, it's recommended to call `shutdown()` first, wait until the state is `SHUTDOWN`, and then `deactivate()`.
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | - | Activates the library. After some time, if an adapter is connected, the state will be changed to `SESSION_ACTIVE`. If not, the state will be `NEEDS_RESET`, and you can retrieve the error with `getError()`.
+`deactivate()` | - | Deactivates the library, resetting the serial mode to GPIO. Calling `shutdown()` first is recommended, but the adapter will put itself in sleep mode after 3 seconds anyway.
+`shutdown()` | **bool** | Gracefully shuts down the adapter, closing all connections. After some time, the state will be changed to `SHUTDOWN`, and only then it's safe to call `deactivate()`.
+`call(phoneNumber)` | **bool** | Initiates a P2P connection with a `phoneNumber`. After some time, the state will be `CALL_ESTABLISHED`, or `ACTIVE_SESSION` if the connection fails or ends. In REON/libmobile the phone number can be a number assigned by the relay server, or a 12-digit IPv4 address (for example, `"127000000001"` would be `127.0.0.1`).
+`transfer(dataToSend, receivedData)` | **bool** | Requests a data transfer (up to `254` bytes) within a P2P connection and responds the received data. The `receivedData` is a pointer to a `LinkWireless::DataTransfer` struct that will be filled with data. It can point to `dataToSend`. When the transfer is completed, the `completed` field will be `true`.
+`hangUp()` | **bool** |  Hangs up the current P2P call.
+`readConfiguration(configurationData)` | **bool** | Retrieves the adapter configuration, and puts it in the `configurationData` struct. If the adapter has an active session, the data is already loaded, so it's instantaneous.
+`getState()` | **LinkMobile::State** | Returns the current state (one of `LinkMobile::State::NEEDS_RESET`, `LinkMobile::State::PINGING`, `LinkMobile::State::WAITING_TO_START`, `LinkMobile::State::STARTING_SESSION`, `LinkMobile::State::ACTIVATING_SIO32`, `LinkMobile::State::WAITING_32BIT_SWITCH`, `LinkMobile::State::READING_CONFIGURATION`, `LinkMobile::State::SESSION_ACTIVE`, `LinkMobile::State::CALL_REQUESTED`, `LinkMobile::State::CALLING`, `LinkMobile::State::CALL_ESTABLISHED`, `LinkMobile::State::SESSION_ACTIVE_ISP`, `LinkMobile::State::SHUTDOWN_REQUESTED`, `LinkMobile::State::ENDING_SESSION`, `LinkMobile::State::WAITING_8BIT_SWITCH`, or `LinkMobile::State::SHUTDOWN`).
+`getRole()` | **LinkMobile::Role** | Returns the current role in the P2P connection (one of `LinkMobile::Role::NO_P2P_CONNECTION`, `LinkMobile::Role::CALLER`, or `LinkMobile::Role::RECEIVER`).
+`isConnected()` | **bool** | Returns `true` if a P2P call is established (the state is `CALL_ESTABLISHED`).
+`isSessionActive()` | **bool** | Returns `true` if the session is active.
+`canShutdown()` | **bool** | Returns `true` if there's an active session and there's no previous shutdown requests.
+`getDataSize()` | **LinkSPI::DataSize** | Returns the current operation mode (`LinkSPI::DataSize`).
+`getError()` | **LinkMobile::Error** | Returns details about the last error that caused the connection to be aborted.
+
 # 🖱️ LinkPS2Mouse
 
 A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games. It's a straight port from [this library](https://github.com/kristopher/PS2-Mouse-Arduino).
-
-⚠️ calling `activate()` or `report(...)` could freeze the system if nothing is connected: detecting timeouts using timer interrupts is the user's responsibility.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/6856ff0d-0f06-4a9d-8ded-280052e02b8d)
 
@@ -422,6 +473,8 @@ Name | Return type | Description
 `activate()` | - | Activates the library.
 `deactivate()` | - | Deactivates the library.
 `report(data[3])` | - | Fills the `data` int array with a report. The first int contains *clicks* that you can check against the bitmasks `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the *X movement*, and the third int is the *Y movement*.
+
+⚠️ calling `activate()` or `report(...)` could freeze the system if nothing is connected: detecting timeouts using interrupts is the user's responsibility.
 
 ## Pinout
 
