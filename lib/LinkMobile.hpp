@@ -129,7 +129,7 @@ class LinkMobile {
     WRONG_CHECKSUM,
     ERROR_CODE,
     WEIRD_ERROR_CODE,
-    TIMEOUT  // TODO: USE
+    TIMEOUT  // TODO: USE (for `UserRequest`s)
   };
 
   struct Error {
@@ -169,6 +169,12 @@ class LinkMobile {
     u8 checksumLow;
   } __attribute__((packed));
 
+  struct DataTransfer {
+    u8 data[LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH] = {};
+    u8 size = 0;
+    bool completed = false;
+  };
+
   bool dontReceiveCalls = false;  // TODO: REMOVE
   explicit LinkMobile(bool _dontReceiveCalls,
                       u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
@@ -202,7 +208,7 @@ class LinkMobile {
     if (!canShutdown() || userRequests.isFull())
       return false;
 
-    pushRequest(UserRequest{.type = UserRequest::Type::SHUTDOWN});
+    userRequests.syncPush(UserRequest{.type = UserRequest::Type::SHUTDOWN});
     return true;
   }
 
@@ -220,7 +226,25 @@ class LinkMobile {
     auto request = UserRequest{.type = UserRequest::Type::CALL};
     copyString(request.phoneNumber, phoneNumber,
                LINK_MOBILE_MAX_PHONE_NUMBER_SIZE);
-    pushRequest(request);
+    userRequests.syncPush(request);
+    return true;
+  }
+
+  /**
+   * @brief ...
+   * @param data The value to be sent.
+   */
+  bool transfer(DataTransfer dataToSend, DataTransfer* receivedData) {
+    if (state != CALL_ESTABLISHED || userRequests.isFull())
+      return false;
+
+    auto request = UserRequest{.type = UserRequest::Type::TRANSFER,
+                               .send = {.data = {}, .size = dataToSend.size},
+                               .receive = receivedData,
+                               .commandSent = false};
+    for (u32 i = 0; i < dataToSend.size; i++)
+      request.send.data[i] = dataToSend.data[i];
+    userRequests.syncPush(request);
     return true;
   }
 
@@ -321,10 +345,13 @@ class LinkMobile {
   enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type { CALL, SHUTDOWN };
+    enum Type { CALL, TRANSFER, SHUTDOWN };
 
     Type type;
     char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_SIZE + 1];
+    DataTransfer send;
+    DataTransfer* receive;
+    bool commandSent;
   };
 
   union AdapterConfiguration {
@@ -466,15 +493,15 @@ class LinkMobile {
     if (!userRequests.canMutate() || userRequests.isEmpty())
       return;
 
+    if (!isSessionActive()) {
+      userRequests.clear();
+      return;
+    }
+
     auto request = userRequests.peek();
 
     switch (request.type) {
       case UserRequest::Type::CALL: {
-        if (!isSessionActive()) {
-          userRequests.pop();
-          return;
-        }
-
         if (state != CALL_REQUESTED)
           setState(CALL_REQUESTED);
 
@@ -485,12 +512,14 @@ class LinkMobile {
         }
         break;
       }
-      case UserRequest::Type::SHUTDOWN: {
-        if (!isSessionActive()) {
-          userRequests.pop();
-          return;
+      case UserRequest::Type::TRANSFER: {
+        if (!asyncCommand.isActive && !request.commandSent) {
+          cmdTransferData(0xff, request.send.data, request.send.size);
+          request.commandSent = true;
         }
-
+        break;
+      }
+      case UserRequest::Type::SHUTDOWN: {
         if (state != SHUTDOWN_REQUESTED)
           setState(SHUTDOWN_REQUESTED);
 
@@ -538,9 +567,11 @@ class LinkMobile {
         break;
       }
       case CALL_ESTABLISHED: {
-        const char* newData = dontReceiveCalls ? "call" : "recv";
-        if (!asyncCommand.isActive)
-          cmdTransferData(0xff, (u8*)newData, 5);
+        // TODO: KEEP IT ALIVE
+        // const char* newData = dontReceiveCalls ? "call" : "recv";
+        // if (!asyncCommand.isActive)
+        //   cmdTransferData(0xff, (u8*)newData, 5);
+
         break;
       }
       case WAITING_8BIT_SWITCH: {
@@ -660,12 +691,20 @@ class LinkMobile {
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
           return;
 
+        auto request = userRequests.peek();
+
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          char received[254];
-          received[0] = '\0';
-          for (u32 i = 0; i < 5; i++)
-            received[i] = asyncCommand.cmd.data.bytes[1 + i];
-          _LMLOG_("!! received: %s", received);
+          if (asyncCommand.cmd.header.size == 0)
+            return abort(Error::Type::WEIRD_RESPONSE);
+
+          if (request.type == UserRequest::TRANSFER) {
+            u32 size = asyncCommand.cmd.header.size - 1;
+            for (u32 i = 0; i < size; i++)
+              request.receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
+            request.receive->size = size;
+            request.receive->completed = true;
+            userRequests.pop();
+          }
         } else {
           setState(SESSION_ACTIVE);
         }
@@ -695,10 +734,6 @@ class LinkMobile {
     }
   }
 
-  void pushRequest(UserRequest userRequest) {
-    userRequests.syncPush(userRequest);
-  }
-
   void cmdBeginSession() {
     for (u32 i = 0; i < LOGIN_PARTS_SIZE; i++)
       addData(LOGIN_PARTS[i], i == 0);
@@ -718,7 +753,7 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL));
   }
 
-  void cmdTransferData(u8 connectionId, u8* data, u8 size) {
+  void cmdTransferData(u8 connectionId, const u8* data, u8 size) {
     addData(connectionId, true);
     for (u32 i = 0; i < size; i++)
       addData(data[i]);
@@ -974,7 +1009,9 @@ class LinkMobile {
     } else if (asyncCommand.transferred < PREAMBLE_SIZE) {
       // Packet Header
       commandBytes[asyncCommand.transferred] = newData;
-      if (asyncCommand.cmd.header._unusedSizeHigh_ != 0)
+      if (asyncCommand.cmd.header._unusedSizeHigh_ != 0 ||
+          asyncCommand.cmd.header.size >
+              LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH)
         return asyncCommand.fail(CommandResult::WEIRD_DATA_SIZE);
       advance8(GBA_WAITING);
       if (asyncCommand.transferred == PREAMBLE_SIZE)
@@ -1030,6 +1067,10 @@ class LinkMobile {
       u16 secondHalfHeader = msB32(newData);
       asyncCommand.cmd.header._unusedSizeHigh_ = msB16(secondHalfHeader);
       asyncCommand.cmd.header.size = lsB16(secondHalfHeader);
+      if (asyncCommand.cmd.header._unusedSizeHigh_ != 0 ||
+          asyncCommand.cmd.header.size >
+              LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH)
+        return asyncCommand.fail(CommandResult::WEIRD_DATA_SIZE);
       asyncCommand.expectedChecksum = asyncCommand.cmd.header.sum();
       if (asyncCommand.cmd.header.size > 0) {
         u16 firstData = lsB32(newData);
