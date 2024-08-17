@@ -238,6 +238,7 @@ class LinkMobile {
     if (state != CALL_ESTABLISHED || userRequests.isFull())
       return false;
 
+    receivedData->completed = false;
     auto request = UserRequest{.type = UserRequest::Type::TRANSFER,
                                .send = {.data = {}, .size = dataToSend.size},
                                .receive = receivedData,

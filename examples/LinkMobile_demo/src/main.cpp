@@ -9,6 +9,7 @@
 #include <vector>
 #include "../../_lib/interrupt.h"
 
+void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text);
 std::string readConfiguration();
 std::string getStateString(LinkMobile::State state);
 std::string getErrorString(LinkMobile::Error error);
@@ -56,8 +57,12 @@ start:
   // (3) Initialize the library
   linkMobile->activate();
 
+  bool isConnected = false;
   bool reading = false;
   bool calling = false;
+  u32 counter = 0;
+  LinkMobile::DataTransfer dataTransfer;
+  LinkMobile::DataTransfer lastCompletedTransfer;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -78,6 +83,38 @@ start:
       output += " (DOWN = ok)\n (SELECT = stop)";
     } else {
       output += " (SELECT = stop)";
+    }
+
+    if (linkMobile->getState() == LinkMobile::State::CALL_ESTABLISHED) {
+      if (!isConnected) {
+        isConnected = true;
+        dataTransfer = {};
+        lastCompletedTransfer = {};
+        transfer(dataTransfer, dontReceiveCalls ? "caller" : "receiver");
+      }
+
+      if (dataTransfer.completed) {
+        if (dataTransfer.size > 0) {
+          lastCompletedTransfer = dataTransfer;
+          counter++;
+        }
+
+        transfer(dataTransfer, (dontReceiveCalls ? "caller: " : "receiver: ") +
+                                   std::to_string(counter));
+      }
+      if (lastCompletedTransfer.completed) {
+        char received[LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH];
+        for (u32 i = 0; i < lastCompletedTransfer.size; i++)
+          received[i] = lastCompletedTransfer.data[i];
+        received[lastCompletedTransfer.size] = '\0';
+        output += "\n\n<< " + std::string(received);
+      }
+    } else {
+      if (isConnected) {
+        isConnected = false;
+        dataTransfer = {};
+        lastCompletedTransfer = {};
+      }
     }
 
     // SELECT = stop
@@ -126,6 +163,14 @@ start:
   }
 
   return 0;
+}
+
+void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text) {
+  for (u32 i = 0; i < text.size(); i++)
+    dataTransfer.data[i] = text[i];
+  dataTransfer.data[text.size()] = '\0';
+  dataTransfer.size = text.size() + 1;
+  linkMobile->transfer(dataTransfer, &dataTransfer);
 }
 
 std::string readConfiguration() {
