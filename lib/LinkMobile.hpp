@@ -37,6 +37,7 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 #define LINK_MOBILE_MAX_PHONE_NUMBER_SIZE 32
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
+#define LINK_MOBILE_DEFAULT_TIMEOUT 480
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
 #define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
 
@@ -53,8 +54,9 @@ class LinkMobile {
   using u8 = unsigned char;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
-  static constexpr int PING_WAIT_FRAMES = 7;
-  static constexpr int TIMEOUT_INIT_FRAMES = 30;
+  static constexpr int INIT_WAIT_FRAMES = 7;
+  static constexpr int INIT_TIMEOUT_FRAMES = 30;
+  static constexpr int PING_FREQUENCY_FRAMES = 60;
   static constexpr int ADAPTER_WAITING = 0xD2;
   static constexpr u32 ADAPTER_WAITING_32BIT = 0xD2D2D2D2;
   static constexpr int GBA_WAITING = 0x4B;
@@ -77,6 +79,7 @@ class LinkMobile {
   static constexpr int COMMAND_WAIT_FOR_TELEPHONE_CALL = 0x14;
   static constexpr int COMMAND_TRANSFER_DATA = 0x15;
   static constexpr int COMMAND_RESET = 0x16;
+  static constexpr int COMMAND_TELEPHONE_STATUS = 0x17;
   static constexpr int COMMAND_SIO32 = 0x18;
   static constexpr int COMMAND_READ_CONFIGURATION_DATA = 0x19;
   static constexpr int COMMAND_ISP_LOGIN = 0x21;
@@ -177,10 +180,9 @@ class LinkMobile {
     bool completed = false;
   };
 
-  bool dontReceiveCalls = false;  // TODO: REMOVE
-  explicit LinkMobile(bool _dontReceiveCalls,
+  explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
                       u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
-    this->dontReceiveCalls = _dontReceiveCalls;
+    this->config.timeout = timeout;
     this->config.timerId = timerId;
   }
 
@@ -251,6 +253,14 @@ class LinkMobile {
     return true;
   }
 
+  bool hangUp() {
+    if (state != CALL_ESTABLISHED || userRequests.isFull())
+      return false;
+
+    userRequests.syncPush(UserRequest{.type = UserRequest::Type::HANG_UP});
+    return true;
+  }
+
   bool readConfiguration(ConfigurationData& configurationData) {
     if (!isSessionActive())
       return false;
@@ -291,10 +301,17 @@ class LinkMobile {
     if (!isEnabled)
       return;
 
-    if (shouldAbortOnTimeout()) {
-      timeoutFrames++;
-      if (timeoutFrames >= TIMEOUT_INIT_FRAMES)
+    if (shouldAbortOnStateTimeout()) {
+      timeoutStateFrames++;
+      if (timeoutStateFrames >= INIT_TIMEOUT_FRAMES)
         return abort(Error::Type::ADAPTER_NOT_CONNECTED);
+    }
+
+    pingFrameCount++;
+    if (pingFrameCount >= PING_FREQUENCY_FRAMES && isSessionActive() &&
+        !asyncCommand.isActive) {
+      pingFrameCount = 0;
+      cmdTelephoneStatus();
     }
 
     processUserRequests();
@@ -342,6 +359,7 @@ class LinkMobile {
   }
 
   struct Config {
+    u32 timeout;
     u32 timerId;
   };
 
@@ -355,7 +373,7 @@ class LinkMobile {
   enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type { CALL, TRANSFER, SHUTDOWN };
+    enum Type { CALL, TRANSFER, HANG_UP, SHUTDOWN };
 
     Type type;
     char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_SIZE + 1];
@@ -488,7 +506,8 @@ class LinkMobile {
   AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
   u32 waitFrames = 0;
-  u32 timeoutFrames = 0;
+  u32 timeoutStateFrames = 0;
+  u32 pingFrameCount = 0;
   Role role = Role::NOT_CONNECTED;
   LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
@@ -513,6 +532,10 @@ class LinkMobile {
 
     switch (request.type) {
       case UserRequest::Type::CALL: {
+        if (state != SESSION_ACTIVE && state != CALL_REQUESTED) {
+          userRequests.pop();
+          return;
+        }
         if (state != CALL_REQUESTED)
           setState(CALL_REQUESTED);
 
@@ -524,10 +547,23 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::TRANSFER: {
+        if (state != CALL_ESTABLISHED) {
+          userRequests.pop();
+          return;
+        }
         if (!asyncCommand.isActive && !request.commandSent) {
           cmdTransferData(0xff, request.send.data, request.send.size);
           request.commandSent = true;
         }
+        break;
+      }
+      case UserRequest::Type::HANG_UP: {
+        if (state != CALL_ESTABLISHED) {
+          userRequests.pop();
+          return;
+        }
+        if (!asyncCommand.isActive)
+          cmdHangUpTelephone();
         break;
       }
       case UserRequest::Type::SHUTDOWN: {
@@ -569,19 +605,8 @@ class LinkMobile {
         break;
       }
       case SESSION_ACTIVE: {
-        // TODO: Allow users to opt-out receiving calls (move to config)
-        if (!dontReceiveCalls) {
-          if (!asyncCommand.isActive)
-            cmdWaitForTelephoneCall();
-        }
-
-        break;
-      }
-      case CALL_ESTABLISHED: {
-        // TODO: KEEP IT ALIVE
-        // const char* newData = dontReceiveCalls ? "call" : "recv";
-        // if (!asyncCommand.isActive)
-        //   cmdTransferData(0xff, (u8*)newData, 5);
+        if (!asyncCommand.isActive)
+          cmdWaitForTelephoneCall();
 
         break;
       }
@@ -620,6 +645,18 @@ class LinkMobile {
       return;
     }
 
+    if (asyncCommand.respondsTo(COMMAND_TELEPHONE_STATUS)) {
+      if (asyncCommand.cmd.header.size != 3)
+        return abort(Error::Type::WEIRD_RESPONSE);
+      if (state == CALL_ESTABLISHED) {
+        if (!isBitHigh(asyncCommand.cmd.data.bytes[0], 2)) {
+          // (call terminated)
+          setState(SESSION_ACTIVE);
+        }
+      }
+      return;
+    }
+
     switch (state) {
       case STARTING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_BEGIN_SESSION))
@@ -649,7 +686,7 @@ class LinkMobile {
           return;
 
         setState(WAITING_32BIT_SWITCH);
-        waitFrames = PING_WAIT_FRAMES;
+        waitFrames = INIT_WAIT_FRAMES;
         break;
       }
       case READING_CONFIGURATION: {
@@ -696,11 +733,18 @@ class LinkMobile {
         if (asyncCommand.result == CommandResult::SUCCESS) {
           setState(CALL_ESTABLISHED);
           role = Role::CALLER;
-        } else
+        } else {
+          // (call terminated)
           setState(SESSION_ACTIVE);
+        }
         break;
       }
       case CALL_ESTABLISHED: {
+        if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
+          setState(SESSION_ACTIVE);
+          return;
+        }
+
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
           return;
 
@@ -727,7 +771,7 @@ class LinkMobile {
           return;
 
         setState(WAITING_8BIT_SWITCH);
-        waitFrames = PING_WAIT_FRAMES;
+        waitFrames = INIT_WAIT_FRAMES;
         break;
       }
       default: {
@@ -739,7 +783,7 @@ class LinkMobile {
     switch (state) {
       case PINGING: {
         setState(WAITING_TO_START);
-        waitFrames = PING_WAIT_FRAMES;
+        waitFrames = INIT_WAIT_FRAMES;
         break;
       }
       default: {
@@ -762,6 +806,10 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_DIAL_TELEPHONE, true));
   }
 
+  void cmdHangUpTelephone() {
+    sendCommandAsync(buildCommand(COMMAND_HANG_UP_TELEPHONE, true));
+  }
+
   void cmdWaitForTelephoneCall() {
     sendCommandAsync(buildCommand(COMMAND_WAIT_FOR_TELEPHONE_CALL));
   }
@@ -771,6 +819,10 @@ class LinkMobile {
     for (u32 i = 0; i < size; i++)
       addData(data[i]);
     sendCommandAsync(buildCommand(COMMAND_TRANSFER_DATA, true));
+  }
+
+  void cmdTelephoneStatus() {
+    sendCommandAsync(buildCommand(COMMAND_TELEPHONE_STATUS, true));
   }
 
   void cmdSIO32(bool enabled) {
@@ -784,7 +836,7 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
   }
 
-  bool shouldAbortOnTimeout() {
+  bool shouldAbortOnStateTimeout() {
     return state > NEEDS_RESET && state < SESSION_ACTIVE;
   }
 
@@ -818,7 +870,8 @@ class LinkMobile {
     role = Role::NOT_CONNECTED;
     State oldState = state;
     state = newState;
-    timeoutFrames = 0;
+    timeoutStateFrames = 0;
+    pingFrameCount = 0;
     _LMLOG_("!! new state: %d -> %d", oldState, newState);
     (void)oldState;
   }
@@ -860,7 +913,7 @@ class LinkMobile {
     this->userRequests.clear();
     this->asyncCommand.reset();
     this->waitFrames = 0;
-    this->timeoutFrames = 0;
+    this->timeoutStateFrames = 0;
     this->role = Role::NOT_CONNECTED;
     this->nextCommandDataSize = 0;
     this->hasPendingTransfer = false;
@@ -1198,6 +1251,7 @@ class LinkMobile {
   static u16 lsB32(u32 value) { return value & 0xffff; }
   static u8 msB16(u16 value) { return value >> 8; }
   static u8 lsB16(u16 value) { return value & 0xff; }
+  bool isBitHigh(u8 byte, u8 bit) { return (byte >> bit) & 1; }
 };
 
 extern LinkMobile* linkMobile;

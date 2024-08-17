@@ -60,6 +60,7 @@ start:
   bool isConnected = false;
   bool reading = false;
   bool calling = false;
+  bool hangingUp = false;
   u32 counter = 0;
   LinkMobile::DataTransfer dataTransfer;
   LinkMobile::DataTransfer lastCompletedTransfer;
@@ -82,6 +83,8 @@ start:
       output += "R = Call localhost\n\n";
       output += " (DOWN = ok)\n (SELECT = stop)";
     } else {
+      if (linkMobile->isConnected())
+        output += "\n (START = hang up)";
       output += " (SELECT = stop)";
     }
 
@@ -143,6 +146,14 @@ start:
         linkMobile->shutdown();
       }
     }
+
+    // START = hang up
+    if ((keys & KEY_START) && !hangingUp) {
+      hangingUp = true;
+      linkMobile->hangUp();
+    }
+    if (hangingUp && !(keys & KEY_START))
+      hangingUp = false;
 
     // L = Read Configuration
     if ((keys & KEY_L) && !reading) {
@@ -342,3 +353,6 @@ template <typename I>
     rc[i] = digits[(w >> j) & 0x0f];
   return rc;
 }
+
+// TODO: ADD NUMPAD
+// TODO: ADD SELECTIVE SEND
