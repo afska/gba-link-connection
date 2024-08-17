@@ -270,6 +270,8 @@ std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
       return "WEIRD_RESPONSE";
     case LinkMobile::Error::Type::BAD_CONFIGURATION_CHECKSUM:
       return "BAD_CONFIGURATION_CHECKSUM";
+    case LinkMobile::Error::Type::TIMEOUT:
+      return "TIMEOUT";
     default:
       return "?";
   }
@@ -297,8 +299,6 @@ std::string getResultString(LinkMobile::CommandResult cmdResult) {
       return "ERROR_CODE";
     case LinkMobile::CommandResult::WEIRD_ERROR_CODE:
       return "WEIRD_ERROR_CODE";
-    case LinkMobile::CommandResult::TIMEOUT:
-      return "TIMEOUT";
     default:
       return "?";
   }

@@ -131,8 +131,7 @@ class LinkMobile {
     WEIRD_DATA_SIZE,
     WRONG_CHECKSUM,
     ERROR_CODE,
-    WEIRD_ERROR_CODE,
-    TIMEOUT  // TODO: USE (for `UserRequest`s)
+    WEIRD_ERROR_CODE
   };
 
   enum Role { NOT_CONNECTED, CALLER, RECEIVER };
@@ -143,7 +142,8 @@ class LinkMobile {
       ADAPTER_NOT_CONNECTED,
       COMMAND_FAILED,
       WEIRD_RESPONSE,
-      BAD_CONFIGURATION_CHECKSUM
+      BAD_CONFIGURATION_CHECKSUM,
+      TIMEOUT
     };
 
     Error::Type type = Error::Type::NONE;
@@ -212,7 +212,7 @@ class LinkMobile {
     if (!canShutdown() || userRequests.isFull())
       return false;
 
-    userRequests.syncPush(UserRequest{.type = UserRequest::Type::SHUTDOWN});
+    pushRequest(UserRequest{.type = UserRequest::Type::SHUTDOWN});
     return true;
   }
 
@@ -230,7 +230,7 @@ class LinkMobile {
     auto request = UserRequest{.type = UserRequest::Type::CALL};
     copyString(request.phoneNumber, phoneNumber,
                LINK_MOBILE_MAX_PHONE_NUMBER_SIZE);
-    userRequests.syncPush(request);
+    pushRequest(request);
     return true;
   }
 
@@ -249,7 +249,7 @@ class LinkMobile {
                                .commandSent = false};
     for (u32 i = 0; i < dataToSend.size; i++)
       request.send.data[i] = dataToSend.data[i];
-    userRequests.syncPush(request);
+    pushRequest(request);
     return true;
   }
 
@@ -257,7 +257,7 @@ class LinkMobile {
     if (state != CALL_ESTABLISHED || userRequests.isFull())
       return false;
 
-    userRequests.syncPush(UserRequest{.type = UserRequest::Type::HANG_UP});
+    pushRequest(UserRequest{.type = UserRequest::Type::HANG_UP});
     return true;
   }
 
@@ -325,6 +325,9 @@ class LinkMobile {
     linkSPI->_onSerial();
     u32 newData = linkSPI->getAsyncData();
 
+    if (state == NEEDS_RESET)
+      return;
+
     if (asyncCommand.isActive) {
       if (asyncCommand.state == AsyncCommand::State::PENDING) {
         if (isSIO32Mode()) {
@@ -380,6 +383,7 @@ class LinkMobile {
     DataTransfer send;
     DataTransfer* receive;
     bool commandSent;
+    u32 timeout;
   };
 
   union AdapterConfiguration {
@@ -529,6 +533,9 @@ class LinkMobile {
     }
 
     auto request = userRequests.peek();
+    request.timeout++;
+    if (request.timeout >= config.timeout)
+      return abort(Error::Type::TIMEOUT);
 
     switch (request.type) {
       case UserRequest::Type::CALL: {
@@ -834,6 +841,11 @@ class LinkMobile {
     addData(offset, true);
     addData(CONFIGURATION_DATA_CHUNK);
     sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+  }
+
+  void pushRequest(UserRequest userRequest) {
+    userRequest.timeout = 0;
+    userRequests.syncPush(userRequest);
   }
 
   bool shouldAbortOnStateTimeout() {
