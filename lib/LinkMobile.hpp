@@ -18,7 +18,7 @@
 //       // (do something until `linkMobile->isSessionActive()` returns `true`)
 // - 4) Call someone:
 //       linkMobile->call("127000000001");
-//       // (do something until `linkMobile->isConnected()` returns `true`)
+//       // (do something until `linkMobile->isP2PConnected()` returns `true`)
 // - 5) Send/receive data:
 //       LinkMobile::DataTransfer dataTransfer = { .size = 5 };
 //       for (u32 i = 0; i < 5; i++)
@@ -371,7 +371,7 @@ class LinkMobile {
    * @brief Returns `true` if a P2P call is established (the state is
    * `CALL_ESTABLISHED`).
    */
-  [[nodiscard]] bool isConnected() { return state == CALL_ESTABLISHED; }
+  [[nodiscard]] bool isP2PConnected() { return state == CALL_ESTABLISHED; }
 
   /**
    * @brief Returns `true` if the session is active.

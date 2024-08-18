@@ -88,14 +88,14 @@ start:
       output += "\nR = Call someone\n";
       output += "\n (A = ok)\n (SELECT = stop)";
     } else {
-      if (linkMobile->isConnected()) {
+      if (linkMobile->isP2PConnected()) {
         output += "\n (A = send)";
         output += "\n (L = hang up)";
       }
       output += "\n (SELECT = stop)";
     }
 
-    if (linkMobile->isConnected()) {
+    if (linkMobile->isP2PConnected()) {
       if (!isConnected) {
         isConnected = true;
         outgoingData = linkMobile->getRole() == LinkMobile::Role::CALLER

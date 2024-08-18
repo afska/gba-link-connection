@@ -450,7 +450,7 @@ Name | Return type | Description
 `getState()` | **LinkMobile::State** | Returns the current state (one of `LinkMobile::State::NEEDS_RESET`, `LinkMobile::State::PINGING`, `LinkMobile::State::WAITING_TO_START`, `LinkMobile::State::STARTING_SESSION`, `LinkMobile::State::ACTIVATING_SIO32`, `LinkMobile::State::WAITING_32BIT_SWITCH`, `LinkMobile::State::READING_CONFIGURATION`, `LinkMobile::State::SESSION_ACTIVE`, `LinkMobile::State::CALL_REQUESTED`, `LinkMobile::State::CALLING`, `LinkMobile::State::CALL_ESTABLISHED`, `LinkMobile::State::SESSION_ACTIVE_ISP`, `LinkMobile::State::SHUTDOWN_REQUESTED`, `LinkMobile::State::ENDING_SESSION`, `LinkMobile::State::WAITING_8BIT_SWITCH`, or `LinkMobile::State::SHUTDOWN`).
 `getRole()` | **LinkMobile::Role** | Returns the current role in the P2P connection (one of `LinkMobile::Role::NO_P2P_CONNECTION`, `LinkMobile::Role::CALLER`, or `LinkMobile::Role::RECEIVER`).
 `isConfigurationValid()` | **int** | Returns whether the adapter has been configured or not. Returns `1` = yes, `0` = no, `-1` = unknown (no session active).
-`isConnected()` | **bool** | Returns `true` if a P2P call is established (the state is `CALL_ESTABLISHED`).
+`isP2PConnected()` | **bool** | Returns `true` if a P2P call is established (the state is `CALL_ESTABLISHED`).
 `isSessionActive()` | **bool** | Returns `true` if the session is active.
 `canShutdown()` | **bool** | Returns `true` if there's an active session and there's no previous shutdown requests.
 `getDataSize()` | **LinkSPI::DataSize** | Returns the current operation mode (`LinkSPI::DataSize`).
