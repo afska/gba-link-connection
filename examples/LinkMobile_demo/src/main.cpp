@@ -361,8 +361,6 @@ std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
       return "COMMAND_FAILED";
     case LinkMobile::Error::Type::WEIRD_RESPONSE:
       return "WEIRD_RESPONSE";
-    case LinkMobile::Error::Type::BAD_CONFIGURATION_CHECKSUM:
-      return "BAD_CONFIGURATION_CHECKSUM";
     case LinkMobile::Error::Type::TIMEOUT:
       return "TIMEOUT";
     default:

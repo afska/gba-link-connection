@@ -165,7 +165,6 @@ class LinkMobile {
       ADAPTER_NOT_CONNECTED,
       COMMAND_FAILED,
       WEIRD_RESPONSE,
-      BAD_CONFIGURATION_CHECKSUM,
       TIMEOUT
     };
 
@@ -818,10 +817,6 @@ class LinkMobile {
         for (u32 i = 0; i < CONFIGURATION_DATA_CHUNK; i++)
           adapterConfiguration.bytes[offset + i] =
               asyncCommand.cmd.data.bytes[1 + i];
-
-        if (offset == CONFIGURATION_DATA_CHUNK &&
-            !adapterConfiguration.isValid())
-          return abort(Error::Type::BAD_CONFIGURATION_CHECKSUM);
 
         if (offset == 0)
           cmdReadConfigurationData(CONFIGURATION_DATA_CHUNK,
