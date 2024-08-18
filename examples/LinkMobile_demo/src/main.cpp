@@ -85,7 +85,8 @@ start:
       output += "\n (SELECT = stop)";
     } else if (linkMobile->getState() == LinkMobile::State::SESSION_ACTIVE) {
       output += "\nL = Read Configuration";
-      output += "\nR = Call someone\n";
+      output += "\nR = Call someone";
+      output += "\nSTART = Call the ISP";
       output += "\n (A = ok)\n (SELECT = stop)";
     } else {
       if (linkMobile->isP2PConnected()) {
@@ -217,23 +218,24 @@ std::string readConfiguration() {
   if (!linkMobile->readConfiguration(data))
     return "Read failed :(";
 
-  return ("Magic:\n  " + toStr(data.magic, 2) + "\nRegistered:\n  $" +
-          toHex(data.registrationState) + "\nPrimary DNS:\n  " +
-          std::to_string(data.primaryDNS[0]) + "." +
-          std::to_string(data.primaryDNS[1]) + "." +
-          std::to_string(data.primaryDNS[2]) + "." +
-          std::to_string(data.primaryDNS[3]) + "\nSecondary DNS:\n  " +
-          std::to_string(data.secondaryDNS[0]) + "." +
-          std::to_string(data.secondaryDNS[1]) + "." +
-          std::to_string(data.secondaryDNS[2]) + "." +
-          std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
-          toStr(data.loginID, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
-          "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) +
-          "\nPOP Server:\n  " + toStr(data.popServer, 19) + "\nIs Valid:\n  " +
-          std::to_string(linkMobile->isConfigurationValid()) + "\n\nMode: " +
-          (linkMobile->getDataSize() == LinkSPI::DataSize::SIZE_32BIT
-               ? "SIO32"
-               : "SIO8"));
+  return (
+      "Magic:\n  " + toStr(data.magic, 2) + ", $" +
+      toHex(data.registrationState) + "\nPrimary DNS:\n  " +
+      std::to_string(data.primaryDNS[0]) + "." +
+      std::to_string(data.primaryDNS[1]) + "." +
+      std::to_string(data.primaryDNS[2]) + "." +
+      std::to_string(data.primaryDNS[3]) + "\nSecondary DNS:\n  " +
+      std::to_string(data.secondaryDNS[0]) + "." +
+      std::to_string(data.secondaryDNS[1]) + "." +
+      std::to_string(data.secondaryDNS[2]) + "." +
+      std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
+      toStr(data.loginId, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
+      "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) + "\nPOP Server:\n  " +
+      toStr(data.popServer, 19) + "\nISP Number #1:\n  " +
+      std::string(data._ispNumber1) + "\n\nIs Valid: " +
+      std::to_string(linkMobile->isConfigurationValid()) + "\nMode: " +
+      (linkMobile->getDataSize() == LinkSPI::DataSize::SIZE_32BIT ? "SIO32"
+                                                                  : "SIO8"));
 }
 
 std::string getNumberInput() {
@@ -278,7 +280,7 @@ std::string getNumberInput() {
         return "";
     }
     if (didPress(KEY_A, a)) {
-      if (selectedNumber.size() < LINK_MOBILE_MAX_PHONE_NUMBER_SIZE)
+      if (selectedNumber.size() < LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH)
         selectedNumber += rows[selectedY][selectedX];
     }
     if (didPress(KEY_SELECT, select))
@@ -329,6 +331,14 @@ std::string getStateString(LinkMobile::State state) {
       return "CALLING";
     case LinkMobile::State::CALL_ESTABLISHED:
       return "CALL_ESTABLISHED";
+    case LinkMobile::State::ISP_CALL_REQUESTED:
+      return "ISP_CALL_REQUESTED";
+    case LinkMobile::State::ISP_CALLING:
+      return "ISP_CALLING";
+    case LinkMobile::State::ISP_LOGIN:
+      return "ISP_LOGIN";
+    case LinkMobile::State::ISP_ACTIVE:
+      return "ISP_ACTIVE";
     case LinkMobile::State::SHUTDOWN_REQUESTED:
       return "SHUTDOWN_REQUESTED";
     case LinkMobile::State::ENDING_SESSION:

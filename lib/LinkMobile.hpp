@@ -54,7 +54,9 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
 #define LINK_MOBILE_MAX_USER_TRANSFER_LENGTH 254
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
-#define LINK_MOBILE_MAX_PHONE_NUMBER_SIZE 32
+#define LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH 32
+#define LINK_MOBILE_MAX_LOGIN_ID_LENGTH 32
+#define LINK_MOBILE_MAX_PASSWORD_LENGTH 32
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
 #define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 3)
@@ -96,6 +98,7 @@ class LinkMobile {
   static constexpr int ACK_SENDER = 0;
   static constexpr int CONFIGURATION_DATA_SIZE = 192;
   static constexpr int CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
+  static constexpr const char* FALLBACK_ISP_NUMBER = "#9677";
   static constexpr int COMMAND_BEGIN_SESSION = 0x10;
   static constexpr int COMMAND_END_SESSION = 0x11;
   static constexpr int COMMAND_DIAL_TELEPHONE = 0x12;
@@ -137,7 +140,10 @@ class LinkMobile {
     CALL_REQUESTED,
     CALLING,
     CALL_ESTABLISHED,
-    SESSION_ACTIVE_ISP,
+    ISP_CALL_REQUESTED,
+    ISP_CALLING,
+    ISP_LOGIN,
+    ISP_ACTIVE,
     SHUTDOWN_REQUESTED,
     ENDING_SESSION,
     WAITING_8BIT_SWITCH,
@@ -183,7 +189,7 @@ class LinkMobile {
     u8 _unused1_;
     u8 primaryDNS[4];
     u8 secondaryDNS[4];
-    char loginID[10];
+    char loginId[10];
     u8 _unused2_[22];
     char email[24];
     u8 _unused3_[6];
@@ -195,6 +201,8 @@ class LinkMobile {
     u8 configurationSlot3[24];
     u8 checksumHigh;
     u8 checksumLow;
+
+    char _ispNumber1[16 + 1];  // (parsed from `configurationSlot1`)
   } __attribute__((packed));
 
   struct DataTransfer {
@@ -285,7 +293,39 @@ class LinkMobile {
 
     auto request = UserRequest{.type = UserRequest::Type::CALL};
     copyString(request.phoneNumber, phoneNumber,
-               LINK_MOBILE_MAX_PHONE_NUMBER_SIZE);
+               LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH);
+    pushRequest(request);
+    return true;
+  }
+
+  /**
+   * @brief Calls the ISP number registered in the adapter configuration, or a
+   * default number if the adapter hasn't been configured. Then, performs a
+   * login operation using the provided `password` and `loginId`. If `loginId`
+   * is empty and the adapter has been configured, it will use the one stored in
+   * the configuration.
+   * @param password The password, as a null-terminated string (max `32`
+   * characters).
+   * @param loginId The login ID, as a null-terminated string (max `32`
+   * characters). It can be empty if it's already stored in the configuration.
+   * \warning Non-blocking. Returns `true` immediately, or `false`
+   * if there's no active session, no available request slots, or no login ID.
+   */
+  bool callISP(const char* password, const char* loginId = "") {
+    if (state != SESSION_ACTIVE || userRequests.isFull())
+      return false;
+
+    auto request = UserRequest{.type = UserRequest::Type::ISP_LOGIN};
+    copyString(request.password, password, LINK_MOBILE_MAX_PASSWORD_LENGTH);
+
+    if (std::strlen(loginId) > 0)
+      copyString(request.loginId, loginId, LINK_MOBILE_MAX_LOGIN_ID_LENGTH);
+    else if (adapterConfiguration.isValid())
+      copyString(request.loginId, adapterConfiguration.fields._ispNumber1,
+                 LINK_MOBILE_MAX_LOGIN_ID_LENGTH);
+    else
+      return false;
+
     pushRequest(request);
     return true;
   }
@@ -494,12 +534,14 @@ class LinkMobile {
   enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type { CALL, TRANSFER, HANG_UP, SHUTDOWN };
+    enum Type { CALL, ISP_LOGIN, TRANSFER, HANG_UP, SHUTDOWN };
 
     Type type;
-    char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_SIZE + 1];
+    char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH + 1];
     DataTransfer send;
     DataTransfer* receive;
+    char loginId[LINK_MOBILE_MAX_LOGIN_ID_LENGTH + 1];
+    char password[LINK_MOBILE_MAX_PASSWORD_LENGTH + 1];
     bool commandSent;
     u32 timeout;
   };
@@ -833,11 +875,13 @@ class LinkMobile {
           adapterConfiguration.bytes[offset + i] =
               asyncCommand.cmd.data.bytes[1 + i];
 
-        if (offset == 0)
+        if (offset == 0) {
           cmdReadConfigurationData(CONFIGURATION_DATA_CHUNK,
                                    CONFIGURATION_DATA_CHUNK);
-        else
+        } else {
+          setISPNumber();
           setState(SESSION_ACTIVE);
+        }
         break;
       }
       case SESSION_ACTIVE: {
@@ -959,6 +1003,16 @@ class LinkMobile {
     addData(offset, true);
     addData(CONFIGURATION_DATA_CHUNK);
     sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
+  }
+
+  void setISPNumber() {
+    static const char BCD[16] = "0123456789#*cde";
+
+    for (u32 i = 0; i < 8; i++) {
+      u8 b = adapterConfiguration.fields.configurationSlot1[i];
+      adapterConfiguration.fields._ispNumber1[i * 2] = BCD[b >> 4];
+      adapterConfiguration.fields._ispNumber1[i * 2 + 1] = BCD[b & 0xF];
+    }
   }
 
   void pushRequest(UserRequest request) {
