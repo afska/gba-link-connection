@@ -195,7 +195,7 @@ class LinkMobile {
   } __attribute__((packed));
 
   struct DNSQuery {
-    bool completed = false;
+    volatile bool completed = false;
     bool success = false;
     u8 ipv4[4] = {};
   };
@@ -203,18 +203,18 @@ class LinkMobile {
   enum ConnectionType { TCP, UDP };
 
   struct OpenConn {
-    bool completed = false;
+    volatile bool completed = false;
     bool success = false;
     u8 connectionId = 0;
   };
 
   struct CloseConn {
-    bool completed = false;
+    volatile bool completed = false;
     bool success = false;
   };
 
   struct DataTransfer {
-    bool completed = false;
+    volatile bool completed = false;
     bool success = false;
     u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
     u8 size = 0;
@@ -321,8 +321,8 @@ class LinkMobile {
 
   /**
    * @brief Initiates a P2P connection with a `phoneNumber`. After some time,
-   * the state will be `CALL_ESTABLISHED`, or `ACTIVE_SESSION` if the
-   * connection fails or ends.
+   * the state will be `CALL_ESTABLISHED` (or `ACTIVE_SESSION` if the
+   * connection fails or ends).
    * @param phoneNumber The phone number to call. In REON/libmobile this can be
    * a number assigned by the relay server, or a 12-digit IPv4 address (for
    * example, "127000000001" would be 127.0.0.1).
@@ -343,9 +343,10 @@ class LinkMobile {
   /**
    * @brief Calls the ISP number registered in the adapter configuration, or a
    * default number if the adapter hasn't been configured. Then, performs a
-   * login operation using the provided `password` and `loginId`. After some
-   * time, the state will be `ISP_ACTIVE`. If `loginId` is empty and the adapter
-   * has been configured, it will use the one stored in the configuration.
+   * login operation using the provided REON `password` and `loginId`. After
+   * some time, the state will be `ISP_ACTIVE`. If `loginId` is empty and the
+   * adapter has been configured, it will use the one stored in the
+   * configuration.
    * @param password The password, as a null-terminated string (max `32`
    * characters).
    * @param loginId The login ID, as a null-terminated string (max `32`
@@ -934,7 +935,7 @@ class LinkMobile {
         }
 
         if (!asyncCommand.isActive && !request.commandSent) {
-          if (request.type == ConnectionType::TCP)
+          if (request.connectionType == ConnectionType::TCP)
             cmdOpenTCPConnection(request.ip, request.port);
           else
             cmdOpenUDPConnection(request.ip, request.port);
@@ -949,7 +950,7 @@ class LinkMobile {
         }
 
         if (!asyncCommand.isActive && !request.commandSent) {
-          if (request.type == ConnectionType::TCP)
+          if (request.connectionType == ConnectionType::TCP)
             cmdCloseTCPConnection(request.connectionId);
           else
             cmdCloseUDPConnection(request.connectionId);
@@ -958,10 +959,11 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::TRANSFER: {
-        if (state != CALL_ESTABLISHED) {
+        if (state != CALL_ESTABLISHED && state != ISP_ACTIVE) {
           userRequests.pop();
           return;
         }
+
         if (!asyncCommand.isActive && !request.commandSent) {
           cmdTransferData(request.connectionId, request.send.data,
                           request.send.size);
@@ -1199,9 +1201,9 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
           return;
         }
-        if (userRequests.isEmpty())
-          return abort(Error::Type::WTF);
 
+        if (userRequests.isEmpty())
+          return;
         auto request = userRequests.peekRef();
 
         if (asyncCommand.respondsTo(COMMAND_DNS_QUERY)) {
@@ -1234,7 +1236,7 @@ class LinkMobile {
             request->open->success = false;
           }
 
-          request->close->completed = true;
+          request->open->completed = true;
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_CLOSE_TCP_CONNECTION) ||
                    asyncCommand.respondsTo(COMMAND_CLOSE_UDP_CONNECTION)) {
@@ -1285,6 +1287,10 @@ class LinkMobile {
       u32 size = asyncCommand.cmd.header.size - 1;
       for (u32 i = 0; i < size; i++)
         request->receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
+
+      request->receive->data[size] = '\0';
+      // (just for convenience when using strings, the buffer is big enough)
+
       request->receive->size = size;
       request->receive->success = true;
     } else {

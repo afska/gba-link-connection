@@ -407,9 +407,13 @@ The GBA operates using `1` stop bit, but everything else can be configured. By d
 
 *(aka Mobile Adapter GB)*
 
-This is a driver for an accessory that enables online P2P connections between 2 players, or up to two TCP/UDP connections. The protocol was reverse-engineered by the *REON Team*.
+This is a driver for an accessory that enables online conectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
 
 The original accessory was sold in Japan only and doesn't work anymore since it relies on old tech, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
+
+It has two modes of operation:
+- Direct call (P2P): Calling someone directly for a 2-player session, using the other person's IP address or the phone number provided by the [relay server](https://github.com/REONTeam/mobile-relay).
+- ISP call (PPP): Calling an ISP number for internet access. In this mode, the adapter can open up to 2 TCP/UDP sockets and transfer arbitrary data.
 
 ![screenshot](https://github.com/user-attachments/assets/ff0ea09f-807c-4ba9-9dac-9cae8f831408)
 
@@ -443,7 +447,7 @@ Name | Return type | Description
 `activate()` | - | Activates the library. After some time, if an adapter is connected, the state will be changed to `SESSION_ACTIVE`. If not, the state will be `NEEDS_RESET`, and you can retrieve the error with `getError()`.
 `deactivate()` | - | Deactivates the library, resetting the serial mode to GPIO. Calling `shutdown()` first is recommended, but the adapter will put itself in sleep mode after 3 seconds anyway.
 `shutdown()` | **bool** | Gracefully shuts down the adapter, closing all connections. After some time, the state will be changed to `SHUTDOWN`, and only then it's safe to call `deactivate()`.
-`call(phoneNumber)` | **bool** | Initiates a P2P connection with a `phoneNumber`. After some time, the state will be `CALL_ESTABLISHED`, or `ACTIVE_SESSION` if the connection fails or ends. In REON/libmobile the phone number can be a number assigned by the relay server, or a 12-digit IPv4 address (for example, `"127000000001"` would be `127.0.0.1`).
+`call(phoneNumber)` | **bool** | Initiates a P2P connection with a `phoneNumber`. After some time, the state will be `CALL_ESTABLISHED` (or `ACTIVE_SESSION` if the connection fails or ends). In REON/libmobile the phone number can be a number assigned by the relay server, or a 12-digit IPv4 address (for example, `"127000000001"` would be `127.0.0.1`).
 `callISP(password, loginId)` | **bool** | Calls the ISP number registered in the adapter configuration, or a default number if the adapter hasn't been configured. Then, performs a login operation using the provided `password` and `loginId`. After some time, the state will be `ISP_ACTIVE`. If `loginId` is empty and the adapter has been configured, it will use the one stored in the configuration. Both parameters are null-terminated strings (max `32` characters).
 `dnsQuery(domainName, result)` | **bool** | Looks up the IPv4 address for a `domainName` (a null-terminated string, max `253` characters). The `result` is a pointer to a `LinkMobile::DNSQuery` struct that will be filled with the result. When the request is completed, the `completed` field will be `true`. If an IP address was found, the `success` field will be `true` and the `ipv4` field can be read as a 4-byte address.
 `openConnection(ip, port, type, result)` | **bool** | Opens a TCP/UDP (`type`) connection at the given `ip` (4-byte address) on the given `port`. The `result` is a pointer to a `LinkMobile::OpenConn` struct that will be filled with the result. When the request is completed, the `completed` field will be `true`. If the connection was successful, the `success` field will be `true` and the `connectionId` field can be used when calling the `transfer(...)` method. Only `2` connections can be opened at the same time.

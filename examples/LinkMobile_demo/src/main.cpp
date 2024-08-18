@@ -163,8 +163,73 @@ start:
             std::to_string(dnsQuery.ipv4[1]) + "." +
             std::to_string(dnsQuery.ipv4[2]) + "." +
             std::to_string(dnsQuery.ipv4[3]) + "\n\n" +
-            (dnsQuery.success ? "Success!" : "Failure!"));
+            (dnsQuery.success ? "OK!\nLet's connect to it on TCP 80!"
+                              : "DNS query failed!"));
         waitForA();
+
+        // (9) Open connections
+        log("Connecting...");
+        LinkMobile::OpenConn openConn;
+        linkMobile->openConnection(dnsQuery.ipv4, 80,
+                                   LinkMobile::ConnectionType::TCP, &openConn);
+
+        while (linkMobile->isConnectedISP() && !openConn.completed)
+          VBlankIntrWait();
+        if (!linkMobile->isConnectedISP())
+          continue;
+
+        if (openConn.success) {
+          LinkMobile::DataTransfer http;
+          std::string request = std::string("GET / HTTP/1.1\r\nHost: ") +
+                                selectedDomain + "\r\n\r\n";
+          for (u32 i = 0; i < request.size(); i++)
+            http.data[i] = request[i];
+          http.size = request.size();
+          linkMobile->transfer(http, &http, openConn.connectionId);
+          log("Connected! (" + std::to_string(openConn.connectionId) +
+              ") Requesting /");
+
+          while (linkMobile->isConnectedISP() && !http.completed)
+            VBlankIntrWait();
+          if (!linkMobile->isConnectedISP())
+            continue;
+
+          if (http.success) {
+            u32 retry = 1;
+            while (http.size == 0) {
+              log("Re-transfering... " + std::to_string(retry));
+              LinkMobile::DataTransfer retryy =
+                  LinkMobile::DataTransfer{.data = {}, .size = 0};
+              for (u32 i = 0; i < request.size(); i++)
+                retryy.data[i] = request[i];
+              retryy.size = request.size();
+              linkMobile->transfer(retryy, &http, openConn.connectionId);
+              while (linkMobile->isConnectedISP() && !http.completed)
+                VBlankIntrWait();
+              if (!linkMobile->isConnectedISP())
+                break;
+              if (!http.success)
+                break;
+              retry++;
+            }
+            if (!linkMobile->isConnectedISP())
+              continue;
+            if (!http.success) {
+              log("HTTP failed!");
+              waitForA();
+              continue;
+            }
+
+            log("Internet on GBA! yay\n\n" + std::string((char*)http.data));
+            waitForA();
+          } else {
+            log("HTTP request failed!");
+            waitForA();
+          }
+        } else {
+          log("Connection to \"" + selectedDomain + "\" failed!");
+          waitForA();
+        }
       }
 
       output += waitingDNS ? "\n\nWaiting DNS..." : "";
@@ -199,7 +264,7 @@ start:
 
         goto start;
       } else if (linkMobile->canShutdown()) {
-        // (7) Turn off the adapter
+        // (11) Turn off the adapter
         linkMobile->shutdown();
       }
     }
