@@ -12,6 +12,15 @@
 void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text);
 std::string readConfiguration();
 std::string getNumberInput();
+std::string getPasswordInput();
+std::string getInput(std::string& field,
+                     u32 maxChars,
+                     std::string inputName,
+                     std::vector<std::vector<std::string>> rows,
+                     std::vector<std::vector<std::string>> altRows,
+                     std::string defaultValue,
+                     std::string defaultValueName,
+                     std::string altName);
 std::string getStateString(LinkMobile::State state);
 std::string getErrorString(LinkMobile::Error error);
 std::string getErrorTypeString(LinkMobile::Error::Type errorType);
@@ -28,6 +37,7 @@ bool left = false, right = false, up = false, down = false;
 bool a = false, b = false, l = false, r = false;
 bool start = false, select = false;
 std::string selectedNumber = "";
+std::string selectedPassword = "";
 
 LinkMobile* linkMobile = NULL;
 
@@ -186,7 +196,10 @@ start:
 
         // START = Call the ISP
         if (didPress(KEY_START, start)) {
-          linkMobile->callISP("asdasd");
+          std::string password = getPasswordInput();
+          if (password != "") {
+            linkMobile->callISP(password.c_str());
+          }
         }
         break;
       }
@@ -247,24 +260,67 @@ std::string readConfiguration() {
 }
 
 std::string getNumberInput() {
-  VBlankIntrWait();
-
-  int selectedX = 0;
-  int selectedY = 0;
   std::vector<std::vector<std::string>> rows;
   rows.push_back({"1", "2", "3"});
   rows.push_back({"4", "5", "6"});
   rows.push_back({"7", "8", "9"});
   rows.push_back({"*", "0", "#"});
+  std::vector<std::vector<std::string>> altRows;
+
+  return getInput(selectedNumber, LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH,
+                  "a number", rows, altRows, "127000000001", "localhost", "");
+}
+
+std::string getPasswordInput() {
+  std::vector<std::vector<std::string>> rows;
+  rows.push_back({"a", "b", "c", "d", "e"});
+  rows.push_back({"f", "g", "h", "i", "j"});
+  rows.push_back({"k", "l", "m", "n", "o"});
+  rows.push_back({"p", "q", "r", "s", "t"});
+  rows.push_back({"u", "v", "w", "x", "y"});
+  rows.push_back({"z", "1", "2", "3", "4"});
+  rows.push_back({"5", "6", "7", "8", "9"});
+  rows.push_back({"0", "!", "?", "#", "*"});
+
+  std::vector<std::vector<std::string>> altRows;
+  altRows.push_back({"A", "B", "C", "D", "E"});
+  altRows.push_back({"F", "G", "H", "I", "J"});
+  altRows.push_back({"K", "L", "M", "N", "O"});
+  altRows.push_back({"P", "Q", "R", "S", "T"});
+  altRows.push_back({"U", "V", "W", "X", "Y"});
+  altRows.push_back({"Z", "1", "2", "3", "4"});
+  altRows.push_back({"5", "6", "7", "8", "9"});
+  altRows.push_back({"0", "!", "?", "#", "*"});
+
+  return getInput(selectedPassword, LINK_MOBILE_MAX_PASSWORD_LENGTH,
+                  "your password", rows, altRows, "pass123", "pass123",
+                  "caps lock");
+}
+
+std::string getInput(std::string& field,
+                     u32 maxChars,
+                     std::string inputName,
+                     std::vector<std::vector<std::string>> rows,
+                     std::vector<std::vector<std::string>> altRows,
+                     std::string defaultValue,
+                     std::string defaultValueName,
+                     std::string altName) {
+  VBlankIntrWait();
+
+  int selectedX = 0;
+  int selectedY = 0;
+  bool altActive = false;
 
   while (true) {
-    std::string output = "Type a number:\n\n";
-    output += ">> " + selectedNumber + "\n\n";
+    auto renderRows = altActive ? altRows : rows;
+
+    std::string output = "Type " + inputName + ":\n\n";
+    output += ">> " + field + "\n\n";
 
     if (didPress(KEY_RIGHT, right)) {
       selectedX++;
-      if (selectedX >= (int)rows[0].size())
-        selectedX = rows[0].size() - 1;
+      if (selectedX >= (int)renderRows[0].size())
+        selectedX = renderRows[0].size() - 1;
     }
     if (didPress(KEY_LEFT, left)) {
       selectedX--;
@@ -278,37 +334,41 @@ std::string getNumberInput() {
     }
     if (didPress(KEY_DOWN, down)) {
       selectedY++;
-      if (selectedY >= (int)rows.size())
-        selectedY = rows.size() - 1;
+      if (selectedY >= (int)renderRows.size())
+        selectedY = renderRows.size() - 1;
     }
     if (didPress(KEY_B, b)) {
-      if (selectedNumber.size() > 0)
-        selectedNumber = selectedNumber.substr(0, selectedNumber.size() - 1);
+      if (field.size() > 0)
+        field = field.substr(0, field.size() - 1);
       else
         return "";
     }
     if (didPress(KEY_A, a)) {
-      if (selectedNumber.size() < LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH)
-        selectedNumber += rows[selectedY][selectedX];
+      if (field.size() < maxChars)
+        field += renderRows[selectedY][selectedX];
     }
     if (didPress(KEY_SELECT, select))
-      selectedNumber = "127000000001";
+      field = defaultValue;
     if (didPress(KEY_START, start))
-      return selectedNumber;
+      return field;
+    if (altName != "" && didPress(KEY_L, l))
+      altActive = !altActive;
 
-    for (int y = 0; y < (int)rows.size(); y++) {
-      for (int x = 0; x < (int)rows[y].size(); x++) {
+    for (int y = 0; y < (int)renderRows.size(); y++) {
+      for (int x = 0; x < (int)renderRows[y].size(); x++) {
         bool isSelected = selectedX == x && selectedY == y;
         output += std::string("") + "|" + (isSelected ? "<" : " ") +
-                  rows[y][x] + (isSelected ? ">" : " ") + "|";
+                  renderRows[y][x] + (isSelected ? ">" : " ") + "|";
         output += " ";
       }
       output += "\n";
     }
 
-    output +=
-        "\n (B = back)\n (A = select)\n (SELECT = localhost)\n (START = "
-        "confirm)";
+    output += "\n (B = back)\n (A = select)\n (SELECT = " + defaultValueName +
+              ")\n (START = confirm)";
+
+    if (altName != "")
+      output += "\n\n (L = " + altName + ")";
 
     VBlankIntrWait();
     log(output);
