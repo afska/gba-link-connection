@@ -102,7 +102,7 @@ start:
       output += getErrorString(error);
       output += "\n (SELECT = stop)";
     } else if (linkMobile->getState() == LinkMobile::State::SESSION_ACTIVE) {
-      output += "\nL = Read Configuration";
+      output += "\nL = Read configuration";
       output += "\nR = Call someone";
       output += "\nSTART = Call the ISP";
       output += "\n\n (A = ok)\n (SELECT = stop)";
@@ -111,7 +111,7 @@ start:
         output += "\n (A = send)";
         output += "\n (L = hang up)";
       } else if (linkMobile->isConnectedISP()) {
-        output += "\n (LEFT = DNS query)";
+        output += "\n (A = DNS query)";
         output += "\n (L = hang up)";
       }
       output += "\n (SELECT = stop)";
@@ -240,8 +240,8 @@ start:
         break;
       }
       case LinkMobile::State::ISP_ACTIVE: {
-        // LEFT = DNS query
-        if (didPress(KEY_LEFT, left)) {
+        // A = DNS query
+        if (didPress(KEY_A, a) && !waitingDNS) {
           std::string domain = getDomainInput();
           if (domain != "") {
             // (8) Run DNS queries
@@ -590,3 +590,5 @@ template <typename I>
     rc[i] = digits[(w >> j) & 0x0f];
   return rc;
 }
+
+// TODO: Implement TCP/UDP sockets test functions

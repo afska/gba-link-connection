@@ -78,7 +78,7 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 #define LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH 253
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
-#define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 3)
+#define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 10)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
 #define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
 
@@ -102,18 +102,18 @@ class LinkMobile {
   static constexpr int INIT_WAIT_FRAMES = 7;
   static constexpr int INIT_TIMEOUT_FRAMES = 30;
   static constexpr int PING_FREQUENCY_FRAMES = 60;
-  static constexpr int ADAPTER_WAITING = 0xD2;
-  static constexpr u32 ADAPTER_WAITING_32BIT = 0xD2D2D2D2;
-  static constexpr int GBA_WAITING = 0x4B;
-  static constexpr u32 GBA_WAITING_32BIT = 0x4B4B4B4B;
+  static constexpr int ADAPTER_WAITING = 0xd2;
+  static constexpr u32 ADAPTER_WAITING_32BIT = 0xd2d2d2d2;
+  static constexpr int GBA_WAITING = 0x4b;
+  static constexpr u32 GBA_WAITING_32BIT = 0x4b4b4b4b;
   static constexpr int OR_VALUE = 0x80;
   static constexpr int COMMAND_MAGIC_VALUE1 = 0x99;
   static constexpr int COMMAND_MAGIC_VALUE2 = 0x66;
   static constexpr int DEVICE_GBA = 0x1;
   static constexpr int DEVICE_ADAPTER_BLUE = 0x8;
   static constexpr int DEVICE_ADAPTER_YELLOW = 0x9;
-  static constexpr int DEVICE_ADAPTER_GREEN = 0xA;
-  static constexpr int DEVICE_ADAPTER_RED = 0xB;
+  static constexpr int DEVICE_ADAPTER_GREEN = 0xa;
+  static constexpr int DEVICE_ADAPTER_RED = 0xb;
   static constexpr int ACK_SENDER = 0;
   static constexpr int CONFIGURATION_DATA_SIZE = 192;
   static constexpr int CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
@@ -135,7 +135,8 @@ class LinkMobile {
   static constexpr int COMMAND_OPEN_UDP_CONNECTION = 0x25;
   static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
   static constexpr int COMMAND_DNS_QUERY = 0x28;
-  static constexpr int COMMAND_ERROR_STATUS = 0x6E | OR_VALUE;
+  static constexpr int COMMAND_CONNECTION_CLOSED = 0x1f;
+  static constexpr int COMMAND_ERROR_STATUS = 0x6e | OR_VALUE;
   static constexpr u8 WAIT_TICKS[] = {4, 8};
   static constexpr int LOGIN_PARTS_SIZE = 8;
   static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
@@ -255,7 +256,7 @@ class LinkMobile {
   /**
    * @brief Constructs a new LinkMobile object.
    * @param timeout Number of *frames* without completing a request to reset a
-   * connection. Defaults to 180 (3 seconds).
+   * connection. Defaults to 600 (10 seconds).
    * @param timerId GBA Timer to use for waiting.
    */
   explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
@@ -414,7 +415,8 @@ class LinkMobile {
    * will be filled with the result. When the request is completed, the
    * `completed` field will be `true`. If the connection was successful, the
    * `success` field will be `true` and the `connectionId` field can be used
-   * when calling the `transfer(...)` method.
+   * when calling the `transfer(...)` method. If not, you can assume that the
+   * connection was closed.
    * \warning Only `2` connections can be opened at the same time.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
    * active ISP session, no available request slots.
@@ -440,7 +442,6 @@ class LinkMobile {
     pushRequest(request);
     return true;
   }
-  // TODO: IMPLEMENT SOCKET METHODS
 
   /**
    * @brief Closes an active TCP/UDP (`type`) connection.
@@ -926,13 +927,44 @@ class LinkMobile {
         }
         break;
       }
+      case UserRequest::Type::OPEN_CONNECTION: {
+        if (state != ISP_ACTIVE) {
+          userRequests.pop();
+          return;
+        }
+
+        if (!asyncCommand.isActive && !request.commandSent) {
+          if (request.type == ConnectionType::TCP)
+            cmdOpenTCPConnection(request.ip, request.port);
+          else
+            cmdOpenUDPConnection(request.ip, request.port);
+          request.commandSent = true;
+        }
+        break;
+      }
+      case UserRequest::Type::CLOSE_CONNECTION: {
+        if (state != ISP_ACTIVE) {
+          userRequests.pop();
+          return;
+        }
+
+        if (!asyncCommand.isActive && !request.commandSent) {
+          if (request.type == ConnectionType::TCP)
+            cmdCloseTCPConnection(request.connectionId);
+          else
+            cmdCloseUDPConnection(request.connectionId);
+          request.commandSent = true;
+        }
+        break;
+      }
       case UserRequest::Type::TRANSFER: {
         if (state != CALL_ESTABLISHED) {
           userRequests.pop();
           return;
         }
         if (!asyncCommand.isActive && !request.commandSent) {
-          cmdTransferData(0xff, request.send.data, request.send.size);
+          cmdTransferData(request.connectionId, request.send.data,
+                          request.send.size);
           request.commandSent = true;
         }
         break;
@@ -1125,21 +1157,13 @@ class LinkMobile {
         }
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
           return;
-        if (asyncCommand.cmd.header.size == 0)
-          return abort(Error::Type::WEIRD_RESPONSE);
         if (userRequests.isEmpty())
           return abort(Error::Type::WTF);
         auto request = userRequests.peekRef();
-        if (request->type != UserRequest::TRANSFER)
-          return abort(Error::Type::WTF);
 
-        u32 size = asyncCommand.cmd.header.size - 1;
-        for (u32 i = 0; i < size; i++)
-          request->receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
-        request->receive->size = size;
-        request->receive->completed = true;
-        request->receive->success = true;
-        request->finished = true;
+        handleTransferDataResponse(request);
+
+        break;
       }
       case ISP_CALLING: {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
@@ -1196,21 +1220,44 @@ class LinkMobile {
 
           request->dns->completed = true;
           request->finished = true;
-          break;
+        } else if (asyncCommand.respondsTo(COMMAND_OPEN_TCP_CONNECTION) ||
+                   asyncCommand.respondsTo(COMMAND_OPEN_UDP_CONNECTION)) {
+          if (request->type != UserRequest::OPEN_CONNECTION)
+            return abort(Error::Type::WTF);
+
+          if (asyncCommand.result == CommandResult::SUCCESS) {
+            if (asyncCommand.cmd.header.size != 1)
+              return abort(Error::Type::WEIRD_RESPONSE);
+            request->open->connectionId = asyncCommand.cmd.data.bytes[0];
+            request->open->success = true;
+          } else {
+            request->open->success = false;
+          }
+
+          request->close->completed = true;
+          request->finished = true;
+        } else if (asyncCommand.respondsTo(COMMAND_CLOSE_TCP_CONNECTION) ||
+                   asyncCommand.respondsTo(COMMAND_CLOSE_UDP_CONNECTION)) {
+          if (request->type != UserRequest::CLOSE_CONNECTION)
+            return abort(Error::Type::WTF);
+
+          request->close->success =
+              asyncCommand.result == CommandResult::SUCCESS;
+          request->close->completed = true;
+          request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_TRANSFER_DATA)) {
           if (request->type != UserRequest::TRANSFER)
             return abort(Error::Type::WTF);
 
-          // TODO: HANDLE TRANSFER DATA
-          // if (asyncCommand.cmd.header.size == 0)
-          //   return abort(Error::Type::WEIRD_RESPONSE);
-          // TODO: IMPLEMENT
-          // u32 size = asyncCommand.cmd.header.size - 1;
-          // for (u32 i = 0; i < size; i++)
-          //   request.receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
-          // request.receive->size = size;
-          // request.receive->completed = true;
-          // request.finished = true;
+          handleTransferDataResponse(request);
+        } else if (asyncCommand.respondsTo(COMMAND_CONNECTION_CLOSED)) {
+          if (request->type != UserRequest::TRANSFER)
+            return abort(Error::Type::WTF);
+
+          // (connection closed)
+          request->receive->success = false;
+          request->receive->completed = true;
+          request->finished = true;
         }
         break;
       }
@@ -1225,6 +1272,27 @@ class LinkMobile {
       default: {
       }
     }
+  }
+
+  void handleTransferDataResponse(UserRequest* request) {
+    if (request->type != UserRequest::TRANSFER)
+      return abort(Error::Type::WTF);
+
+    if (asyncCommand.result == CommandResult::SUCCESS) {
+      if (asyncCommand.cmd.header.size == 0)
+        return abort(Error::Type::WEIRD_RESPONSE);
+
+      u32 size = asyncCommand.cmd.header.size - 1;
+      for (u32 i = 0; i < size; i++)
+        request->receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
+      request->receive->size = size;
+      request->receive->success = true;
+    } else {
+      request->receive->success = false;
+    }
+
+    request->receive->completed = true;
+    request->finished = true;
   }
 
   void processLoosePacket(u32 newData) {
@@ -1304,6 +1372,32 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_ISP_LOGIN, true));
   }
 
+  void cmdOpenTCPConnection(const u8* ip, u16 port) {
+    for (u32 i = 0; i < 4; i++)
+      addData(ip[i], i == 0);
+    addData(msB16(port));
+    addData(lsB16(port));
+    sendCommandAsync(buildCommand(COMMAND_OPEN_TCP_CONNECTION, true));
+  }
+
+  void cmdCloseTCPConnection(u8 connectionId) {
+    addData(connectionId);
+    sendCommandAsync(buildCommand(COMMAND_CLOSE_TCP_CONNECTION, true));
+  }
+
+  void cmdOpenUDPConnection(const u8* ip, u16 port) {
+    for (u32 i = 0; i < 4; i++)
+      addData(ip[i], i == 0);
+    addData(msB16(port));
+    addData(lsB16(port));
+    sendCommandAsync(buildCommand(COMMAND_OPEN_UDP_CONNECTION, true));
+  }
+
+  void cmdCloseUDPConnection(u8 connectionId) {
+    addData(connectionId);
+    sendCommandAsync(buildCommand(COMMAND_CLOSE_UDP_CONNECTION, true));
+  }
+
   void cmdDNSQuery(const u8* data, u8 size) {
     for (int i = 0; i < size; i++)
       addData(data[i], i == 0);
@@ -1337,7 +1431,12 @@ class LinkMobile {
     return asyncCommand.direction == AsyncCommand::Direction::SENDING ||
            (commandId != COMMAND_WAIT_FOR_TELEPHONE_CALL &&
             commandId != COMMAND_DIAL_TELEPHONE &&
-            commandId != COMMAND_DNS_QUERY);
+            commandId != COMMAND_DNS_QUERY &&
+            commandId != COMMAND_OPEN_TCP_CONNECTION &&
+            commandId != COMMAND_CLOSE_TCP_CONNECTION &&
+            commandId != COMMAND_OPEN_UDP_CONNECTION &&
+            commandId != COMMAND_CLOSE_UDP_CONNECTION &&
+            commandId != COMMAND_TRANSFER_DATA);
   }
 
   void addData(u8 value, bool start = false) {
