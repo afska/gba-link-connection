@@ -179,7 +179,7 @@ class LinkMobile {
 
   struct ConfigurationData {
     char magic[2];
-    bool isRegistering;
+    u8 registrationState;
     u8 _unused1_;
     u8 primaryDNS[4];
     u8 secondaryDNS[4];
@@ -357,6 +357,17 @@ class LinkMobile {
   [[nodiscard]] Role getRole() { return role; }
 
   /**
+   * @brief Returns whether the adapter has been configured or not.
+   * @return 1 = yes, 0 = no, -1 = unknown (no session active).
+   */
+  [[nodiscard]] int isConfigurationValid() {
+    if (!isSessionActive())
+      return -1;
+
+    return (int)adapterConfiguration.isValid();
+  }
+
+  /**
    * @brief Returns `true` if a P2P call is established (the state is
    * `CALL_ESTABLISHED`).
    */
@@ -497,7 +508,11 @@ class LinkMobile {
     ConfigurationData fields;
     char bytes[CONFIGURATION_DATA_SIZE];
 
-    bool isValid() { return calculatedChecksum() == reportedChecksum(); }
+    bool isValid() {
+      return fields.magic[0] == 'M' && fields.magic[1] == 'A' &&
+             (fields.registrationState & 1) == 1 &&
+             calculatedChecksum() == reportedChecksum();
+    }
 
     u16 calculatedChecksum() {
       u16 result = 0;

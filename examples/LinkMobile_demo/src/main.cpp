@@ -217,8 +217,8 @@ std::string readConfiguration() {
   if (!linkMobile->readConfiguration(data))
     return "Read failed :(";
 
-  return ("Magic:\n  " + toStr(data.magic, 2) + "\nIsRegistering:\n  " +
-          (data.isRegistering ? "Yes" : "No") + "\nPrimary DNS:\n  " +
+  return ("Magic:\n  " + toStr(data.magic, 2) + "\nRegistered:\n  $" +
+          toHex(data.registrationState) + "\nPrimary DNS:\n  " +
           std::to_string(data.primaryDNS[0]) + "." +
           std::to_string(data.primaryDNS[1]) + "." +
           std::to_string(data.primaryDNS[2]) + "." +
@@ -229,7 +229,8 @@ std::string readConfiguration() {
           std::to_string(data.secondaryDNS[3]) + "\nLoginID:\n  " +
           toStr(data.loginID, 10) + "\nEmail:\n  " + toStr(data.email, 24) +
           "\nSMTP Server:\n  " + toStr(data.smtpServer, 20) +
-          "\nPOP Server:\n  " + toStr(data.popServer, 19) + "\n\nMode: " +
+          "\nPOP Server:\n  " + toStr(data.popServer, 19) + "\nIs Valid:\n  " +
+          std::to_string(linkMobile->isConfigurationValid()) + "\n\nMode: " +
           (linkMobile->getDataSize() == LinkSPI::DataSize::SIZE_32BIT
                ? "SIO32"
                : "SIO8"));
