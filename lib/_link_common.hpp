@@ -171,6 +171,12 @@ class Queue {
     return arr[front];
   }
 
+  T* peekRef() {
+    if (isEmpty())
+      return nullptr;
+    return &arr[front];
+  }
+
   template <typename F>
   void forEach(F action) {
     vs32 currentFront = front;

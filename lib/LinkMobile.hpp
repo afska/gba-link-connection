@@ -28,9 +28,15 @@
 //       // (use `dataTransfer` as the received data)
 // - 6) Hang up:
 //       linkMobile->hangUp();
+// - 7) Connect to the internet:
+//       linkMobile->callISP("REON password");
+// - 8) Run DNS queries:
+//       LinkMobile::DNSQuery dnsQuery;
+//       linkMobile->dnsQuery("something.com", &dnsQuery);
+//       // (do something until `dnsQuery.completed` is `true`)
+//       // (use `dnsQuery.success` and `dnsQuery.ipv4`)
 // - 7) Turn off the adapter:
 //       linkMobile->shutdown();
-// TODO: DOCUMENT ISP METHODS
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That causes packet loss. You REALLY want to use libugba's instead.
@@ -58,6 +64,7 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 #define LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH 32
 #define LINK_MOBILE_MAX_LOGIN_ID_LENGTH 32
 #define LINK_MOBILE_MAX_PASSWORD_LENGTH 32
+#define LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH 253
 #define LINK_MOBILE_COMMAND_TRANSFER_BUFFER \
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
 #define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 3)
@@ -214,6 +221,12 @@ class LinkMobile {
     bool completed = false;
   };
 
+  struct DNSQuery {
+    u8 ipv4[4] = {};
+    bool completed = false;
+    bool success = false;
+  };
+
   /**
    * @brief Constructs a new LinkMobile object.
    * @param timeout Number of *frames* without completing a request to reset a
@@ -304,9 +317,9 @@ class LinkMobile {
   /**
    * @brief Calls the ISP number registered in the adapter configuration, or a
    * default number if the adapter hasn't been configured. Then, performs a
-   * login operation using the provided `password` and `loginId`. If `loginId`
-   * is empty and the adapter has been configured, it will use the one stored in
-   * the configuration.
+   * login operation using the provided `password` and `loginId`. After some
+   * time, the state will be `ISP_ACTIVE`. If `loginId` is empty and the adapter
+   * has been configured, it will use the one stored in the configuration.
    * @param password The password, as a null-terminated string (max `32`
    * characters).
    * @param loginId The login ID, as a null-terminated string (max `32`
@@ -334,23 +347,57 @@ class LinkMobile {
   }
 
   /**
+   * @brief Looks up the IPv4 address for a domain name.
+   * @param domain A null-terminated string for the domain name (max `253`
+   * characters).
+   * @param result A pointer to a `LinkMobile::DNSQuery` struct that
+   * will be filled with the result. When the request is completed, the
+   * `completed` field will be `true`. If an IP address was found, the `success`
+   * field will be `true` and the `ipv4` field can be read as a 4-byte address.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active ISP session or available request slots.
+   */
+  bool dnsQuery(const char* domainName, DNSQuery* result) {
+    if (state != ISP_ACTIVE || userRequests.isFull())
+      return false;
+
+    result->completed = false;
+    result->success = false;
+    u32 size = std::strlen(domainName);
+    if (size > LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH)
+      size = LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH;
+
+    auto request = UserRequest{.type = UserRequest::Type::DNS_QUERY,
+                               .send = {.data = {}},
+                               .dns = result,
+                               .commandSent = false};
+    for (u32 i = 0; i < size; i++)
+      request.send.data[i] = domainName[i];
+    request.send.size = size;
+
+    pushRequest(request);
+    return true;
+  }
+
+  /**
    * @brief Requests a data transfer within a P2P connection and responds the
    * received data.
    * @param dataToSend The data to send, up to 254 bytes.
-   * @param receivedData A pointer to a `LinkWireless::DataTransfer` struct that
-   * will be filled with data. It can point to `dataToSend`. When the transfer
-   * is completed, the `completed` field will be `true`.
+   * @param result A pointer to a `LinkMobile::DataTransfer` struct that
+   * will be filled with the received data. It can also point to `dataToSend` to
+   * reuse the struct. When the transfer is completed, the `completed` field
+   * will be `true`.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
    * active call or available request slots.
    */
-  bool transfer(DataTransfer dataToSend, DataTransfer* receivedData) {
+  bool transfer(DataTransfer dataToSend, DataTransfer* result) {
     if (state != CALL_ESTABLISHED || userRequests.isFull())
       return false;
 
-    receivedData->completed = false;
+    result->completed = false;
     auto request = UserRequest{.type = UserRequest::Type::TRANSFER,
                                .send = {.data = {}, .size = dataToSend.size},
-                               .receive = receivedData,
+                               .receive = result,
                                .commandSent = false};
     for (u32 i = 0; i < dataToSend.size; i++)
       request.send.data[i] = dataToSend.data[i];
@@ -544,12 +591,13 @@ class LinkMobile {
   enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type { CALL, ISP_LOGIN, TRANSFER, HANG_UP, SHUTDOWN };
+    enum Type { CALL, ISP_LOGIN, DNS_QUERY, TRANSFER, HANG_UP, SHUTDOWN };
 
     Type type;
     char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH + 1];
     DataTransfer send;
     DataTransfer* receive;
+    DNSQuery* dns;
     char loginId[LINK_MOBILE_MAX_LOGIN_ID_LENGTH + 1];
     char password[LINK_MOBILE_MAX_PASSWORD_LENGTH + 1];
     bool commandSent;
@@ -750,6 +798,18 @@ class LinkMobile {
         }
         break;
       }
+      case UserRequest::Type::DNS_QUERY: {
+        if (state != ISP_ACTIVE) {
+          userRequests.pop();
+          return;
+        }
+
+        if (!asyncCommand.isActive && !request.commandSent) {
+          cmdDNSQuery(request.send.data, request.send.size);
+          request.commandSent = true;
+        }
+        break;
+      }
       case UserRequest::Type::TRANSFER: {
         if (state != CALL_ESTABLISHED) {
           userRequests.pop();
@@ -918,13 +978,14 @@ class LinkMobile {
         break;
       }
       case SESSION_ACTIVE: {
-        if (asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL)) {
-          if (asyncCommand.result == CommandResult::SUCCESS) {
-            setState(CALL_ESTABLISHED);
-            role = Role::RECEIVER;
-          } else {
-            // (no call received)
-          }
+        if (!asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL))
+          return;
+
+        if (asyncCommand.result == CommandResult::SUCCESS) {
+          setState(CALL_ESTABLISHED);
+          role = Role::RECEIVER;
+        } else {
+          // (no call received)
         }
         break;
       }
@@ -936,7 +997,7 @@ class LinkMobile {
           setState(CALL_ESTABLISHED);
           role = Role::CALLER;
         } else {
-          // (call terminated)
+          // (call failed)
           setState(SESSION_ACTIVE);
         }
         break;
@@ -948,44 +1009,38 @@ class LinkMobile {
         }
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
           return;
+        if (asyncCommand.cmd.header.size == 0)
+          return abort(Error::Type::WEIRD_RESPONSE);
         if (userRequests.isEmpty())
           return abort(Error::Type::WTF);
+        auto request = userRequests.peekRef();
+        if (request->type != UserRequest::TRANSFER)
+          return abort(Error::Type::WTF);
 
-        auto request = userRequests.peek();
-
-        if (asyncCommand.result == CommandResult::SUCCESS) {
-          if (asyncCommand.cmd.header.size == 0)
-            return abort(Error::Type::WEIRD_RESPONSE);
-
-          if (request.type == UserRequest::TRANSFER) {
-            u32 size = asyncCommand.cmd.header.size - 1;
-            for (u32 i = 0; i < size; i++)
-              request.receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
-            request.receive->size = size;
-            request.receive->completed = true;
-            request.finished = true;
-          } else
-            return abort(Error::Type::WTF);
-        } else {
-          setState(SESSION_ACTIVE);
-        }
+        u32 size = asyncCommand.cmd.header.size - 1;
+        for (u32 i = 0; i < size; i++)
+          request->receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
+        request->receive->size = size;
+        request->receive->completed = true;
+        request->finished = true;
       }
       case ISP_CALLING: {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
           return;
         if (userRequests.isEmpty())
           return abort(Error::Type::WTF);
-
-        auto request = userRequests.peek();
-
-        if (request.type == UserRequest::ISP_LOGIN) {
-          if (asyncCommand.result == CommandResult::SUCCESS) {
-            setState(ISP_LOGIN);
-            cmdISPLogin(request.loginId, request.password);
-          }
-          request.finished = true;
-        } else
+        auto request = userRequests.peekRef();
+        if (request->type != UserRequest::ISP_LOGIN)
           return abort(Error::Type::WTF);
+
+        if (asyncCommand.result == CommandResult::SUCCESS) {
+          setState(ISP_LOGIN);
+          cmdISPLogin(request->loginId, request->password);
+        } else {
+          // (ISP call failed)
+          setState(SESSION_ACTIVE);
+        }
+        request->finished = true;
 
         break;
       }
@@ -1003,8 +1058,43 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
           return;
         }
+        if (userRequests.isEmpty())
+          return abort(Error::Type::WTF);
 
-        // TODO: IMPLEMENT
+        auto request = userRequests.peekRef();
+
+        if (asyncCommand.respondsTo(COMMAND_DNS_QUERY)) {
+          if (request->type != UserRequest::DNS_QUERY)
+            return abort(Error::Type::WTF);
+
+          if (asyncCommand.result == CommandResult::SUCCESS) {
+            if (asyncCommand.cmd.header.size != 4)
+              return abort(Error::Type::WEIRD_RESPONSE);
+            for (u32 i = 0; i < 4; i++)
+              request->dns->ipv4[i] = asyncCommand.cmd.data.bytes[i];
+            request->dns->success = true;
+          } else {
+            request->dns->success = false;
+          }
+
+          request->dns->completed = true;
+          request->finished = true;
+          break;
+        } else if (asyncCommand.respondsTo(COMMAND_TRANSFER_DATA)) {
+          if (request->type != UserRequest::TRANSFER)
+            return abort(Error::Type::WTF);
+
+          // TODO: HANDLE TRANSFER DATA
+          // if (asyncCommand.cmd.header.size == 0)
+          //   return abort(Error::Type::WEIRD_RESPONSE);
+          // TODO: IMPLEMENT
+          // u32 size = asyncCommand.cmd.header.size - 1;
+          // for (u32 i = 0; i < size; i++)
+          //   request.receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
+          // request.receive->size = size;
+          // request.receive->completed = true;
+          // request.finished = true;
+        }
         break;
       }
       case ENDING_SESSION: {
@@ -1063,7 +1153,7 @@ class LinkMobile {
   }
 
   void cmdTelephoneStatus() {
-    sendCommandAsync(buildCommand(COMMAND_TELEPHONE_STATUS, true));
+    sendCommandAsync(buildCommand(COMMAND_TELEPHONE_STATUS));
   }
 
   void cmdSIO32(bool enabled) {
@@ -1097,6 +1187,12 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_ISP_LOGIN, true));
   }
 
+  void cmdDNSQuery(const u8* data, u8 size) {
+    for (int i = 0; i < size; i++)
+      addData(data[i], i == 0);
+    sendCommandAsync(buildCommand(COMMAND_DNS_QUERY, true));
+  }
+
   void setISPNumber() {
     static const char BCD[16] = "0123456789#*cde";
 
@@ -1123,7 +1219,8 @@ class LinkMobile {
     u8 commandId = asyncCommand.relatedCommandId();
     return asyncCommand.direction == AsyncCommand::Direction::SENDING ||
            (commandId != COMMAND_WAIT_FOR_TELEPHONE_CALL &&
-            commandId != COMMAND_DIAL_TELEPHONE);
+            commandId != COMMAND_DIAL_TELEPHONE &&
+            commandId != COMMAND_DNS_QUERY);
   }
 
   void addData(u8 value, bool start = false) {

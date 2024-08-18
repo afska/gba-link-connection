@@ -13,6 +13,12 @@ void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text);
 std::string readConfiguration();
 std::string getNumberInput();
 std::string getPasswordInput();
+std::string getDomainInput();
+std::string getTextInput(std::string& field,
+                         u32 maxChars,
+                         std::string inputName,
+                         std::string defaultValue,
+                         std::string defaultValueName);
 std::string getInput(std::string& field,
                      u32 maxChars,
                      std::string inputName,
@@ -38,6 +44,7 @@ bool a = false, b = false, l = false, r = false;
 bool start = false, select = false;
 std::string selectedNumber = "";
 std::string selectedPassword = "";
+std::string selectedDomain = "";
 
 LinkMobile* linkMobile = NULL;
 
@@ -73,6 +80,8 @@ start:
   bool isConnected = false;
   LinkMobile::DataTransfer dataTransfer;
   LinkMobile::DataTransfer lastCompletedTransfer;
+  LinkMobile::DNSQuery dnsQuery;
+  bool waitingDNS = false;
   std::string outgoingData = "";
   u32 counter = 0;
   u32 frameCounter = 0;
@@ -83,7 +92,6 @@ start:
 
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    // Menu
     std::string output = "";
     bool shouldWaitForA = false;
     output += "State = " + getStateString(linkMobile->getState()) + "\n";
@@ -97,12 +105,13 @@ start:
       output += "\nL = Read Configuration";
       output += "\nR = Call someone";
       output += "\nSTART = Call the ISP";
-      output += "\n (A = ok)\n (SELECT = stop)";
+      output += "\n\n (A = ok)\n (SELECT = stop)";
     } else {
       if (linkMobile->isConnectedP2P()) {
         output += "\n (A = send)";
         output += "\n (L = hang up)";
       } else if (linkMobile->isConnectedISP()) {
+        output += "\n (LEFT = DNS query)";
         output += "\n (L = hang up)";
       }
       output += "\n (SELECT = stop)";
@@ -116,25 +125,26 @@ start:
                            : "receiver!!!";
         transfer(dataTransfer, outgoingData);
       }
-
       if (dataTransfer.completed) {
         if (dataTransfer.size > 0)
           lastCompletedTransfer = dataTransfer;
-
-        if (keys & KEY_A) {
-          counter++;
-          outgoingData = (linkMobile->getRole() == LinkMobile::Role::CALLER
-                              ? "caller: "
-                              : "receiver: ") +
-                         std::to_string(counter);
-        }
-
-        frameCounter++;
-        if (frameCounter >= TRANSFER_FREQUENCY) {
-          frameCounter = 0;
-          transfer(dataTransfer, outgoingData);
-        }
+        dataTransfer.completed = false;
       }
+
+      if (keys & KEY_A) {
+        counter++;
+        outgoingData =
+            (linkMobile->getRole() == LinkMobile::Role::CALLER ? "caller: "
+                                                               : "receiver: ") +
+            std::to_string(counter);
+      }
+
+      frameCounter++;
+      if (frameCounter >= TRANSFER_FREQUENCY) {
+        frameCounter = 0;
+        transfer(dataTransfer, outgoingData);
+      }
+
       if (lastCompletedTransfer.completed) {
         char received[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH];
         for (u32 i = 0; i < lastCompletedTransfer.size; i++)
@@ -143,11 +153,28 @@ start:
         output += "\n\n>> " + std::string(outgoingData);
         output += "\n<< " + std::string(received);
       }
+    } else if (linkMobile->isConnectedISP()) {
+      if (!isConnected)
+        isConnected = true;
+
+      if (waitingDNS && dnsQuery.completed) {
+        waitingDNS = false;
+        log("DNS Response:\n  " + std::to_string(dnsQuery.ipv4[0]) + "." +
+            std::to_string(dnsQuery.ipv4[1]) + "." +
+            std::to_string(dnsQuery.ipv4[2]) + "." +
+            std::to_string(dnsQuery.ipv4[3]) + "\n\n" +
+            (dnsQuery.success ? "Success!" : "Failure!"));
+        waitForA();
+      }
+
+      output += waitingDNS ? "\n\nWaiting DNS..." : "";
     } else {
       if (isConnected) {
         isConnected = false;
         dataTransfer = {};
         lastCompletedTransfer = {};
+        dnsQuery = {};
+        waitingDNS = false;
         counter = 0;
         frameCounter = 0;
         outgoingData = "";
@@ -198,13 +225,30 @@ start:
         if (didPress(KEY_START, start)) {
           std::string password = getPasswordInput();
           if (password != "") {
+            // (7) Connect to the internet
             linkMobile->callISP(password.c_str());
           }
         }
         break;
       }
-      case LinkMobile::State::CALL_ESTABLISHED:
+      case LinkMobile::State::CALL_ESTABLISHED: {
+        // L = hang up
+        if (didPress(KEY_L, l)) {
+          // (6) Hang up
+          linkMobile->hangUp();
+        }
+        break;
+      }
       case LinkMobile::State::ISP_ACTIVE: {
+        // LEFT = DNS query
+        if (didPress(KEY_LEFT, left)) {
+          std::string domain = getDomainInput();
+          if (domain != "") {
+            // (8) Run DNS queries
+            linkMobile->dnsQuery(domain.c_str(), &dnsQuery);
+            waitingDNS = true;
+          }
+        }
         // L = hang up
         if (didPress(KEY_L, l)) {
           // (6) Hang up
@@ -272,6 +316,20 @@ std::string getNumberInput() {
 }
 
 std::string getPasswordInput() {
+  return getTextInput(selectedPassword, LINK_MOBILE_MAX_PASSWORD_LENGTH,
+                      "your password", "pass123", "pass123");
+}
+
+std::string getDomainInput() {
+  return getTextInput(selectedDomain, LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH,
+                      "a domain name", "something.com", "something.com");
+}
+
+std::string getTextInput(std::string& field,
+                         u32 maxChars,
+                         std::string inputName,
+                         std::string defaultValue,
+                         std::string defaultValueName) {
   std::vector<std::vector<std::string>> rows;
   rows.push_back({"a", "b", "c", "d", "e"});
   rows.push_back({"f", "g", "h", "i", "j"});
@@ -280,7 +338,7 @@ std::string getPasswordInput() {
   rows.push_back({"u", "v", "w", "x", "y"});
   rows.push_back({"z", "1", "2", "3", "4"});
   rows.push_back({"5", "6", "7", "8", "9"});
-  rows.push_back({"0", "!", "?", "#", "*"});
+  rows.push_back({"0", ".", "#", "/", "?"});
 
   std::vector<std::vector<std::string>> altRows;
   altRows.push_back({"A", "B", "C", "D", "E"});
@@ -290,11 +348,10 @@ std::string getPasswordInput() {
   altRows.push_back({"U", "V", "W", "X", "Y"});
   altRows.push_back({"Z", "1", "2", "3", "4"});
   altRows.push_back({"5", "6", "7", "8", "9"});
-  altRows.push_back({"0", "!", "?", "#", "*"});
+  altRows.push_back({"0", ".", "#", "/", "?"});
 
-  return getInput(selectedPassword, LINK_MOBILE_MAX_PASSWORD_LENGTH,
-                  "your password", rows, altRows, "pass123", "pass123",
-                  "caps lock");
+  return getInput(field, maxChars, inputName, rows, altRows, defaultValue,
+                  defaultValueName, "caps lock");
 }
 
 std::string getInput(std::string& field,
@@ -429,7 +486,7 @@ std::string getErrorString(LinkMobile::Error error) {
          toHex(error.cmdId) +
          "\n  CmdResult: " + getResultString(error.cmdResult) +
          "\n  CmdErrorCode: " + std::to_string(error.cmdErrorCode) +
-         "\n  ReqType: " + std::to_string(error.reqType) + "\n\n";
+         "\n  ReqType: " + std::to_string(error.reqType) + "\n";
 }
 
 std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
