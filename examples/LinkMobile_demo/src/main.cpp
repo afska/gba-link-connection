@@ -89,14 +89,16 @@ start:
       output += "\nSTART = Call the ISP";
       output += "\n (A = ok)\n (SELECT = stop)";
     } else {
-      if (linkMobile->isP2PConnected()) {
+      if (linkMobile->isConnectedP2P()) {
         output += "\n (A = send)";
+        output += "\n (L = hang up)";
+      } else if (linkMobile->isConnectedISP()) {
         output += "\n (L = hang up)";
       }
       output += "\n (SELECT = stop)";
     }
 
-    if (linkMobile->isP2PConnected()) {
+    if (linkMobile->isConnectedP2P()) {
       if (!isConnected) {
         isConnected = true;
         outgoingData = linkMobile->getRole() == LinkMobile::Role::CALLER
@@ -181,9 +183,15 @@ start:
             linkMobile->call(number.c_str());
           }
         }
+
+        // START = Call the ISP
+        if (didPress(KEY_START, start)) {
+          linkMobile->callISP("asdasd");
+        }
         break;
       }
-      case LinkMobile::State::CALL_ESTABLISHED: {
+      case LinkMobile::State::CALL_ESTABLISHED:
+      case LinkMobile::State::ISP_ACTIVE: {
         // L = hang up
         if (didPress(KEY_L, l)) {
           // (6) Hang up
@@ -368,12 +376,16 @@ std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
   switch (errorType) {
     case LinkMobile::Error::Type::ADAPTER_NOT_CONNECTED:
       return "ADAPTER_NOT_CONNECTED";
+    case LinkMobile::Error::Type::ISP_LOGIN_FAILED:
+      return "ISP_LOGIN_FAILED";
     case LinkMobile::Error::Type::COMMAND_FAILED:
       return "COMMAND_FAILED";
     case LinkMobile::Error::Type::WEIRD_RESPONSE:
       return "WEIRD_RESPONSE";
     case LinkMobile::Error::Type::TIMEOUT:
       return "TIMEOUT";
+    case LinkMobile::Error::Type::WTF:
+      return "WTF";
     default:
       return "?";
   }

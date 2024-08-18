@@ -18,7 +18,7 @@
 //       // (do something until `linkMobile->isSessionActive()` returns `true`)
 // - 4) Call someone:
 //       linkMobile->call("127000000001");
-//       // (do something until `linkMobile->isP2PConnected()` returns `true`)
+//       // (do something until `linkMobile->isConnectedP2P()` returns `true`)
 // - 5) Send/receive data:
 //       LinkMobile::DataTransfer dataTransfer = { .size = 5 };
 //       for (u32 i = 0; i < 5; i++)
@@ -30,6 +30,7 @@
 //       linkMobile->hangUp();
 // - 7) Turn off the adapter:
 //       linkMobile->shutdown();
+// TODO: DOCUMENT ISP METHODS
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That causes packet loss. You REALLY want to use libugba's instead.
@@ -169,9 +170,11 @@ class LinkMobile {
     enum Type {
       NONE,
       ADAPTER_NOT_CONNECTED,
+      ISP_LOGIN_FAILED,
       COMMAND_FAILED,
       WEIRD_RESPONSE,
-      TIMEOUT
+      TIMEOUT,
+      WTF
     };
 
     Error::Type type = Error::Type::NONE;
@@ -356,12 +359,13 @@ class LinkMobile {
   }
 
   /**
-   * @brief Hangs up the current P2P call.
+   * @brief Hangs up the current P2P or ISP call. Closes all connections.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
    * active call or available request slots.
    */
   bool hangUp() {
-    if (state != CALL_ESTABLISHED || userRequests.isFull())
+    if ((state != CALL_ESTABLISHED && state != ISP_ACTIVE) ||
+        userRequests.isFull())
       return false;
 
     pushRequest(UserRequest{.type = UserRequest::Type::HANG_UP});
@@ -411,7 +415,13 @@ class LinkMobile {
    * @brief Returns `true` if a P2P call is established (the state is
    * `CALL_ESTABLISHED`).
    */
-  [[nodiscard]] bool isP2PConnected() { return state == CALL_ESTABLISHED; }
+  [[nodiscard]] bool isConnectedP2P() { return state == CALL_ESTABLISHED; }
+
+  /**
+   * @brief Returns `true` if an ISP call is active (the state is
+   * `ISP_ACTIVE`).
+   */
+  [[nodiscard]] bool isConnectedISP() { return state == ISP_ACTIVE; }
 
   /**
    * @brief Returns `true` if the session is active.
@@ -544,6 +554,7 @@ class LinkMobile {
     char password[LINK_MOBILE_MAX_PASSWORD_LENGTH + 1];
     bool commandSent;
     u32 timeout;
+    bool finished;
   };
 
   union AdapterConfiguration {
@@ -696,6 +707,11 @@ class LinkMobile {
       return;
     }
 
+    if (userRequests.peek().finished)
+      userRequests.pop();
+    if (userRequests.isEmpty())
+      return;
+
     auto request = userRequests.peek();
     request.timeout++;
     if (shouldAbortOnRequestTimeout() && request.timeout >= config.timeout)
@@ -717,6 +733,23 @@ class LinkMobile {
         }
         break;
       }
+      case UserRequest::Type::ISP_LOGIN: {
+        if (state != SESSION_ACTIVE && state != ISP_CALL_REQUESTED &&
+            state != ISP_CALLING) {
+          userRequests.pop();
+          return;
+        }
+        if (state == SESSION_ACTIVE)
+          setState(ISP_CALL_REQUESTED);
+
+        if (!asyncCommand.isActive && state == ISP_CALL_REQUESTED) {
+          setState(ISP_CALLING);
+          cmdDialTelephone(adapterConfiguration.isValid()
+                               ? adapterConfiguration.fields._ispNumber1
+                               : FALLBACK_ISP_NUMBER);
+        }
+        break;
+      }
       case UserRequest::Type::TRANSFER: {
         if (state != CALL_ESTABLISHED) {
           userRequests.pop();
@@ -729,7 +762,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::HANG_UP: {
-        if (state != CALL_ESTABLISHED) {
+        if (state != CALL_ESTABLISHED && state != ISP_ACTIVE) {
           userRequests.pop();
           return;
         }
@@ -913,9 +946,10 @@ class LinkMobile {
           setState(SESSION_ACTIVE);
           return;
         }
-
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
           return;
+        if (userRequests.isEmpty())
+          return abort(Error::Type::WTF);
 
         auto request = userRequests.peek();
 
@@ -929,11 +963,49 @@ class LinkMobile {
               request.receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
             request.receive->size = size;
             request.receive->completed = true;
-            userRequests.pop();
-          }
+            request.finished = true;
+          } else
+            return abort(Error::Type::WTF);
         } else {
           setState(SESSION_ACTIVE);
         }
+      }
+      case ISP_CALLING: {
+        if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
+          return;
+        if (userRequests.isEmpty())
+          return abort(Error::Type::WTF);
+
+        auto request = userRequests.peek();
+
+        if (request.type == UserRequest::ISP_LOGIN) {
+          if (asyncCommand.result == CommandResult::SUCCESS) {
+            setState(ISP_LOGIN);
+            cmdISPLogin(request.loginId, request.password);
+          }
+          request.finished = true;
+        } else
+          return abort(Error::Type::WTF);
+
+        break;
+      }
+      case ISP_LOGIN: {
+        if (!asyncCommand.respondsTo(COMMAND_ISP_LOGIN))
+          return;
+        if (asyncCommand.result != CommandResult::SUCCESS)
+          return abort(Error::Type::ISP_LOGIN_FAILED);
+
+        setState(ISP_ACTIVE);
+        break;
+      }
+      case ISP_ACTIVE: {
+        if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
+          setState(SESSION_ACTIVE);
+          return;
+        }
+
+        // TODO: IMPLEMENT
+        break;
       }
       case ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
@@ -968,7 +1040,7 @@ class LinkMobile {
 
   void cmdEndSession() { sendCommandAsync(buildCommand(COMMAND_END_SESSION)); }
 
-  void cmdDialTelephone(char* phoneNumber) {
+  void cmdDialTelephone(const char* phoneNumber) {
     addData(DIAL_PHONE_FIRST_BYTE[adapterType], true);
     for (u32 i = 0; i < std::strlen(phoneNumber); i++)
       addData(phoneNumber[i]);
@@ -1005,6 +1077,26 @@ class LinkMobile {
     sendCommandAsync(buildCommand(COMMAND_READ_CONFIGURATION_DATA, true));
   }
 
+  void cmdISPLogin(const char* loginId, const char* password) {
+    u32 loginIdLength = std::strlen(loginId);
+    addData(loginIdLength, true);
+    for (u32 i = 0; i < loginIdLength; i++)
+      addData(loginId[i]);
+
+    u32 passwordLength = std::strlen(password);
+    addData(passwordLength);
+    for (u32 i = 0; i < passwordLength; i++)
+      addData(password[i]);
+
+    bool isConfigured = isConfigurationValid();
+    for (u32 i = 0; i < 4; i++)
+      addData(isConfigured ? adapterConfiguration.fields.primaryDNS[i] : 0);
+    for (u32 i = 0; i < 4; i++)
+      addData(isConfigured ? adapterConfiguration.fields.secondaryDNS[i] : 0);
+
+    sendCommandAsync(buildCommand(COMMAND_ISP_LOGIN, true));
+  }
+
   void setISPNumber() {
     static const char BCD[16] = "0123456789#*cde";
 
@@ -1017,6 +1109,7 @@ class LinkMobile {
 
   void pushRequest(UserRequest request) {
     request.timeout = 0;
+    request.finished = false;
     userRequests.syncPush(request);
   }
 

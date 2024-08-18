@@ -445,12 +445,13 @@ Name | Return type | Description
 `shutdown()` | **bool** | Gracefully shuts down the adapter, closing all connections. After some time, the state will be changed to `SHUTDOWN`, and only then it's safe to call `deactivate()`.
 `call(phoneNumber)` | **bool** | Initiates a P2P connection with a `phoneNumber`. After some time, the state will be `CALL_ESTABLISHED`, or `ACTIVE_SESSION` if the connection fails or ends. In REON/libmobile the phone number can be a number assigned by the relay server, or a 12-digit IPv4 address (for example, `"127000000001"` would be `127.0.0.1`).
 `transfer(dataToSend, receivedData)` | **bool** | Requests a data transfer (up to `254` bytes) within a P2P connection and responds the received data. The `receivedData` is a pointer to a `LinkWireless::DataTransfer` struct that will be filled with data. It can point to `dataToSend`. When the transfer is completed, the `completed` field will be `true`.
-`hangUp()` | **bool** |  Hangs up the current P2P call.
+`hangUp()` | **bool** |  Hangs up the current P2P or ISP call. Closes all connections.
 `readConfiguration(configurationData)` | **bool** | Retrieves the adapter configuration, and puts it in the `configurationData` struct. If the adapter has an active session, the data is already loaded, so it's instantaneous.
 `getState()` | **LinkMobile::State** | Returns the current state (one of `LinkMobile::State::NEEDS_RESET`, `LinkMobile::State::PINGING`, `LinkMobile::State::WAITING_TO_START`, `LinkMobile::State::STARTING_SESSION`, `LinkMobile::State::ACTIVATING_SIO32`, `LinkMobile::State::WAITING_32BIT_SWITCH`, `LinkMobile::State::READING_CONFIGURATION`, `LinkMobile::State::SESSION_ACTIVE`, `LinkMobile::State::CALL_REQUESTED`, `LinkMobile::State::CALLING`, `LinkMobile::State::CALL_ESTABLISHED`, `LinkMobile::State::ISP_CALL_REQUESTED`, `LinkMobile::State::ISP_CALLING`, `LinkMobile::State::ISP_LOGIN`, `LinkMobile::State::ISP_ACTIVE`, `LinkMobile::State::SHUTDOWN_REQUESTED`, `LinkMobile::State::ENDING_SESSION`, `LinkMobile::State::WAITING_8BIT_SWITCH`, or `LinkMobile::State::SHUTDOWN`).
 `getRole()` | **LinkMobile::Role** | Returns the current role in the P2P connection (one of `LinkMobile::Role::NO_P2P_CONNECTION`, `LinkMobile::Role::CALLER`, or `LinkMobile::Role::RECEIVER`).
 `isConfigurationValid()` | **int** | Returns whether the adapter has been configured or not. Returns `1` = yes, `0` = no, `-1` = unknown (no session active).
-`isP2PConnected()` | **bool** | Returns `true` if a P2P call is established (the state is `CALL_ESTABLISHED`).
+`isConnectedP2P()` | **bool** | Returns `true` if a P2P call is established (the state is `CALL_ESTABLISHED`).
+`isConnectedISP()` | **bool** | Returns `true` if an ISP call is active (the state is `ISP_ACTIVE`).
 `isSessionActive()` | **bool** | Returns `true` if the session is active.
 `canShutdown()` | **bool** | Returns `true` if there's an active session and there's no previous shutdown requests.
 `getDataSize()` | **LinkSPI::DataSize** | Returns the current operation mode (`LinkSPI::DataSize`).
