@@ -35,7 +35,18 @@
 //       linkMobile->dnsQuery("something.com", &dnsQuery);
 //       // (do something until `dnsQuery.completed` is `true`)
 //       // (use `dnsQuery.success` and `dnsQuery.ipv4`)
-// - 7) Turn off the adapter:
+// - 9) Open connections:
+//       auto type = LinkMobile::ConnectionType::TCP;
+//       LinkMobile::OpenConn openConn;
+//       linkMobile->openConnection(dnsQuery.ipv4, type, openConn);
+//       // (do something until `openConn.completed` is `true`)
+//       // (use `openConn.connectionId` as last argument of `transfer(...)`)
+// - 10) Close connections:
+//       auto type = LinkMobile::ConnectionType::TCP;
+//       LinkMobile::CloseConn closeConn;
+//       linkMobile->closeConnection(openConn.connectionId, type, closeConn);
+//       // (do something until `openConn.completed` is `true`)
+// - 11) Turn off the adapter:
 //       linkMobile->shutdown();
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
@@ -158,40 +169,7 @@ class LinkMobile {
     SHUTDOWN
   };
 
-  enum CommandResult {
-    PENDING,
-    SUCCESS,
-    NOT_WAITING,
-    INVALID_DEVICE_ID,
-    INVALID_COMMAND_ACK,
-    INVALID_MAGIC_BYTES,
-    WEIRD_DATA_SIZE,
-    WRONG_CHECKSUM,
-    ERROR_CODE,
-    WEIRD_ERROR_CODE
-  };
-
   enum Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
-
-  struct Error {
-    enum Type {
-      NONE,
-      ADAPTER_NOT_CONNECTED,
-      ISP_LOGIN_FAILED,
-      COMMAND_FAILED,
-      WEIRD_RESPONSE,
-      TIMEOUT,
-      WTF
-    };
-
-    Error::Type type = Error::Type::NONE;
-    State state = State::NEEDS_RESET;
-    u8 cmdId = 0;
-    CommandResult cmdResult = CommandResult::PENDING;
-    u8 cmdErrorCode = 0;
-    bool cmdIsSending = false;
-    int reqType = -1;
-  };
 
   struct ConfigurationData {
     char magic[2];
@@ -215,16 +193,63 @@ class LinkMobile {
     char _ispNumber1[16 + 1];  // (parsed from `configurationSlot1`)
   } __attribute__((packed));
 
-  struct DataTransfer {
-    u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
-    u8 size = 0;
-    bool completed = false;
-  };
-
   struct DNSQuery {
-    u8 ipv4[4] = {};
     bool completed = false;
     bool success = false;
+    u8 ipv4[4] = {};
+  };
+
+  enum ConnectionType { TCP, UDP };
+
+  struct OpenConn {
+    bool completed = false;
+    bool success = false;
+    u8 connectionId = 0;
+  };
+
+  struct CloseConn {
+    bool completed = false;
+    bool success = false;
+  };
+
+  struct DataTransfer {
+    bool completed = false;
+    bool success = false;
+    u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
+    u8 size = 0;
+  };
+
+  enum CommandResult {
+    PENDING,
+    SUCCESS,
+    NOT_WAITING,
+    INVALID_DEVICE_ID,
+    INVALID_COMMAND_ACK,
+    INVALID_MAGIC_BYTES,
+    WEIRD_DATA_SIZE,
+    WRONG_CHECKSUM,
+    ERROR_CODE,
+    WEIRD_ERROR_CODE
+  };
+
+  struct Error {
+    enum Type {
+      NONE,
+      ADAPTER_NOT_CONNECTED,
+      ISP_LOGIN_FAILED,
+      COMMAND_FAILED,
+      WEIRD_RESPONSE,
+      TIMEOUT,
+      WTF
+    };
+
+    Error::Type type = Error::Type::NONE;
+    State state = State::NEEDS_RESET;
+    u8 cmdId = 0;
+    CommandResult cmdResult = CommandResult::PENDING;
+    u8 cmdErrorCode = 0;
+    bool cmdIsSending = false;
+    int reqType = -1;
   };
 
   /**
@@ -368,8 +393,8 @@ class LinkMobile {
       size = LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH;
 
     auto request = UserRequest{.type = UserRequest::Type::DNS_QUERY,
-                               .send = {.data = {}},
                                .dns = result,
+                               .send = {.data = {}},
                                .commandSent = false};
     for (u32 i = 0; i < size; i++)
       request.send.data[i] = domainName[i];
@@ -380,22 +405,98 @@ class LinkMobile {
   }
 
   /**
-   * @brief Requests a data transfer within a P2P connection and responds the
-   * received data.
+   * @brief Opens a TCP/UDP (`type`) connection at the given `ip` (4-byte
+   * address) on the given `port`.
+   * @param ip The 4-byte address.
+   * @param port The port.
+   * @param type One of the enum values from `LinkMobile::ConnectionType`.
+   * @param result A pointer to a `LinkMobile::OpenConn` struct that
+   * will be filled with the result. When the request is completed, the
+   * `completed` field will be `true`. If the connection was successful, the
+   * `success` field will be `true` and the `connectionId` field can be used
+   * when calling the `transfer(...)` method.
+   * \warning Only `2` connections can be opened at the same time.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active ISP session, no available request slots.
+   */
+  bool openConnection(const u8* ip,
+                      u16 port,
+                      ConnectionType type,
+                      OpenConn* result) {
+    if (state != ISP_ACTIVE || userRequests.isFull())
+      return false;
+
+    result->completed = false;
+    result->success = false;
+
+    auto request = UserRequest{.type = UserRequest::Type::OPEN_CONNECTION,
+                               .open = result,
+                               .connectionType = type,
+                               .commandSent = false};
+    for (u32 i = 0; i < 4; i++)
+      request.ip[i] = ip[i];
+    request.port = port;
+
+    pushRequest(request);
+    return true;
+  }
+  // TODO: IMPLEMENT SOCKET METHODS
+
+  /**
+   * @brief Closes an active TCP/UDP (`type`) connection.
+   * @param connectionId The ID of the connection.
+   * @param type One of the enum values from `LinkMobile::ConnectionType`.
+   * @param result A pointer to a `LinkMobile::CloseConn` struct that
+   * will be filled with the result. When the request is completed, the
+   * `completed` field will be `true`. If the connection was closed correctly,
+   * the `success` field will be `true`.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
+   * active ISP session, no available request slots.
+   */
+  bool closeConnection(u8 connectionId,
+                       ConnectionType type,
+                       CloseConn* result) {
+    if (state != ISP_ACTIVE || userRequests.isFull())
+      return false;
+
+    result->completed = false;
+    result->success = false;
+
+    auto request = UserRequest{.type = UserRequest::Type::CLOSE_CONNECTION,
+                               .close = result,
+                               .connectionType = type,
+                               .commandSent = false};
+    request.connectionId = connectionId;
+
+    pushRequest(request);
+    return true;
+  }
+
+  /**
+   * @brief Requests a data transfer and responds the received data. The
+   * transfer can be done with the other node in a P2P connection, or with any
+   * open TCP/UDP connection if an ISP session is active. In the case of a
+   * TCP/UDP connection, the `connectionId` must be provided.
    * @param dataToSend The data to send, up to 254 bytes.
    * @param result A pointer to a `LinkMobile::DataTransfer` struct that
    * will be filled with the received data. It can also point to `dataToSend` to
    * reuse the struct. When the transfer is completed, the `completed` field
-   * will be `true`.
-   * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
-   * active call or available request slots.
+   * will be `true`. If the transfer was successful, the `success` field will be
+   * `true`.
+   * \warning Non-blocking. Returns `true` immediately, or `false` if
+   * there's no active call or available request slots.
    */
-  bool transfer(DataTransfer dataToSend, DataTransfer* result) {
-    if (state != CALL_ESTABLISHED || userRequests.isFull())
+  bool transfer(DataTransfer dataToSend,
+                DataTransfer* result,
+                u8 connectionId = 0xff) {
+    if ((state != CALL_ESTABLISHED && state != ISP_ACTIVE) ||
+        userRequests.isFull())
       return false;
 
     result->completed = false;
+    result->success = false;
     auto request = UserRequest{.type = UserRequest::Type::TRANSFER,
+                               .connectionId = connectionId,
                                .send = {.data = {}, .size = dataToSend.size},
                                .receive = result,
                                .commandSent = false};
@@ -591,15 +692,30 @@ class LinkMobile {
   enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type { CALL, ISP_LOGIN, DNS_QUERY, TRANSFER, HANG_UP, SHUTDOWN };
+    enum Type {
+      CALL,
+      ISP_LOGIN,
+      DNS_QUERY,
+      OPEN_CONNECTION,
+      CLOSE_CONNECTION,
+      TRANSFER,
+      HANG_UP,
+      SHUTDOWN
+    };
 
     Type type;
     char phoneNumber[LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH + 1];
-    DataTransfer send;
-    DataTransfer* receive;
-    DNSQuery* dns;
     char loginId[LINK_MOBILE_MAX_LOGIN_ID_LENGTH + 1];
     char password[LINK_MOBILE_MAX_PASSWORD_LENGTH + 1];
+    DNSQuery* dns;
+    OpenConn* open;
+    CloseConn* close;
+    u8 ip[4];
+    u16 port;
+    ConnectionType connectionType;
+    u8 connectionId;
+    DataTransfer send;
+    DataTransfer* receive;
     bool commandSent;
     u32 timeout;
     bool finished;
@@ -1022,6 +1138,7 @@ class LinkMobile {
           request->receive->data[i] = asyncCommand.cmd.data.bytes[1 + i];
         request->receive->size = size;
         request->receive->completed = true;
+        request->receive->success = true;
         request->finished = true;
       }
       case ISP_CALLING: {
