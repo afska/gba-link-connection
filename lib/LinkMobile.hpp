@@ -970,9 +970,7 @@ class LinkMobile {
     return state > NEEDS_RESET && state < SESSION_ACTIVE;
   }
 
-  bool shouldAbortOnRequestTimeout() {
-    return userRequests.peek().type != UserRequest::Type::CALL;
-  }
+  bool shouldAbortOnRequestTimeout() { return true; }
 
   bool shouldAbortOnCommandFailure() {
     u8 commandId = asyncCommand.relatedCommandId();
