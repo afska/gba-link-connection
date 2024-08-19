@@ -32,6 +32,11 @@ make rebuild
 cp LinkGPIO_demo.gba ../
 cd ..
 
+cd LinkMobile_demo/
+make rebuild
+cp LinkMobile_demo.gba ../
+cd ..
+
 cd LinkPS2Keyboard_demo/
 make rebuild
 cp LinkPS2Keyboard_demo.gba ../

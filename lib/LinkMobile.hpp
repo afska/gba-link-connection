@@ -381,7 +381,8 @@ class LinkMobile {
   /**
    * @brief Looks up the IPv4 address for a domain name.
    * @param domain A null-terminated string for the domain name (max `253`
-   * characters).
+   * characters). It also accepts a ASCII IPv4 address, converting it into a
+   * 4-byte address instead of querying the DNS server.
    * @param result A pointer to a `LinkMobile::DNSQuery` struct that
    * will be filled with the result. When the request is completed, the
    * `completed` field will be `true`. If an IP address was found, the `success`
