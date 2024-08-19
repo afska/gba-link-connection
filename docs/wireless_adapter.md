@@ -7,7 +7,7 @@
 
 # The Wireless Adapter
 
-[![The Game Boy Advance Wireless Adapter](img/wirelessadapter.jpg)](img/wirelessadapter.jpg)
+[![The Game Boy Advance Wireless Adapter](img/wireless/wirelessadapter.jpg)](img/wireless/wirelessadapter.jpg)
 
 _The Game Boy Advance Wireless Adapter_
 
@@ -15,7 +15,7 @@ The wireless adapter is a piece of hardware that connects to the link cable port
 
 [![The
 multiboot rom from the wireless adapter showing a game title of AGB.RS and a
-username of CORWIN](img/multiboot.jpg)](img/multiboot.jpg)
+username of CORWIN](img/wireless/multiboot.jpg)](img/wireless/multiboot.jpg)
 
 _You can make this screen display any game_
 
@@ -47,7 +47,7 @@ Broadly speaking the GBA communicates with the wireless adapter using the Serial
 
 [![A logic
 analyser displaying an SPI trace from the GBA and wireless adapter
-communications](img/init.png)](img/init.png)
+communications](img/wireless/init.png)](img/wireless/init.png)
 
 _A logic analyser can be used to probe the link cable protocol between the GBA and a Wireless Adapter_
 
@@ -61,7 +61,7 @@ One thing to make note of is that when I have screenshots showing the logic anal
 
 ## Initialisation
 
-[![The initialisation sequence captured using a logic analyser](img/full_initialisation.png)](img/full_initialisation.png)
+[![The initialisation sequence captured using a logic analyser](img/wireless/full_initialisation.png)](img/wireless/full_initialisation.png)
 
 _The initialisation sequence captured using a logic analyser_
 
@@ -78,13 +78,13 @@ Next is the Nintendo Exchange.
 The GBA and the adapter exchange the word “NINTENDO” with each other in quite a strange way.
 
 [![GBA
-sends `0x7FFF494E` and wireless adapter sends `0x00000000`.](img/first_single_u32.png)](img/first_single_u32.png)
+sends `0x7FFF494E` and wireless adapter sends `0x00000000`.](img/wireless/first_single_u32.png)](img/wireless/first_single_u32.png)
 
 _GBA sends `0x7FFF494E` and wireless adapter sends `0x00000000`._
 
 The GBA here sends `0x7FFF494E`, of this the relevant part is the `0x494E`. If we look up what the bytes `0x49, 0x4E` are you will find them to be the letters `NI`. As exchanges happen simultaneously, at this point the adapter doesn’t know what to respond with and so responds with all zeros.
 
-[![GBA sends `0xFFFF494E` and wireless adapter sends `0x494EB6B1`.](img/first_nintendo_32.png)](img/first_nintendo_32.png)
+[![GBA sends `0xFFFF494E` and wireless adapter sends `0x494EB6B1`.](img/wireless/first_nintendo_32.png)](img/wireless/first_nintendo_32.png)
 
 _GBA sends `0xFFFF494E` and wireless adapter sends `0x494EB6B1`._
 
@@ -157,7 +157,7 @@ Although note that due to the rules, the first few transfers may contain some ju
 ## Commands
 
 [![A command being sent by the GBA and acknowledged by the
-adapter](img/0x17.png)](img/0x17.png)
+adapter](img/wireless/0x17.png)](img/wireless/0x17.png)
 
 _A command being sent by the GBA and acknowledged by the adapter_
 
@@ -205,14 +205,14 @@ Whenever either side expects something to be sent from the other (as SPI is alwa
 
 #### Hello - `0x10`
 
-[![Image without alt text or caption](img/0x10.png)](img/0x10.png)
+[![Image without alt text or caption](img/wireless/0x10.png)](img/wireless/0x10.png)
 
 - Send length: 0, Response length: 0
 - First thing to be called after finishing the initialisation sequence.
 
 #### Setup - `0x17`
 
-[![Image without alt text or caption](img/0x17.png)](img/0x17.png)
+[![Image without alt text or caption](img/wireless/0x17.png)](img/wireless/0x17.png)
 
 - Send length: 1, response length: 0
 - Games set this. It seems to setup the adapter's configuration.
@@ -234,14 +234,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### Broadcast - `0x16`
 
-[![Image without alt text or caption](img/0x16.png)](img/0x16.png)
+[![Image without alt text or caption](img/wireless/0x16.png)](img/wireless/0x16.png)
 
 - Send length: 6, response length: 0
 - The data to be broadcast out to all adapters. Examples of use include the union room, broadcasting game name and username in download play, and the username in direct multiplayer in Pokémon.
 
 💻 This is the first command used to start a server. The 6 parameters are the ASCII characters of the game and user name, plus some bytes indicating whether the server should appear in the Download Play list or not. Here's a byte by byte explanation:
 
-[![Image without alt text or caption](img/broadcast.png)](img/broadcast.png)
+[![Image without alt text or caption](img/wireless/broadcast.png)](img/wireless/broadcast.png)
 
 (if you read from right to left, it says `ICE CLIMBER` - `NINTENDO`)
 
@@ -263,7 +263,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### BroadcastRead - `0x1c`, `0x1d` and `0x1e`
 
-[![Image without alt text or caption](img/0x1d.png)](img/0x1d.png)
+[![Image without alt text or caption](img/wireless/0x1d.png)](img/wireless/0x1d.png)
 
 - Send length: 0, response length: 7 \* number of broadcasts (maximum: 4)
 - All currently broadcasting devices are returned here along with a word of **metadata** (the metadata word first, then 6 words with broadcast data).
@@ -297,14 +297,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### Connect - `0x1f`
 
-[![Image without alt text or caption](img/0x1f.png)](img/0x1f.png)
+[![Image without alt text or caption](img/wireless/0x1f.png)](img/wireless/0x1f.png)
 
 - Send length: 1, response length: 0
 - Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1c-0x1d-and-0x1e).
 
 #### IsFinishedConnect - `0x20`
 
-[![Image without alt text or caption](img/0x20.png)](img/0x20.png)
+[![Image without alt text or caption](img/wireless/0x20.png)](img/wireless/0x20.png)
 
 - Send length: 0, response length: 1
 - Responds with a 16 bit ID as lower 16 bits if finished, otherwise responds with `0x01000000`.
@@ -315,7 +315,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### FinishConnection - `0x21`
 
-[![Image without alt text or caption](img/0x21.png)](img/0x21.png)
+[![Image without alt text or caption](img/wireless/0x21.png)](img/wireless/0x21.png)
 
 - Send length: 0, response length: 1
 - Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the final device ID (which tends to be equal to the ID from the previous command), the `clientNumber` in bits 16 and 17, and if all went well, zeros in its remaining bits.
@@ -371,7 +371,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### SendDataWait - `0x25`
 
-[![Image without alt text or caption](img/0x25.png)](img/0x25.png)
+[![Image without alt text or caption](img/wireless/0x25.png)](img/wireless/0x25.png)
 
 - Send length: N, response length: 0
 - The same as [SendData](#senddata---0x24) but with the additional effect of [Wait](#wait---0x27)
@@ -379,7 +379,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### ReceiveData - `0x26`
 
-[![Image without alt text or caption](img/0x26.png)](img/0x26.png)
+[![Image without alt text or caption](img/wireless/0x26.png)](img/wireless/0x26.png)
 
 - Send length: 0, response length: N
 - Responds with all the data from all adapters. No IDs are included, this is just what was sent concatenated together.
@@ -402,14 +402,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### Wait - `0x27`
 
-[![Image without alt text or caption](img/0x27.png)](img/0x27.png)
+[![Image without alt text or caption](img/wireless/0x27.png)](img/wireless/0x27.png)
 
 - Send length: 0, response length: 0
 - See [Waiting](#waiting) for more details on this.
 
 #### DisconnectClient - `0x30`
 
-[![Image without alt text or caption](img/0x30.png)](img/0x30.png)
+[![Image without alt text or caption](img/wireless/0x30.png)](img/wireless/0x30.png)
 
 - Send length 1, reponse length: 0
 - This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `AcceptConnection` calls and its `clientNumber` will be liberated, so other peers can connect.
@@ -427,7 +427,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 #### SignalLevel - `0x11`
 
-[![Image without alt text or caption](img/0x11.png)](img/0x11.png)
+[![Image without alt text or caption](img/wireless/0x11.png)](img/wireless/0x11.png)
 
 - Send length: 0, response length: 1
 - This returns the signal level of the other adapters from `0` to `0xFF` (`0` means disconnected).
@@ -497,7 +497,7 @@ If we analyze whether a command ID throws an 'invalid command' error (`0x996601e
 
 ## Waiting
 
-[![Image without alt text or caption](img/wake-up.png)](img/wake-up.png)
+[![Image without alt text or caption](img/wireless/wake-up.png)](img/wireless/wake-up.png)
 
 - After either [SendDataWait](#senddatawait---0x25) or [Wait](#wait---0x27), clock control switches to the wireless adapter.
 - Once the adapter has something to tell the GBA about, the _adapter_ sends a command to the GBA (usually `0x99660028`).
@@ -680,7 +680,7 @@ After all ROM chunks are ACK'd, the last transfers are:
 
 Here's how SPI works on the GBA:
 
-[![Image without alt text or caption](img/logic2.png)](img/logic2.png)
+[![Image without alt text or caption](img/wireless/logic2.png)](img/wireless/logic2.png)
 
 # I know more!
 
