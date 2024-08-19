@@ -1050,8 +1050,6 @@ class LinkMobile {
         waitFrames--;
 
         if (waitFrames == 0) {
-          linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                            LinkSPI::DataSize::SIZE_32BIT);
           setState(READING_CONFIGURATION);
           cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
         }
@@ -1067,8 +1065,6 @@ class LinkMobile {
         waitFrames--;
 
         if (waitFrames == 0) {
-          linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                            LinkSPI::DataSize::SIZE_8BIT);
           error = {};
           setState(SHUTDOWN);
         }
@@ -1140,6 +1136,8 @@ class LinkMobile {
 
         setState(WAITING_32BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
+        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+                          LinkSPI::DataSize::SIZE_32BIT);
         break;
       }
       case READING_CONFIGURATION: {
@@ -1308,6 +1306,8 @@ class LinkMobile {
 
         setState(WAITING_8BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
+        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
+                          LinkSPI::DataSize::SIZE_8BIT);
         break;
       }
       default: {
