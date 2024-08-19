@@ -100,8 +100,8 @@ class LinkMobile {
   using u8 = unsigned char;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
-  static constexpr int INIT_WAIT_FRAMES = 30;
-  static constexpr int INIT_TIMEOUT_FRAMES = 60;
+  static constexpr int INIT_WAIT_FRAMES = 7;
+  static constexpr int INIT_TIMEOUT_FRAMES = 30;
   static constexpr int PING_FREQUENCY_FRAMES = 60;
   static constexpr int ADAPTER_WAITING = 0xd2;
   static constexpr u32 ADAPTER_WAITING_32BIT = 0xd2d2d2d2;
@@ -254,7 +254,6 @@ class LinkMobile {
     u8 cmdId = 0;
     CommandResult cmdResult = CommandResult::PENDING;
     u8 cmdErrorCode = 0;
-    u32 notWaiting = 0;
     bool cmdIsSending = false;
     int reqType = -1;
   };
@@ -831,7 +830,6 @@ class LinkMobile {
     u16 expectedChecksum;
     u8 errorCommandId;
     u8 errorCode;
-    u32 notWaiting = 0;
     bool isActive = false;
 
     void reset() {
@@ -1530,9 +1528,9 @@ class LinkMobile {
         .cmdId = asyncCommand.relatedCommandId(),
         .cmdResult = asyncCommand.result,
         .cmdErrorCode = asyncCommand.errorCode,
-        .notWaiting = asyncCommand.notWaiting,
         .cmdIsSending =
             asyncCommand.direction == AsyncCommand::Direction::SENDING,
+
         .reqType = userRequests.isEmpty() ? -1 : userRequests.peek().type};
 
     _LMLOG_(
@@ -1630,7 +1628,6 @@ class LinkMobile {
         asyncCommand.transferred >= mainSize + CHECKSUM_SIZE + 1;
     if (!isAcknowledgement && newData != ADAPTER_WAITING) {
       _LMLOG_("!! not waiting: %X", newData);
-      asyncCommand.notWaiting = newData;
       return asyncCommand.fail(CommandResult::NOT_WAITING);
     }
 
@@ -1667,7 +1664,6 @@ class LinkMobile {
     if (!isAcknowledgement && newData != ADAPTER_WAITING &&
         newData != ADAPTER_WAITING_32BIT) {
       _LMLOG_("!! not waiting: %X", newData);
-      asyncCommand.notWaiting = newData;
       return asyncCommand.fail(CommandResult::NOT_WAITING);
     }
 

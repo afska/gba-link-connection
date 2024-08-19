@@ -533,7 +533,6 @@ std::string getErrorString(LinkMobile::Error error) {
          toHex(error.cmdId) +
          "\n  CmdResult: " + getResultString(error.cmdResult) +
          "\n  CmdErrorCode: " + std::to_string(error.cmdErrorCode) +
-         "\n  TEST: " + toHex(error.notWaiting) +
          "\n  ReqType: " + std::to_string(error.reqType) + "\n";
 }
 
