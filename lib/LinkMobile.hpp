@@ -38,15 +38,16 @@
 // - 9) Open connections:
 //       auto type = LinkMobile::ConnectionType::TCP;
 //       LinkMobile::OpenConn openConn;
-//       linkMobile->openConnection(dnsQuery.ipv4, type, openConn);
+//       linkMobile->openConnection(dnsQuery.ipv4, connType, &openConn);
 //       // (do something until `openConn.completed` is `true`)
 //       // (use `openConn.connectionId` as last argument of `transfer(...)`)
 // - 10) Close connections:
-//       auto type = LinkMobile::ConnectionType::TCP;
 //       LinkMobile::CloseConn closeConn;
-//       linkMobile->closeConnection(openConn.connectionId, type, closeConn);
-//       // (do something until `openConn.completed` is `true`)
-// - 11) Turn off the adapter:
+//       linkMobile->closeConnection(openConn.connectionId, type, &closeConn);
+//       // (do something until `closeConn.completed` is `true`)
+// - 11) Synchronously wait for an action to be completed:
+//       linkMobile->waitFor(&dnsQuery);
+// - 12) Turn off the adapter:
 //       linkMobile->shutdown();
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
@@ -149,25 +150,25 @@ class LinkMobile {
 
  public:
   enum State {
-    NEEDS_RESET,
-    PINGING,
-    WAITING_TO_START,
-    STARTING_SESSION,
-    ACTIVATING_SIO32,
-    WAITING_32BIT_SWITCH,
-    READING_CONFIGURATION,
-    SESSION_ACTIVE,
-    CALL_REQUESTED,
-    CALLING,
-    CALL_ESTABLISHED,
-    ISP_CALL_REQUESTED,
-    ISP_CALLING,
-    ISP_LOGIN,
-    ISP_ACTIVE,
-    SHUTDOWN_REQUESTED,
-    ENDING_SESSION,
-    WAITING_8BIT_SWITCH,
-    SHUTDOWN
+    NEEDS_RESET = 0,
+    PINGING = 1,
+    WAITING_TO_START = 2,
+    STARTING_SESSION = 3,
+    ACTIVATING_SIO32 = 4,
+    WAITING_32BIT_SWITCH = 5,
+    READING_CONFIGURATION = 6,
+    SESSION_ACTIVE = 7,
+    CALL_REQUESTED = 8,
+    CALLING = 9,
+    CALL_ESTABLISHED = 10,
+    ISP_CALL_REQUESTED = 11,
+    ISP_CALLING = 12,
+    PPP_LOGIN = 13,
+    PPP_ACTIVE = 14,
+    SHUTDOWN_REQUESTED = 15,
+    ENDING_SESSION = 16,
+    WAITING_8BIT_SWITCH = 17,
+    SHUTDOWN = 18
   };
 
   enum Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
@@ -200,27 +201,20 @@ class LinkMobile {
   };
 
   struct DNSQuery : public AsyncRequest {
-    volatile bool completed = false;
-    bool success = false;
     u8 ipv4[4] = {};
   };
 
   enum ConnectionType { TCP, UDP };
 
   struct OpenConn : public AsyncRequest {
-    volatile bool completed = false;
-    bool success = false;
     u8 connectionId = 0;
   };
 
   struct CloseConn : public AsyncRequest {
-    volatile bool completed = false;
     bool success = false;
   };
 
   struct DataTransfer : public AsyncRequest {
-    volatile bool completed = false;
-    bool success = false;
     u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
     u8 size = 0;
   };
@@ -242,7 +236,7 @@ class LinkMobile {
     enum Type {
       NONE,
       ADAPTER_NOT_CONNECTED,
-      ISP_LOGIN_FAILED,
+      PPP_LOGIN_FAILED,
       COMMAND_FAILED,
       WEIRD_RESPONSE,
       TIMEOUT,
@@ -349,7 +343,7 @@ class LinkMobile {
    * @brief Calls the ISP number registered in the adapter configuration, or a
    * default number if the adapter hasn't been configured. Then, performs a
    * login operation using the provided REON `password` and `loginId`. After
-   * some time, the state will be `ISP_ACTIVE`. If `loginId` is empty and the
+   * some time, the state will be `PPP_ACTIVE`. If `loginId` is empty and the
    * adapter has been configured, it will use the one stored in the
    * configuration.
    * @param password The password, as a null-terminated string (max `32`
@@ -363,7 +357,7 @@ class LinkMobile {
     if (state != SESSION_ACTIVE || userRequests.isFull())
       return false;
 
-    auto request = UserRequest{.type = UserRequest::Type::ISP_LOGIN};
+    auto request = UserRequest{.type = UserRequest::Type::PPP_LOGIN};
     copyString(request.password, password, LINK_MOBILE_MAX_PASSWORD_LENGTH);
 
     if (std::strlen(loginId) > 0)
@@ -387,11 +381,14 @@ class LinkMobile {
    * `completed` field will be `true`. If an IP address was found, the `success`
    * field will be `true` and the `ipv4` field can be read as a 4-byte address.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
-   * active ISP session or available request slots.
+   * active PPP session or available request slots.
    */
   bool dnsQuery(const char* domainName, DNSQuery* result) {
-    if (state != ISP_ACTIVE || userRequests.isFull())
+    if (state != PPP_ACTIVE || userRequests.isFull()) {
+      result->success = false;
+      result->completed = true;
       return false;
+    }
 
     result->completed = false;
     result->success = false;
@@ -425,14 +422,17 @@ class LinkMobile {
    * connection was closed.
    * \warning Only `2` connections can be opened at the same time.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
-   * active ISP session, no available request slots.
+   * active PPP session, no available request slots.
    */
   bool openConnection(const u8* ip,
                       u16 port,
                       ConnectionType type,
                       OpenConn* result) {
-    if (state != ISP_ACTIVE || userRequests.isFull())
+    if (state != PPP_ACTIVE || userRequests.isFull()) {
+      result->success = false;
+      result->completed = true;
       return false;
+    }
 
     result->completed = false;
     result->success = false;
@@ -458,13 +458,16 @@ class LinkMobile {
    * `completed` field will be `true`. If the connection was closed correctly,
    * the `success` field will be `true`.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
-   * active ISP session, no available request slots.
+   * active PPP session, no available request slots.
    */
   bool closeConnection(u8 connectionId,
                        ConnectionType type,
                        CloseConn* result) {
-    if (state != ISP_ACTIVE || userRequests.isFull())
+    if (state != PPP_ACTIVE || userRequests.isFull()) {
+      result->success = false;
+      result->completed = true;
       return false;
+    }
 
     result->completed = false;
     result->success = false;
@@ -482,7 +485,7 @@ class LinkMobile {
   /**
    * @brief Requests a data transfer and responds the received data. The
    * transfer can be done with the other node in a P2P connection, or with any
-   * open TCP/UDP connection if an ISP session is active. In the case of a
+   * open TCP/UDP connection if a PPP session is active. In the case of a
    * TCP/UDP connection, the `connectionId` must be provided.
    * @param dataToSend The data to send, up to 254 bytes.
    * @param result A pointer to a `LinkMobile::DataTransfer` struct that
@@ -496,9 +499,12 @@ class LinkMobile {
   bool transfer(DataTransfer dataToSend,
                 DataTransfer* result,
                 u8 connectionId = 0xff) {
-    if ((state != CALL_ESTABLISHED && state != ISP_ACTIVE) ||
-        userRequests.isFull())
+    if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
+        userRequests.isFull()) {
+      result->success = false;
+      result->completed = true;
       return false;
+    }
 
     result->completed = false;
     result->success = false;
@@ -521,20 +527,21 @@ class LinkMobile {
    * `LinkMobile::OpenConn`, `LinkMobile::CloseConn`, or
    * `LinkMobile::DataTransfer`.
    */
-  bool waitForCompletion(AsyncRequest* asyncRequest) {
+  bool waitFor(AsyncRequest* asyncRequest) {
     while (isSessionActive() && !asyncRequest->completed)
       Link::_IntrWait(1, Link::_IRQ_SERIAL | Link::_IRQ_VBLANK);
+
     return isSessionActive() && asyncRequest->completed &&
            asyncRequest->success;
   }
 
   /**
-   * @brief Hangs up the current P2P or ISP call. Closes all connections.
+   * @brief Hangs up the current P2P or PPP call. Closes all connections.
    * \warning Non-blocking. Returns `true` immediately, or `false` if there's no
    * active call or available request slots.
    */
   bool hangUp() {
-    if ((state != CALL_ESTABLISHED && state != ISP_ACTIVE) ||
+    if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
         userRequests.isFull())
       return false;
 
@@ -588,10 +595,10 @@ class LinkMobile {
   [[nodiscard]] bool isConnectedP2P() { return state == CALL_ESTABLISHED; }
 
   /**
-   * @brief Returns `true` if an ISP call is active (the state is
-   * `ISP_ACTIVE`).
+   * @brief Returns `true` if a PPP session is active (the state is
+   * `PPP_ACTIVE`).
    */
-  [[nodiscard]] bool isConnectedISP() { return state == ISP_ACTIVE; }
+  [[nodiscard]] bool isConnectedPPP() { return state == PPP_ACTIVE; }
 
   /**
    * @brief Returns `true` if the session is active.
@@ -716,7 +723,7 @@ class LinkMobile {
   struct UserRequest {
     enum Type {
       CALL,
-      ISP_LOGIN,
+      PPP_LOGIN,
       DNS_QUERY,
       OPEN_CONNECTION,
       CLOSE_CONNECTION,
@@ -933,7 +940,7 @@ class LinkMobile {
         }
         break;
       }
-      case UserRequest::Type::ISP_LOGIN: {
+      case UserRequest::Type::PPP_LOGIN: {
         if (state != SESSION_ACTIVE && state != ISP_CALL_REQUESTED &&
             state != ISP_CALLING) {
           popRequest();
@@ -951,7 +958,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::DNS_QUERY: {
-        if (state != ISP_ACTIVE) {
+        if (state != PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -963,7 +970,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::OPEN_CONNECTION: {
-        if (state != ISP_ACTIVE) {
+        if (state != PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -978,7 +985,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::CLOSE_CONNECTION: {
-        if (state != ISP_ACTIVE) {
+        if (state != PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -993,7 +1000,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::TRANSFER: {
-        if (state != CALL_ESTABLISHED && state != ISP_ACTIVE) {
+        if (state != CALL_ESTABLISHED && state != PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -1006,7 +1013,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::HANG_UP: {
-        if (state != CALL_ESTABLISHED && state != ISP_ACTIVE) {
+        if (state != CALL_ESTABLISHED && state != PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -1207,11 +1214,11 @@ class LinkMobile {
         if (userRequests.isEmpty())
           return abort(Error::Type::WTF);
         auto request = userRequests.peekRef();
-        if (request->type != UserRequest::ISP_LOGIN)
+        if (request->type != UserRequest::PPP_LOGIN)
           return abort(Error::Type::WTF);
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(ISP_LOGIN);
+          setState(PPP_LOGIN);
           cmdISPLogin(request->loginId, request->password);
         } else {
           // (ISP call failed)
@@ -1221,16 +1228,16 @@ class LinkMobile {
 
         break;
       }
-      case ISP_LOGIN: {
+      case PPP_LOGIN: {
         if (!asyncCommand.respondsTo(COMMAND_ISP_LOGIN))
           return;
         if (asyncCommand.result != CommandResult::SUCCESS)
-          return abort(Error::Type::ISP_LOGIN_FAILED);
+          return abort(Error::Type::PPP_LOGIN_FAILED);
 
-        setState(ISP_ACTIVE);
+        setState(PPP_ACTIVE);
         break;
       }
-      case ISP_ACTIVE: {
+      case PPP_ACTIVE: {
         if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
           setState(SESSION_ACTIVE);
           return;
@@ -1477,13 +1484,16 @@ class LinkMobile {
     u8 commandId = asyncCommand.relatedCommandId();
     return asyncCommand.direction == AsyncCommand::Direction::SENDING ||
            (commandId != COMMAND_WAIT_FOR_TELEPHONE_CALL &&
-            commandId != COMMAND_DIAL_TELEPHONE &&
-            commandId != COMMAND_DNS_QUERY &&
-            commandId != COMMAND_OPEN_TCP_CONNECTION &&
-            commandId != COMMAND_CLOSE_TCP_CONNECTION &&
-            commandId != COMMAND_OPEN_UDP_CONNECTION &&
-            commandId != COMMAND_CLOSE_UDP_CONNECTION &&
-            commandId != COMMAND_TRANSFER_DATA);
+            commandId != COMMAND_DIAL_TELEPHONE && !isAsyncRequest(commandId));
+  }
+
+  bool isAsyncRequest(u8 commandId) {
+    return commandId == COMMAND_DNS_QUERY ||
+           commandId == COMMAND_OPEN_TCP_CONNECTION ||
+           commandId == COMMAND_CLOSE_TCP_CONNECTION ||
+           commandId == COMMAND_OPEN_UDP_CONNECTION ||
+           commandId == COMMAND_CLOSE_UDP_CONNECTION ||
+           commandId == COMMAND_TRANSFER_DATA;
   }
 
   void addData(u8 value, bool start = false) {

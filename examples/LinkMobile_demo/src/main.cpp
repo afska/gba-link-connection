@@ -3,42 +3,27 @@
 // (0) Include the header
 #include "../../../lib/LinkMobile.hpp"
 
+#include "main.h"
+
 #include <tonc.h>
 #include <functional>
-#include <string>
-#include <vector>
 #include "../../_lib/interrupt.h"
 
-void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text);
-std::string readConfiguration();
-std::string getNumberInput();
-std::string getPasswordInput();
-std::string getDomainInput();
-std::string getTextInput(std::string& field,
-                         u32 maxChars,
-                         std::string inputName,
-                         std::string defaultValue,
-                         std::string defaultValueName);
-std::string getInput(std::string& field,
-                     u32 maxChars,
-                     std::string inputName,
-                     std::vector<std::vector<std::string>> rows,
-                     std::vector<std::vector<std::string>> altRows,
-                     std::string defaultValue,
-                     std::string defaultValueName,
-                     std::string altName);
-std::string getStateString(LinkMobile::State state);
-std::string getErrorString(LinkMobile::Error error);
-std::string getErrorTypeString(LinkMobile::Error::Type errorType);
-std::string getResultString(LinkMobile::CommandResult cmdResult);
-void log(std::string text);
-std::string toStr(char* chars, int size);
-void wait(u32 verticalLines);
-bool didPress(u16 key, bool& pressed);
-void waitForA();
+// One transfer for every N frames
+constexpr static int TRANSFER_FREQUENCY = 30;
 
-template <typename I>
-[[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1);
+bool isConnected = false;
+LinkMobile::DataTransfer dataTransfer;
+LinkMobile::DataTransfer lastCompletedTransfer;
+LinkMobile::DNSQuery dnsQuery;
+bool waitingDNS = false;
+std::string outgoingData = "";
+u32 counter = 0;
+u32 frameCounter = 0;
+std::string output = "";
+bool hasError = false;
+u16 keys = 0;
+
 bool left = false, right = false, up = false, down = false;
 bool a = false, b = false, l = false, r = false;
 bool start = false, select = false;
@@ -57,12 +42,10 @@ int main() {
   init();
 
 start:
-  // Options
-  log("LinkMobile_demo (v7.0.0)\n\n"
-      "Press A to start");
+  log("LinkMobile_demo (v7.0.0)\n\nPress A to start");
   waitForA();
 
-  // (1) Create a LinkWireless instance
+  // (1) Create a LinkMobile instance
   linkMobile = new LinkMobile();
 
   // (2) Add the required interrupt service routines
@@ -77,178 +60,25 @@ start:
   // (3) Initialize the library
   linkMobile->activate();
 
-  bool isConnected = false;
-  LinkMobile::DataTransfer dataTransfer;
-  LinkMobile::DataTransfer lastCompletedTransfer;
-  LinkMobile::DNSQuery dnsQuery;
-  bool waitingDNS = false;
-  std::string outgoingData = "";
-  u32 counter = 0;
-  u32 frameCounter = 0;
-
   while (true) {
-    // (one transfer for every N frames)
-    constexpr static int TRANSFER_FREQUENCY = 30;
+    keys = ~REG_KEYS & KEY_ANY;
+    hasError = linkMobile->getError().type != LinkMobile::Error::Type::NONE;
+    output = "State = " + getStateString(linkMobile->getState()) + "\n";
 
-    u16 keys = ~REG_KEYS & KEY_ANY;
-
-    std::string output = "";
-    bool shouldWaitForA = false;
-    output += "State = " + getStateString(linkMobile->getState()) + "\n";
-
-    auto error = linkMobile->getError();
-    bool hasError = error.type != LinkMobile::Error::NONE;
-    if (hasError) {
-      output += getErrorString(error);
-      output += "\n (SELECT = stop)";
-    } else if (linkMobile->getState() == LinkMobile::State::SESSION_ACTIVE) {
-      output += "\nL = Read configuration";
-      output += "\nR = Call someone";
-      output += "\nSTART = Call the ISP";
-      output += "\n\n (A = ok)\n (SELECT = stop)";
-    } else {
-      if (linkMobile->isConnectedP2P()) {
-        output += "\n (A = send)";
-        output += "\n (L = hang up)";
-      } else if (linkMobile->isConnectedISP()) {
-        output += "\n (A = DNS query)";
-        output += "\n (L = hang up)";
-      }
-      output += "\n (SELECT = stop)";
-    }
+    printMenu();
 
     if (linkMobile->isConnectedP2P()) {
-      if (!isConnected) {
-        isConnected = true;
-        outgoingData = linkMobile->getRole() == LinkMobile::Role::CALLER
-                           ? "caller!!!"
-                           : "receiver!!!";
-        transfer(dataTransfer, outgoingData);
-      }
-      if (dataTransfer.completed) {
-        if (dataTransfer.size > 0)
-          lastCompletedTransfer = dataTransfer;
-        dataTransfer.completed = false;
-      }
-
-      if (keys & KEY_A) {
-        counter++;
-        outgoingData =
-            (linkMobile->getRole() == LinkMobile::Role::CALLER ? "caller: "
-                                                               : "receiver: ") +
-            std::to_string(counter);
-      }
-
-      frameCounter++;
-      if (frameCounter >= TRANSFER_FREQUENCY) {
-        frameCounter = 0;
-        transfer(dataTransfer, outgoingData);
-      }
-
-      if (lastCompletedTransfer.completed) {
-        char received[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH];
-        for (u32 i = 0; i < lastCompletedTransfer.size; i++)
-          received[i] = lastCompletedTransfer.data[i];
-        received[lastCompletedTransfer.size] = '\0';
-        output += "\n\n>> " + std::string(outgoingData);
-        output += "\n<< " + std::string(received);
-      }
-    } else if (linkMobile->isConnectedISP()) {
-      if (!isConnected)
-        isConnected = true;
-
-      if (waitingDNS && dnsQuery.completed) {
-        waitingDNS = false;
-        log("DNS Response:\n  " + std::to_string(dnsQuery.ipv4[0]) + "." +
-            std::to_string(dnsQuery.ipv4[1]) + "." +
-            std::to_string(dnsQuery.ipv4[2]) + "." +
-            std::to_string(dnsQuery.ipv4[3]) + "\n\n" +
-            (dnsQuery.success ? "OK!\nLet's connect to it on TCP 80!"
-                              : "DNS query failed!"));
-        waitForA();
-
-        // (9) Open connections
-        log("Connecting...");
-        LinkMobile::OpenConn openConn;
-        linkMobile->openConnection(dnsQuery.ipv4, 80,
-                                   LinkMobile::ConnectionType::TCP, &openConn);
-
-        while (linkMobile->isConnectedISP() && !openConn.completed)
-          VBlankIntrWait();
-        if (!linkMobile->isConnectedISP())
-          continue;
-
-        if (openConn.success) {
-          LinkMobile::DataTransfer http;
-          std::string request = std::string("GET / HTTP/1.1\r\nHost: ") +
-                                selectedDomain + "\r\n\r\n";
-          for (u32 i = 0; i < request.size(); i++)
-            http.data[i] = request[i];
-          http.size = request.size();
-          linkMobile->transfer(http, &http, openConn.connectionId);
-          log("Connected! (" + std::to_string(openConn.connectionId) +
-              ") Requesting /");
-
-          while (linkMobile->isConnectedISP() && !http.completed)
-            VBlankIntrWait();
-          if (!linkMobile->isConnectedISP())
-            continue;
-
-          if (http.success) {
-            u32 retry = 1;
-            while (http.size == 0) {
-              log("Re-transfering... " + std::to_string(retry));
-              LinkMobile::DataTransfer retryy =
-                  LinkMobile::DataTransfer{.data = {}, .size = 0};
-              for (u32 i = 0; i < request.size(); i++)
-                retryy.data[i] = request[i];
-              retryy.size = request.size();
-              linkMobile->transfer(retryy, &http, openConn.connectionId);
-              while (linkMobile->isConnectedISP() && !http.completed)
-                VBlankIntrWait();
-              if (!linkMobile->isConnectedISP())
-                break;
-              if (!http.success)
-                break;
-              retry++;
-            }
-            if (!linkMobile->isConnectedISP())
-              continue;
-            if (!http.success) {
-              log("HTTP failed!");
-              waitForA();
-              continue;
-            }
-
-            log("Internet on GBA! yay\n\n" + std::string((char*)http.data));
-            waitForA();
-          } else {
-            log("HTTP request failed!");
-            waitForA();
-          }
-        } else {
-          log("Connection to \"" + selectedDomain + "\" failed!");
-          waitForA();
-        }
-      }
-
-      output += waitingDNS ? "\n\nWaiting DNS..." : "";
-    } else {
-      if (isConnected) {
-        isConnected = false;
-        dataTransfer = {};
-        lastCompletedTransfer = {};
-        dnsQuery = {};
-        waitingDNS = false;
-        counter = 0;
-        frameCounter = 0;
-        outgoingData = "";
-      }
+      handleP2P();
+    } else if (linkMobile->isConnectedPPP()) {
+      handlePPP();
+    } else if (isConnected) {
+      cleanup();
     }
 
     // SELECT = stop
     if (didPress(KEY_SELECT, select)) {
       bool didShutdown = linkMobile->getState() == LinkMobile::State::SHUTDOWN;
+
       if (hasError || didShutdown) {
         linkMobile->deactivate();
         interrupt_disable(INTR_VBLANK);
@@ -264,7 +94,7 @@ start:
 
         goto start;
       } else if (linkMobile->canShutdown()) {
-        // (11) Turn off the adapter
+        // (12) Turn off the adapter
         linkMobile->shutdown();
       }
     }
@@ -273,8 +103,8 @@ start:
       case LinkMobile::State::SESSION_ACTIVE: {
         // L = Read Configuration
         if (didPress(KEY_L, l)) {
-          output = readConfiguration();
-          shouldWaitForA = true;
+          readConfiguration();
+          waitForA();
         }
 
         // R = Call someone
@@ -304,7 +134,7 @@ start:
         }
         break;
       }
-      case LinkMobile::State::ISP_ACTIVE: {
+      case LinkMobile::State::PPP_ACTIVE: {
         // A = DNS query
         if (didPress(KEY_A, a) && !waitingDNS) {
           std::string domain = getDomainInput();
@@ -327,29 +157,140 @@ start:
 
     VBlankIntrWait();
     log(output);
-    if (shouldWaitForA)
-      waitForA();
   }
 
   return 0;
 }
 
-void transfer(LinkMobile::DataTransfer& dataTransfer, std::string text) {
-  // (5) Send/receive data
-  for (u32 i = 0; i < text.size(); i++)
-    dataTransfer.data[i] = text[i];
-  dataTransfer.data[text.size()] = '\0';
-  dataTransfer.size = text.size() + 1;
-  linkMobile->transfer(dataTransfer, &dataTransfer);
+void handleP2P() {
+  if (!isConnected) {
+    // First transfer
+    isConnected = true;
+    outgoingData = linkMobile->getRole() == LinkMobile::Role::CALLER
+                       ? "caller!!!"
+                       : "receiver!!!";
+    transfer(dataTransfer, outgoingData, 0xff, true);
+  }
+
+  if (dataTransfer.completed) {
+    // Save a copy of last received data
+    if (dataTransfer.size > 0)
+      lastCompletedTransfer = dataTransfer;
+    dataTransfer.completed = false;
+  }
+
+  if (keys & KEY_A) {
+    // `A` increments the counter
+    counter++;
+    outgoingData =
+        (linkMobile->getRole() == LinkMobile::Role::CALLER ? "caller: "
+                                                           : "receiver: ") +
+        std::to_string(counter);
+  }
+
+  frameCounter++;
+  if (frameCounter >= TRANSFER_FREQUENCY) {
+    // Transfer every N frames
+    frameCounter = 0;
+    transfer(dataTransfer, outgoingData, 0xff, true);
+  }
+
+  if (lastCompletedTransfer.completed) {
+    // Show received data
+    output += "\n\n>> " + std::string(outgoingData);
+    output += "\n<< " + std::string((char*)lastCompletedTransfer.data);
+    // (LinkMobile zero-pads an extra byte, so this is safe)
+  }
 }
 
-std::string readConfiguration() {
+void handlePPP() {
+  if (!isConnected)
+    isConnected = true;
+
+  if (waitingDNS && dnsQuery.completed) {
+    waitingDNS = false;
+    log("DNS Response:\n  " + std::to_string(dnsQuery.ipv4[0]) + "." +
+        std::to_string(dnsQuery.ipv4[1]) + "." +
+        std::to_string(dnsQuery.ipv4[2]) + "." +
+        std::to_string(dnsQuery.ipv4[3]) + "\n\n" +
+        (dnsQuery.success ? "OK!\nLet's connect to it on TCP 80!"
+                          : "DNS query failed!"));
+    waitForA();
+    if (!dnsQuery.success)
+      return;
+
+    // (9) Open connections
+    log("Connecting...");
+    LinkMobile::OpenConn openConn;
+    linkMobile->openConnection(dnsQuery.ipv4, 80,
+                               LinkMobile::ConnectionType::TCP, &openConn);
+    if (!linkMobile->waitFor(&openConn)) {
+      log("Connection failed!");
+      waitForA();
+      return;
+    }
+
+    // HTTP request
+
+    LinkMobile::DataTransfer http;
+    std::string request =
+        std::string("GET / HTTP/1.1\r\nHost: ") + selectedDomain + "\r\n\r\n";
+    std::string output = "";
+    u32 chunk = 1;
+    u32 retry = 1;
+    do {
+      log("Downloading... (" + std::to_string(chunk) + ", " +
+          std::to_string(retry) + ")\n (hold START = close conn)\n\n" + output);
+
+      if (didPress(KEY_START, start)) {
+        log("Closing...");
+        LinkMobile::CloseConn closeConn;
+        linkMobile->closeConnection(
+            openConn.connectionId, LinkMobile::ConnectionType::TCP, &closeConn);
+        linkMobile->waitFor(&closeConn);
+        return;
+      }
+
+      transfer(http, request, openConn.connectionId);
+      if (!linkMobile->waitFor(&http)) {
+        log("Connection closed:\n  " + std::to_string(chunk) + " packets!\n\n" +
+            output);
+        waitForA();
+        return;
+      }
+
+      if (http.size > 0) {
+        chunk++;
+        output += std::string((char*)http.data);
+        // (LinkMobile zero-pads an extra byte, so this is safe)
+      }
+
+      http = {};
+      request = "";
+      retry++;
+    } while (true);
+  }
+
+  output += waitingDNS ? "\n\nWaiting DNS..." : "";
+}
+
+void cleanup() {
+  isConnected = false;
+  dataTransfer = {};
+  lastCompletedTransfer = {};
+  dnsQuery = {};
+  waitingDNS = false;
+  counter = 0;
+  frameCounter = 0;
+  outgoingData = "";
+}
+
+void readConfiguration() {
   LinkMobile::ConfigurationData data;
   if (!linkMobile->readConfiguration(data))
-    return "Read failed :(";
+    log("Read failed :(");
 
-  return (
-      "Magic:\n  " + toStr(data.magic, 2) + ", $" +
+  log("Magic:\n  " + toStr(data.magic, 2) + ", $" +
       toHex(data.registrationState) + "\nPrimary DNS:\n  " +
       std::to_string(data.primaryDNS[0]) + "." +
       std::to_string(data.primaryDNS[1]) + "." +
@@ -368,6 +309,42 @@ std::string readConfiguration() {
                                                                   : "SIO8"));
 }
 
+void printMenu() {
+  auto error = linkMobile->getError();
+
+  if (hasError) {
+    output += getErrorString(error);
+    output += "\n (SELECT = stop)";
+  } else if (linkMobile->getState() == LinkMobile::State::SESSION_ACTIVE) {
+    output += "\nL = Read configuration";
+    output += "\nR = Call someone";
+    output += "\nSTART = Call the ISP";
+    output += "\n\n (A = ok)\n (SELECT = stop)";
+  } else {
+    if (linkMobile->isConnectedP2P()) {
+      output += "\n (A = send)";
+      output += "\n (L = hang up)";
+    } else if (linkMobile->isConnectedPPP()) {
+      output += "\n (A = DNS query)";
+      output += "\n (L = hang up)";
+    }
+    output += "\n (SELECT = stop)";
+  }
+}
+
+void transfer(LinkMobile::DataTransfer& dataTransfer,
+              std::string text,
+              u8 connectionId,
+              bool addNullTerminator) {
+  // (5) Send/receive data
+  for (u32 i = 0; i < text.size(); i++)
+    dataTransfer.data[i] = text[i];
+  if (addNullTerminator)
+    dataTransfer.data[text.size()] = '\0';
+  dataTransfer.size = text.size() + addNullTerminator;
+  linkMobile->transfer(dataTransfer, &dataTransfer, connectionId);
+}
+
 std::string getNumberInput() {
   std::vector<std::vector<std::string>> rows;
   rows.push_back({"1", "2", "3"});
@@ -377,24 +354,25 @@ std::string getNumberInput() {
   std::vector<std::vector<std::string>> altRows;
 
   return getInput(selectedNumber, LINK_MOBILE_MAX_PHONE_NUMBER_LENGTH,
-                  "a number", rows, altRows, "127000000001", "localhost", "");
+                  "a number", rows, altRows, {{"localhost", "127000000001"}},
+                  "");
 }
 
 std::string getPasswordInput() {
   return getTextInput(selectedPassword, LINK_MOBILE_MAX_PASSWORD_LENGTH,
-                      "your password", "pass123", "pass123");
+                      "your password", {{"pass123", "pass123"}});
 }
 
 std::string getDomainInput() {
-  return getTextInput(selectedDomain, LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH,
-                      "a domain name", "something.com", "something.com");
+  return getTextInput(
+      selectedDomain, LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH, "a domain name",
+      {{"something.com", "something.com"}, {"localhost", "localhost"}});
 }
 
 std::string getTextInput(std::string& field,
                          u32 maxChars,
                          std::string inputName,
-                         std::string defaultValue,
-                         std::string defaultValueName) {
+                         std::vector<DefaultValue> defaultValues) {
   std::vector<std::vector<std::string>> rows;
   rows.push_back({"a", "b", "c", "d", "e"});
   rows.push_back({"f", "g", "h", "i", "j"});
@@ -415,8 +393,8 @@ std::string getTextInput(std::string& field,
   altRows.push_back({"5", "6", "7", "8", "9"});
   altRows.push_back({"0", ".", "#", "/", "?"});
 
-  return getInput(field, maxChars, inputName, rows, altRows, defaultValue,
-                  defaultValueName, "caps lock");
+  return getInput(field, maxChars, inputName, rows, altRows, defaultValues,
+                  "caps lock");
 }
 
 std::string getInput(std::string& field,
@@ -424,13 +402,13 @@ std::string getInput(std::string& field,
                      std::string inputName,
                      std::vector<std::vector<std::string>> rows,
                      std::vector<std::vector<std::string>> altRows,
-                     std::string defaultValue,
-                     std::string defaultValueName,
+                     std::vector<DefaultValue> defaultValues,
                      std::string altName) {
   VBlankIntrWait();
 
   int selectedX = 0;
   int selectedY = 0;
+  int selectedDefaultValue = 0;
   bool altActive = false;
 
   while (true) {
@@ -469,8 +447,10 @@ std::string getInput(std::string& field,
       if (field.size() < maxChars)
         field += renderRows[selectedY][selectedX];
     }
-    if (didPress(KEY_SELECT, select))
-      field = defaultValue;
+    if (didPress(KEY_SELECT, select)) {
+      field = defaultValues[selectedDefaultValue].value;
+      selectedDefaultValue = (selectedDefaultValue + 1) % defaultValues.size();
+    }
     if (didPress(KEY_START, start))
       return field;
     if (altName != "" && didPress(KEY_L, l))
@@ -486,7 +466,8 @@ std::string getInput(std::string& field,
       output += "\n";
     }
 
-    output += "\n (B = back)\n (A = select)\n (SELECT = " + defaultValueName +
+    output += "\n (B = back)\n (A = select)\n (SELECT = " +
+              defaultValues[selectedDefaultValue].name +
               ")\n (START = confirm)";
 
     if (altName != "")
@@ -525,10 +506,10 @@ std::string getStateString(LinkMobile::State state) {
       return "ISP_CALL_REQUESTED";
     case LinkMobile::State::ISP_CALLING:
       return "ISP_CALLING";
-    case LinkMobile::State::ISP_LOGIN:
-      return "ISP_LOGIN";
-    case LinkMobile::State::ISP_ACTIVE:
-      return "ISP_ACTIVE";
+    case LinkMobile::State::PPP_LOGIN:
+      return "PPP_LOGIN";
+    case LinkMobile::State::PPP_ACTIVE:
+      return "PPP_ACTIVE";
     case LinkMobile::State::SHUTDOWN_REQUESTED:
       return "SHUTDOWN_REQUESTED";
     case LinkMobile::State::ENDING_SESSION:
@@ -558,8 +539,8 @@ std::string getErrorTypeString(LinkMobile::Error::Type errorType) {
   switch (errorType) {
     case LinkMobile::Error::Type::ADAPTER_NOT_CONNECTED:
       return "ADAPTER_NOT_CONNECTED";
-    case LinkMobile::Error::Type::ISP_LOGIN_FAILED:
-      return "ISP_LOGIN_FAILED";
+    case LinkMobile::Error::Type::PPP_LOGIN_FAILED:
+      return "PPP_LOGIN_FAILED";
     case LinkMobile::Error::Type::COMMAND_FAILED:
       return "COMMAND_FAILED";
     case LinkMobile::Error::Type::WEIRD_RESPONSE:
@@ -604,6 +585,8 @@ std::string lastLoggedText = "";
 void log(std::string text) {
   if (text == lastLoggedText)
     return;
+  if (linkMobile != nullptr)
+    VBlankIntrWait();
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
@@ -655,5 +638,3 @@ template <typename I>
     rc[i] = digits[(w >> j) & 0x0f];
   return rc;
 }
-
-// TODO: Implement TCP/UDP sockets test functions
