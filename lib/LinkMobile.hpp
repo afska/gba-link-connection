@@ -197,10 +197,6 @@ class LinkMobile {
   struct AsyncRequest {
     volatile bool completed = false;
     bool success = false;
-
-    void waitForCompletion() {
-      // TODO: ASD
-    }
   };
 
   struct DNSQuery : public AsyncRequest {
@@ -515,6 +511,21 @@ class LinkMobile {
       request.send.data[i] = dataToSend.data[i];
     pushRequest(request);
     return true;
+  }
+
+  /**
+   * @brief Waits for `asyncRequest` to be completed. Returns `true` if the
+   * request was completed && successful, and the adapter session is still
+   * alive. Otherwise, it returns `false`.
+   * @param asyncRequest A pointer to a `LinkMobile::DNSQuery`,
+   * `LinkMobile::OpenConn`, `LinkMobile::CloseConn`, or
+   * `LinkMobile::DataTransfer`.
+   */
+  bool waitForCompletion(AsyncRequest* asyncRequest) {
+    while (isSessionActive() && !asyncRequest->completed)
+      Link::_IntrWait(1, Link::_IRQ_SERIAL | Link::_IRQ_VBLANK);
+    return isSessionActive() && asyncRequest->completed &&
+           asyncRequest->success;
   }
 
   /**
