@@ -30,7 +30,7 @@ MAX_REQUIRED_SIZE_KB=$(($MAX_ROM_SIZE_KB - $GBFS_SIZE_KB))
 if (( $MAX_REQUIRED_SIZE_KB < $ROM_SIZE_KB )); then
     echo ""
     echo "[!] ERROR:"
-    echo "GBFS file too big."
+    echo "ROM/GBFS file too big."
     echo ""
     echo "GBFS_SIZE_KB=$GBFS_SIZE_KB"
     echo "ROM_SIZE_KB=$ROM_SIZE_KB"
@@ -38,14 +38,17 @@ if (( $MAX_REQUIRED_SIZE_KB < $ROM_SIZE_KB )); then
     echo ""
     exit 1
 fi
-REQUIRED_SIZE_KB=$(($INITIAL_REQUIRED_SIZE_KB > $MAX_REQUIRED_SIZE_KB ? $MAX_REQUIRED_SIZE_KB : $INITIAL_REQUIRED_SIZE_KB))
-PAD_NEEDED=$((($REQUIRED_SIZE_KB * $KB) - $ROM_SIZE))
 
 cp $FILE_INPUT $FILE_TMP
 if [ $? -ne 0 ]; then
   exit 1
 fi
-dd if=/dev/zero bs=1 count=$PAD_NEEDED >> $FILE_TMP
+SIZE=$(wc -c < $FILE_TMP)
+DIFF=$(($SIZE % 1024))
+if (($DIFF > 0)); then
+	PAD_NEEDED=$((1024 - $DIFF))
+	dd if=/dev/zero bs=1 count=$PAD_NEEDED >> $FILE_TMP
+fi
 if [ $? -ne 0 ]; then
   exit 1
 fi
