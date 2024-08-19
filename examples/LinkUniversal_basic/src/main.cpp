@@ -11,7 +11,7 @@
 void log(std::string text);
 void waitFor(u16 key);
 
-LinkUniversal* linkUniversal = NULL;
+LinkUniversal* linkUniversal = nullptr;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;

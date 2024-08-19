@@ -212,8 +212,8 @@ class LinkRawWireless {
 
   /**
    * @brief Calls the Broadcast (`0x16`) command.
-   * @param gameName Game name. Maximum `14` characters + NULL terminator.
-   * @param userName User name. Maximum `8` characters + NULL terminator.
+   * @param gameName Game name. Maximum `14` characters + null terminator.
+   * @param userName User name. Maximum `8` characters + null terminator.
    * @param gameId `(0 ~ 0x7FFF)` Game ID.
    */
   bool broadcast(const char* gameName = "",

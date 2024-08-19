@@ -32,7 +32,7 @@ void wait(u32 verticalLines);
 void hang();
 
 LinkWireless::Error lastError;
-LinkWireless* linkWireless = NULL;
+LinkWireless* linkWireless = nullptr;
 bool forwarding, retransmission, asyncACK;
 u32 maxPlayers;
 
@@ -106,7 +106,7 @@ start:
       interrupt_disable(INTR_TIMER3);
       interrupt_disable(INTR_TIMER0);
       delete linkWireless;
-      linkWireless = NULL;
+      linkWireless = nullptr;
       goto start;
     }
 

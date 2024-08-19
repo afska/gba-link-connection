@@ -32,7 +32,7 @@ std::string selectedNumber = "";
 std::string selectedPassword = "";
 std::string selectedDomain = "";
 
-LinkMobile* linkMobile = NULL;
+LinkMobile* linkMobile = nullptr;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -86,7 +86,7 @@ start:
         interrupt_disable(INTR_SERIAL);
         interrupt_disable(INTR_TIMER3);
         delete linkMobile;
-        linkMobile = NULL;
+        linkMobile = nullptr;
 
         if (!didShutdown) {
           log("Waiting...");

@@ -125,8 +125,8 @@ class LinkWirelessMultiboot {
    * @param romSize Size of the ROM in bytes. It must be a number between
    * `448` and `262144`. It's recommended to use a ROM size that is a multiple
    * of `16`, as this also ensures compatibility with Multiboot via Link Cable.
-   * @param gameName Game name. Maximum `14` characters + NULL terminator.
-   * @param userName User name. Maximum `8` characters + NULL terminator.
+   * @param gameName Game name. Maximum `14` characters + null terminator.
+   * @param userName User name. Maximum `8` characters + null terminator.
    * @param gameId `(0 ~ 0x7FFF)` Game ID.
    * @param players The exact number of consoles that will download the ROM.
    * Once this number of players is reached, the code will start transmitting
@@ -207,7 +207,7 @@ class LinkWirelessMultiboot {
           maxI = i;
         }
       }
-      return maxI > -1 ? &transfers[maxI] : NULL;
+      return maxI > -1 ? &transfers[maxI] : nullptr;
     }
 
     __attribute__((noinline)) PendingTransfer* minWithoutAck() {
@@ -220,12 +220,12 @@ class LinkWirelessMultiboot {
           minI = i;
         }
       }
-      return minI > -1 ? &transfers[minI] : NULL;
+      return minI > -1 ? &transfers[minI] : nullptr;
     }
 
     __attribute__((noinline)) void addIfNeeded(u32 newCursor) {
       auto maxTransfer = max();
-      if (maxTransfer != NULL && newCursor <= maxTransfer->cursor)
+      if (maxTransfer != nullptr && newCursor <= maxTransfer->cursor)
         return;
 
       for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
@@ -246,8 +246,8 @@ class LinkWirelessMultiboot {
       transfers[index].ack = true;
 
       auto maxAckTransfer = max(true);
-      bool canUpdateCursor =
-          maxAckTransfer != NULL && isAckCompleteUpTo(maxAckTransfer->cursor);
+      bool canUpdateCursor = maxAckTransfer != nullptr &&
+                             isAckCompleteUpTo(maxAckTransfer->cursor);
 
       if (canUpdateCursor)
         cleanup();
@@ -307,7 +307,7 @@ class LinkWirelessMultiboot {
         return pendingTransferList.max()->cursor + 1;
       } else {
         auto minWithoutAck = pendingTransferList.minWithoutAck();
-        return minWithoutAck != NULL ? minWithoutAck->cursor : cursor;
+        return minWithoutAck != nullptr ? minWithoutAck->cursor : cursor;
       }
     }
 

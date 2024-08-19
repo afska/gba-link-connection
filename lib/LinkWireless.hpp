@@ -324,8 +324,8 @@ class LinkWireless {
    * @brief Starts broadcasting a server and changes the state to `SERVING`. You
    * can optionally provide data that games will be able to read. If the adapter
    * is already serving, this method only updates the broadcast data.
-   * @param gameName Game name. Maximum `14` characters + NULL terminator.
-   * @param userName User name. Maximum `8` characters + NULL terminator.
+   * @param gameName Game name. Maximum `14` characters + null terminator.
+   * @param userName User name. Maximum `8` characters + null terminator.
    * @param gameId `(0 ~ 0x7FFF)` Game ID.
    * \warning Updating broadcast data while serving can fail if the adapter is
    * busy. In that case, this will return `false` and `getLastError()` will be
