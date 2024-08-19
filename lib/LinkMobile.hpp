@@ -194,7 +194,16 @@ class LinkMobile {
     char _ispNumber1[16 + 1];  // (parsed from `configurationSlot1`)
   } __attribute__((packed));
 
-  struct DNSQuery {
+  struct AsyncRequest {
+    volatile bool completed = false;
+    bool success = false;
+
+    void waitForCompletion() {
+      // TODO: ASD
+    }
+  };
+
+  struct DNSQuery : public AsyncRequest {
     volatile bool completed = false;
     bool success = false;
     u8 ipv4[4] = {};
@@ -202,18 +211,18 @@ class LinkMobile {
 
   enum ConnectionType { TCP, UDP };
 
-  struct OpenConn {
+  struct OpenConn : public AsyncRequest {
     volatile bool completed = false;
     bool success = false;
     u8 connectionId = 0;
   };
 
-  struct CloseConn {
+  struct CloseConn : public AsyncRequest {
     volatile bool completed = false;
     bool success = false;
   };
 
-  struct DataTransfer {
+  struct DataTransfer : public AsyncRequest {
     volatile bool completed = false;
     bool success = false;
     u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
@@ -721,6 +730,20 @@ class LinkMobile {
     bool commandSent;
     u32 timeout;
     bool finished;
+
+    void cleanup() {
+      if (finished)
+        return;
+      AsyncRequest* metadata = type == DNS_QUERY          ? (AsyncRequest*)dns
+                               : type == OPEN_CONNECTION  ? (AsyncRequest*)open
+                               : type == CLOSE_CONNECTION ? (AsyncRequest*)close
+                               : type == TRANSFER ? (AsyncRequest*)receive
+                                                  : nullptr;
+      if (metadata != nullptr) {
+        metadata->success = false;
+        metadata->completed = true;
+      }
+    }
   };
 
   union AdapterConfiguration {
@@ -886,7 +909,7 @@ class LinkMobile {
     switch (request.type) {
       case UserRequest::Type::CALL: {
         if (state != SESSION_ACTIVE && state != CALL_REQUESTED) {
-          userRequests.pop();
+          popRequest();
           return;
         }
         if (state != CALL_REQUESTED)
@@ -895,14 +918,14 @@ class LinkMobile {
         if (!asyncCommand.isActive) {
           setState(CALLING);
           cmdDialTelephone(request.phoneNumber);
-          userRequests.pop();
+          popRequest();
         }
         break;
       }
       case UserRequest::Type::ISP_LOGIN: {
         if (state != SESSION_ACTIVE && state != ISP_CALL_REQUESTED &&
             state != ISP_CALLING) {
-          userRequests.pop();
+          popRequest();
           return;
         }
         if (state == SESSION_ACTIVE)
@@ -918,7 +941,7 @@ class LinkMobile {
       }
       case UserRequest::Type::DNS_QUERY: {
         if (state != ISP_ACTIVE) {
-          userRequests.pop();
+          popRequest();
           return;
         }
 
@@ -930,7 +953,7 @@ class LinkMobile {
       }
       case UserRequest::Type::OPEN_CONNECTION: {
         if (state != ISP_ACTIVE) {
-          userRequests.pop();
+          popRequest();
           return;
         }
 
@@ -945,7 +968,7 @@ class LinkMobile {
       }
       case UserRequest::Type::CLOSE_CONNECTION: {
         if (state != ISP_ACTIVE) {
-          userRequests.pop();
+          popRequest();
           return;
         }
 
@@ -960,7 +983,7 @@ class LinkMobile {
       }
       case UserRequest::Type::TRANSFER: {
         if (state != CALL_ESTABLISHED && state != ISP_ACTIVE) {
-          userRequests.pop();
+          popRequest();
           return;
         }
 
@@ -973,7 +996,7 @@ class LinkMobile {
       }
       case UserRequest::Type::HANG_UP: {
         if (state != CALL_ESTABLISHED && state != ISP_ACTIVE) {
-          userRequests.pop();
+          popRequest();
           return;
         }
         if (!asyncCommand.isActive)
@@ -987,7 +1010,7 @@ class LinkMobile {
         if (!asyncCommand.isActive) {
           setState(ENDING_SESSION);
           cmdEndSession();
-          userRequests.pop();
+          popRequest();
         }
         break;
       }
@@ -1424,6 +1447,13 @@ class LinkMobile {
     request.timeout = 0;
     request.finished = false;
     userRequests.syncPush(request);
+  }
+
+  void popRequest() {
+    auto request = userRequests.peekRef();
+    request->cleanup();
+    request->finished = true;
+    userRequests.pop();
   }
 
   bool shouldAbortOnStateTimeout() {
