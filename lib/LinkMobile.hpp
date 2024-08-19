@@ -1624,9 +1624,12 @@ class LinkMobile {
     const u8* commandBytes = (const u8*)&asyncCommand.cmd;
     u32 mainSize = PREAMBLE_SIZE + asyncCommand.cmd.header.size;
 
+    // (first packet is garbage)
+    bool didFullyTransferFirstPacket = asyncCommand.transferred >= 2;
     bool isAcknowledgement =
         asyncCommand.transferred >= mainSize + CHECKSUM_SIZE + 1;
-    if (!isAcknowledgement && newData != ADAPTER_WAITING) {
+    if (didFullyTransferFirstPacket && !isAcknowledgement &&
+        newData != ADAPTER_WAITING) {
       _LMLOG_("!! not waiting: %X", newData);
       return asyncCommand.fail(CommandResult::NOT_WAITING);
     }
@@ -1660,9 +1663,11 @@ class LinkMobile {
     u32 padding = alignment != 0 ? 4 - alignment : 0;
     u32 mainSize = PREAMBLE_SIZE + dataSize + padding;
 
+    // (first packet is garbage)
+    bool didFullyTransferFirstPacket = asyncCommand.transferred >= 8;
     bool isAcknowledgement = asyncCommand.transferred >= mainSize;
-    if (!isAcknowledgement && newData != ADAPTER_WAITING &&
-        newData != ADAPTER_WAITING_32BIT) {
+    if (didFullyTransferFirstPacket && !isAcknowledgement &&
+        newData != ADAPTER_WAITING && newData != ADAPTER_WAITING_32BIT) {
       _LMLOG_("!! not waiting: %X", newData);
       return asyncCommand.fail(CommandResult::NOT_WAITING);
     }
