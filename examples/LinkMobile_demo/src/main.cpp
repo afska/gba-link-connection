@@ -1,4 +1,4 @@
-#define LINK_ENABLE_DEBUG_LOGS 1
+#define LINK_ENABLE_DEBUG_LOGS 0
 
 // (0) Include the header
 #include "../../../lib/LinkMobile.hpp"
@@ -13,6 +13,10 @@
 constexpr static int TRANSFER_FREQUENCY = 30;
 
 bool isConnected = false;
+bool hasError = false;
+u16 keys = 0;
+std::string output = "";
+
 LinkMobile::DataTransfer dataTransfer;
 LinkMobile::DataTransfer lastCompletedTransfer;
 LinkMobile::DNSQuery dnsQuery;
@@ -20,9 +24,6 @@ bool waitingDNS = false;
 std::string outgoingData = "";
 u32 counter = 0;
 u32 frameCounter = 0;
-std::string output = "";
-bool hasError = false;
-u16 keys = 0;
 
 bool left = false, right = false, up = false, down = false;
 bool a = false, b = false, l = false, r = false;

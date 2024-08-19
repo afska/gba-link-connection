@@ -409,7 +409,7 @@ The GBA operates using `1` stop bit, but everything else can be configured. By d
 
 This is a driver for an accessory that enables online conectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
 
-The original accessory was sold in Japan only and doesn't work anymore since it relies on old tech, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
+The original accessory was sold in Japan only and doesn't work anymore since it relies on old tech and servers, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
 
 It has two modes of operation:
 - Direct call (P2P): Calling someone directly for a 2-player session, using the other person's IP address or the phone number provided by the [relay server](https://github.com/REONTeam/mobile-relay).
