@@ -179,7 +179,7 @@ You can also change these compile-time constants:
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
   - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
-- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce some latency but also reduce overall CPU usage.
+- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
 
 ## Methods
 

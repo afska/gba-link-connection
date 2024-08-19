@@ -112,19 +112,23 @@ cd ..
 
 cd LinkWireless_demo/
 sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
+sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
 make rebuild $args
 sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
+sed $sed_inplace_option -e "s/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
 cp LinkWireless_demo$suffix.gba ../
 cd ..
 
 cd LinkWireless_demo/
 sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
+sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
 sed $sed_inplace_option -e "s/\/\/ #define PROFILING_ENABLED/#define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 mv LinkWireless_demo$suffix.gba backup.gba
 make rebuild
 cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
 mv backup.gba LinkWireless_demo$suffix.gba
 sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
+sed $sed_inplace_option -e "s/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
 sed $sed_inplace_option -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
 cd ..
 
