@@ -582,16 +582,12 @@ std::string getResultString(LinkMobile::CommandResult cmdResult) {
   }
 }
 
-std::string lastLoggedText = "";
 void log(std::string text) {
-  if (text == lastLoggedText)
-    return;
   if (linkMobile != nullptr)
     VBlankIntrWait();
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
-  lastLoggedText = text;
 }
 
 std::string toStr(char* chars, int size) {

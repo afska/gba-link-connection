@@ -293,11 +293,13 @@ void measureLatency(bool withPong) {
       totalMs += elapsedMilliseconds;
       u32 average = Div(totalMs, samples);
 
+      std::string output = "Ping latency: \n  " +
+                           std::to_string(elapsedCycles) + " cycles\n  " +
+                           std::to_string(elapsedMilliseconds) + " ms\n  " +
+                           std::to_string(average) + " ms avg" +
+                           "\nValue sent:\n  " + std::to_string(sentPacket);
       VBlankIntrWait();
-      log("Ping latency: \n  " + std::to_string(elapsedCycles) + " cycles\n  " +
-          std::to_string(elapsedMilliseconds) + " ms\n  " +
-          std::to_string(average) + " ms avg" + "\nValue sent:\n  " +
-          std::to_string(sentPacket));
+      log(output);
     } else {
       VBlankIntrWait();
       log("Waiting...");
@@ -315,14 +317,10 @@ void forceSync() {
   linkConnection->read(remotePlayerId);
 }
 
-std::string lastLoggedText = "";
 void log(std::string text) {
-  if (text == lastLoggedText)
-    return;
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
-  lastLoggedText = text;
 }
 
 void waitFor(u16 key) {

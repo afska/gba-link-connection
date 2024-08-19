@@ -86,14 +86,10 @@ int main() {
   return 0;
 }
 
-std::string lastLoggedText = "";
 void log(std::string text) {
-  if (text == lastLoggedText)
-    return;
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
-  lastLoggedText = text;
 }
 
 std::string mode(std::string name, LinkGPIO::Pin pin) {
