@@ -30,6 +30,7 @@
 //       linkMobile->hangUp();
 // - 7) Connect to the internet:
 //       linkMobile->callISP("REON password");
+//       // (do something until `linkMobile->isConnectedPPP()` returns `true`)
 // - 8) Run DNS queries:
 //       LinkMobile::DNSQuery dnsQuery;
 //       linkMobile->dnsQuery("something.com", &dnsQuery);
@@ -91,7 +92,6 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 
 /**
  * @brief A high level driver for the Mobile Adapter GB.
- * \warning Check out the REON project -> https://github.com/REONTeam
  */
 class LinkMobile {
  private:
@@ -173,6 +173,8 @@ class LinkMobile {
 
   enum Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
 
+  enum ConnectionType { TCP, UDP };
+
   struct ConfigurationData {
     char magic[2];
     u8 registrationState;
@@ -198,13 +200,17 @@ class LinkMobile {
   struct AsyncRequest {
     volatile bool completed = false;
     bool success = false;
+
+    bool fail() {
+      success = false;
+      completed = true;
+      return false;
+    }
   };
 
   struct DNSQuery : public AsyncRequest {
     u8 ipv4[4] = {};
   };
-
-  enum ConnectionType { TCP, UDP };
 
   struct OpenConn : public AsyncRequest {
     u8 connectionId = 0;
@@ -384,11 +390,8 @@ class LinkMobile {
    * active PPP session or available request slots.
    */
   bool dnsQuery(const char* domainName, DNSQuery* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull()) {
-      result->success = false;
-      result->completed = true;
-      return false;
-    }
+    if (state != PPP_ACTIVE || userRequests.isFull())
+      return result->fail();
 
     result->completed = false;
     result->success = false;
@@ -428,11 +431,8 @@ class LinkMobile {
                       u16 port,
                       ConnectionType type,
                       OpenConn* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull()) {
-      result->success = false;
-      result->completed = true;
-      return false;
-    }
+    if (state != PPP_ACTIVE || userRequests.isFull())
+      return result->fail();
 
     result->completed = false;
     result->success = false;
@@ -463,11 +463,8 @@ class LinkMobile {
   bool closeConnection(u8 connectionId,
                        ConnectionType type,
                        CloseConn* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull()) {
-      result->success = false;
-      result->completed = true;
-      return false;
-    }
+    if (state != PPP_ACTIVE || userRequests.isFull())
+      return result->fail();
 
     result->completed = false;
     result->success = false;
@@ -500,14 +497,12 @@ class LinkMobile {
                 DataTransfer* result,
                 u8 connectionId = 0xff) {
     if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
-        userRequests.isFull()) {
-      result->success = false;
-      result->completed = true;
-      return false;
-    }
+        userRequests.isFull())
+      return result->fail();
 
     result->completed = false;
     result->success = false;
+
     auto request = UserRequest{.type = UserRequest::Type::TRANSFER,
                                .connectionId = connectionId,
                                .send = {.data = {}, .size = dataToSend.size},

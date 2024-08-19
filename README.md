@@ -415,7 +415,7 @@ It has two modes of operation:
 - Direct call (P2P): Calling someone directly for a 2-player session, using the other person's IP address or the phone number provided by the [relay server](https://github.com/REONTeam/mobile-relay).
 - ISP call (PPP): Calling an ISP number for internet access. In this mode, the adapter can open up to 2 TCP/UDP sockets and transfer arbitrary data.
 
-![screenshot](https://github.com/user-attachments/assets/ff0ea09f-807c-4ba9-9dac-9cae8f831408)
+![screenshot](https://github.com/user-attachments/assets/fcc1488b-4955-4a1b-8ffa-dd660175a45c)
 
 ## Constructor
 
