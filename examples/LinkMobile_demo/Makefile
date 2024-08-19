@@ -141,7 +141,7 @@ LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba
 
 # --- switches ---
 
-bMB		:= 0	# Multiboot build
+bMB		:= 1	# Multiboot build
 bTEMPS	:= 0	# Save gcc temporaries (.i and .s files)
 bDEBUG2	:= 0	# Generate debug info (bDEBUG2? Not a full DEBUG flag. Yet)
 
