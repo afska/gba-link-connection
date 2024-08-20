@@ -134,14 +134,14 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib ../../lib
+SRCDIRS		:= src ../_lib ../../lib ../_lib/libgbfs
 DATADIRS	:= data
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba
 
 # --- switches ---
 
-bMB		:= 1	# Multiboot build
+bMB		:= 0	# Multiboot build
 bTEMPS	:= 0	# Save gcc temporaries (.i and .s files)
 bDEBUG2	:= 0	# Generate debug info (bDEBUG2? Not a full DEBUG flag. Yet)
 
@@ -247,9 +247,6 @@ $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 	arm-none-eabi-nm -Sn $(OUTPUT).elf > $(BUILD)/$(TARGET).map
-	mv $(OUTPUT).gba tmp.gba
-	./pad16.sh tmp.gba
-	mv tmp.gba $(OUTPUT).gba
 
 all	: $(BUILD)
 
@@ -278,10 +275,13 @@ endif		# End BUILD switch
 
 .PHONY: clean rebuild start
 
-rebuild: clean $(BUILD)
+rebuild: clean $(BUILD) package
 
-start:
-	start "$(TARGET).gba"
+package: $(BUILD)
+	../gbfs.sh "$(TARGET).gba" content.gbfs "$(TARGET).out.gba"
+
+start: package
+	start "$(TARGET).out.gba"
 
 restart: rebuild start
 

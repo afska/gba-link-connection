@@ -3,6 +3,7 @@ build
 .vscode
 
 # Files
+examples/multiboot
 .DS_Store
 *.elf
 *.gba

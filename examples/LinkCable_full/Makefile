@@ -126,7 +126,6 @@ BUILD		:= build
 SRCDIRS		:= src ../_lib ../../lib \
 						 src/scenes \
 						 src/utils
-
 DATADIRS	:=
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine

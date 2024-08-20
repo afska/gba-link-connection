@@ -28,8 +28,8 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - Copy the contents of the `lib/` folder into a directory that is part of your project's include path. Then, `#include` the library you need, such as [LinkCable.hpp](lib/LinkCable.hpp), in your project. No external dependencies are required.
 - For initial instructions and setup details, refer to the big comment block at the beginning of each file, the documentation included here, and the provided examples.
 - Check out the [examples](examples) folder.
+	* **Compiled ROMs are available** in [Releases](https://github.com/afska/gba-link-connection/releases).
 	* The example code uses [libtonc](https://github.com/gbadev-org/libtonc) (and [libugba](https://github.com/AntonioND/libugba) for interrupts), but any library can be used.
-	* Compiled ROMs are available in [Releases](https://github.com/afska/gba-link-connection/releases).
 	* The examples can be tested on real GBAs or using emulators.
 	* For `LinkCable`/`LinkWireless`/`LinkUniversal`, there are stress tests that you can use to tweak your configuration.
 
@@ -37,7 +37,13 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 > To learn implementation details, you might also want to check out the [docs](docs) folder, which contains important documentation.
 
-### Makefile actions (for all examples)
+### Compiling the examples
+
+Running `./compile.sh` builds all the examples with the right configuration.
+
+The project must be in a path without spaces; devkitARM and some *nix commands are required.
+
+All the projects understand this Makefile actions:
 
 ```bash
 make [ clean | build | start | rebuild | restart ]
@@ -101,6 +107,8 @@ Name | Return type | Description
 *(aka Multiboot through Multi-Play Mode)*
 
 This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
+
+Its demo (`LinkCableMultiboot_demo`) has all the other gba-link-connection ROMs bundled with it, so it can be used to quickly test the library.
 
 ![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/6ff55944-5437-436f-bcc7-a89b05dc5486)
 
@@ -215,6 +223,8 @@ Name | Return type | Description
 *(aka Multiboot through Wireless Adapter)*
 
 This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 4 slaves, wirelessly, using a single cartridge.
+
+Its demo (`LinkWirelessMultiboot_demo`) has all the other gba-link-connection ROMs bundled with it, so it can be used to quickly test the library.
 
 https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-92d4-ccf366adce2d
 

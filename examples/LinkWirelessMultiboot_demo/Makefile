@@ -123,11 +123,9 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba -lgba-sprite-engine
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib ../../lib \
+SRCDIRS		:= src ../_lib ../../lib ../_lib/libgbfs \
 						 src/scenes \
-						 src/utils \
-						 src/utils/gbfs
-
+						 src/utils
 DATADIRS	:=
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine
@@ -283,7 +281,7 @@ endif		# End BUILD switch
 rebuild: clean $(BUILD) package
 
 package: $(BUILD)
-	./scripts/package.sh
+	../gbfs.sh "$(TARGET).gba" content.gbfs "$(TARGET).out.gba"
 
 start: package
 	start "$(TARGET).out.gba"

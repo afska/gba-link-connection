@@ -1,9 +1,9 @@
 #!/bin/bash
 
-FILE_INPUT="LinkWirelessMultiboot_demo.gba"
-FILE_TMP="LinkWirelessMultiboot_demo.tmp.gba"
-FILE_OUTPUT="LinkWirelessMultiboot_demo.out.gba"
-DATA="content.gbfs"
+FILE_INPUT="$1"
+FILE_TMP="tmp.gba"
+DATA="$2"
+FILE_OUTPUT="$3"
 
 if [ ! -f "$DATA" ]; then
     echo ""

@@ -1,129 +1,128 @@
 // (0) Include the header
 #include "../../../lib/LinkCableMultiboot.hpp"
 
+#include <string.h>
 #include <tonc.h>
 #include <string>
-#include "../../../lib/LinkCable.hpp"
-#include "../../_lib/interrupt.h"
+
+extern "C" {
+#include "../../_lib/libgbfs/gbfs.h"
+}
+
+static const GBFS_FILE* fs = find_first_gbfs_file(0);
+static u32 selectedFile = 0;
 
 void log(std::string text);
+void waitFor(u16 key);
+bool didPress(u16 key, bool& pressed);
 
-LinkCable* linkCable = new LinkCable();
 // (1) Create a LinkCableMultiboot instance
 LinkCableMultiboot* linkCableMultiboot = new LinkCableMultiboot();
+
+void selectLeft() {
+  if (selectedFile == 0)
+    return;
+  selectedFile--;
+}
+
+void selectRight() {
+  if ((int)selectedFile >= fs->dir_nmemb - 1)
+    return;
+  selectedFile++;
+}
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 
-  interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  irq_init(NULL);
+  irq_add(II_VBLANK, NULL);
 }
 
 int main() {
   init();
 
-  // Hardcoded ROM length
-  // This is optional, you could also use `LINK_CABLE_MULTIBOOT_MAX_ROM_SIZE`
-  // (but the transfer will be painfully slow)
-  u32 romSize = 39264;
-  // Note that this project's Makefile pads the ROM to a 0x10 boundary
-  // (as required for Multiboot).
+  // Ensure there are GBFS files
+  if (fs == NULL) {
+    log("! GBFS file not found");
+    while (true)
+      ;
+  } else if (gbfs_get_nth_obj(fs, 0, NULL, NULL) == NULL) {
+    log("! No files found (GBFS)");
+    while (true)
+      ;
+  }
 
-  // Each player's input
-  u16 data[LINK_CABLE_MAX_PLAYERS];
-  for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
-    data[i] = 0;
-
-  bool isSenderMode = true;
-  LinkCableMultiboot::Result result = LinkCableMultiboot::Result::CANCELED;
+  bool left = false, right = false, a = false, b = false;
 
   while (true) {
-    u16 keys = ~REG_KEYS & KEY_ANY;
-
-    // Sender options
-    if (isSenderMode) {
-      if (result != LinkCableMultiboot::Result::SUCCESS)
-        log("LinkCableMultiboot_demo\n  (v7.0.0)\n\n"
-            "Press START to send the ROM...\n"
-            "Press B to set client mode...");
-
-      if (keys & KEY_START) {
-        log("Sending... (SELECT to cancel)");
-        linkCable->deactivate();
-
-        // (3) Send the ROM
-        result =
-            linkCableMultiboot->sendRom((const u8*)MEM_EWRAM, romSize, []() {
-              u16 keys = ~REG_KEYS & KEY_ANY;
-              return keys & KEY_SELECT;
-            });
-
-        // Print results and wait
-        log("Result: " + std::to_string(result) + "\n" +
-            "Press A to continue...");
-        do {
-          keys = ~REG_KEYS & KEY_ANY;
-        } while (!(keys & KEY_A));
-
-        // Switch to client mode if it worked
-        if (result == LinkCableMultiboot::Result::SUCCESS) {
-          linkCable->activate();
-          VBlankIntrWait();
-          continue;
-        }
-      }
-
-      // Switch to client mode manually (for slaves)
-      if (keys & KEY_B) {
-        isSenderMode = false;
-        linkCable->activate();
-        VBlankIntrWait();
-        continue;
-      }
-
-      // In sender mode, don't continue until the ROM is sent successfully
-      if (result != LinkCableMultiboot::Result::SUCCESS) {
-        VBlankIntrWait();
-        continue;
+    // Get selected ROM name
+    char name[32];
+    u32 romSize;
+    const u8* romToSend =
+        (const u8*)gbfs_get_nth_obj(fs, selectedFile, name, &romSize);
+    for (u32 i = 0; i < 32; i++) {
+      if (name[i] == '.') {
+        name[i] = '\0';
+        break;
       }
     }
 
-    // ---
-    // Client mode
-    // ---
+    // Menu
+    log("LinkCableMultiboot_demo\n  (v7.0.0)\n\n"
+        "Press A to send the ROM...\n"
+        "Press B to launch the ROM...\nLEFT/RIGHT: select ROM\n\nSelected "
+        "ROM:\n  " +
+        std::string(name));
 
-    linkCable->sync();
-    linkCable->send(keys + 1);
+    // Select ROM
+    if (didPress(KEY_LEFT, left))
+      selectLeft();
+    if (didPress(KEY_RIGHT, right))
+      selectRight();
 
-    std::string output = "";
-    if (linkCable->isConnected()) {
-      u8 playerCount = linkCable->playerCount();
-      u8 currentPlayerId = linkCable->currentPlayerId();
+    // Send ROM
+    if (didPress(KEY_A, a)) {
+      log("Sending... (SELECT to cancel)");
 
-      output += "Players: " + std::to_string(playerCount) + "\n";
+      // (2) Send the ROM
+      auto result = linkCableMultiboot->sendRom(romToSend, romSize, []() {
+        u16 keys = ~REG_KEYS & KEY_ANY;
+        return keys & KEY_SELECT;
+      });
 
-      output += "(";
-      for (u32 i = 0; i < playerCount; i++) {
-        while (linkCable->canRead(i))
-          data[i] = linkCable->read(i) - 1;
+      // Print results and wait
+      log("Result: " + std::to_string(result) + "\n" +
+          "Press DOWN to continue...");
+      waitFor(KEY_DOWN);
+    }
 
-        output += std::to_string(data[i]) + (i + 1 == playerCount ? "" : ", ");
-      }
-      output += ")\n";
-      output += "_keys: " + std::to_string(keys) + "\n";
-      output += "_pID: " + std::to_string(currentPlayerId);
-    } else {
-      output += std::string("Waiting... ");
+    // Launch ROM
+    if (didPress(KEY_B, b)) {
+      log("Launching...");
+      VBlankIntrWait();
+
+      REG_IME = 0;
+
+      u32 fileLength;
+      const u8* romToSend =
+          (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
+
+      void* EWRAM = (void*)0x02000000;
+      memcpy(EWRAM, romToSend, fileLength);
+
+      asm volatile(
+          "mov r0, %0\n"
+          "bx r0\n"
+          :
+          : "r"(EWRAM)
+          : "r0");
+
+      while (true)
+        ;
     }
 
     VBlankIntrWait();
-    log(output);
   }
 
   return 0;
@@ -133,4 +132,23 @@ void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
+}
+
+void waitFor(u16 key) {
+  u16 keys;
+  do {
+    keys = ~REG_KEYS & KEY_ANY;
+  } while (!(keys & key));
+}
+
+bool didPress(u16 key, bool& pressed) {
+  u16 keys = ~REG_KEYS & KEY_ANY;
+  bool isPressedNow = false;
+  if ((keys & key) && !pressed) {
+    pressed = true;
+    isPressedNow = true;
+  }
+  if (pressed && !(keys & key))
+    pressed = false;
+  return isPressedNow;
 }
