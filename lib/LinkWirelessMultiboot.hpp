@@ -108,6 +108,7 @@ class LinkWirelessMultiboot {
     CANCELED,
     ADAPTER_NOT_DETECTED,
     BAD_HANDSHAKE,
+    CLIENT_DISCONNECTED,
     FAILURE
   };
   enum State { STOPPED, INITIALIZING, WAITING, PREPARING, SENDING, CONFIRMING };
@@ -516,6 +517,8 @@ class LinkWirelessMultiboot {
       if (cancel(progress))
         return finish(CANCELED);
 
+      LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive());
+
       u32 cursor = findMinCursor(transfers);
       u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
       auto sequence = Sequence::fromPacketId(cursor);
@@ -736,6 +739,17 @@ class LinkWirelessMultiboot {
       _LWMLOG_("! receiveData failed");
       return FAILURE;
     }
+
+    return SUCCESS;
+  }
+
+  __attribute__((noinline)) Result ensureAllClientsAreStillAlive() {
+    LinkRawWireless::SlotStatusResponse slotStatusResponse;
+    if (!linkRawWireless->getSlotStatus(slotStatusResponse))
+      return FAILURE;
+
+    if (slotStatusResponse.connectedClientsSize < progress.connectedClients)
+      return CLIENT_DISCONNECTED;
 
     return SUCCESS;
   }
