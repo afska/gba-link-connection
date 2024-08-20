@@ -151,6 +151,7 @@ void MultibootScene::load() {
   log("UP/DOWN: scroll up/down");
   log("L/R: scroll page up/down");
   log("UP+L/DOWN+R: scroll top/bottom");
+  log("L+R: cancel transfer");
   log("SELECT: clear");
   log("---");
   log("");
@@ -191,7 +192,8 @@ void MultibootScene::processButtons() {
     auto result = linkWirelessMultiboot->sendRom(
         romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
         [](LinkWirelessMultiboot::MultibootProgress progress) {
-          return false;
+          u16 keys = ~REG_KEYS & KEY_ANY;
+          return (keys & KEY_L) && (keys & KEY_R);
         });
     log("-> result: " + std::to_string(result));
     print();
