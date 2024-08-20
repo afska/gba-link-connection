@@ -189,6 +189,7 @@ void MultibootScene::processButtons() {
     const u8* romToSend =
         (const u8*)gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
 
+    clear();
     auto result = linkWirelessMultiboot->sendRom(
         romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
         [](LinkWirelessMultiboot::MultibootProgress progress) {

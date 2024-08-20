@@ -747,8 +747,8 @@ class LinkRawWireless {
 
     LRWLOG("sending ack");
     command = linkSPI->transfer(
-        0x99660000 | ((commandId + 0x80) & 0xff), []() { return false; }, false,
-        true);
+        (COMMAND_HEADER << 16) | ((commandId + RESPONSE_ACK) & 0xff),
+        []() { return false; }, false, true);
     if (!reverseAcknowledge(true)) {
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
@@ -763,7 +763,7 @@ class LinkRawWireless {
       return remoteCommand;
     }
 
-    LRWLOG("setting SPI to 2Mbps");
+    LRWLOG("setting SPI to MASTER");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
 
     wait(TRANSFER_WAIT);

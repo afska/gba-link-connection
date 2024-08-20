@@ -171,7 +171,7 @@ class LinkWirelessMultiboot {
     _LWMLOG_("SENDING ROM!");
     progress.state = SENDING;
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, cancel))
-    linkRawWireless->wait(FRAME_LINES);
+    linkRawWireless->wait(FRAME_LINES * 10);
 
     progress.state = CONFIRMING;
     LINK_WIRELESS_MULTIBOOT_TRY(confirm(cancel))
@@ -517,7 +517,7 @@ class LinkWirelessMultiboot {
       if (cancel(progress))
         return finish(CANCELED);
 
-      LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive());
+      LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive())
 
       u32 cursor = findMinCursor(transfers);
       u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
