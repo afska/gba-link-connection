@@ -745,6 +745,8 @@ class LinkRawWireless {
       LRWLOG("<< " + toHex(paramData));
     }
 
+    wait(TRANSFER_WAIT);
+
     LRWLOG("sending ack");
     command = linkSPI->transfer(
         (COMMAND_HEADER << 16) | ((commandId + RESPONSE_ACK) & 0xff),
