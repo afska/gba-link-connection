@@ -561,8 +561,6 @@ std::string getResultString(LinkMobile::CommandResult cmdResult) {
       return "PENDING";
     case LinkMobile::CommandResult::SUCCESS:
       return "SUCCESS";
-    case LinkMobile::CommandResult::NOT_WAITING:
-      return "NOT_WAITING";
     case LinkMobile::CommandResult::INVALID_DEVICE_ID:
       return "INVALID_DEVICE_ID";
     case LinkMobile::CommandResult::INVALID_COMMAND_ACK:

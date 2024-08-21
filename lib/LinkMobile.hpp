@@ -228,7 +228,6 @@ class LinkMobile {
   enum CommandResult {
     PENDING,
     SUCCESS,
-    NOT_WAITING,
     INVALID_DEVICE_ID,
     INVALID_COMMAND_ACK,
     INVALID_MAGIC_BYTES,
@@ -1624,16 +1623,6 @@ class LinkMobile {
     const u8* commandBytes = (const u8*)&asyncCommand.cmd;
     u32 mainSize = PREAMBLE_SIZE + asyncCommand.cmd.header.size;
 
-    // (first packet is garbage)
-    bool didFullyTransferFirstPacket = asyncCommand.transferred >= 2;
-    bool isAcknowledgement =
-        asyncCommand.transferred >= mainSize + CHECKSUM_SIZE + 1;
-    if (didFullyTransferFirstPacket && !isAcknowledgement &&
-        newData != ADAPTER_WAITING) {
-      _LMLOG_("!! not waiting: %X", newData);
-      return asyncCommand.fail(CommandResult::NOT_WAITING);
-    }
-
     if (asyncCommand.transferred < mainSize) {
       // Magic Bytes (2) + Packet Header + Packet Data
       advance8(commandBytes[asyncCommand.transferred]);
@@ -1662,15 +1651,6 @@ class LinkMobile {
     u32 alignment = dataSize % 4;
     u32 padding = alignment != 0 ? 4 - alignment : 0;
     u32 mainSize = PREAMBLE_SIZE + dataSize + padding;
-
-    // (first packet is garbage)
-    bool didFullyTransferFirstPacket = asyncCommand.transferred >= 8;
-    bool isAcknowledgement = asyncCommand.transferred >= mainSize;
-    if (didFullyTransferFirstPacket && !isAcknowledgement &&
-        newData != ADAPTER_WAITING && newData != ADAPTER_WAITING_32BIT) {
-      _LMLOG_("!! not waiting: %X", newData);
-      return asyncCommand.fail(CommandResult::NOT_WAITING);
-    }
 
     if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
