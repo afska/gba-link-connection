@@ -25,6 +25,7 @@
 // --------------------------------------------------------------------------
 
 #include "LinkRawCable.hpp"
+#include "LinkSPI.hpp"
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
     "LinkCableMultiboot/v7.0.0";
@@ -64,9 +65,13 @@ class LinkCableMultiboot {
   static constexpr int CONFIRM_HANDSHAKE_DATA = 0x6400;
   static constexpr int ACK_RESPONSE = 0x73;
   static constexpr int HEADER_SIZE = 0xC0;
-  static constexpr int SWI_MULTIPLAYER_MODE = 1;
   static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
   static constexpr u8 CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
+
+  struct Response {
+    u32 data[LINK_RAW_CABLE_MAX_PLAYERS];
+    int playerId = -1;  // (-1 = unknown)
+  };
 
  public:
   enum Result {
@@ -77,6 +82,11 @@ class LinkCableMultiboot {
     FAILURE_DURING_TRANSFER
   };
 
+  enum TransferMode {
+    SPI = 0,
+    MULTI_PLAY = 1
+  };  // (used in SWI call, do not swap)
+
   /**
    * @brief Sends the `rom`. Once completed, the return value should be
    * `LinkCableMultiboot::Result::SUCCESS`.
@@ -85,10 +95,16 @@ class LinkCableMultiboot {
    * and `262144`, and a multiple of `16`.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted.
+   * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default value)
+   * or `TransferMode::SPI` for GBC cable.
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
-  Result sendRom(const u8* rom, u32 romSize, F cancel) {
+  Result sendRom(const u8* rom,
+                 u32 romSize,
+                 F cancel,
+                 TransferMode mode = TransferMode::MULTI_PLAY) {
+    this->_mode = mode;
     if (romSize < MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > MAX_ROM_SIZE)
@@ -121,17 +137,22 @@ class LinkCableMultiboot {
 
     LINK_CABLE_MULTIBOOT_TRY(confirmHandshakeData(multiBootParameters, cancel))
 
-    int result = Link::_MultiBoot(&multiBootParameters, SWI_MULTIPLAYER_MODE);
+    int result = Link::_MultiBoot(&multiBootParameters, (int)_mode);
 
-    linkRawCable->deactivate();
+    deactivate();
 
     return result == 1 ? FAILURE_DURING_TRANSFER : SUCCESS;
   }
 
-  ~LinkCableMultiboot() { delete linkRawCable; }
+  ~LinkCableMultiboot() {
+    delete linkRawCable;
+    delete linkSPI;
+  }
 
  private:
   LinkRawCable* linkRawCable = new LinkRawCable();
+  LinkSPI* linkSPI = new LinkSPI();
+  TransferMode _mode;
 
   enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
 
@@ -142,10 +163,10 @@ class LinkCableMultiboot {
   template <typename F>
   PartialResult detectClients(Link::_MultiBootParam& multiBootParameters,
                               F cancel) {
-    linkRawCable->activate(MAX_BAUD_RATE);
+    activate();
 
     for (u32 t = 0; t < DETECTION_TRIES; t++) {
-      auto response = linkRawCable->transfer(HANDSHAKE, cancel);
+      auto response = transfer(HANDSHAKE, cancel);
       if (cancel())
         return ABORTED;
 
@@ -168,7 +189,7 @@ class LinkCableMultiboot {
     }
 
     if (multiBootParameters.client_bit == 0) {
-      linkRawCable->deactivate();
+      deactivate();
       wait(WAIT_BEFORE_RETRY);
       return NEEDS_RETRY;
     }
@@ -201,7 +222,7 @@ class LinkCableMultiboot {
     u16* headerOut = (u16*)rom;
 
     for (u32 i = 0; i < HEADER_SIZE; i += 2) {
-      linkRawCable->transfer(*(headerOut++), cancel);
+      transfer(*(headerOut++), cancel);
       if (cancel())
         return ABORTED;
     }
@@ -214,7 +235,7 @@ class LinkCableMultiboot {
                             F cancel) {
     auto data = SEND_PALETTE | PALETTE_DATA;
 
-    auto response = linkRawCable->transfer(data, cancel);
+    auto response = transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
@@ -239,7 +260,7 @@ class LinkCableMultiboot {
   PartialResult confirmHandshakeData(Link::_MultiBootParam& multiBootParameters,
                                      F cancel) {
     u16 data = CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
-    auto response = linkRawCable->transfer(data, cancel);
+    auto response = transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
@@ -251,7 +272,7 @@ class LinkCableMultiboot {
                         u16 data,
                         u16 expectedResponse,
                         F cancel) {
-    auto response = linkRawCable->transfer(data, cancel);
+    auto response = transfer(data, cancel);
     if (cancel())
       return ABORTED;
 
@@ -267,8 +288,40 @@ class LinkCableMultiboot {
     return FINISHED;
   }
 
+  template <typename F>
+  Response transfer(u32 data, F cancel) {
+    if (_mode == TransferMode::MULTI_PLAY) {
+      Response response;
+      auto response16bit = linkRawCable->transfer(data, cancel);
+      for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
+        response.data[i] = response16bit.data[i];
+      response.playerId = response16bit.playerId;
+      return response;
+    } else {
+      Response response = {.data = {0xffff, 0xffff, 0xffff, 0xffff}};
+      response.data[1] = linkSPI->transfer(data, cancel) >> 16;
+      response.playerId = 0;
+      return response;
+    }
+  }
+
+ public:
+  void activate() {
+    if (_mode == TransferMode::MULTI_PLAY)
+      linkRawCable->activate(MAX_BAUD_RATE);
+    else
+      linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+  }
+
+  void deactivate() {
+    if (_mode == TransferMode::MULTI_PLAY)
+      linkRawCable->deactivate();
+    else
+      linkSPI->deactivate();
+  }
+
   Result error(Result error) {
-    linkRawCable->deactivate();
+    deactivate();
     return error;
   }
 
