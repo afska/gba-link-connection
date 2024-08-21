@@ -336,6 +336,20 @@ void messageLoop() {
 
     // Packet loss check setting
     if (didPress(KEY_UP, switching)) {
+#ifdef PROFILING_ENABLED
+      // In the profiler ROM, pressing UP will update the broadcast data
+      if (linkWireless->getState() == LinkWireless::State::SERVING) {
+        linkWireless->serve("LinkWireless",
+                            ("N = " + std::to_string(counters[0])).c_str(),
+                            counters[0]);
+        if (linkWireless->getLastError() ==
+            LinkWireless::Error::BUSY_TRY_AGAIN) {
+          log("Busy!");
+          waitFor(KEY_DOWN);
+        }
+      }
+#endif
+
       altView = !altView;
 #ifndef PROFILING_ENABLED
       if (!altView) {

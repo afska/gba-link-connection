@@ -339,16 +339,19 @@ class LinkWireless {
       lastError = WRONG_STATE;
       return false;
     }
-    if (asyncCommand.isActive) {
-      lastError = BUSY_TRY_AGAIN;
-      return false;
-    }
     if (std::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH) {
       lastError = GAME_NAME_TOO_LONG;
       return false;
     }
     if (std::strlen(userName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH) {
       lastError = USER_NAME_TOO_LONG;
+      return false;
+    }
+
+    isSendingSyncCommand = true;
+    if (asyncCommand.isActive) {
+      lastError = BUSY_TRY_AGAIN;
+      isSendingSyncCommand = false;
       return false;
     }
 
@@ -376,9 +379,8 @@ class LinkWireless {
 
     bool success = sendCommand(COMMAND_BROADCAST, true).success;
 
-    if (state != SERVING) {
+    if (state != SERVING)
       success = success && sendCommand(COMMAND_START_HOST).success;
-    }
 
     if (!success) {
       reset();
@@ -1494,6 +1496,7 @@ class LinkWireless {
 
   void resetState() {
     this->state = NEEDS_RESET;
+    this->asyncCommand.isActive = false;
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
     this->sessionState.recvTimeout = 0;
@@ -1513,7 +1516,6 @@ class LinkWireless {
       this->sessionState.lastPacketIdFromClients[i] = 0;
       this->sessionState.lastConfirmationFromClients[i] = 0;
     }
-    this->asyncCommand.isActive = false;
     this->nextCommandDataSize = 0;
     this->nextAsyncCommandDataSize = 0;
 
@@ -1616,10 +1618,6 @@ class LinkWireless {
   CommandResult sendCommand(u8 type, bool withData = false) {
     CommandResult result;
     u32 command = buildCommand(type, withData ? (u16)nextCommandDataSize : 0);
-
-    LINK_WIRELESS_BARRIER;
-    isSendingSyncCommand = true;
-    LINK_WIRELESS_BARRIER;
 
     if (transfer(command) != DATA_REQUEST_VALUE) {
       isSendingSyncCommand = false;

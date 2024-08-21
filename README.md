@@ -193,8 +193,8 @@ You can also change these compile-time constants:
 
 - Most of these methods return a boolean, indicating if the action was successful. If not, you can call `getLastError()` to know the reason. Usually, unless it's a trivial error (like buffers being full), the connection with the adapter is reset and the game needs to start again.
 - You can check the connection state at any time with `getState()`.
-- Until a session starts, all actions are synchronic.
-- During sessions (when the state is `SERVING` or `CONNECTED`), the message transfers are IRQ-driven, so `send(...)` and `receive(...)` won't waste extra cycles.
+- Until a session starts, all actions are synchronous.
+- During sessions (when the state is `SERVING` or `CONNECTED`), the message transfers are IRQ-driven, so `send(...)` and `receive(...)` won't waste extra cycles. The synchronous method that can be called during a session is `serve(...)`, which can be used to update the broadcast data.
 
 Name | Return type | Description
 --- | --- | ---
