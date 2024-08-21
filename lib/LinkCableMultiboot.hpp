@@ -27,6 +27,13 @@
 #include "LinkRawCable.hpp"
 #include "LinkSPI.hpp"
 
+/**
+ * @brief Palette data (controls how the logo is displayed).
+ * Format: 0b1CCCDSS1, where C=color, D=direction, S=speed.
+ * Default: 0b10010011
+ */
+#define LINK_CABLE_MULTIBOOT_PALETTE_DATA 0b10010011
+
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
     "LinkCableMultiboot/v7.0.0";
 
@@ -54,7 +61,6 @@ class LinkCableMultiboot {
   static constexpr int WAIT_BEFORE_RETRY = (160 + 68) * 60;
   static constexpr int WAIT_BEFORE_TRANSFER = 50;
   static constexpr int DETECTION_TRIES = 16;
-  static constexpr int PALETTE_DATA = 0x93;
   static constexpr int CLIENTS = 3;
   static constexpr int CLIENT_NO_DATA = 0xff;
   static constexpr int HANDSHAKE = 0x6200;
@@ -117,7 +123,7 @@ class LinkCableMultiboot {
     multiBootParameters.client_data[0] = CLIENT_NO_DATA;
     multiBootParameters.client_data[1] = CLIENT_NO_DATA;
     multiBootParameters.client_data[2] = CLIENT_NO_DATA;
-    multiBootParameters.palette_data = PALETTE_DATA;
+    multiBootParameters.palette_data = LINK_CABLE_MULTIBOOT_PALETTE_DATA;
     multiBootParameters.client_bit = 0;
     multiBootParameters.boot_srcp = (u8*)rom + HEADER_SIZE;
     multiBootParameters.boot_endp = (u8*)rom + romSize;
@@ -233,7 +239,7 @@ class LinkCableMultiboot {
   template <typename F>
   PartialResult sendPalette(Link::_MultiBootParam& multiBootParameters,
                             F cancel) {
-    auto data = SEND_PALETTE | PALETTE_DATA;
+    auto data = SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
 
     auto response = transfer(data, cancel);
     if (cancel())

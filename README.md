@@ -112,6 +112,11 @@ Its demo (`LinkCableMultiboot_demo`) has all the other gba-link-connection ROMs 
 
 ![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/6ff55944-5437-436f-bcc7-a89b05dc5486)
 
+You can change these compile-time constants:
+- `LINK_CABLE_MULTIBOOT_PALETTE_DATA`: to control how the logo is displayed.
+  - Format: `0b1CCCDSS1`, where `C`=color, `D`=direction, `S`=speed.
+  - Default: `0b10010011`.
+
 ## Methods
 
 Name | Return type | Description
