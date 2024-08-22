@@ -11,6 +11,7 @@ extern "C" {
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
 static u32 selectedFile = 0;
+static bool spi = false;
 
 void log(std::string text);
 void waitFor(u16 key);
@@ -53,7 +54,7 @@ int main() {
       ;
   }
 
-  bool left = false, right = false, a = false, b = false;
+  bool left = false, right = false, a = false, b = false, l = false;
 
   while (true) {
     // Get selected ROM name
@@ -68,12 +69,9 @@ int main() {
       }
     }
 
-    // Menu
-    log("LinkCableMultiboot_demo\n  (v7.0.0)\n\n"
-        "Press A to send the ROM...\n"
-        "Press B to launch the ROM...\nLEFT/RIGHT: select ROM\n\nSelected "
-        "ROM:\n  " +
-        std::string(name));
+    // Toggle mode
+    if (didPress(KEY_L, l))
+      spi = !spi;
 
     // Select ROM
     if (didPress(KEY_LEFT, left))
@@ -81,15 +79,27 @@ int main() {
     if (didPress(KEY_RIGHT, right))
       selectRight();
 
+    // Menu
+    log("LinkCableMultiboot_demo\n  (v7.0.0)\n\n"
+        "Press A to send the ROM...\n"
+        "Press B to launch the ROM...\nLEFT/RIGHT: select ROM\nL: toggle "
+        "mode\n\nSelected ROM:\n  " +
+        std::string(name) + "\n\nMode:\n  " +
+        std::string(spi ? "SPI (GBC cable)" : "MULTI_PLAY (GBA cable)"));
+
     // Send ROM
     if (didPress(KEY_A, a)) {
       log("Sending... (SELECT to cancel)");
 
       // (2) Send the ROM
-      auto result = linkCableMultiboot->sendRom(romToSend, romSize, []() {
-        u16 keys = ~REG_KEYS & KEY_ANY;
-        return keys & KEY_SELECT;
-      });
+      auto result = linkCableMultiboot->sendRom(
+          romToSend, romSize,
+          []() {
+            u16 keys = ~REG_KEYS & KEY_ANY;
+            return keys & KEY_SELECT;
+          },
+          spi ? LinkCableMultiboot::TransferMode::SPI
+              : LinkCableMultiboot::TransferMode::MULTI_PLAY);
 
       // Print results and wait
       log("Result: " + std::to_string(result) + "\n" +

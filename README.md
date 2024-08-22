@@ -121,7 +121,7 @@ You can change these compile-time constants:
 
 Name | Return type | Description
 --- | --- | ---
-`sendRom(rom, romSize, cancel, [mode])` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. The `mode` can be either `TransferMode::MULTI_PLAY` for GBA cable (default value) or `TransferMode::SPI` for GBC cable. Once completed, the return value should be `LinkCableMultiboot::Result::SUCCESS`.
+`sendRom(rom, romSize, cancel, [mode])` | **LinkCableMultiboot::Result** | Sends the `rom`. During the handshake process, the library will continuously invoke `cancel`, and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. The `mode` can be either `LinkCableMultiboot::TransferMode::MULTI_PLAY` for GBA cable (default value) or `LinkCableMultiboot::TransferMode::SPI` for GBC cable. Once completed, the return value should be `LinkCableMultiboot::Result::SUCCESS`.
 
 ⚠️ for better results, turn on the GBAs **after** calling the `sendRom` method!
 
