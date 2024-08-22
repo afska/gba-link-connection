@@ -20,7 +20,6 @@
 //       // `result` should be LinkCableMultiboot::Result::SUCCESS
 // --------------------------------------------------------------------------
 // considerations:
-// - for better results, turn on the GBAs after calling the `sendRom` method!
 // - stop DMA before sending the ROM! (you might need to stop your audio player)
 // --------------------------------------------------------------------------
 
@@ -57,7 +56,7 @@ class LinkCableMultiboot {
   static constexpr int MIN_ROM_SIZE = 0x100 + 0xc0;
   static constexpr int MAX_ROM_SIZE = 256 * 1024;
   static constexpr int FRAME_LINES = 228;
-  static constexpr int WAIT_BEFORE_RETRY = (FRAME_LINES * 60) / 16;
+  static constexpr int WAIT_BEFORE_RETRY = FRAME_LINES * 4;
   static constexpr int DETECTION_TRIES = 16;
   static constexpr int CLIENTS = 3;
   static constexpr int CLIENT_NO_DATA = 0xff;
@@ -112,7 +111,9 @@ class LinkCableMultiboot {
 
   retry:
     deactivate();
-    wait(WAIT_BEFORE_RETRY);
+
+    // (*) instead of 1/16s, waiting a random number of frames works better
+    wait(WAIT_BEFORE_RETRY + FRAME_LINES * _qran_range(1, 30));
 
     // 1. Prepare a "Multiboot Parameter Structure" in RAM.
     PartialResult partialResult = NEEDS_RETRY;
@@ -153,6 +154,7 @@ class LinkCableMultiboot {
   LinkRawCable* linkRawCable = new LinkRawCable();
   LinkSPI* linkSPI = new LinkSPI();
   TransferMode _mode;
+  int randomSeed = 123;
 
   enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED };
 
@@ -169,7 +171,7 @@ class LinkCableMultiboot {
 
     // 3. Send the word 0x6200 repeatedly until all detected clients respond
     // with 0x720X, where X is their client number (1-3). If they fail to do
-    // this after 16 tries, delay 1/16s and go back to step 2.
+    // this after 16 tries, delay 1/16s and go back to step 2. (*)
     bool success = false;
     for (u32 t = 0; t < DETECTION_TRIES; t++) {
       auto response = transfer(HANDSHAKE, cancel);
@@ -365,6 +367,15 @@ class LinkCableMultiboot {
         vCount = Link::_REG_VCOUNT;
       }
     };
+  }
+
+  int _qran() {
+    randomSeed = 1664525 * randomSeed + 1013904223;
+    return (randomSeed >> 16) & 0x7FFF;
+  }
+
+  int _qran_range(int min, int max) {
+    return (_qran() * (max - min) >> 15) + min;
   }
 };
 
