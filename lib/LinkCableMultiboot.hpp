@@ -37,14 +37,12 @@
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
     "LinkCableMultiboot/v7.0.0";
 
-#define LINK_CABLE_MULTIBOOT_TRY(CALL)    \
-  do {                                    \
-    partialResult = CALL;                 \
-  } while (partialResult == NEEDS_RETRY); \
-  if (partialResult == ABORTED)           \
-    return error(CANCELED);               \
-  else if (partialResult == ERROR)        \
-    return error(FAILURE_DURING_HANDSHAKE);
+#define LINK_CABLE_MULTIBOOT_TRY(CALL)   \
+  partialResult = CALL;                  \
+  if (partialResult == ABORTED)          \
+    return error(CANCELED);              \
+  else if (partialResult == NEEDS_RETRY) \
+    goto retry;
 
 /**
  * @brief A Multiboot tool to send small programs from one GBA to up to 3
@@ -80,13 +78,7 @@ class LinkCableMultiboot {
   };
 
  public:
-  enum Result {
-    SUCCESS,
-    INVALID_SIZE,
-    CANCELED,
-    FAILURE_DURING_HANDSHAKE,
-    FAILURE_DURING_TRANSFER
-  };
+  enum Result { SUCCESS, INVALID_SIZE, CANCELED, FAILURE_DURING_TRANSFER };
 
   enum TransferMode {
     SPI = 0,
@@ -118,8 +110,12 @@ class LinkCableMultiboot {
     if ((romSize % 0x10) != 0)
       return INVALID_SIZE;
 
+  retry:
+    deactivate();
+    wait(WAIT_BEFORE_RETRY);
+
     // 1. Prepare a "Multiboot Parameter Structure" in RAM.
-    PartialResult partialResult;
+    PartialResult partialResult = NEEDS_RETRY;
     Link::_MultiBootParam multiBootParameters;
     multiBootParameters.client_data[0] = CLIENT_NO_DATA;
     multiBootParameters.client_data[1] = CLIENT_NO_DATA;
@@ -158,7 +154,7 @@ class LinkCableMultiboot {
   LinkSPI* linkSPI = new LinkSPI();
   TransferMode _mode;
 
-  enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED, ERROR };
+  enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED };
 
   struct Responses {
     u16 d[CLIENTS];
@@ -198,11 +194,8 @@ class LinkCableMultiboot {
         break;
     }
 
-    if (!success) {
-      deactivate();
-      wait(WAIT_BEFORE_RETRY);
+    if (!success)
       return NEEDS_RETRY;
-    }
 
     // 4. Fill in client_bit in the multiboot parameter structure (with
     // bits 1-3 set according to which clients responded). Send the word
@@ -233,8 +226,9 @@ class LinkCableMultiboot {
         u16 expectedValue = (remaining << 8) | clientId;
         return value == expectedValue;
       });
+
       if (!success)
-        return ERROR;
+        return NEEDS_RETRY;
 
       remaining--;
     }
@@ -300,7 +294,7 @@ class LinkCableMultiboot {
     if (cancel())
       return ABORTED;
 
-    return (response.data[1] >> 8) == ACK_RESPONSE ? FINISHED : ERROR;
+    return (response.data[1] >> 8) == ACK_RESPONSE ? FINISHED : NEEDS_RETRY;
   }
 
   template <typename F>
