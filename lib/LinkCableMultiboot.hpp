@@ -118,6 +118,7 @@ class LinkCableMultiboot {
     if ((romSize % 0x10) != 0)
       return INVALID_SIZE;
 
+    // 1. Prepare a "Multiboot Parameter Structure" in RAM.
     PartialResult partialResult;
     Link::_MultiBootParam multiBootParameters;
     multiBootParameters.client_data[0] = CLIENT_NO_DATA;
@@ -129,24 +130,21 @@ class LinkCableMultiboot {
     multiBootParameters.boot_endp = (u8*)rom + romSize;
 
     LINK_CABLE_MULTIBOOT_TRY(detectClients(multiBootParameters, cancel))
-    LINK_CABLE_MULTIBOOT_TRY(confirmClients(multiBootParameters, cancel))
-    LINK_CABLE_MULTIBOOT_TRY(sendHeader(rom, cancel))
-    LINK_CABLE_MULTIBOOT_TRY(confirmHeader(multiBootParameters, cancel))
-    LINK_CABLE_MULTIBOOT_TRY(reconfirm(multiBootParameters, cancel))
+    LINK_CABLE_MULTIBOOT_TRY(sendHeader(multiBootParameters, rom, cancel))
     LINK_CABLE_MULTIBOOT_TRY(sendPalette(multiBootParameters, cancel))
-
-    multiBootParameters.handshake_data =
-        (HANDSHAKE_DATA + multiBootParameters.client_data[0] +
-         multiBootParameters.client_data[1] +
-         multiBootParameters.client_data[2]) %
-        256;
-
     LINK_CABLE_MULTIBOOT_TRY(confirmHandshakeData(multiBootParameters, cancel))
 
+    // 9. Call SWI 0x25, with r0 set to the address of the multiboot parameter
+    // structure and r1 set to the communication mode (0 for normal, 1 for
+    // MultiPlay).
     int result = Link::_MultiBoot(&multiBootParameters, (int)_mode);
 
     deactivate();
 
+    // 10. Upon return, r0 will be either 0 for success, or 1 for failure. If
+    // successful, all clients have received the multiboot program successfully
+    // and are now executing it - you can begin either further data transfer or
+    // a multiplayer game from here.
     return result == 1 ? FAILURE_DURING_TRANSFER : SUCCESS;
   }
 
@@ -169,69 +167,85 @@ class LinkCableMultiboot {
   template <typename F>
   PartialResult detectClients(Link::_MultiBootParam& multiBootParameters,
                               F cancel) {
+    // 2. Initiate a multiplayer communication session, using either Normal mode
+    // for a single client or MultiPlay mode for multiple clients.
     activate();
 
+    // 3. Send the word 0x6200 repeatedly until all detected clients respond
+    // with 0x720X, where X is their client number (1-3). If they fail to do
+    // this after 16 tries, delay 1/16s and go back to step 2.
+    bool success = false;
     for (u32 t = 0; t < DETECTION_TRIES; t++) {
       auto response = transfer(HANDSHAKE, cancel);
       if (cancel())
         return ABORTED;
 
-      for (u32 i = 0; i < CLIENTS; i++) {
-        if ((response.data[1 + i] & 0xfff0) == HANDSHAKE_RESPONSE) {
-          auto clientId = response.data[1 + i] & 0xf;
+      multiBootParameters.client_bit = 0;
 
-          switch (clientId) {
-            case 0b0010:
-            case 0b0100:
-            case 0b1000: {
-              multiBootParameters.client_bit |= clientId;
-              break;
+      success =
+          validateResponse(response, [&multiBootParameters](u32 i, u16 value) {
+            if ((value & 0xfff0) == HANDSHAKE_RESPONSE) {
+              auto clientId = value & 0xf;
+              if (clientId == CLIENT_IDS[i]) {
+                multiBootParameters.client_bit |= clientId;
+                return true;
+              }
             }
-            default:
-              return NEEDS_RETRY;
-          }
-        }
-      }
+            return false;
+          });
+
+      if (success)
+        break;
     }
 
-    if (multiBootParameters.client_bit == 0) {
+    if (!success) {
       deactivate();
       wait(WAIT_BEFORE_RETRY);
       return NEEDS_RETRY;
     }
 
+    // 4. Fill in client_bit in the multiboot parameter structure (with
+    // bits 1-3 set according to which clients responded). Send the word
+    // 0x610Y, where Y is that same set of set bits.
+    transfer(CONFIRM_CLIENTS | multiBootParameters.client_bit, cancel);
+
     return FINISHED;
   }
 
   template <typename F>
-  PartialResult confirmClients(Link::_MultiBootParam& multiBootParameters,
-                               F cancel) {
-    return compare(multiBootParameters,
-                   CONFIRM_CLIENTS | multiBootParameters.client_bit,
-                   HANDSHAKE_RESPONSE, cancel);
-  }
-
-  template <typename F>
-  PartialResult confirmHeader(Link::_MultiBootParam& multiBootParameters,
-                              F cancel) {
-    return compare(multiBootParameters, HANDSHAKE, 0, cancel);
-  }
-
-  template <typename F>
-  PartialResult reconfirm(Link::_MultiBootParam& multiBootParameters,
-                          F cancel) {
-    return compare(multiBootParameters, HANDSHAKE, HANDSHAKE_RESPONSE, cancel);
-  }
-
-  template <typename F>
-  PartialResult sendHeader(const u8* rom, F cancel) {
+  PartialResult sendHeader(Link::_MultiBootParam& multiBootParameters,
+                           const u8* rom,
+                           F cancel) {
+    // 5. Send the cartridge header, 16 bits at a time, in little endian order.
+    // After each 16-bit send, the clients will respond with 0xNN0X, where NN is
+    // the number of words remaining and X is the client number. (Note that if
+    // transferring in the single-client 32-bit mode, you still need to send
+    // only 16 bits at a time).
     u16* headerOut = (u16*)rom;
-
-    for (u32 i = 0; i < HEADER_SIZE; i += 2) {
-      transfer(*(headerOut++), cancel);
+    u32 remaining = HEADER_SIZE / 2;
+    while (remaining > 0) {
+      auto response = transfer(*(headerOut++), cancel);
       if (cancel())
         return ABORTED;
+
+      bool success = validateResponse(response, [&remaining](u32 i, u16 value) {
+        u8 clientId = CLIENT_IDS[i];
+        u16 expectedValue = (remaining << 8) | clientId;
+        return value == expectedValue;
+      });
+      if (!success)
+        return ERROR;
+
+      remaining--;
     }
+
+    // 6. Send 0x6200, followed by 0x620Y again.
+    transfer(HANDSHAKE, cancel);
+    if (cancel())
+      return ABORTED;
+    transfer(HANDSHAKE | multiBootParameters.client_bit, cancel);
+    if (cancel())
+      return ABORTED;
 
     return FINISHED;
   }
@@ -239,25 +253,32 @@ class LinkCableMultiboot {
   template <typename F>
   PartialResult sendPalette(Link::_MultiBootParam& multiBootParameters,
                             F cancel) {
+    // 7. Send 0x63PP repeatedly, where PP is the palette_data you have picked
+    // earlier. Do this until the clients respond with 0x73CC, where CC is a
+    // random byte. Store these bytes in client_data in the parameter structure.
     auto data = SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
 
-    auto response = transfer(data, cancel);
-    if (cancel())
-      return ABORTED;
+    bool success = false;
+    for (u32 i = 0; i < DETECTION_TRIES; i++) {
+      auto response = transfer(data, cancel);
+      if (cancel())
+        return ABORTED;
 
-    for (u32 i = 0; i < CLIENTS; i++) {
-      if (response.data[1 + i] >> 8 == ACK_RESPONSE)
-        multiBootParameters.client_data[i] = response.data[1 + i] & 0xff;
+      success =
+          validateResponse(response, [&multiBootParameters](u32 i, u16 value) {
+            if ((value >> 8) == ACK_RESPONSE) {
+              multiBootParameters.client_data[i] = value & 0xff;
+              return true;
+            }
+            return false;
+          });
+
+      if (success)
+        break;
     }
 
-    for (u32 i = 0; i < CLIENTS; i++) {
-      u8 clientId = CLIENT_IDS[i];
-      bool isClientConnected = multiBootParameters.client_bit & clientId;
-
-      if (isClientConnected &&
-          multiBootParameters.client_data[i] == CLIENT_NO_DATA)
-        return NEEDS_RETRY;
-    }
+    if (!success)
+      return NEEDS_RETRY;
 
     return FINISHED;
   }
@@ -265,6 +286,15 @@ class LinkCableMultiboot {
   template <typename F>
   PartialResult confirmHandshakeData(Link::_MultiBootParam& multiBootParameters,
                                      F cancel) {
+    // 8. Calculate the handshake_data byte and store it in the parameter
+    // structure. This should be calculated as 0x11 + the sum of the three
+    // client_data bytes. Send 0x64HH, where HH is the handshake_data.
+    multiBootParameters.handshake_data =
+        (HANDSHAKE_DATA + multiBootParameters.client_data[0] +
+         multiBootParameters.client_data[1] +
+         multiBootParameters.client_data[2]) %
+        256;
+
     u16 data = CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
     auto response = transfer(data, cancel);
     if (cancel())
@@ -274,24 +304,22 @@ class LinkCableMultiboot {
   }
 
   template <typename F>
-  PartialResult compare(Link::_MultiBootParam& multiBootParameters,
-                        u16 data,
-                        u16 expectedResponse,
-                        F cancel) {
-    auto response = transfer(data, cancel);
-    if (cancel())
-      return ABORTED;
-
+  bool validateResponse(Response response, F check) {
+    u32 count = 0;
     for (u32 i = 0; i < CLIENTS; i++) {
-      u8 clientId = CLIENT_IDS[i];
-      u16 expectedResponseWithId = expectedResponse | clientId;
-      bool isClientConnected = multiBootParameters.client_bit & clientId;
+      auto value = response.data[1 + i];
+      if (value == LINK_RAW_CABLE_DISCONNECTED) {
+        // Note that throughout this process, any clients that are not
+        // connected will always respond with 0xFFFF - be sure to ignore them.
+        continue;
+      }
 
-      if (isClientConnected && response.data[1 + i] != expectedResponseWithId)
-        return ERROR;
+      if (!check(i, value))
+        return false;
+      count++;
     }
 
-    return FINISHED;
+    return count > 0;
   }
 
   template <typename F>
@@ -304,7 +332,9 @@ class LinkCableMultiboot {
       response.playerId = response16bit.playerId;
       return response;
     } else {
-      Response response = {.data = {0xffff, 0xffff, 0xffff, 0xffff}};
+      Response response = {
+          .data = {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
+                   LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED}};
       response.data[1] = linkSPI->transfer(data, cancel) >> 16;
       response.playerId = 0;
       return response;
