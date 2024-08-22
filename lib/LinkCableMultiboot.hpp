@@ -58,8 +58,8 @@ class LinkCableMultiboot {
 
   static constexpr int MIN_ROM_SIZE = 0x100 + 0xc0;
   static constexpr int MAX_ROM_SIZE = 256 * 1024;
-  static constexpr int WAIT_BEFORE_RETRY = (160 + 68) * 60;
-  static constexpr int WAIT_BEFORE_TRANSFER = 50;
+  static constexpr int FRAME_LINES = 228;
+  static constexpr int WAIT_BEFORE_RETRY = (FRAME_LINES * 60) / 16;
   static constexpr int DETECTION_TRIES = 16;
   static constexpr int CLIENTS = 3;
   static constexpr int CLIENT_NO_DATA = 0xff;
