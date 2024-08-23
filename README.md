@@ -67,7 +67,7 @@ Name | Type | Default | Description
 --- | --- | --- | ---
 `baudRate` | **BaudRate** | `BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Number of *frames* without a `SERIAL` IRQ to reset the connection.
-`remoteTimeout` | **u32** | `5` | Number of *messages* with `0xFFFF` to mark a player as disconnected.
+`remoteTimeout` | **u32** | `3` | Number of *frames* receiving `0xFFFF` from other player to mark it as disconnected.
 `interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 

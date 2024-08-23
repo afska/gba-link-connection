@@ -59,7 +59,7 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
 
 #define LINK_CABLE_MAX_PLAYERS 4
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
-#define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 5
+#define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 3
 #define LINK_CABLE_DEFAULT_INTERVAL 50
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
 #define LINK_CABLE_DISCONNECTED 0xffff
@@ -103,8 +103,8 @@ class LinkCable {
    * @param baudRate Sets a specific baud rate.
    * @param timeout Number of *frames* without a `SERIAL` IRQ to reset the
    * connection.
-   * @param remoteTimeout Number of *messages* with `0xFFFF` to mark a player as
-   * disconnected.
+   * @param remoteTimeout Number of *frames* receiving `0xFFFF` from other
+   * player to mark it as disconnected.
    * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
@@ -273,8 +273,18 @@ class LinkCable {
 
     if (!_state.IRQFlag)
       _state.IRQTimeout++;
-
     _state.IRQFlag = false;
+
+    for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
+      if (!_state.msgFlags[i])
+        _state.timeouts[i]++;
+      _state.msgFlags[i] = false;
+    }
+
+    if (didTimeout()) {
+      reset();
+      return;
+    }
 
     copyState();
   }
@@ -305,9 +315,7 @@ class LinkCable {
         newPlayerCount++;
         setOnline(i);
       } else if (isOnline(i)) {
-        _state.timeouts[i]++;
-
-        if (_state.timeouts[i] >= (int)config.remoteTimeout) {
+        if (_state.timeouts[i] >= (int)config.timeout) {
           _state.newMessages[i].clear();
           setOffline(i);
         } else {
@@ -333,11 +341,6 @@ class LinkCable {
   void _onTimer() {
     if (!isEnabled)
       return;
-
-    if (didTimeout()) {
-      reset();
-      return;
-    }
 
     if (isMaster() && isReady() && !isSending())
       sendPendingData();
@@ -370,6 +373,7 @@ class LinkCable {
     U16Queue outgoingMessages;
     U16Queue readyToSyncMessages[LINK_CABLE_MAX_PLAYERS];
     U16Queue newMessages[LINK_CABLE_MAX_PLAYERS];
+    bool msgFlags[LINK_CABLE_MAX_PLAYERS];
     int timeouts[LINK_CABLE_MAX_PLAYERS];
     bool IRQFlag;
     u32 IRQTimeout;
@@ -472,9 +476,13 @@ class LinkCable {
   bool isOnline(u8 playerId) {
     return _state.timeouts[playerId] != REMOTE_TIMEOUT_OFFLINE;
   }
-  void setOnline(u8 playerId) { _state.timeouts[playerId] = 0; }
+  void setOnline(u8 playerId) {
+    _state.timeouts[playerId] = 0;
+    _state.msgFlags[playerId] = true;
+  }
   void setOffline(u8 playerId) {
     _state.timeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
+    _state.msgFlags[playerId] = false;
   }
 
   void setInterruptsOn() { setBitHigh(BIT_IRQ); }
@@ -537,3 +545,5 @@ inline void LINK_CABLE_ISR_TIMER() {
  */
 
 #endif  // LINK_CABLE_H
+
+// TODO: REPEAT IN LinkWireless / LinkUniversal
