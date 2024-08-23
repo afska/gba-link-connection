@@ -110,7 +110,6 @@ class LinkUniversal {
     bool retransmission;
     u32 maxPlayers;
     u32 timeout;
-    u32 remoteTimeout;
     u16 interval;
     u8 sendTimerId;
     s8 asyncACKTimerId;
@@ -139,7 +138,6 @@ class LinkUniversal {
                              WirelessOptions{
                                  true, LINK_UNIVERSAL_MAX_PLAYERS,
                                  LINK_WIRELESS_DEFAULT_TIMEOUT,
-                                 LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
                                  LINK_WIRELESS_DEFAULT_INTERVAL,
                                  LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
                                  LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
@@ -150,9 +148,8 @@ class LinkUniversal {
     this->linkWireless = new LinkWireless(
         wirelessOptions.retransmission, true,
         Link::_min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
-        wirelessOptions.timeout, wirelessOptions.remoteTimeout,
-        wirelessOptions.interval, wirelessOptions.sendTimerId,
-        wirelessOptions.asyncACKTimerId);
+        wirelessOptions.timeout, wirelessOptions.interval,
+        wirelessOptions.sendTimerId, wirelessOptions.asyncACKTimerId);
 
     this->config.protocol = protocol;
     this->config.gameName = gameName;

@@ -272,7 +272,7 @@ class LinkCable {
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
       if (!_state.msgFlags[i])
-        _state.timeouts[i]++;
+        _state.msgTimeouts[i]++;
       _state.msgFlags[i] = false;
     }
 
@@ -310,7 +310,7 @@ class LinkCable {
         newPlayerCount++;
         setOnline(i);
       } else if (isOnline(i)) {
-        if (_state.timeouts[i] >= (int)config.timeout) {
+        if (_state.msgTimeouts[i] >= (int)config.timeout) {
           _state.newMessages[i].clear();
           setOffline(i);
         } else {
@@ -367,10 +367,10 @@ class LinkCable {
     U16Queue outgoingMessages;
     U16Queue readyToSyncMessages[LINK_CABLE_MAX_PLAYERS];
     U16Queue newMessages[LINK_CABLE_MAX_PLAYERS];
-    bool msgFlags[LINK_CABLE_MAX_PLAYERS];
-    int timeouts[LINK_CABLE_MAX_PLAYERS];
-    bool IRQFlag;
     u32 IRQTimeout;
+    int msgTimeouts[LINK_CABLE_MAX_PLAYERS];
+    bool msgFlags[LINK_CABLE_MAX_PLAYERS];
+    bool IRQFlag;
   };
 
   ExternalState state;
@@ -468,14 +468,14 @@ class LinkCable {
   }
 
   bool isOnline(u8 playerId) {
-    return _state.timeouts[playerId] != REMOTE_TIMEOUT_OFFLINE;
+    return _state.msgTimeouts[playerId] != REMOTE_TIMEOUT_OFFLINE;
   }
   void setOnline(u8 playerId) {
-    _state.timeouts[playerId] = 0;
+    _state.msgTimeouts[playerId] = 0;
     _state.msgFlags[playerId] = true;
   }
   void setOffline(u8 playerId) {
-    _state.timeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
+    _state.msgTimeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
     _state.msgFlags[playerId] = false;
   }
 

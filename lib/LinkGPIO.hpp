@@ -91,7 +91,6 @@ class LinkGPIO {
   /**
    * @brief If it `isEnabled`, an IRQ will be generated when `SI` changes from
    * HIGH to LOW.
-   *
    * @param isEnabled Enable SI-falling interrupts.
    */
   void setSIInterrupts(bool isEnabled) {

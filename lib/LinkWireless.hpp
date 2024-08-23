@@ -119,7 +119,6 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
 #define LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 10
-#define LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
 #define LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID -1
@@ -253,8 +252,6 @@ class LinkWireless {
    * transfers faster.
    * @param timeout Number of *frames* without receiving *any* data to reset the
    * connection.
-   * @param remoteTimeout Number of *successful transfers* without a message
-   * from a client to mark the player as disconnected.
    * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
@@ -267,7 +264,6 @@ class LinkWireless {
       bool retransmission = true,
       u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
       u32 timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-      u32 remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
       u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL,
       u8 sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
       s8 asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID) {
@@ -275,7 +271,6 @@ class LinkWireless {
     this->config.retransmission = retransmission;
     this->config.maxPlayers = maxPlayers;
     this->config.timeout = timeout;
-    this->config.remoteTimeout = remoteTimeout;
     this->config.interval = interval;
     this->config.sendTimerId = sendTimerId;
     this->config.asyncACKTimerId = asyncACKTimerId;
@@ -765,22 +760,22 @@ class LinkWireless {
     if (!isSessionActive())
       return;
 
-    if (isConnected() && sessionState.frameRecvCount == 0)
+    if (isConnected() && !sessionState.recvFlag)
       sessionState.recvTimeout++;
-
     if (sessionState.recvTimeout >= config.timeout) {
       reset();
       lastError = TIMEOUT;
       return;
     }
 
+    trackRemoteTimeouts();
     if (!checkRemoteTimeouts()) {
       reset();
       lastError = REMOTE_TIMEOUT;
       return;
     }
 
-    sessionState.frameRecvCount = 0;
+    sessionState.recvFlag = false;
     sessionState.acceptCalled = false;
     sessionState.pingSent = false;
 
@@ -934,7 +929,6 @@ class LinkWireless {
     bool retransmission;
     u8 maxPlayers;
     u32 timeout;
-    u32 remoteTimeout;
     u32 interval;
     u32 sendTimerId;
     s8 asyncACKTimerId;
@@ -954,9 +948,12 @@ class LinkWireless {
     MessageQueue outgoingMessages;     // read and write by irq
     MessageQueue newIncomingMessages;  // read and write by irq
     MessageQueue newOutgoingMessages;  // read by irq, write by user&irq
-    u32 timeouts[LINK_WIRELESS_MAX_PLAYERS];
-    u32 recvTimeout = 0;
-    u32 frameRecvCount = 0;
+
+    u32 recvTimeout = 0;                         // (~= LinkCable::IRQTimeout)
+    u32 msgTimeouts[LINK_WIRELESS_MAX_PLAYERS];  // (~= LinkCable::msgTimeouts)
+    bool recvFlag = false;                       // (~= LinkCable::IRQFlag)
+    bool msgFlags[LINK_WIRELESS_MAX_PLAYERS];    // (~= LinkCable::msgFlags)
+
     bool acceptCalled = false;
     bool pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
@@ -1093,14 +1090,13 @@ class LinkWireless {
         if (asyncCommand.result.responsesSize == 0)
           break;
 
-        sessionState.frameRecvCount++;
+        sessionState.recvFlag = true;
         sessionState.recvTimeout = 0;
 
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.shouldWaitForServer = false;
 #endif
 
-        trackRemoteTimeouts();
         addIncomingMessagesFromData(asyncCommand.result);
 
 #ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
@@ -1204,8 +1200,10 @@ class LinkWireless {
       u32 checksum = header.dataChecksum;
       bool isPing = data == MSG_PING;
 
-      sessionState.timeouts[0] = 0;
-      sessionState.timeouts[remotePlayerId] = 0;
+      sessionState.msgTimeouts[0] = 0;
+      sessionState.msgTimeouts[remotePlayerId] = 0;
+      sessionState.msgFlags[0] = true;
+      sessionState.msgFlags[remotePlayerId] = true;
 
       if (checksum != buildChecksum(data))
         continue;
@@ -1384,15 +1382,17 @@ class LinkWireless {
   }
 
   void trackRemoteTimeouts() {  // (irq only)
-    for (u32 i = 0; i < sessionState.playerCount; i++)
-      if (i != sessionState.currentPlayerId)
-        sessionState.timeouts[i]++;
+    for (u32 i = 0; i < sessionState.playerCount; i++) {
+      if (i != sessionState.currentPlayerId && !sessionState.msgFlags[i])
+        sessionState.msgTimeouts[i]++;
+      sessionState.msgFlags[i] = false;
+    }
   }
 
   bool checkRemoteTimeouts() {  // (irq only)
     for (u32 i = 0; i < sessionState.playerCount; i++) {
       if ((i == 0 || state == SERVING) &&
-          sessionState.timeouts[i] > config.remoteTimeout)
+          sessionState.msgTimeouts[i] > config.timeout)
         return false;
     }
 
@@ -1511,8 +1511,8 @@ class LinkWireless {
     this->asyncCommand.isActive = false;
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
+    this->sessionState.recvFlag = false;
     this->sessionState.recvTimeout = 0;
-    this->sessionState.frameRecvCount = 0;
     this->sessionState.acceptCalled = false;
     this->sessionState.pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
@@ -1524,7 +1524,8 @@ class LinkWireless {
     this->sessionState.lastPacketIdFromServer = 0;
     this->sessionState.lastConfirmationFromServer = 0;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
-      this->sessionState.timeouts[i] = 0;
+      this->sessionState.msgTimeouts[i] = 0;
+      this->sessionState.msgFlags[i] = 0;
       this->sessionState.lastPacketIdFromClients[i] = 0;
       this->sessionState.lastConfirmationFromClients[i] = 0;
     }
