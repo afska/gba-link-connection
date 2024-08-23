@@ -5,8 +5,7 @@
 
 #ifndef USE_LINK_UNIVERSAL
 #include "../../../lib/LinkCable.hpp"
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
 #include "../../../lib/LinkUniversal.hpp"
 #endif
 
@@ -14,8 +13,7 @@
 
 #ifndef USE_LINK_UNIVERSAL
 extern LinkCable* linkConnection;
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
 extern LinkUniversal* linkConnection;
 #endif
 

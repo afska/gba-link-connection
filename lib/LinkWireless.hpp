@@ -91,8 +91,20 @@
  * @brief Put Interrupt Service Routines (ISR) in IWRAM (uncomment to enable).
  * This can significantly improve performance due to its faster access, but it's
  * disabled by default to conserve IWRAM space, which is limited.
+ * \warning If you enable this, make sure that `LinkWireless.cpp` gets compiled!
+ * For example, in a Makefile-based project, verify that the file is in your
+ * `SRCDIRS` list.
  */
 // #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
+
+/**
+ * @brief Allow LINK_WIRELESS_ISR_* functions to be interrupted. This can be
+ * useful, for example, if your audio engine requires calling a VBlank handler
+ * with precise timing.
+ * \warning This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is
+ * disabled.
+ */
+// #define LINK_WIRELESS_ENABLE_NESTED_IRQ
 
 /**
  * @brief Use send/receive latch (uncomment to enable).
@@ -751,9 +763,22 @@ class LinkWireless {
    * @brief This method is called by the VBLANK interrupt handler.
    * \warning This is internal API!
    */
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+  __attribute__((noinline)) void _onVBlank() {
+#else
   void _onVBlank() {
+#endif
     if (!isEnabled)
       return;
+
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+    if (interrupt) {
+      pendingVBlank = true;
+      return;
+    }
+#endif
+#endif
 
 #ifdef PROFILING_ENABLED
     profileStart();
@@ -796,8 +821,7 @@ class LinkWireless {
   void _onSerial();
   void _onTimer();
   void _onACKTimer();
-#endif
-#ifndef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#else
   void _onSerial() { __onSerial(); }
   void _onTimer() { __onTimer(); }
   void _onACKTimer() { __onACKTimer(); }
@@ -1036,10 +1060,29 @@ class LinkWireless {
   Error lastError = NONE;
   volatile bool isEnabled = false;
 
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+  volatile bool interrupt = false, pendingVBlank = false;
+#endif
+#endif
+
   void forwardMessageIfNeeded(Message& message) {
     if (state == SERVING && config.forwarding && sessionState.playerCount > 2)
       send(message.data, message.playerId);
   }
+
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+  void irqEnd() {
+    interrupt = false;
+    LINK_WIRELESS_BARRIER;
+    if (pendingVBlank) {
+      _onVBlank();
+      pendingVBlank = false;
+    }
+  }
+#endif
+#endif
 
   void processAsyncCommand() {  // (irq only)
     if (!asyncCommand.result.success) {
@@ -1071,8 +1114,7 @@ class LinkWireless {
         if (state == CONNECTED)
           sessionState.shouldWaitForServer = true;
         sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
-#endif
-#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+#else
         if (state == SERVING) {
           // ReceiveData (start)
           sendCommandAsync(COMMAND_RECEIVE_DATA);
@@ -1125,8 +1167,7 @@ class LinkWireless {
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive =
           !sessionState.sendReceiveLatch || sessionState.shouldWaitForServer;
-#endif
-#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+#else
       bool shouldReceive = state == CONNECTED;
 #endif
 
@@ -1773,7 +1814,13 @@ class LinkWireless {
     return buildU32(COMMAND_HEADER_VALUE, buildU16(length, type));
   }
 
-  void transferAsync(u32 data) {
+  void transferAsync(u32 data) {  // (irq only)
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+    Link::_REG_IME = 0;
+#endif
+#endif
+
     linkSPI->transfer(data, []() { return false; }, true, true);
   }
 

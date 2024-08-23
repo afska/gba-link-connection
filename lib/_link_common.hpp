@@ -82,6 +82,7 @@ inline vu16& _REG_TM1CNT_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0104);
 inline vu16& _REG_TM1CNT_H = *reinterpret_cast<vu16*>(_REG_BASE + 0x0106);
 inline vu16& _REG_TM2CNT_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0108);
 inline vu16& _REG_TM2CNT_H = *reinterpret_cast<vu16*>(_REG_BASE + 0x010a);
+inline vu16& _REG_IME = *reinterpret_cast<vu16*>(_REG_BASE + 0x0208);
 
 inline volatile _TMR_REC* const _REG_TM =
     reinterpret_cast<volatile _TMR_REC*>(_REG_BASE + 0x0100);

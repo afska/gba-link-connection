@@ -34,8 +34,7 @@ u32 toMs(u32 cycles);
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
 LinkCable* linkConnection = linkCable;
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
 LinkUniversal* linkUniversal =
     new LinkUniversal(LinkUniversal::Protocol::AUTODETECT,
                       "LinkUniversal",
@@ -69,8 +68,7 @@ void init() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
   // LinkUniversal
   interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
@@ -89,8 +87,7 @@ int main() {
   while (true) {
 #ifndef USE_LINK_UNIVERSAL
     std::string output = "LinkCable_stress (v7.0.0)\n\n";
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
     std::string output = "LinkUniversal_stress (v7.0.0)\n\n";
 #endif
 
@@ -116,8 +113,7 @@ int main() {
       interval = 10;
 #ifndef USE_LINK_UNIVERSAL
     linkConnection->config.interval = interval;
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
     linkConnection->linkCable->config.interval = interval;
     linkConnection->linkWireless->config.interval = interval;
 #endif

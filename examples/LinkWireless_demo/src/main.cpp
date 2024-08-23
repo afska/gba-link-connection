@@ -419,8 +419,7 @@ void messageLoop() {
               linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs +
               linkWireless->lastACKTimerTime *
                   linkWireless->lastFrameACKTimerIRQs));
-#endif
-#ifndef PROFILING_ENABLED
+#else
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
         output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ":" +

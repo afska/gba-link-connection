@@ -15,8 +15,7 @@ static std::unique_ptr<TestScene> testScene{new TestScene(engine)};
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
 LinkCable* linkConnection = linkCable;
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
 LinkUniversal* linkUniversal = new LinkUniversal();
 LinkUniversal* linkConnection = linkUniversal;
 #endif
@@ -78,8 +77,7 @@ inline void setUpInterrupts() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
   // LinkUniversal
   interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
@@ -98,8 +96,7 @@ inline void setUpInterrupts() {
 void printTutorial() {
 #ifndef USE_LINK_UNIVERSAL
   DEBULOG("LinkCable_full (v7.0.0)");
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
   DEBULOG("LinkUniversal_full (v7.0.0)");
 #endif
 
