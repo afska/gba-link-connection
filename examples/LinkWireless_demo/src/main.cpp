@@ -62,8 +62,8 @@ start:
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(
       forwarding, retransmission, maxPlayers, LINK_WIRELESS_DEFAULT_TIMEOUT,
-      LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
-      LINK_WIRELESS_DEFAULT_SEND_TIMER_ID, asyncACK ? 0 : -1);
+      LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
+      asyncACK ? 0 : -1);
   // linkWireless->debug = [](std::string str) { log(str); };
 
   // (2) Add the required interrupt service routines

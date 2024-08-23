@@ -42,14 +42,12 @@ LinkUniversal* linkUniversal =
                       (LinkUniversal::CableOptions){
                           .baudRate = LinkCable::BAUD_RATE_1,
                           .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-                          .remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
                           .interval = LINK_CABLE_DEFAULT_INTERVAL,
                           .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
                       (LinkUniversal::WirelessOptions){
                           .retransmission = true,
                           .maxPlayers = 2,
                           .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-                          .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
                           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
                           .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
                           .asyncACKTimerId = 0},

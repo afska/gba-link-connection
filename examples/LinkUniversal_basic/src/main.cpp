@@ -48,14 +48,12 @@ int main() {
       (LinkUniversal::CableOptions){
           .baudRate = LinkCable::BAUD_RATE_1,
           .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-          .remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
           .interval = LINK_CABLE_DEFAULT_INTERVAL,
           .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
       (LinkUniversal::WirelessOptions){
           .retransmission = true,
           .maxPlayers = maxPlayers,
           .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-          .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
           .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
           .asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
