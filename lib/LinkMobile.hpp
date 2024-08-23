@@ -101,7 +101,7 @@ class LinkMobile {
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int INIT_WAIT_FRAMES = 7;
-  static constexpr int INIT_TIMEOUT_FRAMES = 30;
+  static constexpr int INIT_TIMEOUT_FRAMES = 60 * 3;
   static constexpr int PING_FREQUENCY_FRAMES = 60;
   static constexpr int ADAPTER_WAITING = 0xd2;
   static constexpr u32 ADAPTER_WAITING_32BIT = 0xd2d2d2d2;
