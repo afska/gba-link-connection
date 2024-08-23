@@ -102,7 +102,6 @@ class LinkUniversal {
   struct CableOptions {
     LinkCable::BaudRate baudRate;
     u32 timeout;
-    u32 remoteTimeout;
     u16 interval;
     u8 sendTimerId;
   };
@@ -134,7 +133,6 @@ class LinkUniversal {
                          CableOptions cableOptions =
                              CableOptions{LinkCable::BaudRate::BAUD_RATE_1,
                                           LINK_CABLE_DEFAULT_TIMEOUT,
-                                          LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
                                           LINK_CABLE_DEFAULT_INTERVAL,
                                           LINK_CABLE_DEFAULT_SEND_TIMER_ID},
                          WirelessOptions wirelessOptions =
@@ -146,9 +144,9 @@ class LinkUniversal {
                                  LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
                                  LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
                          int randomSeed = 123) {
-    this->linkCable = new LinkCable(
-        cableOptions.baudRate, cableOptions.timeout, cableOptions.remoteTimeout,
-        cableOptions.interval, cableOptions.sendTimerId);
+    this->linkCable =
+        new LinkCable(cableOptions.baudRate, cableOptions.timeout,
+                      cableOptions.interval, cableOptions.sendTimerId);
     this->linkWireless = new LinkWireless(
         wirelessOptions.retransmission, true,
         Link::_min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),

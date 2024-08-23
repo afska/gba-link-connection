@@ -59,7 +59,6 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
 
 #define LINK_CABLE_MAX_PLAYERS 4
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
-#define LINK_CABLE_DEFAULT_REMOTE_TIMEOUT 3
 #define LINK_CABLE_DEFAULT_INTERVAL 50
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
 #define LINK_CABLE_DISCONNECTED 0xffff
@@ -103,8 +102,6 @@ class LinkCable {
    * @param baudRate Sets a specific baud rate.
    * @param timeout Number of *frames* without a `SERIAL` IRQ to reset the
    * connection.
-   * @param remoteTimeout Number of *frames* receiving `0xFFFF` from other
-   * player to mark it as disconnected.
    * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
@@ -112,12 +109,10 @@ class LinkCable {
    */
   explicit LinkCable(BaudRate baudRate = BAUD_RATE_1,
                      u32 timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-                     u32 remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
                      u16 interval = LINK_CABLE_DEFAULT_INTERVAL,
                      u8 sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
     this->config.baudRate = baudRate;
     this->config.timeout = timeout;
-    this->config.remoteTimeout = remoteTimeout;
     this->config.interval = interval;
     this->config.sendTimerId = sendTimerId;
   }
@@ -351,7 +346,6 @@ class LinkCable {
   struct Config {
     BaudRate baudRate;
     u32 timeout;
-    u32 remoteTimeout;
     u32 interval;
     u8 sendTimerId;
   };
