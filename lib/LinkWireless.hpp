@@ -258,6 +258,8 @@ class LinkWireless {
    * @param sendTimerId GBA Timer to use for sending.
    * @param asyncACKTimerId GBA Timer to use for ACKs. If you have free timers,
    * use one here to reduce CPU usage.
+   * \warning You can use `Link::perFrame(...)` to convert from *packets per
+   * frame* to *interval values*.
    */
   explicit LinkWireless(
       bool forwarding = true,

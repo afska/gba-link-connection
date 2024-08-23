@@ -106,6 +106,8 @@ class LinkCable {
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
    * @param sendTimerId `(0~3)` GBA Timer to use for sending.
+   * \warning You can use `Link::perFrame(...)` to convert from *packets per
+   * frame* to *interval values*.
    */
   explicit LinkCable(BaudRate baudRate = BAUD_RATE_1,
                      u32 timeout = LINK_CABLE_DEFAULT_TIMEOUT,

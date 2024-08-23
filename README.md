@@ -67,7 +67,7 @@ Name | Type | Default | Description
 --- | --- | --- | ---
 `baudRate` | **BaudRate** | `BAUD_RATE_1` | Sets a specific baud rate.
 `timeout` | **u32** | `3` | Maximum number of *frames* without receiving data from other player before marking them as disconnected or resetting the connection.
-`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
+`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU. You can use `Link::perFrame(...)` to convert from *packets per frame* to *interval values*.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 
 You can update these values at any time without creating a new instance:
@@ -171,7 +171,7 @@ Name | Type | Default | Description
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
 `maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
 `timeout` | **u32** | `10` | Maximum number of *frames* without receiving data from other player before resetting the connection.
-`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU.
+`interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU. You can use `Link::perFrame(...)` to convert from *packets per frame* to *interval values*.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
 `asyncACKTimerId` | **s8** *(0~3 or -1)* | `-1` | GBA Timer to use for ACKs. If you have free timers, use one here to reduce CPU usage.
 

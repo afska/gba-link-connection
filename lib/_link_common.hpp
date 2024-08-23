@@ -239,6 +239,11 @@ class Queue {
   volatile bool _needsClear = false;
 };
 
+// Packets per frame -> Timer interval
+static inline u16 perFrame(u16 packets) {
+  return (1667 * 1024) / (packets * 6104);
+}
+
 // mGBA Logging
 
 #if LINK_ENABLE_DEBUG_LOGS != 0
