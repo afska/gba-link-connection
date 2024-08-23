@@ -98,9 +98,10 @@
 // #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
 
 /**
- * @brief Allow LINK_WIRELESS_ISR_* functions to be interrupted. This can be
- * useful, for example, if your audio engine requires calling a VBlank handler
- * with precise timing.
+ * @brief Allow LINK_WIRELESS_ISR_* functions to be interrupted (uncomment to
+ * enable).
+ * This can be useful, for example, if your audio engine requires calling a
+ * VBlank handler with precise timing.
  * \warning This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is
  * disabled.
  */
@@ -113,6 +114,15 @@
  * also reduce overall CPU usage.
  */
 // #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+
+/**
+ * @brief Optimize the library for two players (uncomment to enable).
+ * This will make the code smaller and use less CPU. It will also let you
+ * "misuse" 5 bits from the packet header to send small packets really fast
+ * (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and
+ * `QUICK_RECEIVE` properties.
+ */
+// #define LINK_WIRELESS_TWO_PLAYERS_ONLY
 
 static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
 
@@ -159,7 +169,11 @@ class LinkWireless {
   using s8 = signed char;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+  static constexpr int PACKET_ID_BITS = 5;
+#else
   static constexpr int PACKET_ID_BITS = 6;
+#endif
   static constexpr int MAX_PACKET_IDS = (1 << PACKET_ID_BITS);
   static constexpr int PACKET_ID_MASK = (MAX_PACKET_IDS - 1);
   static constexpr int MSG_PING = 0xffff;
@@ -192,6 +206,11 @@ class LinkWireless {
                                         0x4e45, 0x4f44, 0x4f44, 0x8001};
 
  public:
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+  u32 QUICK_SEND = 0;
+  u32 QUICK_RECEIVE = 0;
+#endif
+
 // std::function<void(std::string str)> debug;
 // #define PROFILING_ENABLED
 #ifdef PROFILING_ENABLED
@@ -241,7 +260,6 @@ class LinkWireless {
     u8 playerId = 0;
   };
 
- public:
   struct Server {
     u16 id = 0;
     u16 gameId;
@@ -281,6 +299,10 @@ class LinkWireless {
       u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL,
       u8 sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
       s8 asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID) {
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+    maxPlayers = 2;
+#endif
+
     this->config.forwarding = forwarding;
     this->config.retransmission = retransmission;
     this->config.maxPlayers = maxPlayers;
@@ -632,7 +654,9 @@ class LinkWireless {
     while (!sessionState.incomingMessages.isEmpty()) {
       auto message = sessionState.incomingMessages.pop();
       messages[i] = message;
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
       forwardMessageIfNeeded(message);
+#endif
       i++;
     }
 
@@ -795,12 +819,14 @@ class LinkWireless {
       return;
     }
 
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
     trackRemoteTimeouts();
     if (!checkRemoteTimeouts()) {
       reset();
       lastError = REMOTE_TIMEOUT;
       return;
     }
+#endif
 
     sessionState.recvFlag = false;
     sessionState.acceptCalled = false;
@@ -1001,8 +1027,13 @@ class LinkWireless {
   struct MessageHeader {
     unsigned int partialPacketId : PACKET_ID_BITS;
     unsigned int isConfirmation : 1;
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+    unsigned int playerId : 1;
+    unsigned int quickData : 5;
+#else
     unsigned int playerId : 3;
     unsigned int clientCount : 2;
+#endif
     unsigned int dataChecksum : 4;
   };
 
@@ -1066,10 +1097,12 @@ class LinkWireless {
 #endif
 #endif
 
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
   void forwardMessageIfNeeded(Message& message) {
     if (state == SERVING && config.forwarding && sessionState.playerCount > 2)
       send(message.data, message.playerId);
   }
+#endif
 
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
@@ -1239,7 +1272,12 @@ class LinkWireless {
       u32 partialPacketId = header.partialPacketId;
       bool isConfirmation = header.isConfirmation;
       u8 remotePlayerId = Link::_min(header.playerId, config.maxPlayers - 1);
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+      QUICK_RECEIVE = header.quickData;
+      u8 remotePlayerCount = 2;
+#else
       u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
+#endif
       u32 checksum = header.dataChecksum;
       bool isPing = data == MSG_PING;
 
@@ -1322,6 +1360,7 @@ class LinkWireless {
 
   void addConfirmations() {  // (irq only)
     if (state == SERVING) {
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
       if (config.maxPlayers > 2 &&
           (sessionState.lastPacketIdFromClients[1] == 0 ||
            sessionState.lastPacketIdFromClients[2] == 0 ||
@@ -1332,6 +1371,7 @@ class LinkWireless {
         u32 rawMessage = buildU32(header, lastPacketId & 0xffff);
         addAsyncData(rawMessage);
       }
+#endif
 
       for (int i = 0; i < config.maxPlayers - 1; i++) {
         u32 confirmationData = sessionState.lastPacketIdFromClients[1 + i];
@@ -1411,6 +1451,9 @@ class LinkWireless {
     header.partialPacketId = packetId % MAX_PACKET_IDS;
     header.isConfirmation = isConfirmation;
     header.playerId = playerId;
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+    header.quickData = QUICK_SEND;
+#endif
     header.clientCount = sessionState.playerCount - LINK_WIRELESS_MIN_PLAYERS;
     header.dataChecksum = dataChecksum;
 
@@ -1424,6 +1467,7 @@ class LinkWireless {
     return __builtin_popcount(data) % 16;
   }
 
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
   void trackRemoteTimeouts() {  // (irq only)
     for (u32 i = 0; i < sessionState.playerCount; i++) {
       if (i != sessionState.currentPlayerId && !sessionState.msgFlags[i])
@@ -1441,6 +1485,7 @@ class LinkWireless {
 
     return true;
   }
+#endif
 
   u32 getDeviceTransferLength() {  // (irq only)
     return state == SERVING ? LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
@@ -1552,6 +1597,10 @@ class LinkWireless {
   void resetState() {
     this->state = NEEDS_RESET;
     this->asyncCommand.isActive = false;
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+    QUICK_SEND = 0;
+    QUICK_RECEIVE = 0;
+#endif
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
     this->sessionState.recvFlag = false;

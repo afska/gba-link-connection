@@ -173,7 +173,7 @@ Name | Type | Default | Description
 --- | --- | --- | ---
 `forwarding` | **bool** | `true` | If `true`, the server forwards all messages to the clients. Otherwise, clients only see messages sent from the server (ignoring other peers).
 `retransmission` | **bool** | `true` | If `true`, the library handles retransmission for you, so there should be no packet loss.
-`maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players. If your game only supports -for example- two players, set this to `2` as it will make transfers faster.
+`maxPlayers` | **u8** *(2~5)* | `5` | Maximum number of allowed players.
 `timeout` | **u32** | `10` | Maximum number of *frames* without receiving data from other player before resetting the connection.
 `interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU. You can use `Link::perFrame(...)` to convert from *packets per frame* to *interval values*.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
@@ -195,6 +195,7 @@ You can also change these compile-time constants:
 - `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
   - This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is disabled.
 - `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
+- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" 5 bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties.
 
 ## Methods
 
