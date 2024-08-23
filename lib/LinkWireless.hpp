@@ -1489,9 +1489,21 @@ class LinkWireless {
   }
 
   bool reset() {
+    bool wasEnabled = isEnabled;
+
+    LINK_WIRELESS_BARRIER;
+    isEnabled = false;
+    LINK_WIRELESS_BARRIER;
+
     resetState();
     stop();
-    return start();
+    bool result = start();
+
+    LINK_WIRELESS_BARRIER;
+    isEnabled = wasEnabled;
+    LINK_WIRELESS_BARRIER;
+
+    return result;
   }
 
   void resetState() {
