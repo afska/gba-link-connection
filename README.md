@@ -35,7 +35,9 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 	* The examples can be tested on real GBAs or using emulators.
 	* For `LinkCable`/`LinkWireless`/`LinkUniversal`, there are stress tests that you can use to tweak your configuration.
 
-> The example ROMs were compiled using [devkitPro](https://devkitpro.org) with GCC `14.1.0`.
+> The files use some compiler extensions, so using **GCC** is required.
+
+> The example ROMs were compiled using [devkitPro](https://devkitpro.org) with GCC `14.1.0`, with `-std=c++17` as the standard and `-Ofast` as the optimization level.
 
 > To learn implementation details, you might also want to check out the [docs](docs) folder, which contains important documentation.
 

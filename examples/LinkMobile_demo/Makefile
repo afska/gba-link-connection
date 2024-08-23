@@ -165,7 +165,7 @@ CFLAGS		+= -Wall
 CFLAGS		+= $(INCLUDE)
 CFLAGS		+= -ffast-math -fno-strict-aliasing
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17
 
 ASFLAGS		:= $(ARCH) $(INCLUDE)
 LDFLAGS 	:= $(ARCH) -Wl,-Map,$(PROJ).map
