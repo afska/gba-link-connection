@@ -54,7 +54,6 @@ class LinkCube {
   static constexpr int BIT_CMD_RESET = 0;
   static constexpr int BIT_CMD_RECEIVE = 1;
   static constexpr int BIT_CMD_SEND = 2;
-  static constexpr int COMMAND_DATA_READ = 0x14;
   static constexpr int BIT_IRQ = 6;
   static constexpr int BIT_JOYBUS_HIGH = 14;
   static constexpr int BIT_GENERAL_PURPOSE_LOW = 14;
@@ -84,10 +83,9 @@ class LinkCube {
     start();
 
     Link::log("ACTIVATED!");
+    Link::_REG_JOY_TRANS_H = 0xffee;
+    Link::_REG_JOY_TRANS_L = 0xaadd;
   }
-
- public:
-  int n = 0;  // TODO: REMOVE
 
   /**
    * @brief Deactivates the library.
@@ -103,23 +101,23 @@ class LinkCube {
    * \warning This is internal API!
    */
   void _onSerial() {
-    n++;
-
     if (!isEnabled)
       return;
 
     if (isBitHigh(BIT_CMD_RESET)) {
-      Link::log("RESET HIGH?", Link::_REG_JOY_RECV_H);
-      Link::log("RESET LOW?", Link::_REG_JOY_RECV_L);
-      return;
+      resetState();
+      _LCLOG_("LinkCube: reset!");
+      setBitHigh(BIT_CMD_RESET);
     }
     if (isBitHigh(BIT_CMD_RECEIVE)) {
-      // TODO: RECEIVE
-      return;
+      _LCLOG_("LinkCube: cmd receive!");
+      setBitHigh(BIT_CMD_RECEIVE);
+      // return;
     }
     if (isBitHigh(BIT_CMD_SEND)) {
-      // TODO: RECEIVE
-      return;
+      _LCLOG_("LinkCube: cmd send!");
+      setBitHigh(BIT_CMD_SEND);
+      // return;
     }
   }
 
@@ -129,8 +127,8 @@ class LinkCube {
   volatile bool isEnabled = false;
 
   void resetState() {
-    incomingQueue.clear();
-    outgoingQueue.clear();
+    incomingQueue.syncClear();
+    outgoingQueue.syncClear();
   }
 
   void stop() {
@@ -141,7 +139,6 @@ class LinkCube {
   void start() {
     setJoybusMode();
     setInterruptsOn();
-    _LCLOG_("Activated irq");  // TODO: REMOVE
   }
 
   void setJoybusMode() {

@@ -1,4 +1,4 @@
-#define LINK_ENABLE_DEBUG_LOGS 1
+#define LINK_ENABLE_DEBUG_LOGS 1  // TODO: 0
 
 // (0) Include the header
 #include "../../../lib/LinkCube.hpp"
@@ -36,7 +36,6 @@ int main() {
   linkCube->activate();
 
   int counter = -1;
-  u32 index = 0;
   std::string received = "";
 
   while (true) {
@@ -47,18 +46,6 @@ int main() {
         std::to_string(counter) + "\n(pending = " + std::to_string(0) +
         ")\n\nReceived:\n" + received;
 
-    // if (index == 0) {
-    //   Link::_REG_JOY_TRANS_L = 0;
-    //   index++;
-    // } else if (index == 1) {
-    //   Link::_REG_JOY_TRANS_L = 0b100;
-    //   index++;
-    // } else if (index == 2) {
-    //   Link::_REG_JOY_TRANS_L = Link::_REG_JOYSTAT & 0xff;
-    //   index = 0;
-    // }
-
-    output += std::to_string(linkCube->n) + ", \n";
     output += std::to_string(Link::_REG_JOY_RECV_H) + ", \n";
     output += std::to_string(Link::_REG_JOY_RECV_L) + ", \n";
     output += "joycnt: " + std::to_string(Link::_REG_JOYCNT) + ", \n";
