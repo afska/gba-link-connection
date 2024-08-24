@@ -258,13 +258,13 @@ class LinkUART {
    */
   u8 read() {
     LINK_UART_BARRIER;
-    isReading = true;
+    incomingQueue.startReading();
     LINK_UART_BARRIER;
 
     u8 data = incomingQueue.pop();
 
     LINK_UART_BARRIER;
-    isReading = false;
+    incomingQueue.stopReading();
     LINK_UART_BARRIER;
 
     return data;
@@ -274,17 +274,7 @@ class LinkUART {
    * @brief Sends a `data` byte.
    * @param data The value to be sent.
    */
-  void send(u8 data) {
-    LINK_UART_BARRIER;
-    isAdding = true;
-    LINK_UART_BARRIER;
-
-    outgoingQueue.push(data);
-
-    LINK_UART_BARRIER;
-    isAdding = false;
-    LINK_UART_BARRIER;
-  }
+  void send(u8 data) { outgoingQueue.syncPush(data); }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.
@@ -294,10 +284,10 @@ class LinkUART {
     if (!isEnabled || hasError())
       return;
 
-    if (!isReading && canReceive())
+    if (!incomingQueue.isReading() && canReceive())
       incomingQueue.push((u8)Link::_REG_SIODATA8);
 
-    if (!isAdding && canTransfer() && needsTransfer())
+    if (!outgoingQueue.isWriting() && canTransfer() && needsTransfer())
       Link::_REG_SIODATA8 = outgoingQueue.pop();
   }
 
@@ -313,8 +303,6 @@ class LinkUART {
   U8Queue incomingQueue;
   U8Queue outgoingQueue;
   volatile bool isEnabled = false;
-  volatile bool isReading = false;
-  volatile bool isAdding = false;
 
   bool canReceive() { return !isBitHigh(BIT_RECEIVE_DATA_FLAG); }
   bool canTransfer() { return !isBitHigh(BIT_SEND_DATA_FLAG); }
