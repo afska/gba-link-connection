@@ -256,19 +256,7 @@ class LinkUART {
   /**
    * @brief Reads a byte. Returns 0 if nothing is found.
    */
-  u8 read() {
-    LINK_UART_BARRIER;
-    incomingQueue.startReading();
-    LINK_UART_BARRIER;
-
-    u8 data = incomingQueue.pop();
-
-    LINK_UART_BARRIER;
-    incomingQueue.stopReading();
-    LINK_UART_BARRIER;
-
-    return data;
-  }
+  u8 read() { return incomingQueue.syncPop(); }
 
   /**
    * @brief Sends a `data` byte.

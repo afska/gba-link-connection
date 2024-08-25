@@ -219,6 +219,19 @@ class Queue {
     }
   }
 
+  T syncPop() {
+    _isReading = true;
+    asm volatile("" ::: "memory");
+
+    auto value = pop();
+
+    asm volatile("" ::: "memory");
+    _isReading = false;
+    asm volatile("" ::: "memory");
+
+    return value;
+  }
+
   void syncClear() {
     if (_isReading)
       return;  // (it will be cleared later anyway)
@@ -230,8 +243,8 @@ class Queue {
   }
 
   u32 size() { return count; }
-  bool isEmpty() { return size() == 0; }
-  bool isFull() { return size() == Size; }
+  bool isEmpty() { return count == 0; }
+  bool isFull() { return count == Size; }
   bool isReading() { return _isReading; }
   bool isWriting() { return _isWriting; }
   bool canMutate() { return !_isReading && !_isWriting; }

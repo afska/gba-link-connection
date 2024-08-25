@@ -45,13 +45,13 @@
 #include "_link_common.hpp"
 
 /**
- * @brief Buffer size (how many incoming and outgoing messages
- * the queues can store at max **per player**). The default value is `15`, which
- * seems fine for most games.
+ * @brief Buffer size (how many incoming and outgoing messages the queues can
+ * store at max **per player**). The default value is `15`, which seems fine for
+ * most games.
  * \warning This affects how much memory is allocated. With the default value,
- * it's `390` bytes. There's a double-buffered pending queue (to avoid data
- * races), 1 incoming queue and 1 outgoing queue.
- * \warning You can calculate the usage with `LINK_CABLE_QUEUE_SIZE * 26`.
+ * it's around `390` bytes. There's a double-buffered pending queue (to avoid
+ * data races), 1 incoming queue and 1 outgoing queue. \warning You can
+ * approximate the usage with `LINK_CABLE_QUEUE_SIZE * 26`.
  */
 #define LINK_CABLE_QUEUE_SIZE 15
 

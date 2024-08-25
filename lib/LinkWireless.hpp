@@ -67,9 +67,9 @@
  * @brief Buffer size (how many incoming and outgoing messages the queues can
  * store at max). The default value is `30`, which seems fine for most games.
  * \warning This affects how much memory is allocated. With the default value,
- * it's `960` bytes. There's a double-buffered incoming queue and a
+ * it's around `960` bytes. There's a double-buffered incoming queue and a
  * double-buffered outgoing queue (to avoid data races).
- * \warning You can calculate the usage with `LINK_WIRELESS_QUEUE_SIZE * 32`.
+ * \warning You can approximate the usage with `LINK_WIRELESS_QUEUE_SIZE * 32`.
  */
 #define LINK_WIRELESS_QUEUE_SIZE 30
 

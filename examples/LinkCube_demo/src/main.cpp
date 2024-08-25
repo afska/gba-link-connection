@@ -1,5 +1,3 @@
-#define LINK_ENABLE_DEBUG_LOGS 1  // TODO: 0
-
 // (0) Include the header
 #include "../../../lib/LinkCube.hpp"
 
@@ -10,9 +8,9 @@
 void log(std::string text);
 void wait(u32 verticalLines);
 bool didPress(unsigned short key, bool& pressed);
-template <typename I>
-[[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1);
 inline void VBLANK() {}
+
+bool a = false, b = false, l = false;
 
 // (1) Create a LinkCube instance
 LinkCube* linkCube = new LinkCube();
@@ -35,23 +33,53 @@ int main() {
   // (3) Initialize the library
   linkCube->activate();
 
-  int counter = -1;
+  u32 counter = 0;
   std::string received = "";
+  bool reset = false;
+  u32 vblanks = 0;
 
   while (true) {
     // Title
-    std::string output =  // TODO: IMPLEMENT pending
-        "LinkCube_demo (v7.0.0)\n\nPress A to send\nPress B to clear\n\nLast "
-        "sent: " +
-        std::to_string(counter) + "\n(pending = " + std::to_string(0) +
+    std::string output =
+        "LinkCube_demo (v7.0.0)" + std::string(reset ? " !RESET!" : "") +
+        "\n\nPress A to send\nPress B to clear\n (L = "
+        "+1024)\n\nLast sent: " +
+        std::to_string(counter) +
+        "\n(pending = " + std::to_string(linkCube->pendingCount()) +
         ")\n\nReceived:\n" + received;
 
-    output += std::to_string(Link::_REG_JOY_RECV_H) + ", \n";
-    output += std::to_string(Link::_REG_JOY_RECV_L) + ", \n";
-    output += "joycnt: " + std::to_string(Link::_REG_JOYCNT) + ", \n";
-    output += "joystat: " + std::to_string(Link::_REG_JOYSTAT) + ", \n";
+    // (4) Send 32-bit values
+    if (didPress(KEY_A, a)) {
+      counter++;
+      linkCube->send(counter);
+    }
 
-    // TODO: IMPLEMENT transfers
+    // +1024
+    if (didPress(KEY_L, l)) {
+      counter += 1024;
+      linkCube->send(counter);
+    }
+
+    // (5) Read 32-bit values
+    while (linkCube->canRead()) {
+      received += std::to_string(linkCube->read()) + ", ";
+    }
+
+    // Clear
+    if (didPress(KEY_B, b))
+      received = "";
+
+    // Reset warning
+    if (linkCube->didReset()) {
+      counter = 0;
+      reset = true;
+      vblanks = 0;
+    }
+    if (reset) {
+      vblanks++;
+      if (vblanks > 60)
+        reset = false;
+    }
 
     // Print
     VBlankIntrWait();
@@ -89,13 +117,4 @@ bool didPress(u16 key, bool& pressed) {
   if (pressed && !(keys & key))
     pressed = false;
   return isPressedNow;
-}
-
-template <typename I>
-[[nodiscard]] std::string toHex(I w, size_t hex_len) {
-  static const char* digits = "0123456789ABCDEF";
-  std::string rc(hex_len, '0');
-  for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-    rc[i] = digits[(w >> j) & 0x0f];
-  return rc;
 }

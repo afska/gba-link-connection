@@ -12,7 +12,14 @@
 //       irq_add(II_SERIAL, LINK_CUBE_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkCube->activate();
-// // TODO: WRITE
+// - 4) Send 32-bit values:
+//       linkCube->send(0x12345678);
+//       // (now linkCube->pendingCount() will be 1 until it's actually sent)
+// - 5) Read 32-bit values:
+//       if (linkCube->canRead()) {
+//         u32 value = linkCube->read();
+//         // ...
+//       }
 // --------------------------------------------------------------------------
 // (*) libtonc's interrupt handler sometimes ignores interrupts due to a bug.
 //     That causes packet loss. You REALLY want to use libugba's instead.
@@ -22,19 +29,18 @@
 #include "_link_common.hpp"
 
 /**
- * @brief // TODO: WRITE
+ * @brief Buffer size (how many incoming and outgoing values the queues can
+ * store at max). The default value is `10`, which seems fine for most games.
+ * \warning This affects how much memory is allocated. With the default value,
+ * it's around `120` bytes. There's a double-buffered pending queue (to avoid
+ * data races), and 1 outgoing queue.
+ * \warning You can approximate the usage with `LINK_CUBE_QUEUE_SIZE * 12`.
  */
 #define LINK_CUBE_QUEUE_SIZE 10
 
 static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.0.0";
 
-#define LINK_CUBE_BARRIER asm volatile("" ::: "memory")  // TODO: USE?
-
-#if LINK_ENABLE_DEBUG_LOGS != 0
-#define _LCLOG_(...) Link::log(__VA_ARGS__)
-#else
-#define _LCLOG_(...)
-#endif
+#define LINK_CUBE_BARRIER asm volatile("" ::: "memory")
 
 /**
  * @brief A JOYBUS handler for the Link Port.
@@ -44,13 +50,8 @@ class LinkCube {
   using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
-  using U32Queue = Link::Queue<u16, LINK_CUBE_QUEUE_SIZE>;
+  using U32Queue = Link::Queue<u32, LINK_CUBE_QUEUE_SIZE>;
 
-  static constexpr int DEVICE_GBA = 0x0004;
-  static constexpr int COMMAND_RESET = 0xff;
-  // static constexpr int COMMAND_INFO = 0x00; // TODO: DOESN'T MATTER
-  // static constexpr int COMMAND_DATA_WRITE = 0x15;
-  // static constexpr int COMMAND_DATA_READ = 0x14;
   static constexpr int BIT_CMD_RESET = 0;
   static constexpr int BIT_CMD_RECEIVE = 1;
   static constexpr int BIT_CMD_SEND = 2;
@@ -81,10 +82,6 @@ class LinkCube {
     LINK_CUBE_BARRIER;
 
     start();
-
-    Link::log("ACTIVATED!");
-    Link::_REG_JOY_TRANS_H = 0xffee;
-    Link::_REG_JOY_TRANS_L = 0xaadd;
   }
 
   /**
@@ -97,6 +94,72 @@ class LinkCube {
   }
 
   /**
+   * @brief Waits for data. Returns `true` on success, or `false` on
+   * JOYBUS reset.
+   */
+  bool wait() {
+    return wait([]() { return false; });
+  }
+
+  /**
+   * @brief Waits for data. Returns `true` on success, or `false` on
+   * JOYBUS reset or cancellation.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the wait be aborted.
+   */
+  template <typename F>
+  bool wait(F cancel) {
+    resetFlag = false;
+
+    while (!resetFlag && !canRead() && !cancel())
+      Link::_IntrWait(1, Link::_IRQ_SERIAL);
+
+    return canRead();
+  }
+
+  /**
+   * @brief Returns `true` if there are pending received values to read.
+   */
+  [[nodiscard]] bool canRead() { return !incomingQueue.isEmpty(); }
+
+  /**
+   * @brief Dequeues and returns the next received value.
+   * \warning If there's no received data, a `0` will be returned.
+   */
+  u32 read() { return incomingQueue.syncPop(); }
+
+  /**
+   * @brief Returns the next received value without dequeuing it.
+   * \warning If there's no received data, a `0` will be returned.
+   */
+  [[nodiscard]] u32 peek() { return incomingQueue.peek(); }
+
+  /**
+   * @brief Sends 32-bit `data`.
+   * @param data The value to be sent.
+   * \warning If the other end asks for data at the same time you call this
+   * method, a `0x00000000` will be sent.
+   */
+  void send(u32 data) { outgoingQueue.syncPush(data); }
+
+  /**
+   * @brief Returns the number of pending outgoing transfers.
+   */
+  [[nodiscard]] u32 pendingCount() { return outgoingQueue.size(); }
+
+  /**
+   * @brief Returns whether a JOYBUS reset was requested or not. After this
+   * call, the reset flag is cleared if `clear` is `true` (default behavior).
+   * @param clear Whether it should clear the reset flag or not.
+   */
+  bool didReset(bool clear = true) {
+    bool reset = resetFlag;
+    if (clear)
+      resetFlag = false;
+    return reset;
+  }
+
+  /**
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
@@ -106,29 +169,66 @@ class LinkCube {
 
     if (isBitHigh(BIT_CMD_RESET)) {
       resetState();
-      _LCLOG_("LinkCube: reset!");
+      resetFlag = true;
       setBitHigh(BIT_CMD_RESET);
     }
+
     if (isBitHigh(BIT_CMD_RECEIVE)) {
-      _LCLOG_("LinkCube: cmd receive!");
+      newIncomingQueue.push(getData());
       setBitHigh(BIT_CMD_RECEIVE);
-      // return;
     }
+
     if (isBitHigh(BIT_CMD_SEND)) {
-      _LCLOG_("LinkCube: cmd send!");
+      setPendingData();
       setBitHigh(BIT_CMD_SEND);
-      // return;
     }
+
+    copyState();
   }
 
  private:
-  U32Queue incomingQueue;  // TODO: SYNCHRONIZE?
+  U32Queue newIncomingQueue;
+  U32Queue incomingQueue;
   U32Queue outgoingQueue;
+  volatile bool resetFlag = false;
+  volatile bool needsClear = false;
   volatile bool isEnabled = false;
 
+  void copyState() {
+    if (incomingQueue.isReading())
+      return;
+
+    if (needsClear) {
+      incomingQueue.clear();
+      needsClear = false;
+    }
+
+    while (!newIncomingQueue.isEmpty())
+      incomingQueue.push(newIncomingQueue.pop());
+  }
+
   void resetState() {
-    incomingQueue.syncClear();
+    needsClear = false;
+    newIncomingQueue.clear();
+    if (incomingQueue.isReading())
+      needsClear = true;
+    else
+      incomingQueue.clear();
     outgoingQueue.syncClear();
+    resetFlag = false;
+  }
+
+  void setPendingData() {
+    setData(outgoingQueue.isWriting() ? 0 : outgoingQueue.pop());
+  }
+
+  void setData(u32 data) {
+    Link::_REG_JOY_TRANS_H = msB32(data);
+    Link::_REG_JOY_TRANS_L = lsB32(data);
+  }
+
+  u32 getData() {
+    return buildU32(Link::_REG_JOY_RECV_H, Link::_REG_JOY_RECV_L);
   }
 
   void stop() {
@@ -154,16 +254,9 @@ class LinkCube {
   void setInterruptsOn() { setBitHigh(BIT_IRQ); }
   void setInterruptsOff() { setBitLow(BIT_IRQ); }
 
-  // TODO: REMOVE?
-  static u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
-    return ((msB & 0xFF) << 24) | ((byte2 & 0xFF) << 16) |
-           ((byte3 & 0xFF) << 8) | (lsB & 0xFF);
-  }
-  static u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  static u16 msB32(u32 value) { return value >> 16; }
-  static u16 lsB32(u32 value) { return value & 0xffff; }
-  static u8 msB16(u16 value) { return value >> 8; }
-  static u8 lsB16(u16 value) { return value & 0xff; }
+  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
+  u16 msB32(u32 value) { return value >> 16; }
+  u16 lsB32(u32 value) { return value & 0xffff; }
   bool isBitHigh(u8 bit) { return (Link::_REG_JOYCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { Link::_REG_JOYCNT |= 1 << bit; }
   void setBitLow(u8 bit) { Link::_REG_JOYCNT &= ~(1 << bit); }
@@ -177,7 +270,5 @@ extern LinkCube* linkCube;
 inline void LINK_CUBE_ISR_SERIAL() {
   linkCube->_onSerial();
 }
-
-#undef _LCLOG_
 
 #endif  // LINK_CUBE_H
