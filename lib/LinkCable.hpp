@@ -535,11 +535,10 @@ inline void LINK_CABLE_ISR_TIMER() {
  *   - On each VBLANK, SERIAL, or TIMER IRQ:
  *     -> **If the user is not syncing**:
  *       -> All `newMessages` are moved to `readyToSyncMessages`.
+ *   - If (playerId == 0 && TIMER_IRQ) || (playerId > 0 && SERIAL_IRQ):
  *     -> **If the user is not sending**:
  *       -> Pops one message from `outgoingMessages` and transfers it.
  *   - `sync()` moves all `readyToSyncMessages` to `syncedIncomingMessages`.
  */
 
 #endif  // LINK_CABLE_H
-
-// TODO: REPEAT IN LinkWireless / LinkUniversal
