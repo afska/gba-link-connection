@@ -104,8 +104,9 @@ class LinkCube {
   /**
    * @brief Waits for data. Returns `true` on success, or `false` on
    * JOYBUS reset or cancellation.
-   * @param cancel A function that will be continuously invoked. If it returns
-   * `true`, the wait be aborted.
+   * @param cancel A function that will be invoked after every SERIAL interrupt.
+   * If it returns `true`, the wait be aborted.
+   * \warning Blocks the system until the next SERIAL interrupt!
    */
   template <typename F>
   bool wait(F cancel) {

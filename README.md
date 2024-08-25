@@ -444,7 +444,7 @@ Name | Return type | Description
 `activate()` | - | Activates the library.
 `deactivate()` | - | Deactivates the library.
 `wait()` | **bool** | Waits for data. Returns `true` on success, or `false` on JOYBUS reset.
-`wait(cancel)` | **bool** | Like `wait()` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
+`wait(cancel)` | **bool** | Like `wait()` but accepts a `cancel()` function. The library will invoke it after every SERIAL interrupt, and abort the wait if it returns `true`.
 `canRead()` | **bool** | Returns `true` if there are pending received values to read.
 `read()` | **u32** | Dequeues and returns the next received value. If there's no received data, a `0` will be returned.
 `peek()` | **u32** | Returns the next received value without dequeuing it. If there's no received data, a `0` will be returned.
