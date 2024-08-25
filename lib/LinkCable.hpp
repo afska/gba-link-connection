@@ -273,7 +273,7 @@ class LinkCable {
     _state.IRQFlag = false;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      if (!_state.msgFlags[i])
+      if (isOnline(i) && !_state.msgFlags[i])
         _state.msgTimeouts[i]++;
       _state.msgFlags[i] = false;
     }
