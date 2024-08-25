@@ -17,10 +17,10 @@ typedef void* C_LinkCableHandle;
 #define C_LINK_CABLE_NO_DATA 0x0
 
 typedef enum {
-  C_BAUD_RATE_0,  // 9600 bps
-  C_BAUD_RATE_1,  // 38400 bps
-  C_BAUD_RATE_2,  // 57600 bps
-  C_BAUD_RATE_3   // 115200 bps
+  C_LINK_CABLE_BAUD_RATE_0,  // 9600 bps
+  C_LINK_CABLE_BAUD_RATE_1,  // 38400 bps
+  C_LINK_CABLE_BAUD_RATE_2,  // 57600 bps
+  C_LINK_CABLE_BAUD_RATE_3   // 115200 bps
 } C_LinkCable_BaudRate;
 
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,

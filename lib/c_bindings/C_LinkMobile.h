@@ -42,40 +42,98 @@ typedef enum {
   C_LINK_MOBILE_STATE_SHUTDOWN
 } C_LinkMobile_State;
 
-typedef enum {
+enum C_LinkMobile_Role {
   C_LINK_MOBILE_ROLE_NO_P2P_CONNECTION,
   C_LINK_MOBILE_ROLE_CALLER,
   C_LINK_MOBILE_ROLE_RECEIVER
-} C_LinkMobile_Role;
+};
 
-typedef enum {
+enum C_LinkMobile_ConnectionType {
   C_LINK_MOBILE_CONNECTION_TYPE_TCP,
   C_LINK_MOBILE_CONNECTION_TYPE_UDP
-} C_LinkMobileConnectionType;
+};
+
+typedef enum {
+  C_LINK_MOBILE_ERROR_TYPE_NONE,
+  C_LINK_MOBILE_ERROR_TYPE_ADAPTER_NOT_CONNECTED,
+  C_LINK_MOBILE_ERROR_TYPE_PPP_LOGIN_FAILED,
+  C_LINK_MOBILE_ERROR_TYPE_COMMAND_FAILED,
+  C_LINK_MOBILE_ERROR_TYPE_WEIRD_RESPONSE,
+  C_LINK_MOBILE_ERROR_TYPE_TIMEOUT,
+  C_LINK_MOBILE_ERROR_TYPE_WTF
+} C_LinkMobile_ErrorType;
+
+typedef enum {
+  C_LINK_MOBILE_COMMAND_RESULT_PENDING,
+  C_LINK_MOBILE_COMMAND_RESULT_SUCCESS,
+  C_LINK_MOBILE_COMMAND_RESULT_INVALID_DEVICE_ID,
+  C_LINK_MOBILE_COMMAND_RESULT_INVALID_COMMAND_ACK,
+  C_LINK_MOBILE_COMMAND_RESULT_INVALID_MAGIC_BYTES,
+  C_LINK_MOBILE_COMMAND_RESULT_WEIRD_DATA_SIZE,
+  C_LINK_MOBILE_COMMAND_RESULT_WRONG_CHECKSUM,
+  C_LINK_MOBILE_COMMAND_RESULT_ERROR_CODE,
+  C_LINK_MOBILE_COMMAND_RESULT_WEIRD_ERROR_CODE
+} C_LinkMobile_CommandResult;
 
 typedef struct {
-  volatile bool completed;
-  bool success;
+  C_LinkMobile_ErrorType type;
+  C_LinkMobile_State state;
+  bool cmdIsSending;
+  u8 cmdId;
+  C_LinkMobile_CommandResult cmdResult;
+  u32 cmdErrorCode;
+  int reqType;
+} C_LinkMobile_Error;
+
+typedef struct {
+  u32 connectionId;
+  bool completed;
+  u32 size;
   u8 data[254];
-  u8 size;
-} C_LinkMobileDataTransfer;
+} C_LinkMobile_DataTransfer;
 
 typedef struct {
-  volatile bool completed;
+  u32 connectionId;
   bool success;
+} C_LinkMobile_OpenConn;
+
+typedef struct {
+  u32 connectionId;
+  bool success;
+} C_LinkMobile_CloseConn;
+
+typedef struct {
   u8 ipv4[4];
-} C_LinkMobileDNSQuery;
+  bool success;
+  bool completed;
+} C_LinkMobile_DNSQuery;
 
 typedef struct {
-  volatile bool completed;
-  bool success;
-  u8 connectionId;
-} C_LinkMobileOpenConn;
+  char magic[2];
+  u8 registrationState;
+  u8 _unused1_;
+  u8 primaryDNS[4];
+  u8 secondaryDNS[4];
+  char loginId[10];
+  u8 _unused2_[22];
+  char email[24];
+  u8 _unused3_[6];
+  char smtpServer[20];
+  char popServer[19];
+  u8 _unused4_[5];
+  u8 configurationSlot1[24];
+  u8 configurationSlot2[24];
+  u8 configurationSlot3[24];
+  u8 checksumHigh;
+  u8 checksumLow;
 
-typedef struct {
-  volatile bool completed;
-  bool success;
-} C_LinkMobileCloseConn;
+  char _ispNumber1[16 + 1];
+} C_LinkMobile_ConfigurationData;
+
+typedef enum {
+  C_LINK_MOBILE_SIZE_32BIT,
+  C_LINK_MOBILE_SIZE_8BIT
+} C_LinkMobile_DataSize;
 
 C_LinkMobileHandle C_LinkMobile_create(u32 timeout, u8 timerId);
 void C_LinkMobile_destroy(C_LinkMobileHandle handle);
@@ -92,26 +150,37 @@ bool C_LinkMobile_callISP(C_LinkMobileHandle handle,
 
 bool C_LinkMobile_dnsQuery(C_LinkMobileHandle handle,
                            const char* domainName,
-                           C_LinkMobileDNSQuery* result);
+                           C_LinkMobile_DNSQuery* result);
 bool C_LinkMobile_openConnection(C_LinkMobileHandle handle,
                                  const u8* ip,
                                  u16 port,
-                                 C_LinkMobileConnectionType type,
-                                 C_LinkMobileOpenConn* result);
+                                 C_LinkMobile_ConnectionType connectionType,
+                                 C_LinkMobile_OpenConn* result);
 bool C_LinkMobile_closeConnection(C_LinkMobileHandle handle,
                                   u8 connectionId,
-                                  C_LinkMobileConnectionType type,
-                                  C_LinkMobileCloseConn* result);
-
+                                  C_LinkMobile_ConnectionType connectionType,
+                                  C_LinkMobile_CloseConn* result);
 bool C_LinkMobile_transfer(C_LinkMobileHandle handle,
-                           C_LinkMobileDataTransfer dataToSend,
-                           C_LinkMobileDataTransfer* result,
+                           C_LinkMobile_DataTransfer dataToSend,
+                           C_LinkMobile_DataTransfer* result,
                            u8 connectionId);
+
 bool C_LinkMobile_waitFor(C_LinkMobileHandle handle, void* asyncRequest);
 bool C_LinkMobile_hangUp(C_LinkMobileHandle handle);
 
+bool C_LinkMobile_readConfiguration(
+    C_LinkMobileHandle handle,
+    C_LinkMobile_ConfigurationData* configurationData);
+
 C_LinkMobile_State C_LinkMobile_getState(C_LinkMobileHandle handle);
 C_LinkMobile_Role C_LinkMobile_getRole(C_LinkMobileHandle handle);
+int C_LinkMobile_isConfigurationValid(C_LinkMobileHandle handle);
+bool C_LinkMobile_isConnectedP2P(C_LinkMobileHandle handle);
+bool C_LinkMobile_isConnectedPPP(C_LinkMobileHandle handle);
+bool C_LinkMobile_isSessionActive(C_LinkMobileHandle handle);
+bool C_LinkMobile_canShutdown(C_LinkMobileHandle handle);
+C_LinkMobile_DataSize C_LinkMobile_getDataSize(C_LinkMobileHandle handle);
+C_LinkMobile_Error C_LinkMobile_getError(C_LinkMobileHandle handle);
 
 void C_LinkMobile_onVBlank(C_LinkMobileHandle handle);
 void C_LinkMobile_onSerial(C_LinkMobileHandle handle);

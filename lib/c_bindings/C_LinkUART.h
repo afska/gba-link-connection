@@ -10,15 +10,22 @@ extern "C" {
 typedef void* C_LinkUARTHandle;
 
 typedef enum {
-  C_BAUD_RATE_0,  // 9600 bps
-  C_BAUD_RATE_1,  // 38400 bps
-  C_BAUD_RATE_2,  // 57600 bps
-  C_BAUD_RATE_3   // 115200 bps
+  C_LINK_UART_BAUD_RATE_0,  // 9600 bps
+  C_LINK_UART_BAUD_RATE_1,  // 38400 bps
+  C_LINK_UART_BAUD_RATE_2,  // 57600 bps
+  C_LINK_UART_BAUD_RATE_3   // 115200 bps
 } C_LinkUART_BaudRate;
 
-typedef enum { C_SIZE_7_BITS, C_SIZE_8_BITS } C_LinkUART_DataSize;
+typedef enum {
+  C_LINK_UART_SIZE_7_BITS,
+  C_LINK_UART_SIZE_8_BITS
+} C_LinkUART_DataSize;
 
-typedef enum { C_PARITY_NO, C_PARITY_EVEN, C_PARITY_ODD } C_LinkUART_Parity;
+typedef enum {
+  C_LINK_UART_PARITY_NO,
+  C_LINK_UART_PARITY_EVEN,
+  C_LINK_UART_PARITY_ODD
+} C_LinkUART_Parity;
 
 C_LinkUARTHandle C_LinkUART_create();
 void C_LinkUART_destroy(C_LinkUARTHandle handle);

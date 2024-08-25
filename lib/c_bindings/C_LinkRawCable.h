@@ -13,16 +13,16 @@ typedef void* C_LinkRawCableHandle;
 #define C_LINK_RAW_CABLE_DISCONNECTED 0xffff
 
 typedef enum {
-  C_BAUD_RATE_0,  // 9600 bps
-  C_BAUD_RATE_1,  // 38400 bps
-  C_BAUD_RATE_2,  // 57600 bps
-  C_BAUD_RATE_3   // 115200 bps
+  C_LINK_RAW_CABLE_BAUD_RATE_0,  // 9600 bps
+  C_LINK_RAW_CABLE_BAUD_RATE_1,  // 38400 bps
+  C_LINK_RAW_CABLE_BAUD_RATE_2,  // 57600 bps
+  C_LINK_RAW_CABLE_BAUD_RATE_3   // 115200 bps
 } C_LinkRawCable_BaudRate;
 
 typedef enum {
-  C_ASYNC_STATE_IDLE,
-  C_ASYNC_STATE_WAITING,
-  C_ASYNC_STATE_READY
+  C_LINK_RAW_CABLE_ASYNC_STATE_IDLE,
+  C_LINK_RAW_CABLE_ASYNC_STATE_WAITING,
+  C_LINK_RAW_CABLE_ASYNC_STATE_READY
 } C_LinkRawCable_AsyncState;
 
 typedef struct {
