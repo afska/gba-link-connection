@@ -76,6 +76,12 @@ inline vu32& _REG_SIODATA32 = *reinterpret_cast<vu32*>(_REG_BASE + 0x0120);
 inline vu16& _REG_SIODATA8 = *reinterpret_cast<vu16*>(_REG_BASE + 0x012A);
 inline vu16& _REG_SIOMLT_SEND = *reinterpret_cast<vu16*>(_REG_BASE + 0x012A);
 inline vu16* const _REG_SIOMULTI = reinterpret_cast<vu16*>(_REG_BASE + 0x0120);
+inline vu16& _REG_JOYCNT = *reinterpret_cast<vu16*>(_REG_BASE + 0x0140);
+inline vu16& _REG_JOY_RECV_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0150);
+inline vu16& _REG_JOY_RECV_H = *reinterpret_cast<vu16*>(_REG_BASE + 0x0152);
+inline vu16& _REG_JOY_TRANS_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0154);
+inline vu16& _REG_JOY_TRANS_H = *reinterpret_cast<vu16*>(_REG_BASE + 0x0156);
+inline vu16& _REG_JOYSTAT = *reinterpret_cast<vu16*>(_REG_BASE + 0x0158);
 inline vu16& _REG_VCOUNT = *reinterpret_cast<vu16*>(_REG_BASE + 0x0006);
 inline vu16& _REG_KEYS = *reinterpret_cast<vu16*>(_REG_BASE + 0x0130);
 inline vu16& _REG_TM1CNT_L = *reinterpret_cast<vu16*>(_REG_BASE + 0x0104);
@@ -213,6 +219,19 @@ class Queue {
     }
   }
 
+  T syncPop() {
+    _isReading = true;
+    asm volatile("" ::: "memory");
+
+    auto value = pop();
+
+    asm volatile("" ::: "memory");
+    _isReading = false;
+    asm volatile("" ::: "memory");
+
+    return value;
+  }
+
   void syncClear() {
     if (_isReading)
       return;  // (it will be cleared later anyway)
@@ -224,8 +243,8 @@ class Queue {
   }
 
   u32 size() { return count; }
-  bool isEmpty() { return size() == 0; }
-  bool isFull() { return size() == Size; }
+  bool isEmpty() { return count == 0; }
+  bool isFull() { return count == Size; }
   bool isReading() { return _isReading; }
   bool isWriting() { return _isWriting; }
   bool canMutate() { return !_isReading && !_isWriting; }

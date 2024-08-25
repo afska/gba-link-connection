@@ -15,6 +15,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 - [🔌](#-LinkGPIO) [LinkGPIO.hpp](lib/LinkGPIO.hpp): Use the Link Port however you want to control **any device** (like LEDs, rumble motors, and that kind of stuff)!
 - [🔗](#-LinkSPI) [LinkSPI.hpp](lib/LinkSPI.hpp): Connect with a PC (like a **Raspberry Pi**) or another GBA (with a GBC Link Cable) using this mode. Transfer up to 2Mbit/s!
 - [⏱️](#%EF%B8%8F-LinkUART) [LinkUART.hpp](lib/LinkUART.hpp): Easily connect to **any PC** using a USB to UART cable!
+- [🟪](#-LinkCube) [LinkCube.hpp](lib/LinkCube.hpp): Exchange data with a *Wii* or a *GameCube* using the classic **Joybus** protocol!
 - [📱](#-LinkMobile) [LinkMobile.hpp](lib/LinkMobile.hpp): Connect to **the internet** using the *Mobile Adapter GB*, brought back to life thanks to the [REON](https://github.com/REONTeam) project!
 - [🖱️](#%EF%B8%8F-LinkPS2Mouse) [LinkPS2Mouse.hpp](lib/LinkPS2Mouse.hpp): Connect a **PS/2 mouse** to the GBA for extended controls!
 - [⌨️](#%EF%B8%8F-LinkPS2Keyboard) [LinkPS2Keyboard.hpp](lib/LinkPS2Keyboard.hpp): Connect a **PS/2 keyboard** to the GBA for extended controls!
@@ -81,8 +82,8 @@ You can update these values at any time without creating a new instance:
 
 You can also change these compile-time constants:
 - `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's `390` bytes.  There's a double-buffered pending queue (to avoid data races), `1` incoming queue and `1` outgoing queue.
-  - You can calculate the memory usage with:
+  - This affects how much memory is allocated. With the default value, it's around `390` bytes. There's a double-buffered pending queue (to avoid data races), `1` incoming queue and `1` outgoing queue.
+  - You can approximate the memory usage with:
     - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)` <=> `LINK_CABLE_QUEUE_SIZE * 26`
 
 ## Methods
@@ -186,8 +187,8 @@ You can update these values at any time without creating a new instance:
 
 You can also change these compile-time constants:
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's `960` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
-  - You can calculate the memory usage with:
+  - This affects how much memory is allocated. With the default value, it's around `960` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
+  - You can approximate the memory usage with:
     - `LINK_WIRELESS_QUEUE_SIZE * sizeof(Message) * 4` <=> `LINK_WIRELESS_QUEUE_SIZE * 32`
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
@@ -420,6 +421,36 @@ The GBA operates using `1` stop bit, but everything else can be configured. By d
 - Black wire (`GND`) -> GBA `GND`.
 - Green wire (`TX`) -> GBA `SI`.
 - White wire (`RX`) -> GBA `SO`.
+
+# 🟪 LinkCube
+
+*(aka JOYBUS Mode)*
+
+This is the GBA's implementation of JOYBUS, in which users connect the console to a *GameCube* (or *Wii* with GC ports) using an official adapter. The library can be tested using *Dolphin/mGBA* and [gba-joybus-tester](https://github.com/afska/gba-joybus-tester).
+
+![screenshot](https://github.com/user-attachments/assets/93c11c9a-bdbf-4726-a070-895465739789)
+
+You can change these compile-time constants:
+- `LINK_CUBE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing values the queues can store at max). The default value is `10`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's around `120` bytes. There's a double-buffered pending queue (to avoid data races), and 1 outgoing queue.
+  - You can approximate the memory usage with:
+    - `LINK_CUBE_QUEUE_SIZE * sizeof(u32) * 3` <=> `LINK_CUBE_QUEUE_SIZE * 12`
+
+## Methods
+
+Name | Return type | Description
+--- | --- | ---
+`isActive()` | **bool** | Returns whether the library is active or not.
+`activate()` | - | Activates the library.
+`deactivate()` | - | Deactivates the library.
+`wait()` | **bool** | Waits for data. Returns `true` on success, or `false` on JOYBUS reset.
+`wait(cancel)` | **bool** | Like `wait()` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.
+`canRead()` | **bool** | Returns `true` if there are pending received values to read.
+`read()` | **u32** | Dequeues and returns the next received value. If there's no received data, a `0` will be returned.
+`peek()` | **u32** | Returns the next received value without dequeuing it. If there's no received data, a `0` will be returned.
+`send(data)` | - | Sends 32-bit `data`. If the other end asks for data at the same time you call this method, a `0x00000000` will be sent.
+`pendingCount()` | **u32** | Returns the number of pending outgoing transfers.
+`didReset([clear])` | **bool** | Returns whether a JOYBUS reset was requested or not. After this call, the reset flag is cleared if `clear` is `true` (default behavior).
 
 # 📱 LinkMobile
 
