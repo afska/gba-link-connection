@@ -15,7 +15,7 @@
 
 /**
  * @brief This namespace contains shared code between all libraries.
- * \warning Most of these things are borrowed from libtonc.
+ * \warning Most of these things are borrowed from libtonc and gba-hpp.
  */
 namespace Link {
 
@@ -114,22 +114,25 @@ static constexpr u16 _TIMER_IRQ_IDS[] = {_IRQ_TIMER0, _IRQ_TIMER1, _IRQ_TIMER2,
 
 // SWI
 
-static inline __attribute__((always_inline)) void _IntrWait(u32 flagClear,
-                                                            u32 irq) {
-  register u32 r0 asm("r0") = flagClear;
-  register u32 r1 asm("r1") = irq;
-
-  asm volatile("swi 0x04\n" : : "r"(r0), "r"(r1));
+static inline __attribute__((always_inline)) void _IntrWait(
+    bool clearCurrent,
+    u32 flags) noexcept {
+  register auto r0 asm("r0") = clearCurrent;
+  register auto r1 asm("r1") = flags;
+  asm volatile inline("swi 0x4 << ((1f - . == 4) * -16); 1:"
+                      : "+r"(r0), "+r"(r1)::"r3");
 }
 
-static inline __attribute__((always_inline)) int _MultiBoot(_MultiBootParam* mb,
-                                                            u32 mode) {
-  register _MultiBootParam* r0 asm("r0") = mb;
-  register u32 r1 asm("r1") = mode;
-
-  asm volatile("swi 0x25\n" : "+r"(r0) : "r"(r1));
-
-  return (int)r0;
+static inline auto _MultiBoot(const _MultiBootParam* param,
+                              u32 mbmode) noexcept {
+  register union {
+    const _MultiBootParam* ptr;
+    int res;
+  } r0 asm("r0") = {param};
+  register auto r1 asm("r1") = mbmode;
+  asm volatile inline("swi 0x25 << ((1f - . == 4) * -16); 1:"
+                      : "+r"(r0), "+r"(r1)::"r3");
+  return r0.res;
 }
 
 // Helpers
