@@ -1467,8 +1467,9 @@ class LinkWireless {
     header.playerId = playerId;
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
     header.quickData = QUICK_SEND;
-#endif
+#else
     header.clientCount = sessionState.playerCount - LINK_WIRELESS_MIN_PLAYERS;
+#endif
     header.dataChecksum = dataChecksum;
 
     MessageHeaderSerializer serializer;
