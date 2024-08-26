@@ -47,7 +47,12 @@ int main() {
 
 start:
   // Options
-  log("LinkWireless_demo (v7.0.0)\n\n\n\n"
+  log(
+#ifdef PROFILING_ENABLED
+      "LinkWireless_demo (v7.0.0)\n                 (profiler)\n\n\n"
+#else
+      "LinkWireless_demo (v7.0.0)\n\n\n\n"
+#endif
       "Press A to start\n\n\n\n\n"
       "hold LEFT on start:\n -> disable forwarding\n\n"
       "hold UP on start:\n -> disable retransmission\n\n"
