@@ -213,10 +213,10 @@ class LinkPS2Mouse {
     return data;
   }
 
-  bool readBit() {
+  volatile bool readBit() {
     while (getClock())
       ;
-    bool bit = getData();
+    volatile bool bit = getData();
     while (!getClock())
       ;
     return bit;
@@ -240,11 +240,11 @@ class LinkPS2Mouse {
     Link::_REG_TM[waitTimerId].cnt = 0;
   }
 
-  bool getClock() {
+  volatile bool getClock() {
     Link::_REG_RCNT &= ~SI_DIRECTION;
     return (Link::_REG_RCNT & SI_DATA) >> 0;
   }
-  bool getData() {
+  volatile bool getData() {
     Link::_REG_RCNT &= ~SO_DIRECTION;
     return (Link::_REG_RCNT & SO_DATA) >> 1;
   }
