@@ -465,9 +465,9 @@ class LinkUniversal {
 
   void receiveCableMessages() {
     static constexpr u32 MAX_PLAYERS =
-        LINK_CABLE_MAX_PLAYERS < LINK_UNIVERSAL_MAX_PLAYERS
-            ? LINK_CABLE_MAX_PLAYERS
-            : LINK_UNIVERSAL_MAX_PLAYERS;
+        LINK_UNIVERSAL_MAX_PLAYERS < LINK_CABLE_MAX_PLAYERS
+            ? LINK_UNIVERSAL_MAX_PLAYERS
+            : LINK_CABLE_MAX_PLAYERS;
 
     for (u32 i = 0; i < MAX_PLAYERS; i++) {
       while (linkCable->canRead(i))

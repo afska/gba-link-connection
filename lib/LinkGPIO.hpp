@@ -2,7 +2,7 @@
 #define LINK_GPIO_H
 
 // --------------------------------------------------------------------------
-// A GPIO handler for the Link Port.
+// A General Purpose Input-Output handler for the Link Port.
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -27,7 +27,7 @@
 #include "_link_common.hpp"
 
 /**
- * @brief A GPIO handler for the Link Port.
+ * @brief A General Purpose Input-Output handler for the Link Port.
  */
 class LinkGPIO {
  private:

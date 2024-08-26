@@ -14,7 +14,7 @@
 //       linkCube->activate();
 // - 4) Send 32-bit values:
 //       linkCube->send(0x12345678);
-//       // (now linkCube->pendingCount() will be 1 until it's actually sent)
+//       // (now linkCube->pendingCount() will be 1 until the value is sent)
 // - 5) Read 32-bit values:
 //       if (linkCube->canRead()) {
 //         u32 value = linkCube->read();
