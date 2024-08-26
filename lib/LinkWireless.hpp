@@ -226,7 +226,7 @@ class LinkWireless {
 #endif
 
 // std::function<void(std::string str)> debug;
-#define PROFILING_ENABLED
+// #define PROFILING_ENABLED
 #ifdef PROFILING_ENABLED
   u32 lastVBlankTime = 0;
   u32 lastSerialTime = 0;

@@ -145,6 +145,24 @@ compile() {
     sed $sed_inplace_option -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
     cd ..
   fi
+
+  # LinkWireless_demo_2players
+  if [ "$1" != "multiboot" ]; then
+    cd LinkWireless_demo/
+    sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
+    sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_ENABLE_NESTED_IRQ/#define LINK_WIRELESS_ENABLE_NESTED_IRQ/g" ../../lib/LinkWireless.hpp
+    sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
+    sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_TWO_PLAYERS_ONLY/#define LINK_WIRELESS_TWO_PLAYERS_ONLY/g" ../../lib/LinkWireless.hpp
+    mv LinkWireless_demo$suffix.gba backup.gba
+    make rebuild
+    cp LinkWireless_demo.gba ../$folder/LinkWireless_demo_2players.gba
+    mv backup.gba LinkWireless_demo$suffix.gba
+    sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
+    sed $sed_inplace_option -e "s/#define LINK_WIRELESS_ENABLE_NESTED_IRQ/\/\/ #define LINK_WIRELESS_ENABLE_NESTED_IRQ/g" ../../lib/LinkWireless.hpp
+    sed $sed_inplace_option -e "s/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
+    sed $sed_inplace_option -e "s/#define LINK_WIRELESS_TWO_PLAYERS_ONLY/\/\/ #define LINK_WIRELESS_TWO_PLAYERS_ONLY/g" ../../lib/LinkWireless.hpp
+    cd ..
+  fi
 }
 
 # Cleanup

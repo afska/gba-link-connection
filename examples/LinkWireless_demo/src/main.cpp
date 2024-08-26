@@ -45,15 +45,28 @@ void init() {
 int main() {
   init();
 
+  std::string buildSettings = "";
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+  buildSettings += " + irq_iwram\n";
+#endif
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+  buildSettings += " + irq_nested\n";
+#endif
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+  buildSettings += " + s/r_latch\n";
+#endif
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+  buildSettings += " + 2players\n";
+#endif
+#ifdef PROFILING_ENABLED
+  buildSettings += " + profiler\n";
+#endif
+
 start:
   // Options
-  log(
-#ifdef PROFILING_ENABLED
-      "LinkWireless_demo (v7.0.0)\n                 (profiler)\n\n\n"
-#else
-      "LinkWireless_demo (v7.0.0)\n\n\n\n"
-#endif
-      "Press A to start\n\n\n\n\n"
+  log("LinkWireless_demo (v7.0.0)\n" + buildSettings +
+      "\n"
+      "Press A to start\n\n"
       "hold LEFT on start:\n -> disable forwarding\n\n"
       "hold UP on start:\n -> disable retransmission\n\n"
       "hold B on start:\n -> set 2 players\n\n"
@@ -289,6 +302,10 @@ void messageLoop() {
       u16 newValue = counters[linkWireless->currentPlayerId()] + 1;
       bool success = linkWireless->send(newValue);
 
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+      linkWireless->QUICK_SEND = newValue % 32;
+#endif
+
       if (success) {
         counters[linkWireless->currentPlayerId()] = newValue;
       } else {
@@ -385,7 +402,12 @@ void messageLoop() {
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
     }
 
-    // Debug output
+// Debug output
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+    output += "\n>> " + std::to_string(linkWireless->QUICK_SEND);
+    output += "\n<< " + std::to_string(linkWireless->QUICK_RECEIVE) + "\n";
+#endif
+
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
     if (retransmission && !altView) {
       output +=

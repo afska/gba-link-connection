@@ -219,7 +219,7 @@ You can also change these compile-time constants:
 - `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
   - This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is disabled.
 - `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
-- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" 5 bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties.
+- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" `5` bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties.
 
 ## Methods
 
