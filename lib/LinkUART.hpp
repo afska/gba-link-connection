@@ -26,10 +26,12 @@
 
 #include "_link_common.hpp"
 
+#ifndef LINK_UART_QUEUE_SIZE
 /**
  * @brief Buffer size in bytes.
  */
 #define LINK_UART_QUEUE_SIZE 256
+#endif
 
 static volatile char LINK_UART_VERSION[] = "LinkUART/v7.0.0";
 

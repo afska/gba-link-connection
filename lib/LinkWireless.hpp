@@ -63,6 +63,7 @@
 // #include <string>
 // #include <functional>
 
+#ifndef LINK_WIRELESS_QUEUE_SIZE
 /**
  * @brief Buffer size (how many incoming and outgoing messages the queues can
  * store at max). The default value is `30`, which seems fine for most games.
@@ -72,21 +73,27 @@
  * \warning You can approximate the usage with `LINK_WIRELESS_QUEUE_SIZE * 32`.
  */
 #define LINK_WIRELESS_QUEUE_SIZE 30
+#endif
 
+#ifndef LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
 /**
  * @brief Max server transfer length per timer tick. Must be in the range
  * `[6;20]`. The default value is `20`, but you might want to set it a bit lower
  * to reduce CPU usage.
  */
 #define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 20
+#endif
 
+#ifndef LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH
 /**
  * @brief Max client transfer length per timer tick. Must be in the range
  * `[2;4]`. The default value is `4`. Changing this is not recommended, it's
  * already too low.
  */
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
+#endif
 
+#ifndef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 /**
  * @brief Put Interrupt Service Routines (ISR) in IWRAM (uncomment to enable).
  * This can significantly improve performance due to its faster access, but it's
@@ -96,7 +103,9 @@
  * `SRCDIRS` list.
  */
 // #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#endif
 
+#ifndef LINK_WIRELESS_ENABLE_NESTED_IRQ
 /**
  * @brief Allow LINK_WIRELESS_ISR_* functions to be interrupted (uncomment to
  * enable).
@@ -106,7 +115,9 @@
  * disabled.
  */
 // #define LINK_WIRELESS_ENABLE_NESTED_IRQ
+#endif
 
+#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
 /**
  * @brief Use send/receive latch (uncomment to enable).
  * This makes it alternate between sends and receives on each timer tick
@@ -114,7 +125,9 @@
  * also reduce overall CPU usage.
  */
 // #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+#endif
 
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
 /**
  * @brief Optimize the library for two players (uncomment to enable).
  * This will make the code smaller and use less CPU. It will also let you
@@ -123,6 +136,7 @@
  * `QUICK_RECEIVE` properties.
  */
 // #define LINK_WIRELESS_TWO_PLAYERS_ONLY
+#endif
 
 static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
 

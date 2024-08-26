@@ -32,11 +32,13 @@
 #include "LinkRawWireless.hpp"
 #include "LinkWirelessOpenSDK.hpp"
 
+#ifndef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 /**
  * @brief Enable logging.
  * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
  */
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#endif
 
 static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     "LinkWirelessMultiboot/v7.0.0";

@@ -44,6 +44,7 @@
 
 #include "_link_common.hpp"
 
+#ifndef LINK_CABLE_QUEUE_SIZE
 /**
  * @brief Buffer size (how many incoming and outgoing messages the queues can
  * store at max **per player**). The default value is `15`, which seems fine for
@@ -54,6 +55,7 @@
  * approximate the usage with `LINK_CABLE_QUEUE_SIZE * 26`.
  */
 #define LINK_CABLE_QUEUE_SIZE 15
+#endif
 
 static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
 
@@ -472,10 +474,12 @@ class LinkCable {
   bool isOnline(u8 playerId) {
     return _state.msgTimeouts[playerId] != REMOTE_TIMEOUT_OFFLINE;
   }
+
   void setOnline(u8 playerId) {
     _state.msgTimeouts[playerId] = 0;
     _state.msgFlags[playerId] = true;
   }
+
   void setOffline(u8 playerId) {
     _state.msgTimeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
     _state.msgFlags[playerId] = false;

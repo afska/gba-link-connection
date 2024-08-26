@@ -51,18 +51,22 @@
 #include "LinkCable.hpp"
 #include "LinkWireless.hpp"
 
+#ifndef LINK_UNIVERSAL_MAX_PLAYERS
 /**
  * @brief Maximum number of players. Default = 5
  * \warning Keep in mind that LinkCable's limit is 4.
  */
 #define LINK_UNIVERSAL_MAX_PLAYERS LINK_WIRELESS_MAX_PLAYERS
+#endif
 
+#ifndef LINK_UNIVERSAL_GAME_ID_FILTER
 /**
  * @brief Game ID Filter (`0x0000` ~ `0x7fff`). Default = 0 (no filter)
  * This restricts wireless connections to rooms with a specific game ID.
  * When disabled, it connects to any game ID and uses `0x7fff` when serving.
  */
 #define LINK_UNIVERSAL_GAME_ID_FILTER 0
+#endif
 
 static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.0.0";
 

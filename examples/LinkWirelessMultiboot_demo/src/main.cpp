@@ -17,8 +17,6 @@ LinkWirelessMultiboot* linkWirelessMultiboot = new LinkWirelessMultiboot();
 int main() {
   setUpInterrupts();
 
-  REG_WAITCNT = 0x4317;  // (3,1 waitstates, prefetch ON)
-
   engine->setScene(multibootScene.get());
 
   while (true) {

@@ -62,6 +62,7 @@
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
+#ifndef LINK_MOBILE_QUEUE_SIZE
 /**
  * @brief Request queue size (how many commands can be queued at the same time).
  * The default value is `10`, which seems fine for most games.
@@ -69,6 +70,7 @@
  * it's around 3 KB.
  */
 #define LINK_MOBILE_QUEUE_SIZE 10
+#endif
 
 static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.0";
 

@@ -28,6 +28,7 @@
 
 #include "_link_common.hpp"
 
+#ifndef LINK_CUBE_QUEUE_SIZE
 /**
  * @brief Buffer size (how many incoming and outgoing values the queues can
  * store at max). The default value is `10`, which seems fine for most games.
@@ -37,6 +38,7 @@
  * \warning You can approximate the usage with `LINK_CUBE_QUEUE_SIZE * 12`.
  */
 #define LINK_CUBE_QUEUE_SIZE 10
+#endif
 
 static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.0.0";
 

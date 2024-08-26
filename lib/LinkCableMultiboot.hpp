@@ -26,12 +26,14 @@
 #include "LinkRawCable.hpp"
 #include "LinkSPI.hpp"
 
+#ifndef LINK_CABLE_MULTIBOOT_PALETTE_DATA
 /**
  * @brief Palette data (controls how the logo is displayed).
  * Format: 0b1CCCDSS1, where C=color, D=direction, S=speed.
  * Default: 0b10010011
  */
 #define LINK_CABLE_MULTIBOOT_PALETTE_DATA 0b10010011
+#endif
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
     "LinkCableMultiboot/v7.0.0";
