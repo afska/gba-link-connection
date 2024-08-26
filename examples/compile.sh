@@ -2,13 +2,6 @@
 
 set -e
 
-if [ "$(uname)" = "Darwin" ]; then
-    # macOS
-    sed_inplace_option="-i \"\""
-else
-    sed_inplace_option="-i"
-fi
-
 compile() {
   if [ "$1" = "multiboot" ]; then
       args="bMB=1"
@@ -70,9 +63,7 @@ compile() {
 
   # LinkRawWireless_demo
   cd LinkRawWireless_demo/
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_RAW_WIRELESS_ENABLE_LOGGING/#define LINK_RAW_WIRELESS_ENABLE_LOGGING/g" ../../lib/LinkRawWireless.hpp
-  make rebuild $args
-  sed $sed_inplace_option -e "s/#define LINK_RAW_WIRELESS_ENABLE_LOGGING/\/\/ #define LINK_RAW_WIRELESS_ENABLE_LOGGING/g" ../../lib/LinkRawWireless.hpp
+  make rebuild $args USERFLAGS="-DLINK_RAW_WIRELESS_ENABLE_LOGGING=1"
   cp LinkRawWireless_demo$suffix.gba ../$folder/
   cd ..
 
@@ -90,75 +81,47 @@ compile() {
 
   # LinkUniversal_basic
   cd LinkUniversal_basic/
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-  make rebuild $args
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkUniversal_basic$suffix.gba ../$folder/
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
   cd ..
 
   # LinkUniversal_full
   cd LinkCable_full/
-  sed $sed_inplace_option -e "s/\/\/ #define USE_LINK_UNIVERSAL/#define USE_LINK_UNIVERSAL/g" src/main.h
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
   mv LinkCable_full$suffix.gba backup.gba
-  make rebuild $args
+  make rebuild $args USERFLAGS="-DUSE_LINK_UNIVERSAL=1 -DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkCable_full$suffix.gba ../$folder/LinkUniversal_full$suffix.gba
   mv backup.gba LinkCable_full$suffix.gba
-  sed $sed_inplace_option -e "s/#define USE_LINK_UNIVERSAL/\/\/ #define USE_LINK_UNIVERSAL/g" src/main.h
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
   cd ..
 
   # LinkUniversal_stress
   cd LinkCable_stress/
-  sed $sed_inplace_option -e "s/\/\/ #define USE_LINK_UNIVERSAL/#define USE_LINK_UNIVERSAL/g" src/main.h
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
   mv LinkCable_stress$suffix.gba backup.gba
-  make rebuild $args
+  make rebuild $args USERFLAGS="-DUSE_LINK_UNIVERSAL=1 -DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkCable_stress$suffix.gba ../$folder/LinkUniversal_stress$suffix.gba
   mv backup.gba LinkCable_stress$suffix.gba
-  sed $sed_inplace_option -e "s/#define USE_LINK_UNIVERSAL/\/\/ #define USE_LINK_UNIVERSAL/g" src/main.h
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
   cd ..
 
   # LinkWireless_demo
   cd LinkWireless_demo/
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
-  make rebuild $args
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1"
   cp LinkWireless_demo$suffix.gba ../$folder/
   cd ..
 
   # LinkWireless_demo_2players
   cd LinkWireless_demo/
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_ENABLE_NESTED_IRQ/#define LINK_WIRELESS_ENABLE_NESTED_IRQ/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_TWO_PLAYERS_ONLY/#define LINK_WIRELESS_TWO_PLAYERS_ONLY/g" ../../lib/LinkWireless.hpp
   mv LinkWireless_demo$suffix.gba backup.gba
-  make rebuild $args
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_ENABLE_NESTED_IRQ=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_TWO_PLAYERS_ONLY=1"
   cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_2players$suffix.gba
   mv backup.gba LinkWireless_demo$suffix.gba
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_ENABLE_NESTED_IRQ/\/\/ #define LINK_WIRELESS_ENABLE_NESTED_IRQ/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
-  sed $sed_inplace_option -e "s/#define LINK_WIRELESS_TWO_PLAYERS_ONLY/\/\/ #define LINK_WIRELESS_TWO_PLAYERS_ONLY/g" ../../lib/LinkWireless.hpp
   cd ..
 
   # LinkWireless_demo_profiler
   if [ "$1" != "multiboot" ]; then
     cd LinkWireless_demo/
-    sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-    sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
-    sed $sed_inplace_option -e "s/\/\/ #define PROFILING_ENABLED/#define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
     mv LinkWireless_demo.gba backup.gba
-    make rebuild
+    make rebuild USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DPROFILING_ENABLED=1"
     cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
     mv backup.gba LinkWireless_demo.gba
-    sed $sed_inplace_option -e "s/#define LINK_WIRELESS_PUT_ISR_IN_IWRAM/\/\/ #define LINK_WIRELESS_PUT_ISR_IN_IWRAM/g" ../../lib/LinkWireless.hpp
-    sed $sed_inplace_option -e "s/#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/\/\/ #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH/g" ../../lib/LinkWireless.hpp
-    sed $sed_inplace_option -e "s/#define PROFILING_ENABLED/\/\/ #define PROFILING_ENABLED/g" ../../lib/LinkWireless.hpp
     cd ..
   fi
 }

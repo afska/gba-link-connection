@@ -165,10 +165,11 @@ CFLAGS		+= -Wall
 CFLAGS		+= $(INCLUDE)
 CFLAGS		+= -ffast-math -fno-strict-aliasing
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17
+USERFLAGS ?=
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17 $(USERFLAGS)
 
 ASFLAGS		:= $(ARCH) $(INCLUDE)
-LDFLAGS 	:= $(ARCH) -Wl,-Map,$(PROJ).map
+LDFLAGS 	:= $(ARCH) -Wl,--print-memory-usage,-Map,$(PROJ).map
 
 # --- switched additions ----------------------------------------------
 
