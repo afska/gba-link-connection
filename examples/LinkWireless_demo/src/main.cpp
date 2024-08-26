@@ -2,6 +2,7 @@
 #include "../../../lib/LinkWireless.hpp"
 
 #include <tonc.h>
+#include <cstring>
 #include <functional>
 #include <string>
 #include <vector>

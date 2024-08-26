@@ -2,7 +2,7 @@
 
 > 🚧 `v7.0.0` is not stable yet! come back later! 🚧
 
-A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games.
+A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games. [C bindings](#c-bindings) are also included for compatibility.
 
 - [👾](#-LinkCable) [LinkCable.hpp](lib/LinkCable.hpp): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
   - [💻](#-LinkCableMultiboot) [LinkCableMultiboot.hpp](lib/LinkCableMultiboot.hpp): ‍Send **Multiboot software** (small 256KiB ROMs) to other GBAs with no cartridge!
@@ -28,19 +28,20 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 ## Usage
 
-- Copy the contents of the `lib/` folder into a directory that is part of your project's include path. Then, `#include` the library you need, such as [LinkCable.hpp](lib/LinkCable.hpp), in your project. No external dependencies are required.
-- For initial instructions and setup details, refer to the big comment block at the beginning of each file, the documentation included here, and the provided examples.
-- Check out the [examples](examples) folder.
+- Copy the contents of the [lib/](lib/) folder into a directory that is part of your project's include path. Then, `#include` the library you need, such as [LinkCable.hpp](lib/LinkCable.hpp), in your project. No external dependencies are required.
+- For initial instructions and setup details, refer to the large comment block at the beginning of each file, the documentation included here, and the provided examples.
+- Check out the [examples/](examples/) folder.
 	* **Compiled ROMs are available** in [Releases](https://github.com/afska/gba-link-connection/releases).
 	* The example code uses [libtonc](https://github.com/gbadev-org/libtonc) (and [libugba](https://github.com/AntonioND/libugba) for interrupts), but any library can be used.
 	* The examples can be tested on real GBAs or using emulators.
-	* For `LinkCable`/`LinkWireless`/`LinkUniversal`, there are stress tests that you can use to tweak your configuration.
+	* For `LinkCable`/`LinkWireless`/`LinkUniversal`, stress tests are provided to help you tweak your configuration.
+  * The `LinkCableMultiboot_demo` and `LinkWirelessMultiboot_demo` examples can bootstrap all other examples, allowing you to test with multiple units even if you only have one flashcart.
 
 > The files use some compiler extensions, so using **GCC** is required.
 
-> The example ROMs were compiled using [devkitPro](https://devkitpro.org) with GCC `14.1.0`, with `-std=c++17` as the standard and `-Ofast` as the optimization level.
+> The example ROMs were compiled with [devkitPro](https://devkitpro.org), using GCC `14.1.0` with `-std=c++17` as the standard and `-Ofast` as the optimization level.
 
-> To learn implementation details, you might also want to check out the [docs](docs) folder, which contains important documentation.
+> To learn implementation details, you might also want to check out the [docs/](docs/) folder, which contains important documentation.
 
 ### Compiling the examples
 
@@ -52,6 +53,28 @@ All the projects understand this Makefile actions:
 
 ```bash
 make [ clean | build | start | rebuild | restart ]
+```
+
+### C bindings
+
+- To use the libraries in a C project, include the files from the [lib/c_bindings/](lib/c_bindings/) directory.
+- For documentation, use this `README.md` file or comments inside the main C++ files.
+- Some libraries may not be available in C.
+- Some methods/overloads may not be available in the C implementations.
+- Unlike the main libraries, C bindings depend on *libtonc*.
+
+```cpp
+// Instantiating
+LinkSomething* linkSomething = new LinkSomething(a, b); // C++
+LinkSomethingHandle cLinkSomething = C_LinkSomething_create(a, b); // C
+
+// Calling methods
+linkSomething->method(a, b); // C++
+C_LinkSomething_method(cLinkSomething, a, b); // C
+
+// Destroying
+delete linkSomething; // C++
+C_LinkSomething_destroy(cLinkSomething); // C
 ```
 
 # 👾 LinkCable

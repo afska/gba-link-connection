@@ -63,17 +63,19 @@ void C_LinkUniversal_deactivate(C_LinkUniversalHandle handle);
 bool C_LinkUniversal_isConnected(C_LinkUniversalHandle handle);
 u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle);
 u8 C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle);
-void C_LinkUniversal_sync(C_LinkUniversalHandle handle);
 
+void C_LinkUniversal_sync(C_LinkUniversalHandle handle);
 bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, u8 playerId);
 bool C_LinkUniversal_waitForWithCancel(C_LinkUniversalHandle handle,
                                        u8 playerId,
                                        bool (*cancel)());
+
 bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, u8 playerId);
 u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, u8 playerId);
 u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, u8 playerId);
 
 bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data);
+
 C_LinkUniversal_State C_LinkUniversal_getState(C_LinkUniversalHandle handle);
 C_LinkUniversal_Mode C_LinkUniversal_getMode(C_LinkUniversalHandle handle);
 C_LinkUniversal_Protocol C_LinkUniversal_getProtocol(
