@@ -1,7 +1,5 @@
 ﻿# gba-link-connection
 
-> 🚧 `v7.0.0` is not stable yet! come back later! 🚧
-
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games. [C bindings](#c-bindings) are also included for compatibility.
 
 - [👾](#-LinkCable) [LinkCable.hpp](lib/LinkCable.hpp): The classic 16-bit **Multi-Play mode** (up to 4 players) using a GBA Link Cable!
@@ -49,7 +47,7 @@ Running `./compile.sh` builds all the examples with the right configuration.
 
 The project must be in a path without spaces; devkitARM and some *nix commands are required.
 
-All the projects understand this Makefile actions:
+All the projects understand these Makefile actions:
 
 ```bash
 make [ clean | build | start | rebuild | restart ]
@@ -219,14 +217,14 @@ You can also change these compile-time constants:
 - `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
   - This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is disabled.
 - `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
-- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" `5` bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties.
+- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" `5` bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties. When this option is enabled, the `maxPlayers` constructor parameter will be ignored.
 
 ## Methods
 
 - Most of these methods return a boolean, indicating if the action was successful. If not, you can call `getLastError()` to know the reason. Usually, unless it's a trivial error (like buffers being full), the connection with the adapter is reset and the game needs to start again.
 - You can check the connection state at any time with `getState()`.
 - Until a session starts, all actions are synchronous.
-- During sessions (when the state is `SERVING` or `CONNECTED`), the message transfers are IRQ-driven, so `send(...)` and `receive(...)` won't waste extra cycles. The synchronous method that can be called during a session is `serve(...)`, which can be used to update the broadcast data.
+- During sessions (when the state is `SERVING` or `CONNECTED`), the message transfers are IRQ-driven, so `send(...)` and `receive(...)` won't waste extra cycles. The only synchronous method that can be called during a session is `serve(...)`, which can be used to update the broadcast data.
 
 Name | Return type | Description
 --- | --- | ---
@@ -481,7 +479,7 @@ Name | Return type | Description
 
 This is a driver for an accessory that enables online conectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
 
-The original accessory was sold in Japan only and doesn't work anymore since it relies on old tech and servers, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
+The original accessory was sold in Japan only and using it nowadays is hard since it relies on old tech, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
 
 It has two modes of operation:
 - Direct call (P2P): Calling someone directly for a 2-player session, using the other person's IP address or the phone number provided by the [relay server](https://github.com/REONTeam/mobile-relay).
@@ -521,7 +519,7 @@ Name | Return type | Description
 `shutdown()` | **bool** | Gracefully shuts down the adapter, closing all connections. After some time, the state will be changed to `SHUTDOWN`, and only then it's safe to call `deactivate()`.
 `call(phoneNumber)` | **bool** | Initiates a P2P connection with a `phoneNumber`. After some time, the state will be `CALL_ESTABLISHED` (or `ACTIVE_SESSION` if the connection fails or ends). In REON/libmobile the phone number can be a number assigned by the relay server, or a 12-digit IPv4 address (for example, `"127000000001"` would be `127.0.0.1`).
 `callISP(password, loginId)` | **bool** | Calls the ISP number registered in the adapter configuration, or a default number if the adapter hasn't been configured. Then, performs a login operation using the provided `password` and `loginId`. After some time, the state will be `PPP_ACTIVE`. If `loginId` is empty and the adapter has been configured, it will use the one stored in the configuration. Both parameters are null-terminated strings (max `32` characters).
-`dnsQuery(domainName, result)` | **bool** | Looks up the IPv4 address for a `domainName` (a null-terminated string, max `253` characters). It also accepts a ASCII IPv4 address, converting it into a 4-byte address instead of querying the DNS server. The `result` is a pointer to a `LinkMobile::DNSQuery` struct that will be filled with the result. When the request is completed, the `completed` field will be `true`. If an IP address was found, the `success` field will be `true` and the `ipv4` field can be read as a 4-byte address.
+`dnsQuery(domainName, result)` | **bool** | Looks up the IPv4 address for a `domainName` (a null-terminated string, max `253` characters). It also accepts an ASCII IPv4 address, converting it into a 4-byte address instead of querying the DNS server. The `result` is a pointer to a `LinkMobile::DNSQuery` struct that will be filled with the result. When the request is completed, the `completed` field will be `true`. If an IP address was found, the `success` field will be `true` and the `ipv4` field can be read as a 4-byte address.
 `openConnection(ip, port, type, result)` | **bool** | Opens a TCP/UDP (`type`) connection at the given `ip` (4-byte address) on the given `port`. The `result` is a pointer to a `LinkMobile::OpenConn` struct that will be filled with the result. When the request is completed, the `completed` field will be `true`. If the connection was successful, the `success` field will be `true` and the `connectionId` field can be used when calling the `transfer(...)` method. Only `2` connections can be opened at the same time.
 `closeConnection(connectionId, type, result)` | **bool** | Closes an active TCP/UDP (`type`) connection. The `result` is a pointer to a `LinkMobile::CloseConn` struct that will be filled with the result. When the request is completed, the `completed` field will be `true`. If the connection was closed correctly, the `success` field will be `true`.
 `transfer(dataToSend, result, [connectionId])` | **bool** | Requests a data transfer (up to `254` bytes) and responds the received data. The transfer can be done with the other node in a P2P connection, or with any open TCP/UDP connection if a PPP session is active. In the case of a TCP/UDP connection, the `connectionId` must be provided. The `result` is a pointer to a `LinkMobile::DataTransfer` struct that will be filled with the received data. It can also point to `dataToSend` to reuse the struct. When the request is completed, the `completed` field will be `true`. If the transfer was successful, the `success` field will be `true`. If not, you can assume that the connection was closed.
@@ -579,7 +577,7 @@ A PS/2 keyboard driver for the GBA. Use it to add keyboard support to your homeb
 
 ## Constructor
 
-`new LinkPS2Keyboard(onEvent)`, where `onEvent` is a function pointer that will receive the scan codes (`u8`). You should check a PS/2 scan code list online, but most common keys/events are included in enums like `LINK_PS2_KEYBOARD_KEY::ENTER` and `LINK_PS2_KEYBOARD_KEY::RELEASE`.
+`new LinkPS2Keyboard(onEvent)`, where `onEvent` is a function pointer that will receive the scan codes (`u8`). You should check a PS/2 scan code list online, but most common keys/events are included in enums like `LINK_PS2_KEYBOARD_KEY::ENTER` and `LINK_PS2_KEYBOARD_EVENT::RELEASE`.
 
 ## Methods
 
