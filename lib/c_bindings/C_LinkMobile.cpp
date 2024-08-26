@@ -127,10 +127,10 @@ C_LinkMobile_Error C_LinkMobile_getError(C_LinkMobileHandle handle) {
   LinkMobile::Error error = static_cast<LinkMobile*>(handle)->getError();
   return {static_cast<C_LinkMobile_ErrorType>(error.type),
           static_cast<C_LinkMobile_State>(error.state),
-          error.cmdIsSending,
           error.cmdId,
           static_cast<C_LinkMobile_CommandResult>(error.cmdResult),
           error.cmdErrorCode,
+          error.cmdIsSending,
           error.reqType};
 }
 

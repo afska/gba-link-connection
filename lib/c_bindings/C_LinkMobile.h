@@ -78,35 +78,39 @@ typedef enum {
 typedef struct {
   C_LinkMobile_ErrorType type;
   C_LinkMobile_State state;
-  bool cmdIsSending;
   u8 cmdId;
   C_LinkMobile_CommandResult cmdResult;
-  u32 cmdErrorCode;
+  u8 cmdErrorCode;
+  bool cmdIsSending;
   int reqType;
 } C_LinkMobile_Error;
 
 typedef struct {
-  u32 connectionId;
-  bool completed;
-  u32 size;
-  u8 data[254];
-} C_LinkMobile_DataTransfer;
+  volatile bool completed;
+  bool success;
+
+  u8 ipv4[4];
+} C_LinkMobile_DNSQuery;
 
 typedef struct {
-  u32 connectionId;
+  volatile bool completed;
   bool success;
+
+  u32 connectionId;
 } C_LinkMobile_OpenConn;
 
 typedef struct {
-  u32 connectionId;
+  volatile bool completed;
   bool success;
 } C_LinkMobile_CloseConn;
 
 typedef struct {
-  u8 ipv4[4];
+  volatile bool completed;
   bool success;
-  bool completed;
-} C_LinkMobile_DNSQuery;
+
+  u8 data[C_LINK_MOBILE_MAX_USER_TRANSFER_LENGTH];
+  u8 size;
+} C_LinkMobile_DataTransfer;
 
 typedef struct {
   char magic[2];

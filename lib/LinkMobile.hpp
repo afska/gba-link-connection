@@ -216,9 +216,7 @@ class LinkMobile {
     u8 connectionId = 0;
   };
 
-  struct CloseConn : public AsyncRequest {
-    bool success = false;
-  };
+  struct CloseConn : public AsyncRequest {};
 
   struct DataTransfer : public AsyncRequest {
     u8 data[LINK_MOBILE_MAX_USER_TRANSFER_LENGTH] = {};
