@@ -2,7 +2,7 @@
 #include "../LinkRawWireless.hpp"
 
 extern "C" {
-C_LinkRawWirelessHandle C_LinkRawWireless_create(void) {
+C_LinkRawWirelessHandle C_LinkRawWireless_create() {
   return new LinkRawWireless();
 }
 
@@ -199,14 +199,14 @@ bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
   return success;
 }
 
+u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle) {
+  return static_cast<LinkRawWireless*>(handle)->getDeviceTransferLength();
+}
+
 C_LinkRawWireless_State C_LinkRawWireless_getState(
     C_LinkRawWirelessHandle handle) {
   return static_cast<C_LinkRawWireless_State>(
       static_cast<LinkRawWireless*>(handle)->getState());
-}
-
-u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle) {
-  return static_cast<LinkRawWireless*>(handle)->getDeviceTransferLength();
 }
 
 bool C_LinkRawWireless_isConnected(C_LinkRawWirelessHandle handle) {

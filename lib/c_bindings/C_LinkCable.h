@@ -23,6 +23,7 @@ typedef enum {
   C_LINK_CABLE_BAUD_RATE_3   // 115200 bps
 } C_LinkCable_BaudRate;
 
+C_LinkCableHandle C_LinkCable_createDefault();
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,
                                      u32 timeout,
                                      u16 interval,

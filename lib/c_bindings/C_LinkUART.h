@@ -67,7 +67,7 @@ void C_LinkUART_onSerial(C_LinkUARTHandle handle);
 
 extern C_LinkUARTHandle cLinkUART;
 
-inline void C_LINK_SPI_ISR_SERIAL() {
+inline void C_LINK_UART_ISR_SERIAL() {
   C_LinkUART_onSerial(cLinkUART);
 }
 

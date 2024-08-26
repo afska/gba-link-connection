@@ -21,7 +21,7 @@ typedef enum {
   C_LINK_GPIO_DIRECTION_OUTPUT
 } C_LinkGPIO_Direction;
 
-C_LinkGPIOHandle C_LinkGPIO_create(void);
+C_LinkGPIOHandle C_LinkGPIO_create();
 void C_LinkGPIO_destroy(C_LinkGPIOHandle handle);
 
 void C_LinkGPIO_reset(C_LinkGPIOHandle handle);

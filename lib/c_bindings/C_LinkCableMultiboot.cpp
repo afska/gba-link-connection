@@ -3,7 +3,7 @@
 
 extern "C" {
 
-C_LinkCableMultibootHandle C_LinkCableMultiboot_create(void) {
+C_LinkCableMultibootHandle C_LinkCableMultiboot_create() {
   return new LinkCableMultiboot();
 }
 

@@ -3,6 +3,10 @@
 
 extern "C" {
 
+C_LinkCableHandle C_LinkCable_createDefault() {
+  return new LinkCable();
+}
+
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,
                                      u32 timeout,
                                      u16 interval,

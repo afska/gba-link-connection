@@ -139,6 +139,7 @@ typedef enum {
   C_LINK_MOBILE_SIZE_8BIT
 } C_LinkMobile_DataSize;
 
+C_LinkMobileHandle C_LinkMobile_createDefault();
 C_LinkMobileHandle C_LinkMobile_create(u32 timeout, u8 timerId);
 void C_LinkMobile_destroy(C_LinkMobileHandle handle);
 

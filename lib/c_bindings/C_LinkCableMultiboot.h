@@ -21,7 +21,7 @@ typedef enum {
 
 typedef void* C_LinkCableMultibootHandle;
 
-C_LinkCableMultibootHandle C_LinkCableMultiboot_create(void);
+C_LinkCableMultibootHandle C_LinkCableMultiboot_create();
 void C_LinkCableMultiboot_destroy(C_LinkCableMultibootHandle handle);
 
 C_LinkCableMultiboot_Result C_LinkCableMultiboot_sendRom(

@@ -7,6 +7,8 @@ extern "C" {
 
 #include <tonc_core.h>
 
+typedef void* C_LinkRawWirelessHandle;
+
 #define C_LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define C_LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
 #define C_LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
@@ -14,6 +16,7 @@ extern "C" {
 #define C_LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define C_LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define C_LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
+#define C_LINK_RAW_WIRELESS_SETUP_MAGIC 0x003c0000
 
 #define C_LINK_RAW_WIRELESS_MAX_SERVERS 4
 
@@ -25,12 +28,6 @@ typedef enum {
   C_LINK_RAW_WIRELESS_STATE_CONNECTING,
   C_LINK_RAW_WIRELESS_STATE_CONNECTED
 } C_LinkRawWireless_State;
-
-typedef enum {
-  C_LINK_RAW_WIRELESS_CONNECTION_PHASE_STILL_CONNECTING,
-  C_LINK_RAW_WIRELESS_CONNECTION_PHASE_ERROR,
-  C_LINK_RAW_WIRELESS_CONNECTION_PHASE_SUCCESS
-} C_LinkRawWireless_ConnectionPhase;
 
 typedef struct {
   bool success;
@@ -44,6 +41,14 @@ typedef struct {
   u32 params[C_LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
   u32 paramsSize;
 } C_LinkRawWireless_RemoteCommand;
+
+typedef struct {
+  u16 id;
+  u16 gameId;
+  char gameName[C_LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
+  char userName[C_LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1];
+  u8 nextClientNumber;
+} C_LinkRawWireless_Server;
 
 typedef struct {
   u16 deviceId;
@@ -64,17 +69,15 @@ typedef struct {
 } C_LinkRawWireless_AcceptConnectionsResponse;
 
 typedef struct {
-  u16 id;
-  u16 gameId;
-  char gameName[C_LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
-  char userName[C_LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1];
-  u8 nextClientNumber;
-} C_LinkRawWirelessServer;
-
-typedef struct {
-  C_LinkRawWirelessServer servers[C_LINK_RAW_WIRELESS_MAX_SERVERS];
+  C_LinkRawWireless_Server servers[C_LINK_RAW_WIRELESS_MAX_SERVERS];
   u32 serversSize;
 } C_LinkRawWireless_BroadcastReadPollResponse;
+
+typedef enum {
+  C_LINK_RAW_WIRELESS_CONNECTION_PHASE_STILL_CONNECTING,
+  C_LINK_RAW_WIRELESS_CONNECTION_PHASE_ERROR,
+  C_LINK_RAW_WIRELESS_CONNECTION_PHASE_SUCCESS
+} C_LinkRawWireless_ConnectionPhase;
 
 typedef struct {
   C_LinkRawWireless_ConnectionPhase phase;
@@ -87,9 +90,7 @@ typedef struct {
   u32 dataSize;
 } C_LinkRawWireless_ReceiveDataResponse;
 
-typedef void* C_LinkRawWirelessHandle;
-
-C_LinkRawWirelessHandle C_LinkRawWireless_create(void);
+C_LinkRawWirelessHandle C_LinkRawWireless_create();
 void C_LinkRawWireless_destroy(C_LinkRawWirelessHandle handle);
 
 bool C_LinkRawWireless_isActive(C_LinkRawWirelessHandle handle);
@@ -141,9 +142,9 @@ bool C_LinkRawWireless_receiveData(
 bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
                             C_LinkRawWireless_RemoteCommand* remoteCommand);
 
+u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle);
 C_LinkRawWireless_State C_LinkRawWireless_getState(
     C_LinkRawWirelessHandle handle);
-u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_isConnected(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_isSessionActive(C_LinkRawWirelessHandle handle);
 u8 C_LinkRawWireless_playerCount(C_LinkRawWirelessHandle handle);

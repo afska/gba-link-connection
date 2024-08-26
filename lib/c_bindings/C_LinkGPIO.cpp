@@ -3,7 +3,7 @@
 
 extern "C" {
 
-C_LinkGPIOHandle C_LinkGPIO_create(void) {
+C_LinkGPIOHandle C_LinkGPIO_create() {
   return new LinkGPIO();
 }
 

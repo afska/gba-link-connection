@@ -35,7 +35,7 @@ typedef enum {
   C_LINK_WIRELESS_STATE_SERVING,
   C_LINK_WIRELESS_STATE_CONNECTING,
   C_LINK_WIRELESS_STATE_CONNECTED
-} C_LinkWirelessState;
+} C_LinkWireless_State;
 
 typedef enum {
   C_LINK_WIRELESS_ERROR_NONE,
@@ -62,11 +62,12 @@ typedef struct {
 typedef struct {
   u16 id;
   u16 gameId;
-  char gameName[15];
-  char userName[9];
+  char gameName[C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1];
+  char userName[C_LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1];
   u8 currentPlayerCount;
 } C_LinkWireless_Server;
 
+C_LinkWirelessHandle C_LinkWireless_createDefault();
 C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
                                            bool retransmission,
                                            u8 maxPlayers,
@@ -96,8 +97,9 @@ bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data);
 bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
                             C_LinkWireless_Message messages[]);
 
-C_LinkWirelessState C_LinkWireless_getState(C_LinkWirelessHandle handle);
+C_LinkWireless_State C_LinkWireless_getState(C_LinkWirelessHandle handle);
 bool C_LinkWireless_isConnected(C_LinkWirelessHandle handle);
+bool C_LinkWireless_isSessionActive(C_LinkWirelessHandle handle);
 u8 C_LinkWireless_playerCount(C_LinkWirelessHandle handle);
 u8 C_LinkWireless_currentPlayerId(C_LinkWirelessHandle handle);
 

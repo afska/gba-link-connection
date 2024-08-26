@@ -3,6 +3,10 @@
 
 extern "C" {
 
+C_LinkMobileHandle C_LinkMobile_createDefault() {
+  return new LinkMobile();
+}
+
 C_LinkMobileHandle C_LinkMobile_create(u32 timeout, u8 timerId) {
   return new LinkMobile(timeout, timerId);
 }

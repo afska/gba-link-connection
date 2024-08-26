@@ -3,6 +3,10 @@
 
 extern "C" {
 
+C_LinkUniversalHandle C_LinkUniversal_createDefault() {
+  return new LinkUniversal();
+}
+
 C_LinkUniversalHandle C_LinkUniversal_create(
     C_LinkUniversal_Protocol protocol,
     const char* gameName,
@@ -11,11 +15,14 @@ C_LinkUniversalHandle C_LinkUniversal_create(
     int randomSeed) {
   return new LinkUniversal(
       static_cast<LinkUniversal::Protocol>(protocol), gameName,
-      {static_cast<LinkCable::BaudRate>(cableOptions.baudRate),
-       cableOptions.timeout, cableOptions.interval, cableOptions.sendTimerId},
-      {wirelessOptions.retransmission, wirelessOptions.maxPlayers,
-       wirelessOptions.timeout, wirelessOptions.interval,
-       wirelessOptions.sendTimerId, wirelessOptions.asyncACKTimerId},
+      LinkUniversal::CableOptions{
+          static_cast<LinkCable::BaudRate>(cableOptions.baudRate),
+          cableOptions.timeout, cableOptions.interval,
+          cableOptions.sendTimerId},
+      LinkUniversal::WirelessOptions{
+          wirelessOptions.retransmission, wirelessOptions.maxPlayers,
+          wirelessOptions.timeout, wirelessOptions.interval,
+          wirelessOptions.sendTimerId, wirelessOptions.asyncACKTimerId},
       randomSeed);
 }
 
@@ -39,11 +46,11 @@ bool C_LinkUniversal_isConnected(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->isConnected();
 }
 
-uint8_t C_LinkUniversal_playerCount(C_LinkUniversalHandle handle) {
+u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->playerCount();
 }
 
-uint8_t C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle) {
+u8 C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->currentPlayerId();
 }
 
@@ -51,29 +58,29 @@ void C_LinkUniversal_sync(C_LinkUniversalHandle handle) {
   static_cast<LinkUniversal*>(handle)->sync();
 }
 
-bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, uint8_t playerId) {
+bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->waitFor(playerId);
 }
 
 bool C_LinkUniversal_waitForWithCancel(C_LinkUniversalHandle handle,
-                                       uint8_t playerId,
+                                       u8 playerId,
                                        bool (*cancel)()) {
   return static_cast<LinkUniversal*>(handle)->waitFor(playerId, cancel);
 }
 
-bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, uint8_t playerId) {
+bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->canRead(playerId);
 }
 
-uint16_t C_LinkUniversal_read(C_LinkUniversalHandle handle, uint8_t playerId) {
+u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->read(playerId);
 }
 
-uint16_t C_LinkUniversal_peek(C_LinkUniversalHandle handle, uint8_t playerId) {
+u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->peek(playerId);
 }
 
-bool C_LinkUniversal_send(C_LinkUniversalHandle handle, uint16_t data) {
+bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data) {
   return static_cast<LinkUniversal*>(handle)->send(data);
 }
 
@@ -99,11 +106,11 @@ void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
       static_cast<LinkUniversal::Protocol>(protocol));
 }
 
-uint32_t C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {
+u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->_getWaitCount();
 }
 
-uint32_t C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle) {
+u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->_getSubWaitCount();
 }
 
