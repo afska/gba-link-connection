@@ -26,8 +26,16 @@ bool C_LinkWireless_activate(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->activate();
 }
 
+bool C_LinkWireless_activateAsync(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->activateAsync();
+}
+
 bool C_LinkWireless_deactivate(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->deactivate();
+}
+
+bool C_LinkWireless_deactivateButKeepOn(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->deactivate(false);
 }
 
 bool C_LinkWireless_serve(C_LinkWirelessHandle handle,

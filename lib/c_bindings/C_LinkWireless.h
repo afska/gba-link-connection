@@ -30,6 +30,8 @@ typedef void* C_LinkWirelessHandle;
 
 typedef enum {
   C_LINK_WIRELESS_STATE_NEEDS_RESET,
+  C_LINK_WIRELESS_STATE_WAITING_TO_START,
+  C_LINK_WIRELESS_STATE_STARTING,
   C_LINK_WIRELESS_STATE_AUTHENTICATED,
   C_LINK_WIRELESS_STATE_SEARCHING,
   C_LINK_WIRELESS_STATE_SERVING,
@@ -78,7 +80,10 @@ C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
 void C_LinkWireless_destroy(C_LinkWirelessHandle handle);
 
 bool C_LinkWireless_activate(C_LinkWirelessHandle handle);
+bool C_LinkWireless_activateAsync(C_LinkWirelessHandle handle);
 bool C_LinkWireless_deactivate(C_LinkWirelessHandle handle);
+bool C_LinkWireless_deactivateButKeepOn(C_LinkWirelessHandle handle);
+
 bool C_LinkWireless_serve(C_LinkWirelessHandle handle,
                           const char* gameName,
                           const char* userName,

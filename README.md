@@ -229,8 +229,9 @@ You can also change these compile-time constants:
 Name | Return type | Description
 --- | --- | ---
 `isActive()` | **bool** | Returns whether the library is active or not.
-`activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`. It can also be used to disconnect or reset the adapter.
-`deactivate()` | **bool** | Puts the adapter into a low consumption mode and then deactivates the library. It returns a boolean indicating whether the transition to low consumption mode was successful.
+`activate()` | **bool** | Activates the library. When an adapter is connected, it changes the state to `AUTHENTICATED`. It can also be used to disconnect or reset the adapter. This can block the system for ~1 frame.
+`activateAsync()` | **bool** | Activates the library in 3 steps to avoid burning extra cycles for waiting. Call this once per frame! If it returns `false` at any point, the adapter is not connected and you should stop. On success, after the third call, `getState()` should be `AUTHENTICATED`.
+`deactivate([turnOff])` | **bool** | Puts the adapter into a low consumption mode and then deactivates the library. It returns a boolean indicating whether the transition to low consumption mode was successful. You can disable the transition and deactivate directly by setting `turnOff` to `true`.
 `serve([gameName], [userName], [gameId])` | **bool** | Starts broadcasting a server and changes the state to `SERVING`. You can, optionally, provide a `gameName` (max `14` characters), a `userName` (max `8` characters), and a `gameId` *(0 ~ 0x7FFF)* that games will be able to read. The strings must be null-terminated character arrays.  If the adapter is already serving, this method only updates the broadcast data. Updating broadcast data while serving can fail if the adapter is busy. In that case, this will return `false` and `getLastError()` will be `BUSY_TRY_AGAIN`.
 `getServers(servers, [onWait])` | **bool** | Fills the `servers` array with all the currently broadcasting servers. This action takes 1 second to complete, but you can optionally provide an `onWait()` function which will be invoked each time VBlank starts.
 `getServersAsyncStart()` | **bool** | Starts looking for broadcasting servers and changes the state to `SEARCHING`. After this, call `getServersAsyncEnd(...)` 1 second later.
@@ -239,7 +240,7 @@ Name | Return type | Description
 `keepConnecting()` | **bool** | When connecting, this needs to be called until the state is `CONNECTED`. It assigns a player ID. Keep in mind that `isConnected()` and `playerCount()` won't be updated until the first message from the server arrives.
 `send(data)` | **bool** | Enqueues `data` to be sent to other nodes.
 `receive(messages)` | **bool** | Fills the `messages` array with incoming messages, forwarding if needed.
-`getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
+`getState()` | **LinkWireless::State** | Returns the current state (one of `LinkWireless::State::NEEDS_RESET`, `LinkWireless::State::WAITING_TO_START`, `LinkWireless::State::STARTING`, `LinkWireless::State::AUTHENTICATED`, `LinkWireless::State::SEARCHING`, `LinkWireless::State::SERVING`, `LinkWireless::State::CONNECTING`, or `LinkWireless::State::CONNECTED`).
 `isConnected()` | **bool** | Returns `true` if the player count is higher than `1`.
 `isSessionActive()` | **bool** | Returns `true` if the state is `SERVING` or `CONNECTED`.
 `playerCount()` | **u8** *(1~5)* | Returns the number of connected players.

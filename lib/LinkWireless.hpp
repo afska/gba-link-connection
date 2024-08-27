@@ -246,6 +246,8 @@ class LinkWireless {
 
   enum State {
     NEEDS_RESET,
+    WAITING_TO_START,
+    STARTING,
     AUTHENTICATED,
     SEARCHING,
     SERVING,
@@ -339,6 +341,7 @@ class LinkWireless {
    * @brief Activates the library. When an adapter is connected, it changes the
    * state to `AUTHENTICATED`. It can also be used to disconnect or reset the
    * adapter.
+   * \warning This can block the system for ~1 frame.
    */
   bool activate() {
     lastError = NONE;
@@ -353,13 +356,71 @@ class LinkWireless {
   }
 
   /**
+   * @brief Activates the library in 3 steps to avoid burning extra cycles for
+   * waiting. Call this once per frame! If it returns `false` at any point, the
+   * adapter is not connected and you should stop. On success, after the third
+   * call, `getState()` should be `AUTHENTICATED`.
+   */
+  bool activateAsync() {
+    switch (state) {
+      case WAITING_TO_START: {
+        pingAdapterEnd();
+        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+        if (!login()) {
+          stop();
+          state = NEEDS_RESET;
+          return false;
+        }
+        state = STARTING;
+        return true;
+      }
+      case STARTING: {
+        if (!sendCommand(COMMAND_HELLO).success) {
+          stop();
+          state = NEEDS_RESET;
+          return false;
+        }
+        if (!setup()) {
+          stop();
+          state = NEEDS_RESET;
+          return false;
+        }
+        linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+        state = AUTHENTICATED;
+        return true;
+      }
+      default: {
+        lastError = NONE;
+
+        LINK_WIRELESS_BARRIER;
+        isEnabled = false;
+        LINK_WIRELESS_BARRIER;
+
+        resetState();
+        stop();
+
+        startTimer();
+        pingAdapterStart();
+        state = WAITING_TO_START;
+        return true;
+      }
+    }
+  }
+
+  /**
    * @brief Puts the adapter into a low consumption mode and then deactivates
    * the library. It returns a boolean indicating whether the transition to low
    * consumption mode was successful.
+   * @param turnOff Whether the library should put the adapter in the low
+   * consumption mode or not before deactivation. Defaults to `true`.
    */
-  bool deactivate() {
-    activate();
-    bool success = sendCommand(COMMAND_BYE).success;
+  bool deactivate(bool turnOff = true) {
+    bool success = true;
+
+    if (turnOff) {
+      activate();
+      success = sendCommand(COMMAND_BYE).success;
+    }
 
     lastError = NONE;
     isEnabled = false;
@@ -1604,13 +1665,16 @@ class LinkWireless {
 
     resetState();
     stop();
-    bool result = start();
+    bool success = start();
+
+    if (!success)
+      stop();
 
     LINK_WIRELESS_BARRIER;
     isEnabled = wasEnabled;
     LINK_WIRELESS_BARRIER;
 
-    return result;
+    return success;
   }
 
   void resetState() {
@@ -1695,12 +1759,18 @@ class LinkWireless {
   }
 
   void pingAdapter() {
+    pingAdapterStart();
+    wait(PING_WAIT);
+    pingAdapterEnd();
+  }
+
+  void pingAdapterStart() {
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     linkGPIO->writePin(LinkGPIO::SD, true);
-    wait(PING_WAIT);
-    linkGPIO->writePin(LinkGPIO::SD, false);
   }
+
+  void pingAdapterEnd() { linkGPIO->writePin(LinkGPIO::SD, false); }
 
   bool login() {
     LoginMemory memory;
