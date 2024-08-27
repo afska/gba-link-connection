@@ -127,8 +127,9 @@ static inline __attribute__((always_inline)) void _IntrWait(
                       : "+r"(r0), "+r"(r1)::"r3");
 }
 
-static inline auto _MultiBoot(const _MultiBootParam* param,
-                              u32 mbmode) noexcept {
+static inline __attribute__((always_inline)) auto _MultiBoot(
+    const _MultiBootParam* param,
+    u32 mbmode) noexcept {
   register union {
     const _MultiBootParam* ptr;
     int res;

@@ -693,7 +693,7 @@ inline void LINK_UNIVERSAL_ISR_SERIAL() {
 }
 
 /**
- * @brief TIMER interrupt handler used for sending.
+ * @brief TIMER interrupt handler.
  */
 inline void LINK_UNIVERSAL_ISR_TIMER() {
   linkUniversal->_onTimer();

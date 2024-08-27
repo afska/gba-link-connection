@@ -1938,7 +1938,7 @@ inline void LINK_WIRELESS_ISR_SERIAL() {
 }
 
 /**
- * @brief TIMER interrupt handler used for sending.
+ * @brief TIMER interrupt handler.
  */
 inline void LINK_WIRELESS_ISR_TIMER() {
   linkWireless->_onTimer();
