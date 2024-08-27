@@ -1433,9 +1433,9 @@ class LinkWireless {
 
     u32 min = 0xffffffff;
     for (int i = 0; i < config.maxPlayers - 1; i++) {
-      u32 confirmationData = sessionState.lastConfirmationFromClients[1 + i];
-      if (confirmationData > 0 && confirmationData < min)
-        min = confirmationData;
+      u32 _confirmationData = sessionState.lastConfirmationFromClients[1 + i];
+      if (_confirmationData > 0 && _confirmationData < min)
+        min = _confirmationData;
     }
     if (min < 0xffffffff)
       removeConfirmedMessages(min);
@@ -1849,6 +1849,8 @@ class LinkWireless {
 
         receiveAsyncCommandResponseOrFinish();
         break;
+      }
+      default: {
       }
     }
   }

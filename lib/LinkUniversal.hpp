@@ -273,6 +273,8 @@ class LinkUniversal {
 
         break;
       }
+      default: {
+      }
     }
   }
 
@@ -526,6 +528,8 @@ class LinkUniversal {
         // (should not happen)
         break;
       }
+      default: {
+      }
     }
 
     return true;
@@ -594,6 +598,8 @@ class LinkUniversal {
         setMode(LINK_WIRELESS);
         break;
       }
+      default: {
+      }
     }
   }
 
@@ -619,6 +625,8 @@ class LinkUniversal {
       case WIRELESS_CLIENT: {
         setMode(LINK_WIRELESS);
         break;
+      }
+      default: {
       }
     }
   }

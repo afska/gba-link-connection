@@ -98,7 +98,7 @@ class LinkGPIO {
   }
 
  private:
-  int getBit(volatile u16 reg, int bit) { return (reg >> bit) & 1; }
+  int getBit(u16 reg, int bit) { return (reg >> bit) & 1; }
 
   void setBit(volatile u16& reg, int bit, bool data) {
     if (data)

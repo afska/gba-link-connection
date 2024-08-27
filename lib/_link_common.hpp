@@ -161,7 +161,7 @@ class Queue {
 
     rear = (rear + 1) % Size;
     arr[rear] = item;
-    count++;
+    count = count + 1;
   }
 
   T pop() {
@@ -170,7 +170,7 @@ class Queue {
 
     auto x = arr[front];
     front = (front + 1) % Size;
-    count--;
+    count = count - 1;
 
     return x;
   }
@@ -199,7 +199,8 @@ class Queue {
   }
 
   void clear() {
-    front = count = 0;
+    front = 0;
+    count = 0;
     rear = -1;
   }
 
