@@ -27,6 +27,10 @@
 //       // `result` should be LinkWirelessMultiboot::Result::SUCCESS
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 #include "LinkRawWireless.hpp"

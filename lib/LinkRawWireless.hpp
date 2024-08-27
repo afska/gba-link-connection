@@ -8,6 +8,10 @@
 // - If you're building a game, use `LinkWireless`.
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 #include <array>

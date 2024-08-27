@@ -35,6 +35,10 @@
 // |GND ---> GND|
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.0";

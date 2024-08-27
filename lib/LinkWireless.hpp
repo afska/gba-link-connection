@@ -54,6 +54,10 @@
 // - 0xFFFF is a reserved value, so don't use it!
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 #include <cstring>

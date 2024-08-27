@@ -23,6 +23,10 @@
 // - stop DMA before sending the ROM! (you might need to stop your audio player)
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "LinkRawCable.hpp"
 #include "LinkSPI.hpp"
 

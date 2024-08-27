@@ -1,6 +1,10 @@
 #ifndef LINK_COMMON_H
 #define LINK_COMMON_H
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 /**
  * @brief Enable mGBA debug logging.
  */

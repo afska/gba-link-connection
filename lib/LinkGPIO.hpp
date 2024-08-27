@@ -24,6 +24,10 @@
 // - call reset() when you finish doing GPIO stuff!
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 /**

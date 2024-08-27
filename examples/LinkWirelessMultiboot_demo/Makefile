@@ -156,7 +156,7 @@ CFLAGS		+= $(INCLUDE)
 CFLAGS		+= -ffast-math -fno-strict-aliasing
 
 USERFLAGS ?=
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17 $(USERFLAGS)
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17 -DLINK_DEVELOPMENT $(USERFLAGS)
 
 ASFLAGS		:= $(ARCH) $(INCLUDE)
 LDFLAGS 	:= $(ARCH) -Wl,--print-memory-usage,-Map,$(PROJ).map

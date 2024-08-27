@@ -26,6 +26,10 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 #ifndef LINK_CUBE_QUEUE_SIZE

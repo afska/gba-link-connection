@@ -40,6 +40,10 @@
 // - returns 0xFFFFFFFF (or 0xFF) on misuse or cancelled transfers!
 // --------------------------------------------------------------------------
 
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
 #include "_link_common.hpp"
 
 static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.0.0";
