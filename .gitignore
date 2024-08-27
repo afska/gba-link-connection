@@ -1,8 +1,11 @@
 # Directories
-build
-.vscode
+build/
+.vscode/
+node_modules/
 
 # Files
+examples/multiboot
+.DS_Store
 *.elf
 *.gba
 *.sav

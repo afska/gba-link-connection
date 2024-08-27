@@ -34,6 +34,7 @@
 #  define EXPORT_API __declspec(dllexport)
 # else
 #  define EXPORT_API __attribute__((visibility("default")))
+// Is this one below needed in MinGW?
 //#  define EXPORT_API __attribute__((dllexport))
 # endif
 #endif

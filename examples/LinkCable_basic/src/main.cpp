@@ -1,12 +1,12 @@
-#include <tonc.h>
-#include <string>
-#include "../../_lib/interrupt.h"
-
 // BASIC:
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
 #include "../../../lib/LinkCable.hpp"
+
+#include <tonc.h>
+#include <string>
+#include "../../_lib/interrupt.h"
 
 void log(std::string text);
 
@@ -45,7 +45,7 @@ int main() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     linkCable->send(keys + 1);  // (avoid using 0)
 
-    std::string output = "LinkCable_basic (v6.3.0)\n\n";
+    std::string output = "LinkCable_basic (v7.0.0)\n\n";
     if (linkCable->isConnected()) {
       u8 playerCount = linkCable->playerCount();
       u8 currentPlayerId = linkCable->currentPlayerId();

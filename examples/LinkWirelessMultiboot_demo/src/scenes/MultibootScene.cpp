@@ -1,20 +1,21 @@
+// (0) Include the header
+#include "../../../../lib/LinkWirelessMultiboot.hpp"
+
 #include "MultibootScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
+#include <string.h>
 #include <tonc.h>
 #include <functional>
 
-#include "../../../../lib/LinkWirelessMultiboot.hpp"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
 extern "C" {
-#include "utils/gbfs/gbfs.h"
+#include "../../_lib/libgbfs/gbfs.h"
 }
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
-
-const char* ROM_FILE_NAME = "rom-to-transfer.gba";
 
 MultibootScene::MultibootScene(std::shared_ptr<GBAEngine> engine)
     : Scene(engine) {}
@@ -22,6 +23,10 @@ MultibootScene::MultibootScene(std::shared_ptr<GBAEngine> engine)
 static std::unique_ptr<InputHandler> aHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> bHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> leftHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> rightHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> upHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
@@ -33,9 +38,12 @@ static std::unique_ptr<InputHandler> rHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> selectHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> startHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
 
 static std::vector<std::string> logLines;
 static u32 currentLogLine = 0;
+static u32 selectedFile = 0;
 static u32 players = 5;
 
 #define MAX_LINES 20
@@ -109,6 +117,59 @@ void log(std::string string) {
   scrollPageDown();
 }
 
+void printFile() {
+  char name[32];
+  gbfs_get_nth_obj(fs, selectedFile, name, NULL);
+  for (u32 i = 0; i < 32; i++) {
+    if (name[i] == '.') {
+      name[i] = '\0';
+      break;
+    }
+  }
+
+  log("! selected file: " + std::to_string(selectedFile + 1) + "/" +
+      std::to_string(fs->dir_nmemb));
+  log("  " + std::string(name));
+}
+
+void selectLeft() {
+  if (selectedFile == 0)
+    return printFile();
+  selectedFile--;
+  printFile();
+}
+
+void selectRight() {
+  if ((int)selectedFile >= fs->dir_nmemb - 1)
+    return printFile();
+  selectedFile++;
+  printFile();
+}
+
+void launchROM() {
+  log("Launching...");
+  VBlankIntrWait();
+
+  REG_IME = 0;
+
+  u32 fileLength;
+  const u8* romToSend =
+      (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
+
+  void* EWRAM = (void*)0x02000000;
+  memcpy(EWRAM, romToSend, fileLength);
+
+  asm volatile(
+      "mov r0, %0\n"
+      "bx r0\n"
+      :
+      : "r"(EWRAM)
+      : "r0");
+
+  while (true)
+    ;
+}
+
 std::vector<Background*> MultibootScene::backgrounds() {
   return {};
 }
@@ -125,6 +186,7 @@ void MultibootScene::load() {
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
   linkWirelessMultiboot->logger = [](std::string string) { log(string); };
 #endif
+
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   linkWirelessMultiboot->linkRawWireless->logger = [](std::string string) {
     log(string);
@@ -133,27 +195,31 @@ void MultibootScene::load() {
 
   log("---");
   log("LinkWirelessMultiboot demo");
-  log("  (v6.3.0)");
+  log("  (v7.0.0)");
   log("");
   if (fs == NULL) {
     log("! GBFS file not found");
     while (true)
       ;
-  } else if (gbfs_get_obj(fs, ROM_FILE_NAME, NULL) == NULL) {
-    log("! File not found in GBFS:");
-    log("  " + std::string(ROM_FILE_NAME));
+  } else if (gbfs_get_nth_obj(fs, 0, NULL, NULL) == NULL) {
+    log("! No files found (GBFS)");
     while (true)
       ;
   }
   log("A: send ROM");
-  log("B: toggle players");
+  log("B: launch ROM");
+  log("START: toggle players");
+  log("LEFT/RIGHT: select ROM");
   log("UP/DOWN: scroll up/down");
   log("L/R: scroll page up/down");
-  log("UP+L/DOWN+R: scroll to top/bottom");
+  log("UP+L/DOWN+R: scroll top/bottom");
+  log("L+R: cancel transfer");
   log("SELECT: clear");
   log("---");
   log("");
   togglePlayers();
+  selectedFile = fs->dir_nmemb - 1;
+  printFile();
 }
 
 void MultibootScene::tick(u16 keys) {
@@ -171,26 +237,34 @@ void MultibootScene::tick(u16 keys) {
 void MultibootScene::processKeys(u16 keys) {
   aHandler->setIsPressed(keys & KEY_A);
   bHandler->setIsPressed(keys & KEY_B);
+  leftHandler->setIsPressed(keys & KEY_LEFT);
+  rightHandler->setIsPressed(keys & KEY_RIGHT);
   upHandler->setIsPressed(keys & KEY_UP);
   downHandler->setIsPressed(keys & KEY_DOWN);
   lHandler->setIsPressed(keys & KEY_L);
   rHandler->setIsPressed(keys & KEY_R);
   selectHandler->setIsPressed(keys & KEY_SELECT);
+  startHandler->setIsPressed(keys & KEY_START);
 }
 
 void MultibootScene::processButtons() {
-  if (bHandler->hasBeenPressedNow())
+  if (startHandler->hasBeenPressedNow())
     togglePlayers();
 
   if (aHandler->hasBeenPressedNow()) {
     u32 fileLength;
     const u8* romToSend =
-        (const u8*)gbfs_get_obj(fs, ROM_FILE_NAME, &fileLength);
+        (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
 
+    clear();
+    printFile();
+
+    // (2) Send the ROM
     auto result = linkWirelessMultiboot->sendRom(
         romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
         [](LinkWirelessMultiboot::MultibootProgress progress) {
-          return false;
+          u16 keys = ~REG_KEYS & KEY_ANY;
+          return (keys & KEY_L) && (keys & KEY_R);
         });
     log("-> result: " + std::to_string(result));
     print();
@@ -210,6 +284,12 @@ void MultibootScene::processButtons() {
       scrollPageDown();
   }
 
+  if (leftHandler->hasBeenPressedNow())
+    selectLeft();
+
+  if (rightHandler->hasBeenPressedNow())
+    selectRight();
+
   if (upHandler->getIsPressed())
     scrollBack();
 
@@ -218,6 +298,9 @@ void MultibootScene::processButtons() {
 
   if (selectHandler->hasBeenPressedNow())
     clear();
+
+  if (bHandler->hasBeenPressedNow())
+    launchROM();
 }
 
 void MultibootScene::togglePlayers() {

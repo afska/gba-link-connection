@@ -2,13 +2,13 @@
 #define LINK_PS2_MOUSE_H
 
 // --------------------------------------------------------------------------
-// A PS/2 Mouse Adapter for the GBA
+// A PS/2 Mouse Adapter for the GBA.
 // (Based on https://github.com/kristopher/PS2-Mouse-Arduino, MIT license)
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
 //       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse();
-// - 2) Add the required interrupt service routines: (*)
+// - 2) Add the required interrupt service routines:
 //       irq_init(NULL);
 //       irq_add(II_TIMER2, NULL);
 // - 3) Initialize the library with:
@@ -21,6 +21,10 @@
 //       data[1] // X movement
 //       data[2] // Y movement
 // --------------------------------------------------------------------------
+// considerations:
+// - `activate()` or `report(...)` could freeze the system if not connected!
+// - detecting timeouts using interrupts is the user's responsibility!
+// --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |
 // |PS/2 --- GBA|
@@ -31,30 +35,54 @@
 // |GND ---> GND|
 // --------------------------------------------------------------------------
 
-#include <tonc_bios.h>
-#include <tonc_core.h>
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
+#include "_link_common.hpp"
+
+static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.0";
 
 #define LINK_PS2_MOUSE_LEFT_CLICK 0b001
 #define LINK_PS2_MOUSE_RIGHT_CLICK 0b010
 #define LINK_PS2_MOUSE_MIDDLE_CLICK 0b100
 
-#define LINK_PS2_MOUSE_SI_DIRECTION 0b1000000
-#define LINK_PS2_MOUSE_SO_DIRECTION 0b10000000
-#define LINK_PS2_MOUSE_SI_DATA 0b100
-#define LINK_PS2_MOUSE_SO_DATA 0b1000
-#define LINK_PS2_MOUSE_TO_TICKS 17
-
-const u16 LINK_PS2_MOUSE_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
-                                      IRQ_TIMER3};
-
-static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v6.3.0";
-
+/**
+ * @brief A PS/2 Mouse Adapter for the GBA.
+ */
 class LinkPS2Mouse {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+  using s16 = signed short;
+
+  static constexpr int RCNT_GPIO = 0b1000000000000000;
+  static constexpr int SI_DIRECTION = 0b1000000;
+  static constexpr int SO_DIRECTION = 0b10000000;
+  static constexpr int SI_DATA = 0b100;
+  static constexpr int SO_DATA = 0b1000;
+  static constexpr int TO_TICKS = 17;
+
+  LinkPS2Mouse() = delete;
+
  public:
+  /**
+   * @brief Constructs a new LinkPS2Mouse object.
+   * @param waitTimerId `(0~3)` GBA Timer used for delays.
+   */
   explicit LinkPS2Mouse(u8 waitTimerId) { this->waitTimerId = waitTimerId; }
 
-  bool isActive() { return isEnabled; }
+  /**
+   * @brief Returns whether the library is active or not.
+   */
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library.
+   * \warning Could freeze the system if nothing is connected!
+   * \warning Detect timeouts using timer interrupts!
+   */
   void activate() {
     deactivate();
 
@@ -73,13 +101,24 @@ class LinkPS2Mouse {
     isEnabled = true;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   void deactivate() {
     isEnabled = false;
 
-    REG_RCNT = 0b1000000000000000;  // General Purpose Mode
-    REG_SIOCNT = 0;                 // Unused
+    Link::_REG_RCNT = RCNT_GPIO;
+    Link::_REG_SIOCNT = 0;
   }
 
+  /**
+   * @brief Fills the `data` int array with a report. The first int contains
+   * *clicks* that you can check against the bitmasks
+   * `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and
+   * `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the *X movement*, and the
+   * third int is the *Y movement*.
+   * @param data The array to be filled with data.
+   */
   void report(int (&data)[3]) {
     write(0xeb);                       // send read data
     readByte();                        // read ack byte
@@ -101,7 +140,7 @@ class LinkPS2Mouse {
     s16 x = readByte();
     if ((status & (1 << 4)) != 0)
       // negative
-      for (int i = 8; i < 16; i++)
+      for (u32 i = 8; i < 16; i++)
         x |= 1 << i;
     return x;
   }
@@ -110,7 +149,7 @@ class LinkPS2Mouse {
     s16 y = readByte();
     if ((status & (1 << 5)) != 0)
       // negative
-      for (int i = 8; i < 16; i++)
+      for (u32 i = 8; i < 16; i++)
         y |= 1 << i;
     return y;
   }
@@ -168,7 +207,7 @@ class LinkPS2Mouse {
       ;
     while (!getClock())
       ;  // eat start bit
-    for (int i = 0; i < 8; i++) {
+    for (u32 i = 0; i < 8; i++) {
       data |= readBit() << i;
     }
     readBit();  // parity bit
@@ -178,58 +217,60 @@ class LinkPS2Mouse {
     return data;
   }
 
-  bool readBit() {
+  volatile bool readBit() {
     while (getClock())
       ;
-    bool bit = getData();
+    volatile bool bit = getData();
     while (!getClock())
       ;
     return bit;
   }
 
   void waitMilliseconds(u16 milliseconds) {
-    u16 ticksOf1024Cycles = milliseconds * LINK_PS2_MOUSE_TO_TICKS;
-    REG_TM[waitTimerId].start = -ticksOf1024Cycles;
-    REG_TM[waitTimerId].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1024;
-    IntrWait(1, LINK_PS2_MOUSE_IRQ_IDS[waitTimerId]);
-    REG_TM[waitTimerId].cnt = 0;
+    u16 ticksOf1024Cycles = milliseconds * TO_TICKS;
+    Link::_REG_TM[waitTimerId].start = -ticksOf1024Cycles;
+    Link::_REG_TM[waitTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_IRQ | Link::_TM_FREQ_1024;
+    Link::_IntrWait(1, Link::_TIMER_IRQ_IDS[waitTimerId]);
+    Link::_REG_TM[waitTimerId].cnt = 0;
   }
 
   void waitMicroseconds(u16 microseconds) {
-    u16 cycles = microseconds * LINK_PS2_MOUSE_TO_TICKS;
-    REG_TM[waitTimerId].start = -cycles;
-    REG_TM[waitTimerId].cnt = TM_ENABLE | TM_IRQ | TM_FREQ_1;
-    IntrWait(1, LINK_PS2_MOUSE_IRQ_IDS[waitTimerId]);
-    REG_TM[waitTimerId].cnt = 0;
+    u16 cycles = microseconds * TO_TICKS;
+    Link::_REG_TM[waitTimerId].start = -cycles;
+    Link::_REG_TM[waitTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_IRQ | Link::_TM_FREQ_1;
+    Link::_IntrWait(1, Link::_TIMER_IRQ_IDS[waitTimerId]);
+    Link::_REG_TM[waitTimerId].cnt = 0;
   }
 
-  bool getClock() {
-    REG_RCNT &= ~LINK_PS2_MOUSE_SI_DIRECTION;
-    return (REG_RCNT & LINK_PS2_MOUSE_SI_DATA) >> 0;
+  volatile bool getClock() {
+    Link::_REG_RCNT &= ~SI_DIRECTION;
+    return (Link::_REG_RCNT & SI_DATA) >> 0;
   }
-  bool getData() {
-    REG_RCNT &= ~LINK_PS2_MOUSE_SO_DIRECTION;
-    return (REG_RCNT & LINK_PS2_MOUSE_SO_DATA) >> 1;
+  volatile bool getData() {
+    Link::_REG_RCNT &= ~SO_DIRECTION;
+    return (Link::_REG_RCNT & SO_DATA) >> 1;
   }
 
   void setClockHigh() {
-    REG_RCNT |= LINK_PS2_MOUSE_SI_DIRECTION;
-    REG_RCNT |= LINK_PS2_MOUSE_SI_DATA;
+    Link::_REG_RCNT |= SI_DIRECTION;
+    Link::_REG_RCNT |= SI_DATA;
   }
 
   void setClockLow() {
-    REG_RCNT |= LINK_PS2_MOUSE_SI_DIRECTION;
-    REG_RCNT &= ~LINK_PS2_MOUSE_SI_DATA;
+    Link::_REG_RCNT |= SI_DIRECTION;
+    Link::_REG_RCNT &= ~SI_DATA;
   }
 
   void setDataHigh() {
-    REG_RCNT |= LINK_PS2_MOUSE_SO_DIRECTION;
-    REG_RCNT |= LINK_PS2_MOUSE_SO_DATA;
+    Link::_REG_RCNT |= SO_DIRECTION;
+    Link::_REG_RCNT |= SO_DATA;
   }
 
   void setDataLow() {
-    REG_RCNT |= LINK_PS2_MOUSE_SO_DIRECTION;
-    REG_RCNT &= ~LINK_PS2_MOUSE_SO_DATA;
+    Link::_REG_RCNT |= SO_DIRECTION;
+    Link::_REG_RCNT &= ~SO_DATA;
   }
 };
 

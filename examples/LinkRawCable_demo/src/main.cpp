@@ -1,9 +1,9 @@
+// (0) Include the header
+#include "../../../lib/LinkRawCable.hpp"
+
 #include <tonc.h>
 #include <string>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkRawCable.hpp"
 
 void log(std::string text);
 void wait(u32 verticalLines);
@@ -33,7 +33,7 @@ int main() {
   u16 prevKeys = 0;
 
   while (true) {
-    std::string output = "LinkRawCable_demo (v6.3.0)\n\n";
+    std::string output = "LinkRawCable_demo (v7.0.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkRawCable->isActive()) {

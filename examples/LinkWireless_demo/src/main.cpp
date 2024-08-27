@@ -1,11 +1,12 @@
+// (0) Include the header
+#include "../../../lib/LinkWireless.hpp"
+
 #include <tonc.h>
+#include <cstring>
 #include <functional>
 #include <string>
 #include <vector>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkWireless.hpp"
 
 #ifdef PROFILING_ENABLED
 #include <regex>
@@ -27,12 +28,13 @@ void connect();
 void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
+bool didPress(u16 key, bool& pressed);
 void wait(u32 verticalLines);
 void hang();
 
 LinkWireless::Error lastError;
-LinkWireless* linkWireless = NULL;
-bool forwarding, retransmission, asyncACK;
+LinkWireless* linkWireless = nullptr;
+bool forwarding, retransmission;
 u32 maxPlayers;
 
 void init() {
@@ -43,44 +45,51 @@ void init() {
 int main() {
   init();
 
-  bool firstTime = true;
+  std::string buildSettings = "";
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+  buildSettings += " + irq_iwram\n";
+#endif
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+  buildSettings += " + irq_nested\n";
+#endif
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+  buildSettings += " + s/r_latch\n";
+#endif
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+  buildSettings += " + 2players\n";
+#endif
+#ifdef PROFILING_ENABLED
+  buildSettings += " + profiler\n";
+#endif
 
 start:
   // Options
-  log("LinkWireless_demo (v6.3.0)\n\n\n\nPress A to start\n\n\n\n\nhold LEFT "
-      "on start:\n -> disable forwarding\n\nhold UP on start:\n -> disable "
-      "retransmission\n\nhold B on start:\n -> set 2 players\n\nhold START on "
-      "start:\n -> async ACK");
+  log("LinkWireless_demo (v7.0.0)\n" + buildSettings +
+      "\n"
+      "Press A to start\n\n"
+      "hold LEFT on start:\n -> disable forwarding\n\n"
+      "hold UP on start:\n -> disable retransmission\n\n"
+      "hold B on start:\n -> set 2 players");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
   maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
-  asyncACK = initialKeys & KEY_START;
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(
       forwarding, retransmission, maxPlayers, LINK_WIRELESS_DEFAULT_TIMEOUT,
-      LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT, LINK_WIRELESS_DEFAULT_INTERVAL,
-      LINK_WIRELESS_DEFAULT_SEND_TIMER_ID, asyncACK ? 0 : -1);
+      LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
   // linkWireless->debug = [](std::string str) { log(str); };
 
-  if (firstTime) {
-    // (2) Add the required interrupt service routines
-    interrupt_init();
-    interrupt_set_handler(INTR_VBLANK, LINK_WIRELESS_ISR_VBLANK);
-    interrupt_enable(INTR_VBLANK);
-    interrupt_set_handler(INTR_SERIAL, LINK_WIRELESS_ISR_SERIAL);
-    interrupt_enable(INTR_SERIAL);
-    interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
-    interrupt_enable(INTR_TIMER3);
-
-    // (only required when using async ACK)
-    interrupt_set_handler(INTR_TIMER0, LINK_WIRELESS_ISR_ACK_TIMER);
-    interrupt_enable(INTR_TIMER0);
-
-    firstTime = false;
-  }
+  // (2) Add the required interrupt service routines
+  interrupt_init();
+  interrupt_set_handler(INTR_VBLANK, LINK_WIRELESS_ISR_VBLANK);
+  interrupt_enable(INTR_VBLANK);
+  interrupt_set_handler(INTR_SERIAL, LINK_WIRELESS_ISR_SERIAL);
+  interrupt_enable(INTR_SERIAL);
+  interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
+  interrupt_enable(INTR_TIMER3);
 
   // (3) Initialize the library
   linkWireless->activate();
@@ -98,40 +107,31 @@ start:
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
         (forwarding ? "ON" : "OFF") +
         "\n-> retransmission: " + (retransmission ? "ON" : "OFF") +
-        "\n-> max players: " + std::to_string(maxPlayers) +
-        "\n-> async ACK: " + (asyncACK ? "ON" : "OFF"));
+        "\n-> max players: " + std::to_string(maxPlayers));
 
     // SELECT = back
     if (keys & KEY_SELECT) {
       linkWireless->deactivate();
+      interrupt_disable(INTR_VBLANK);
+      interrupt_disable(INTR_SERIAL);
+      interrupt_disable(INTR_TIMER3);
+      interrupt_disable(INTR_TIMER0);
       delete linkWireless;
-      linkWireless = NULL;
+      linkWireless = nullptr;
       goto start;
     }
 
     // START = Activate
-    if ((keys & KEY_START) && !activating) {
-      activating = true;
+    if (didPress(KEY_START, activating))
       activate();
-    }
-    if (activating && !(keys & KEY_START))
-      activating = false;
 
     // L = Serve
-    if ((keys & KEY_L) && !serving) {
-      serving = true;
+    if (didPress(KEY_L, serving))
       serve();
-    }
-    if (serving && !(keys & KEY_L))
-      serving = false;
 
     // R = Connect
-    if (!connecting && (keys & KEY_R)) {
-      connecting = true;
+    if (didPress(KEY_R, connecting))
       connect();
-    }
-    if (connecting && !(keys & KEY_R))
-      connecting = false;
 
     VBlankIntrWait();
   }
@@ -294,6 +294,10 @@ void messageLoop() {
       u16 newValue = counters[linkWireless->currentPlayerId()] + 1;
       bool success = linkWireless->send(newValue);
 
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+      linkWireless->QUICK_SEND = newValue % 32;
+#endif
+
       if (success) {
         counters[linkWireless->currentPlayerId()] = newValue;
       } else {
@@ -316,29 +320,27 @@ void messageLoop() {
     // (7) Receive data
     LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
     linkWireless->receive(messages);
-    if (messages[0].packetId != LINK_WIRELESS_END) {
-      for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
-        auto message = messages[i];
-        if (message.packetId == LINK_WIRELESS_END)
-          break;
+    for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
+      auto message = messages[i];
+      if (message.packetId == LINK_WIRELESS_END)
+        break;
 
 #ifndef PROFILING_ENABLED
-        u32 expected = counters[message.playerId] + 1;
+      u32 expected = counters[message.playerId] + 1;
 #endif
 
-        counters[message.playerId] = message.data;
+      counters[message.playerId] = message.data;
 
 #ifndef PROFILING_ENABLED
-        // Check for packet loss
-        if (altView && message.data != expected) {
-          lostPackets++;
-          lastLostPacketPlayerId = message.playerId;
-          lastLostPacketExpected = expected;
-          lastLostPacketReceived = message.data;
-          lastLostPacketReceivedPacketId = message.packetId;
-        }
-#endif
+      // Check for packet loss
+      if (altView && message.data != expected) {
+        lostPackets++;
+        lastLostPacketPlayerId = message.playerId;
+        lastLostPacketExpected = expected;
+        lastLostPacketReceived = message.data;
+        lastLostPacketReceivedPacketId = message.packetId;
       }
+#endif
     }
 
     // (8) Disconnect
@@ -348,8 +350,21 @@ void messageLoop() {
     }
 
     // Packet loss check setting
-    if (!switching && (keys & KEY_UP)) {
-      switching = true;
+    if (didPress(KEY_UP, switching)) {
+#ifdef PROFILING_ENABLED
+      // In the profiler ROM, pressing UP will update the broadcast data
+      if (linkWireless->getState() == LinkWireless::State::SERVING) {
+        linkWireless->serve("LinkWireless",
+                            ("N = " + std::to_string(counters[0])).c_str(),
+                            counters[0]);
+        if (linkWireless->getLastError() ==
+            LinkWireless::Error::BUSY_TRY_AGAIN) {
+          log("Busy!");
+          waitFor(KEY_DOWN);
+        }
+      }
+#endif
+
       altView = !altView;
 #ifndef PROFILING_ENABLED
       if (!altView) {
@@ -360,8 +375,6 @@ void messageLoop() {
       }
 #endif
     }
-    if (switching && (!(keys & KEY_UP)))
-      switching = false;
 
     // Normal output
     std::string output =
@@ -381,7 +394,12 @@ void messageLoop() {
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
     }
 
-    // Debug output
+// Debug output
+#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
+    output += "\n>> " + std::to_string(linkWireless->QUICK_SEND);
+    output += "\n<< " + std::to_string(linkWireless->QUICK_RECEIVE) + "\n";
+#endif
+
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
     if (retransmission && !altView) {
       output +=
@@ -405,24 +423,17 @@ void messageLoop() {
       output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
       output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
       output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);
-      if (asyncACK)
-        output += " | " + std::to_string(linkWireless->lastACKTimerTime);
       output +=
           "\n_serialIRQs: " + std::to_string(linkWireless->lastFrameSerialIRQs);
       output +=
           "\n_timerIRQs: " + std::to_string(linkWireless->lastFrameTimerIRQs);
-      if (asyncACK)
-        output += " | " + std::to_string(linkWireless->lastFrameACKTimerIRQs);
       output +=
           "\n_ms: " +
           std::to_string(linkWireless->toMs(
               linkWireless->lastVBlankTime +
               linkWireless->lastSerialTime * linkWireless->lastFrameSerialIRQs +
-              linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs +
-              linkWireless->lastACKTimerTime *
-                  linkWireless->lastFrameACKTimerIRQs));
-#endif
-#ifndef PROFILING_ENABLED
+              linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs));
+#else
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
         output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ":" +
@@ -454,6 +465,18 @@ void waitFor(u16 key) {
   do {
     keys = ~REG_KEYS & KEY_ANY;
   } while (!(keys & key));
+}
+
+bool didPress(u16 key, bool& pressed) {
+  u16 keys = ~REG_KEYS & KEY_ANY;
+  bool isPressedNow = false;
+  if ((keys & key) && !pressed) {
+    pressed = true;
+    isPressedNow = true;
+  }
+  if (pressed && !(keys & key))
+    pressed = false;
+  return isPressedNow;
 }
 
 void wait(u32 verticalLines) {

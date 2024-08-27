@@ -37,11 +37,13 @@ int main() {
   init();
 
   while (true) {
-    std::string output = "LinkPS2Keyboard_demo (v6.3.0)\n\n";
+    std::string output = "LinkPS2Keyboard_demo (v7.0.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkPS2Keyboard->isActive()) {
-      output += "Press A to read keyboard input";
+      output +=
+          "Press A to read keyboard input\n"
+          "Press B to clear logs";
 
       if (keys & KEY_A) {
         // (3) Initialize the library
@@ -51,6 +53,10 @@ int main() {
         continue;
       }
     } else {
+      if (keys & KEY_B) {
+        scanCodes = "";
+        irqs = 0;
+      }
       output += std::to_string(irqs) + " - " + scanCodes;
     }
 

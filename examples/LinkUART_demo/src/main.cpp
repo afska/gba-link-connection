@@ -1,9 +1,9 @@
+// (0) Include the header
+#include "../../../lib/LinkUART.hpp"
+
 #include <tonc.h>
 #include <string>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkUART.hpp"
 
 void log(std::string text);
 inline void VBLANK() {}
@@ -32,7 +32,7 @@ int main() {
   bool firstTransfer = false;
 
   while (true) {
-    std::string output = "LinkUART_demo (v6.3.0)\n\n";
+    std::string output = "LinkUART_demo (v7.0.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkUART->isActive()) {

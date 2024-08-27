@@ -1,3 +1,5 @@
+#include "../../../../lib/LinkRawWireless.hpp"
+
 #include "DebugScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
@@ -5,7 +7,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "../../../../lib/LinkRawWireless.hpp"
 #include "utils/InputHandler.h"
 #include "utils/SceneUtils.h"
 
@@ -139,7 +140,7 @@ void DebugScene::load() {
 
   log("---");
   log("LinkRawWireless demo");
-  log("  (v6.3.0)");
+  log("  (v7.0.0)");
   log("");
   log("START: reset wireless adapter");
   log("A: send command");
@@ -771,7 +772,7 @@ genericWait:
 }
 
 int DebugScene::selectServerId() {
-  switch (selectOption("Which server id?", std::vector<std::string>{
+  switch (selectOption("Which server ID?", std::vector<std::string>{
                                                "<first>", "<second>", "<third>",
                                                "<fourth>", "<pick>"})) {
     case 0: {

@@ -1,7 +1,3 @@
-#include "main.h"
-#include <string>
-#include "../../_lib/interrupt.h"
-
 // STRESS:
 // This example can perform multiple stress tests.
 // A) Packet loss test:
@@ -17,6 +13,10 @@
 //   - Measures how much time it takes to receive a packet from the other node.
 // R) Measure ping-pong latency:
 //   - Like (L), but adding a validation response and adding that time.
+
+#include "main.h"
+#include <string>
+#include "../../_lib/interrupt.h"
 
 #define FINAL_VALUE 65534
 
@@ -34,25 +34,22 @@ u32 toMs(u32 cycles);
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
 LinkCable* linkConnection = linkCable;
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
 LinkUniversal* linkUniversal =
     new LinkUniversal(LinkUniversal::Protocol::AUTODETECT,
                       "LinkUniversal",
                       (LinkUniversal::CableOptions){
                           .baudRate = LinkCable::BAUD_RATE_1,
                           .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-                          .remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
                           .interval = LINK_CABLE_DEFAULT_INTERVAL,
                           .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
                       (LinkUniversal::WirelessOptions){
                           .retransmission = true,
                           .maxPlayers = 2,
                           .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-                          .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
                           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-                          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-                          .asyncACKTimerId = 0});
+                          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
+                      __qran_seed);
 LinkUniversal* linkConnection = linkUniversal;
 #endif
 
@@ -70,8 +67,7 @@ void init() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
   // LinkUniversal
   interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
   interrupt_enable(INTR_VBLANK);
@@ -79,8 +75,6 @@ void init() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-  interrupt_set_handler(INTR_TIMER0, LINK_UNIVERSAL_ISR_ACK_TIMER);
-  interrupt_enable(INTR_TIMER0);
 #endif
 }
 
@@ -89,10 +83,9 @@ int main() {
 
   while (true) {
 #ifndef USE_LINK_UNIVERSAL
-    std::string output = "LinkCable_stress (v6.3.0)\n\n";
-#endif
-#ifdef USE_LINK_UNIVERSAL
-    std::string output = "LinkUniversal_stress (v6.3.0)\n\n";
+    std::string output = "LinkCable_stress (v7.0.0)\n\n";
+#else
+    std::string output = "LinkUniversal_stress (v7.0.0)\n\n";
 #endif
 
     linkConnection->deactivate();
@@ -117,8 +110,7 @@ int main() {
       interval = 10;
 #ifndef USE_LINK_UNIVERSAL
     linkConnection->config.interval = interval;
-#endif
-#ifdef USE_LINK_UNIVERSAL
+#else
     linkConnection->linkCable->config.interval = interval;
     linkConnection->linkWireless->config.interval = interval;
 #endif
@@ -292,11 +284,13 @@ void measureLatency(bool withPong) {
       totalMs += elapsedMilliseconds;
       u32 average = Div(totalMs, samples);
 
+      std::string output = "Ping latency: \n  " +
+                           std::to_string(elapsedCycles) + " cycles\n  " +
+                           std::to_string(elapsedMilliseconds) + " ms\n  " +
+                           std::to_string(average) + " ms avg" +
+                           "\nValue sent:\n  " + std::to_string(sentPacket);
       VBlankIntrWait();
-      log("Ping latency: \n  " + std::to_string(elapsedCycles) + " cycles\n  " +
-          std::to_string(elapsedMilliseconds) + " ms\n  " +
-          std::to_string(average) + " ms avg" + "\nValue sent:\n  " +
-          std::to_string(sentPacket));
+      log(output);
     } else {
       VBlankIntrWait();
       log("Waiting...");

@@ -1,9 +1,6 @@
 #ifndef LINK_WIRELESS_MULTIBOOT_H
 #define LINK_WIRELESS_MULTIBOOT_H
 
-#pragma GCC push_options
-#pragma GCC optimize("O2")
-
 // --------------------------------------------------------------------------
 // A Wireless Multiboot tool to send small ROMs from a GBA to up to 4 slaves.
 // --------------------------------------------------------------------------
@@ -15,9 +12,9 @@
 //       LinkWirelessMultiboot::Result result = linkWirelessMultiboot->sendRom(
 //         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
 //         romLength, // in bytes
-//         Multiboot", // game name
+//         "Multiboot", // game name
 //         "Test", // user name
-//         0xffff, // game id
+//         0xffff, // game ID
 //         2, // number of players
 //         [](LinkWirelessMultiboot::MultibootProgress progress) {
 //           // check progress.[state,connectedClients,percentage]
@@ -30,52 +27,80 @@
 //       // `result` should be LinkWirelessMultiboot::Result::SUCCESS
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
+#include "_link_common.hpp"
+
 #include "LinkRawWireless.hpp"
 #include "LinkWirelessOpenSDK.hpp"
 
-// Enable logging (set `linkWirelessMultiboot->logger` and uncomment to enable)
+#ifndef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+/**
+ * @brief Enable logging.
+ * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
+ */
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
-
-#ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
-#include <string>
-#define LWMLOG(str) logger(str)
-#else
-#define LWMLOG(str)
 #endif
+
+static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
+    "LinkWirelessMultiboot/v7.0.0";
 
 #define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
 #define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
-#define LINK_WIRELESS_MULTIBOOT_HEADER_SIZE 0xC0
-#define LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC 0x003c0000
-#define LINK_WIRELESS_MULTIBOOT_SETUP_TX 1
-#define LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT 32
-#define LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG (1 << 15)
-#define LINK_WIRELESS_MULTIBOOT_FRAME_LINES 228
-#define LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS 4
+#define LINK_WIRELESS_MULTIBOOT_BARRIER asm volatile("" ::: "memory")
 #define LINK_WIRELESS_MULTIBOOT_TRY(CALL) \
+  LINK_WIRELESS_MULTIBOOT_BARRIER;        \
   if ((lastResult = CALL) != SUCCESS) {   \
     return finish(lastResult);            \
   }
 
-const u8 LINK_WIRELESS_MULTIBOOT_CMD_START[] = {0x00, 0x54, 0x00, 0x00,
-                                                0x00, 0x02, 0x00};
-const u8 LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE = 7;
-const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[][6] = {
-    {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
-    {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
-const u8 LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE = 6;
-const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH[] = {
-    0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42, 0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00};
-const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET = 4;
-const u8 LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE = 12;
+#ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#include <string>
+#define _LWMLOG_(str) logger(str)
+#else
+#define _LWMLOG_(str)
+#endif
 
-static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
-    "LinkWirelessMultiboot/v6.3.0";
-
+/**
+ * @brief A Wireless Multiboot tool to send small ROMs from a GBA to up to 4
+ * slaves.
+ */
 class LinkWirelessMultiboot {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+
+  using CommState = LinkWirelessOpenSDK::CommState;
+  using Sequence = LinkWirelessOpenSDK::SequenceNumber;
+  using ClientHeader = LinkWirelessOpenSDK::ClientSDKHeader;
+  using ClientPacket = LinkWirelessOpenSDK::ClientPacket;
+  using ChildrenData = LinkWirelessOpenSDK::ChildrenData;
+  using SendBuffer =
+      LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>;
+
+  static constexpr int HEADER_SIZE = 0xC0;
+  static constexpr int SETUP_MAGIC = 0x003c0000;
+  static constexpr int SETUP_TX = 1;
+  static constexpr int SETUP_WAIT_TIMEOUT = 32;
+  static constexpr int GAME_ID_MULTIBOOT_FLAG = (1 << 15);
+  static constexpr int FRAME_LINES = 228;
+  static constexpr int MAX_INFLIGHT_PACKETS = 4;
+  static constexpr u8 CMD_START[] = {0x00, 0x54, 0x00, 0x00, 0x00, 0x02, 0x00};
+  static constexpr u8 CMD_START_SIZE = 7;
+  static constexpr u8 BOOTLOADER_HANDSHAKE[][6] = {
+      {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
+      {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
+  static constexpr u8 BOOTLOADER_HANDSHAKE_SIZE = 6;
+  static constexpr u8 ROM_HEADER_PATCH[] = {0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42,
+                                            0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00};
+  static constexpr u8 ROM_HEADER_PATCH_OFFSET = 4;
+  static constexpr u8 ROM_HEADER_PATCH_SIZE = 12;
+
  public:
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
   typedef void (*Logger)(std::string);
@@ -89,6 +114,7 @@ class LinkWirelessMultiboot {
     CANCELED,
     ADAPTER_NOT_DETECTED,
     BAD_HANDSHAKE,
+    CLIENT_DISCONNECTED,
     FAILURE
   };
   enum State { STOPPED, INITIALIZING, WAITING, PREPARING, SENDING, CONFIRMING };
@@ -99,14 +125,31 @@ class LinkWirelessMultiboot {
     u32 percentage = 0;
   };
 
+  /**
+   * @brief Sends the `rom`. Once completed, the return value should be
+   * `LinkWirelessMultiboot::Result::SUCCESS`.
+   * @param rom A pointer to ROM data.
+   * @param romSize Size of the ROM in bytes. It must be a number between
+   * `448` and `262144`. It's recommended to use a ROM size that is a multiple
+   * of `16`, as this also ensures compatibility with Multiboot via Link Cable.
+   * @param gameName Game name. Maximum `14` characters + null terminator.
+   * @param userName User name. Maximum `8` characters + null terminator.
+   * @param gameId `(0 ~ 0x7FFF)` Game ID.
+   * @param players The exact number of consoles that will download the ROM.
+   * Once this number of players is reached, the code will start transmitting
+   * the ROM bytes.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
+   */
   template <typename C>
-  Result sendRom(const u8* rom,
-                 u32 romSize,
-                 const char* gameName,
-                 const char* userName,
-                 const u16 gameId,
-                 u8 players,
-                 C cancel) {
+  __attribute__((noinline)) Result sendRom(const u8* rom,
+                                           u32 romSize,
+                                           const char* gameName,
+                                           const char* userName,
+                                           const u16 gameId,
+                                           u8 players,
+                                           C cancel) {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
@@ -115,30 +158,31 @@ class LinkWirelessMultiboot {
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
 
-    LWMLOG("starting...");
+    _LWMLOG_("starting...");
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
     progress.state = INITIALIZING;
     LINK_WIRELESS_MULTIBOOT_TRY(initialize(gameName, userName, gameId, players))
 
-    LWMLOG("waiting for connections...");
+    _LWMLOG_("waiting for connections...");
     progress.state = WAITING;
     LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, cancel))
 
-    LWMLOG("all players are connected");
+    _LWMLOG_("all players are connected");
     progress.state = PREPARING;
-    linkRawWireless->wait(LINK_WIRELESS_MULTIBOOT_FRAME_LINES);
+    linkRawWireless->wait(FRAME_LINES);
 
-    LWMLOG("rom start command...");
+    _LWMLOG_("rom start command...");
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(cancel))
 
-    LWMLOG("SENDING ROM!");
+    _LWMLOG_("SENDING ROM!");
     progress.state = SENDING;
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, cancel))
+    linkRawWireless->wait(FRAME_LINES * 10);
 
     progress.state = CONFIRMING;
     LINK_WIRELESS_MULTIBOOT_TRY(confirm(cancel))
 
-    LWMLOG("SUCCESS!");
+    _LWMLOG_("SUCCESS!");
     return finish(SUCCESS);
   }
 
@@ -158,41 +202,40 @@ class LinkWirelessMultiboot {
   };
 
   struct PendingTransferList {
-    std::array<PendingTransfer, LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS>
-        transfers;
+    std::array<PendingTransfer, MAX_INFLIGHT_PACKETS> transfers;
 
-    PendingTransfer* max(bool ack = false) {
+    __attribute__((noinline)) PendingTransfer* max(bool ack = false) {
       int maxCursor = -1;
       int maxI = -1;
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive && (int)transfers[i].cursor > maxCursor &&
             (!ack || transfers[i].ack)) {
           maxCursor = transfers[i].cursor;
           maxI = i;
         }
       }
-      return maxI > -1 ? &transfers[maxI] : NULL;
+      return maxI > -1 ? &transfers[maxI] : nullptr;
     }
 
-    PendingTransfer* minWithoutAck() {
+    __attribute__((noinline)) PendingTransfer* minWithoutAck() {
       u32 minCursor = 0xffffffff;
       int minI = -1;
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive && transfers[i].cursor < minCursor &&
             !transfers[i].ack) {
           minCursor = transfers[i].cursor;
           minI = i;
         }
       }
-      return minI > -1 ? &transfers[minI] : NULL;
+      return minI > -1 ? &transfers[minI] : nullptr;
     }
 
-    void addIfNeeded(u32 newCursor) {
+    __attribute__((noinline)) void addIfNeeded(u32 newCursor) {
       auto maxTransfer = max();
-      if (maxTransfer != NULL && newCursor <= maxTransfer->cursor)
+      if (maxTransfer != nullptr && newCursor <= maxTransfer->cursor)
         return;
 
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (!transfers[i].isActive) {
           transfers[i].cursor = newCursor;
           transfers[i].ack = false;
@@ -202,7 +245,7 @@ class LinkWirelessMultiboot {
       }
     }
 
-    int ack(LinkWirelessOpenSDK::SequenceNumber sequence) {
+    __attribute__((noinline)) int ack(Sequence sequence) {
       int index = findIndex(sequence);
       if (index == -1)
         return -1;
@@ -210,8 +253,8 @@ class LinkWirelessMultiboot {
       transfers[index].ack = true;
 
       auto maxAckTransfer = max(true);
-      bool canUpdateCursor =
-          maxAckTransfer != NULL && isAckCompleteUpTo(maxAckTransfer->cursor);
+      bool canUpdateCursor = maxAckTransfer != nullptr &&
+                             isAckCompleteUpTo(maxAckTransfer->cursor);
 
       if (canUpdateCursor)
         cleanup();
@@ -219,39 +262,38 @@ class LinkWirelessMultiboot {
       return canUpdateCursor ? maxAckTransfer->cursor + 1 : -1;
     }
 
-    void cleanup() {
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+    __attribute__((noinline)) void cleanup() {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive && transfers[i].ack)
           transfers[i].isActive = false;
       }
     }
 
-    bool isFull() {
-      return size() == LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS;
+    __attribute__((noinline)) bool isFull() {
+      return size() == MAX_INFLIGHT_PACKETS;
     }
 
-    u32 size() {
+    __attribute__((noinline)) u32 size() {
       u32 size = 0;
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++)
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++)
         if (transfers[i].isActive)
           size++;
       return size;
     }
 
    private:
-    bool isAckCompleteUpTo(u32 cursor) {
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++)
+    __attribute__((noinline)) bool isAckCompleteUpTo(u32 cursor) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++)
         if (transfers[i].isActive && !transfers[i].ack &&
             transfers[i].cursor < cursor)
           return false;
       return true;
     }
 
-    int findIndex(LinkWirelessOpenSDK::SequenceNumber sequence) {
-      for (u32 i = 0; i < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS; i++) {
+    __attribute__((noinline)) int findIndex(Sequence sequence) {
+      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
         if (transfers[i].isActive &&
-            LinkWirelessOpenSDK::SequenceNumber::fromPacketId(
-                transfers[i].cursor) == sequence) {
+            Sequence::fromPacketId(transfers[i].cursor) == sequence) {
           return i;
         }
       }
@@ -264,42 +306,45 @@ class LinkWirelessMultiboot {
     u32 cursor = 0;
     PendingTransferList pendingTransferList;
 
-    u32 nextCursor(bool canSendInflightPackets) {
+    __attribute__((noinline)) u32 nextCursor(bool canSendInflightPackets) {
       u32 pendingCount = pendingTransferList.size();
 
       if (canSendInflightPackets && pendingCount > 0 &&
-          pendingCount < LINK_WIRELESS_MULTIBOOT_MAX_INFLIGHT_PACKETS) {
+          pendingCount < MAX_INFLIGHT_PACKETS) {
         return pendingTransferList.max()->cursor + 1;
       } else {
         auto minWithoutAck = pendingTransferList.minWithoutAck();
-        return minWithoutAck != NULL ? minWithoutAck->cursor : cursor;
+        return minWithoutAck != nullptr ? minWithoutAck->cursor : cursor;
       }
     }
 
-    void addIfNeeded(u32 newCursor) {
+    __attribute__((noinline)) void addIfNeeded(u32 newCursor) {
       if (newCursor >= cursor)
         pendingTransferList.addIfNeeded(newCursor);
     }
 
-    u32 transferred() {
-      return cursor * LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER;
+    __attribute__((noinline)) u32 transferred() {
+      return cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
     }
 
-    LinkWirelessOpenSDK::SequenceNumber sequence() {
-      return LinkWirelessOpenSDK::SequenceNumber::fromPacketId(cursor);
+    __attribute__((noinline)) Sequence sequence() {
+      return Sequence::fromPacketId(cursor);
     }
   };
 
   MultibootProgress progress;
-  Result lastResult;
-  LinkWirelessOpenSDK::ClientSDKHeader lastValidHeader;
+  volatile Result lastResult;
+  ClientHeader lastValidHeader;
+
+  using TransferArray =
+      std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1>;
 
   __attribute__((noinline)) Result activate() {
     if (!linkRawWireless->activate()) {
-      LWMLOG("! adapter not detected");
+      _LWMLOG_("! adapter not detected");
       return ADAPTER_NOT_DETECTED;
     }
-    LWMLOG("activated");
+    _LWMLOG_("activated");
 
     return SUCCESS;
   }
@@ -308,27 +353,25 @@ class LinkWirelessMultiboot {
                                               const char* userName,
                                               const u16 gameId,
                                               u8 players) {
-    if (!linkRawWireless->setup(players, LINK_WIRELESS_MULTIBOOT_SETUP_TX,
-                                LINK_WIRELESS_MULTIBOOT_SETUP_WAIT_TIMEOUT,
-                                LINK_WIRELESS_MULTIBOOT_SETUP_MAGIC)) {
-      LWMLOG("! setup failed");
+    if (!linkRawWireless->setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
+                                SETUP_MAGIC)) {
+      _LWMLOG_("! setup failed");
       return FAILURE;
     }
-    LWMLOG("setup ok");
+    _LWMLOG_("setup ok");
 
-    if (!linkRawWireless->broadcast(
-            gameName, userName,
-            gameId | LINK_WIRELESS_MULTIBOOT_GAME_ID_MULTIBOOT_FLAG)) {
-      LWMLOG("! broadcast failed");
+    if (!linkRawWireless->broadcast(gameName, userName,
+                                    gameId | GAME_ID_MULTIBOOT_FLAG)) {
+      _LWMLOG_("! broadcast failed");
       return FAILURE;
     }
-    LWMLOG("broadcast data set");
+    _LWMLOG_("broadcast data set");
 
     if (!linkRawWireless->startHost()) {
-      LWMLOG("! start host failed");
+      _LWMLOG_("! start host failed");
       return FAILURE;
     }
-    LWMLOG("host started");
+    _LWMLOG_("host started");
 
     return SUCCESS;
   }
@@ -360,38 +403,36 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result handshakeClient(u8 clientNumber, C cancel) {
-    LinkWirelessOpenSDK::ClientPacket handshakePackets[2];
-    bool hasReceivedName = false;
+  __attribute__((noinline)) Result handshakeClient(u8 clientNumber, C cancel) {
+    ClientPacket handshakePackets[2];
+    volatile bool hasReceivedName = false;
 
-    LWMLOG("new client: " + std::to_string(clientNumber));
+    _LWMLOG_("new client: " + std::to_string(clientNumber));
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this](LinkRawWireless::ReceiveDataResponse& response) {
           return sendAndExpectData(toArray(), 0, 1, response);
         },
-        [](LinkWirelessOpenSDK::ClientPacket packet) { return true; }, cancel))
+        [](ClientPacket packet) { return true; }, cancel))
     // (initial client packet received)
 
-    LWMLOG("handshake (1/2)...");
+    _LWMLOG_("handshake (1/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
-        [](LinkWirelessOpenSDK::ClientPacket packet) {
+        [](ClientPacket packet) {
           auto header = packet.header;
-          return header.n == 2 &&
-                 header.commState == LinkWirelessOpenSDK::CommState::STARTING;
+          return header.n == 2 && header.commState == CommState::STARTING;
         },
         cancel))
     // (n = 2, commState = 1)
 
-    LWMLOG("handshake (2/2)...");
+    _LWMLOG_("handshake (2/2)...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
-        [&handshakePackets](LinkWirelessOpenSDK::ClientPacket packet) {
+        [&handshakePackets](ClientPacket packet) {
           auto header = packet.header;
-          bool isValid =
-              header.n == 1 && header.phase == 0 &&
-              header.commState == LinkWirelessOpenSDK::CommState::COMMUNICATING;
+          bool isValid = header.n == 1 && header.phase == 0 &&
+                         header.commState == CommState::COMMUNICATING;
           if (isValid)
             handshakePackets[0] = packet;
           return isValid;
@@ -399,40 +440,37 @@ class LinkWirelessMultiboot {
         cancel))
     // (n = 1, commState = 2)
 
-    LWMLOG("receiving name...");
+    _LWMLOG_("receiving name...");
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeACKData(
         clientNumber,
-        [this, &handshakePackets,
-         &hasReceivedName](LinkWirelessOpenSDK::ClientPacket packet) {
+        [this, &handshakePackets, &hasReceivedName](ClientPacket packet) {
           auto header = packet.header;
           lastValidHeader = header;
           if (header.n == 1 && header.phase == 1 &&
-              header.commState ==
-                  LinkWirelessOpenSDK::CommState::COMMUNICATING) {
+              header.commState == CommState::COMMUNICATING) {
             handshakePackets[1] = packet;
             hasReceivedName = true;
           }
-          return header.commState == LinkWirelessOpenSDK::CommState::OFF;
+          return header.commState == CommState::OFF;
         },
         cancel))
     // (commState = 0)
 
-    LWMLOG("validating name...");
+    _LWMLOG_("validating name...");
     for (u32 i = 0; i < 2; i++) {
       auto receivedPayload = handshakePackets[i].payload;
-      auto expectedPayload = LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE[i];
+      auto expectedPayload = BOOTLOADER_HANDSHAKE[i];
 
-      for (u32 j = 0; j < LINK_WIRELESS_MULTIBOOT_BOOTLOADER_HANDSHAKE_SIZE;
-           j++) {
+      for (u32 j = 0; j < BOOTLOADER_HANDSHAKE_SIZE; j++) {
         if (!hasReceivedName || receivedPayload[j] != expectedPayload[j]) {
-          LWMLOG("! bad payload");
+          _LWMLOG_("! bad payload");
           return finish(BAD_HANDSHAKE);
         }
       }
     }
 
-    LWMLOG("draining queue...");
-    bool hasFinished = false;
+    _LWMLOG_("draining queue...");
+    volatile bool hasFinished = false;
     while (!hasFinished) {
       if (cancel(progress))
         return finish(CANCELED);
@@ -444,7 +482,7 @@ class LinkWirelessMultiboot {
     }
     // (no more client packets)
 
-    LWMLOG("client " + std::to_string(clientNumber) + " accepted");
+    _LWMLOG_("client " + std::to_string(clientNumber) + " accepted");
 
     return SUCCESS;
   }
@@ -455,9 +493,7 @@ class LinkWirelessMultiboot {
       LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
           i,
           linkWirelessOpenSDK->createServerBuffer(
-              LINK_WIRELESS_MULTIBOOT_CMD_START,
-              LINK_WIRELESS_MULTIBOOT_CMD_START_SIZE,
-              {1, 0, LinkWirelessOpenSDK::CommState::STARTING}, 1 << i),
+              CMD_START, CMD_START_SIZE, {1, 0, CommState::STARTING}, 1 << i),
           cancel))
     }
 
@@ -468,16 +504,14 @@ class LinkWirelessMultiboot {
   __attribute__((noinline)) Result sendRomBytes(const u8* rom,
                                                 u32 romSize,
                                                 C cancel) {
-    LinkWirelessOpenSDK::ChildrenData childrenData;
-    std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1> transfers;
-    u8 firstPagePatch[LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER];
-    for (u32 i = 0; i < LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER; i++) {
+    ChildrenData childrenData;
+    TransferArray transfers;
+    u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER];
+    for (u32 i = 0; i < LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER; i++) {
       firstPagePatch[i] =
-          i >= LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET &&
-                  i < LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET +
-                          LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_SIZE
-              ? LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH
-                    [i - LINK_WIRELESS_MULTIBOOT_ROM_HEADER_PATCH_OFFSET]
+          i >= ROM_HEADER_PATCH_OFFSET &&
+                  i < ROM_HEADER_PATCH_OFFSET + ROM_HEADER_PATCH_SIZE
+              ? ROM_HEADER_PATCH[i - ROM_HEADER_PATCH_OFFSET]
               : rom[i];
     }
 
@@ -489,9 +523,11 @@ class LinkWirelessMultiboot {
       if (cancel(progress))
         return finish(CANCELED);
 
+      LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive())
+
       u32 cursor = findMinCursor(transfers);
-      u32 offset = cursor * LINK_WIRELESS_OPEN_SDK_MAX_PAYLOAD_SERVER;
-      auto sequence = LinkWirelessOpenSDK::SequenceNumber::fromPacketId(cursor);
+      u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
+      auto sequence = Sequence::fromPacketId(cursor);
       const u8* bufferToSend = cursor == 0 ? (const u8*)firstPagePatch : rom;
 
       auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
@@ -517,21 +553,19 @@ class LinkWirelessMultiboot {
         }
       }
 
-      u32 newPercentage =
-          min(transfers[findMinClient(transfers)].transferred() * 100 / romSize,
-              100);
+      u32 newPercentage = Link::_min(
+          transfers[findMinClient(transfers)].transferred() * 100 / romSize,
+          100);
       if (newPercentage != progress.percentage) {
         progress.percentage = newPercentage;
-        LWMLOG("-> " + std::to_string(newPercentage));
+        _LWMLOG_("-> " + std::to_string(newPercentage));
       }
     }
 
     return SUCCESS;
   }
 
-  __attribute__((noinline)) u32 findMinClient(
-      std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1>&
-          transfers) {
+  __attribute__((noinline)) u32 findMinClient(TransferArray& transfers) {
     u32 minTransferredBytes = 0xffffffff;
     u32 minClient = 0;
 
@@ -546,9 +580,7 @@ class LinkWirelessMultiboot {
     return minClient;
   }
 
-  __attribute__((noinline)) u32 findMinCursor(
-      std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1>&
-          transfers) {
+  __attribute__((noinline)) u32 findMinCursor(TransferArray& transfers) {
     u32 minNextCursor = 0xffffffff;
 
     bool canSendInflightPackets = true;
@@ -568,39 +600,39 @@ class LinkWirelessMultiboot {
 
   template <typename C>
   __attribute__((noinline)) Result confirm(C cancel) {
-    LWMLOG("confirming (1/2)...");
+    _LWMLOG_("confirming (1/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
-      LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
-          i,
-          linkWirelessOpenSDK->createServerBuffer(
-              {}, 0, {0, 0, LinkWirelessOpenSDK::CommState::ENDING}, 1 << i),
-          cancel))
+      LINK_WIRELESS_MULTIBOOT_TRY(
+          exchangeNewData(i,
+                          linkWirelessOpenSDK->createServerBuffer(
+                              {}, 0, {0, 0, CommState::ENDING}, 1 << i),
+                          cancel))
     }
 
-    LWMLOG("confirming (2/2)...");
+    LINK_WIRELESS_MULTIBOOT_BARRIER;
+
+    _LWMLOG_("confirming (2/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(
-          linkWirelessOpenSDK->createServerBuffer(
-              {}, 0, {1, 0, LinkWirelessOpenSDK::CommState::OFF}, 1 << i),
-          response))
+      LINK_WIRELESS_MULTIBOOT_TRY(
+          sendAndExpectData(linkWirelessOpenSDK->createServerBuffer(
+                                {}, 0, {1, 0, CommState::OFF}, 1 << i),
+                            response))
     }
 
     return SUCCESS;
   }
 
   template <typename C>
-  __attribute__((noinline)) Result exchangeNewData(
-      u8 clientNumber,
-      LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>
-          sendBuffer,
-      C cancel) {
+  __attribute__((noinline)) Result exchangeNewData(u8 clientNumber,
+                                                   SendBuffer sendBuffer,
+                                                   C cancel) {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
           return sendAndExpectData(sendBuffer, response);
         },
-        [&sendBuffer](LinkWirelessOpenSDK::ClientPacket packet) {
+        [&sendBuffer](ClientPacket packet) {
           auto header = packet.header;
           return header.isACK == 1 &&
                  header.sequence() == sendBuffer.header.sequence();
@@ -627,11 +659,9 @@ class LinkWirelessMultiboot {
   }
 
   template <typename F, typename V, typename C>
-  __attribute__((noinline)) Result exchangeData(u8 clientNumber,
-                                                F sendAction,
-                                                V validatePacket,
-                                                C cancel) {
-    bool hasFinished = false;
+  __attribute__((noinline)) Result
+  exchangeData(u8 clientNumber, F sendAction, V validatePacket, C cancel) {
+    volatile bool hasFinished = false;
     while (!hasFinished) {
       if (cancel(progress))
         return finish(CANCELED);
@@ -655,10 +685,9 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  __attribute__((noinline)) Result sendAndExpectData(
-      LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>
-          sendBuffer,
-      LinkRawWireless::ReceiveDataResponse& response) {
+  __attribute__((noinline)) Result
+  sendAndExpectData(SendBuffer sendBuffer,
+                    LinkRawWireless::ReceiveDataResponse& response) {
     return sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
                              sendBuffer.totalByteCount, response);
   }
@@ -669,20 +698,27 @@ class LinkWirelessMultiboot {
       u32 _bytes,
       LinkRawWireless::ReceiveDataResponse& response) {
     LinkRawWireless::RemoteCommand remoteCommand;
-    bool success = false;
+    volatile bool success = false;
 
     success =
         linkRawWireless->sendDataAndWait(data, dataSize, remoteCommand, _bytes);
+
+    LINK_WIRELESS_MULTIBOOT_BARRIER;
+
     if (!success) {
-      LWMLOG("! sendDataAndWait failed");
+      _LWMLOG_("! sendDataAndWait failed");
       return FAILURE;
     }
 
+    LINK_WIRELESS_MULTIBOOT_BARRIER;
+
     if (remoteCommand.commandId != 0x28) {
-      LWMLOG("! expected EVENT 0x28");
-      LWMLOG("! but got " + toHex(remoteCommand.commandId));
+      _LWMLOG_("! expected EVENT 0x28");
+      _LWMLOG_("! but got " + toHex(remoteCommand.commandId));
       return FAILURE;
     }
+
+    LINK_WIRELESS_MULTIBOOT_BARRIER;
 
     if (remoteCommand.paramsSize > 0) {
       u8 expectedActiveChildren = 0;
@@ -692,18 +728,34 @@ class LinkWirelessMultiboot {
           (remoteCommand.params[0] >> 8) & expectedActiveChildren;
 
       if (activeChildren != expectedActiveChildren) {
-        LWMLOG("! client timeout [" + std::to_string(activeChildren) + "]");
-        LWMLOG("! vs expected: [" + std::to_string(expectedActiveChildren) +
-               "]");
+        _LWMLOG_("! client timeout [" + std::to_string(activeChildren) + "]");
+        _LWMLOG_("! vs expected: [" + std::to_string(expectedActiveChildren) +
+                 "]");
         return FAILURE;
       }
     }
 
+    LINK_WIRELESS_MULTIBOOT_BARRIER;
+
     success = linkRawWireless->receiveData(response);
+
+    LINK_WIRELESS_MULTIBOOT_BARRIER;
+
     if (!success) {
-      LWMLOG("! receiveData failed");
+      _LWMLOG_("! receiveData failed");
       return FAILURE;
     }
+
+    return SUCCESS;
+  }
+
+  __attribute__((noinline)) Result ensureAllClientsAreStillAlive() {
+    LinkRawWireless::SlotStatusResponse slotStatusResponse;
+    if (!linkRawWireless->getSlotStatus(slotStatusResponse))
+      return FAILURE;
+
+    if (slotStatusResponse.connectedClientsSize < progress.connectedClients)
+      return CLIENT_DISCONNECTED;
 
     return SUCCESS;
   }
@@ -736,8 +788,6 @@ class LinkWirelessMultiboot {
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
 
-#undef LWMLOG
-
-#pragma GCC pop_options
+#undef _LWMLOG_
 
 #endif  // LINK_WIRELESS_MULTIBOOT_H

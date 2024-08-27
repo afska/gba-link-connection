@@ -1,17 +1,17 @@
-#include <tonc.h>
-#include <string>
-#include "../../_lib/interrupt.h"
-
 // BASIC:
 // This example sends the pressed buttons to other players.
 
 // (0) Include the header
 #include "../../../lib/LinkUniversal.hpp"
 
+#include <tonc.h>
+#include <string>
+#include "../../_lib/interrupt.h"
+
 void log(std::string text);
 void waitFor(u16 key);
 
-LinkUniversal* linkUniversal = NULL;
+LinkUniversal* linkUniversal = nullptr;
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -21,11 +21,13 @@ void init() {
 int main() {
   init();
 
-  log("LinkUniversal_basic (v6.3.0)\n\n\nPress A to start\n\n\nhold LEFT on "
-      "start:\n -> force cable\n\nhold RIGHT on start:\n -> force "
-      "wireless\n\nhold UP on start:\n -> force wireless server\n\nhold DOWN "
-      "on start:\n -> force wireless client\n\nhold B on start:\n -> set 2 "
-      "players (wireless)");
+  log("LinkUniversal_basic (v7.0.0)\n\n\n"
+      "Press A to start\n\n\n"
+      "hold LEFT on start:\n -> force cable\n\n"
+      "hold RIGHT on start:\n -> force wireless\n\n"
+      "hold UP on start:\n -> force wireless server\n\n"
+      "hold DOWN on start:\n -> force wireless client\n\n"
+      "hold B on start:\n -> set 2 players (wireless)");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
@@ -41,22 +43,20 @@ int main() {
   u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_UNIVERSAL_MAX_PLAYERS;
 
   // (1) Create a LinkUniversal instance
-  linkUniversal = new LinkUniversal(
-      protocol, "LinkUNI",
-      (LinkUniversal::CableOptions){
-          .baudRate = LinkCable::BAUD_RATE_1,
-          .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-          .remoteTimeout = LINK_CABLE_DEFAULT_REMOTE_TIMEOUT,
-          .interval = LINK_CABLE_DEFAULT_INTERVAL,
-          .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
-      (LinkUniversal::WirelessOptions){
-          .retransmission = true,
-          .maxPlayers = maxPlayers,
-          .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-          .remoteTimeout = LINK_WIRELESS_DEFAULT_REMOTE_TIMEOUT,
-          .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-          .asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID});
+  linkUniversal =
+      new LinkUniversal(protocol, "LinkUNI",
+                        (LinkUniversal::CableOptions){
+                            .baudRate = LinkCable::BAUD_RATE_1,
+                            .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
+                            .interval = LINK_CABLE_DEFAULT_INTERVAL,
+                            .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
+                        (LinkUniversal::WirelessOptions){
+                            .retransmission = true,
+                            .maxPlayers = maxPlayers,
+                            .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
+                            .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
+                            .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
+                        __qran_seed);
 
   // (2) Add the required interrupt service routines
   interrupt_init();

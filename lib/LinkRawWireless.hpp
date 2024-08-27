@@ -8,15 +8,32 @@
 // - If you're building a game, use `LinkWireless`.
 // --------------------------------------------------------------------------
 
-#include <tonc_core.h>
-#include <tonc_math.h>
+#ifndef LINK_DEVELOPMENT
+#pragma GCC system_header
+#endif
+
+#include "_link_common.hpp"
+
 #include <array>
 #include <cstring>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
-// Enable logging (set `linkRawWireless->logger` and uncomment to enable)
+/**
+ * @brief Enable logging.
+ * \warning Set `linkRawWireless->logger` and uncomment to enable!
+ */
 // #define LINK_RAW_WIRELESS_ENABLE_LOGGING
+
+static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v7.0.0";
+
+#define LINK_RAW_WIRELESS_MAX_PLAYERS 5
+#define LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
+#define LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
+#define LINK_RAW_WIRELESS_MAX_GAME_ID 0x7fff
+#define LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
+#define LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH 8
+#define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
 #include <string>
@@ -25,53 +42,51 @@
 #define LRWLOG(str)
 #endif
 
-#define LINK_RAW_WIRELESS_MAX_PLAYERS 5
-#define LINK_RAW_WIRELESS_PING_WAIT 50
-#define LINK_RAW_WIRELESS_TRANSFER_WAIT 15
-#define LINK_RAW_WIRELESS_CMD_TIMEOUT 100
-#define LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
-#define LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
-#define LINK_RAW_WIRELESS_MAX_GAME_ID 0x7fff
-#define LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
-#define LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH 8
-#define LINK_RAW_WIRELESS_LOGIN_STEPS 9
-#define LINK_RAW_WIRELESS_COMMAND_HEADER 0x9966
-#define LINK_RAW_WIRELESS_RESPONSE_ACK 0x80
-#define LINK_RAW_WIRELESS_DATA_REQUEST 0x80000000
-#define LINK_RAW_WIRELESS_SETUP_MAGIC 0x003c0000
-#define LINK_RAW_WIRELESS_STILL_CONNECTING 0x01000000
-#define LINK_RAW_WIRELESS_BROADCAST_LENGTH 6
-#define LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH \
-  (1 + LINK_RAW_WIRELESS_BROADCAST_LENGTH)
-#define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
-#define LINK_RAW_WIRELESS_MAX_SERVERS              \
-  (LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
-   LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH)
-#define LINK_RAW_WIRELESS_COMMAND_HELLO 0x10
-#define LINK_RAW_WIRELESS_COMMAND_SETUP 0x17
-#define LINK_RAW_WIRELESS_COMMAND_BROADCAST 0x16
-#define LINK_RAW_WIRELESS_COMMAND_START_HOST 0x19
-#define LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS 0x14
-#define LINK_RAW_WIRELESS_COMMAND_ACCEPT_CONNECTIONS 0x1a
-#define LINK_RAW_WIRELESS_COMMAND_END_HOST 0x1b
-#define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_START 0x1c
-#define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL 0x1d
-#define LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_END 0x1e
-#define LINK_RAW_WIRELESS_COMMAND_CONNECT 0x1f
-#define LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT 0x20
-#define LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION 0x21
-#define LINK_RAW_WIRELESS_COMMAND_SEND_DATA 0x24
-#define LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT 0x25
-#define LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA 0x26
-#define LINK_RAW_WIRELESS_COMMAND_WAIT 0x27
-#define LINK_RAW_WIRELESS_COMMAND_BYE 0x3d
-
-static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v6.3.0";
-
-const u16 LINK_RAW_WIRELESS_LOGIN_PARTS[] = {
-    0x494e, 0x494e, 0x544e, 0x544e, 0x4e45, 0x4e45, 0x4f44, 0x4f44, 0x8001};
-
+/**
+ * @brief A low level driver for the GBA Wireless Adapter.
+ * \warning Advanced usage only!
+ * \warning If you're building a game, use `LinkWireless`.
+ */
 class LinkRawWireless {
+ private:
+  using u32 = unsigned int;
+  using u16 = unsigned short;
+  using u8 = unsigned char;
+
+  static constexpr int PING_WAIT = 50;
+  static constexpr int TRANSFER_WAIT = 15;
+  static constexpr int CMD_TIMEOUT = 10;
+  static constexpr int LOGIN_STEPS = 9;
+  static constexpr int COMMAND_HEADER = 0x9966;
+  static constexpr int RESPONSE_ACK = 0x80;
+  static constexpr u32 DATA_REQUEST = 0x80000000;
+  static constexpr int SETUP_MAGIC = 0x003c0000;
+  static constexpr int WAIT_STILL_CONNECTING = 0x01000000;
+  static constexpr int BROADCAST_LENGTH = 6;
+  static constexpr int BROADCAST_RESPONSE_LENGTH = 1 + BROADCAST_LENGTH;
+  static constexpr int MAX_SERVERS =
+      LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / BROADCAST_RESPONSE_LENGTH;
+  static constexpr int COMMAND_HELLO = 0x10;
+  static constexpr int COMMAND_SETUP = 0x17;
+  static constexpr int COMMAND_BROADCAST = 0x16;
+  static constexpr int COMMAND_START_HOST = 0x19;
+  static constexpr int COMMAND_SLOT_STATUS = 0x14;
+  static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1a;
+  static constexpr int COMMAND_END_HOST = 0x1b;
+  static constexpr int COMMAND_BROADCAST_READ_START = 0x1c;
+  static constexpr int COMMAND_BROADCAST_READ_POLL = 0x1d;
+  static constexpr int COMMAND_BROADCAST_READ_END = 0x1e;
+  static constexpr int COMMAND_CONNECT = 0x1f;
+  static constexpr int COMMAND_IS_FINISHED_CONNECT = 0x20;
+  static constexpr int COMMAND_FINISH_CONNECTION = 0x21;
+  static constexpr int COMMAND_SEND_DATA = 0x24;
+  static constexpr int COMMAND_SEND_DATA_AND_WAIT = 0x25;
+  static constexpr int COMMAND_RECEIVE_DATA = 0x26;
+  static constexpr int COMMAND_WAIT = 0x27;
+  static constexpr int COMMAND_BYE = 0x3d;
+  static constexpr u16 LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
+                                        0x4e45, 0x4f44, 0x4f44, 0x8001};
+
  public:
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   typedef void (*Logger)(std::string);
@@ -129,7 +144,7 @@ class LinkRawWireless {
   };
 
   struct BroadcastReadPollResponse {
-    std::array<Server, LINK_RAW_WIRELESS_MAX_SERVERS> servers;
+    std::array<Server, MAX_SERVERS> servers;
     u32 serversSize = 0;
   };
 
@@ -146,8 +161,15 @@ class LinkRawWireless {
     u32 dataSize = 0;
   };
 
-  bool isActive() { return isEnabled; }
+  /**
+   * @brief Returns whether the library is active or not.
+   */
+  [[nodiscard]] bool isActive() { return isEnabled; }
 
+  /**
+   * @brief Activates the library.
+   * Returns whether initialization was successful or not.
+   */
   bool activate() {
     isEnabled = false;
 
@@ -157,8 +179,11 @@ class LinkRawWireless {
     return success;
   }
 
+  /**
+   * @brief Deactivates the library.
+   */
   bool deactivate() {
-    bool success = sendCommand(LINK_RAW_WIRELESS_COMMAND_BYE).success;
+    bool success = sendCommand(COMMAND_BYE).success;
 
     isEnabled = false;
     resetState();
@@ -167,17 +192,34 @@ class LinkRawWireless {
     return success;
   }
 
+  /**
+   * @brief Calls the Setup (`0x17`) command.
+   * @param maxPlayers `(2~5)` Maximum players in hosted rooms. Clients should
+   * set this to `0`.
+   * @param maxTransmissions Number of transmissions before marking a player as
+   * disconnected. `0` means infinite retransmissions.
+   * @param waitTimeout Timeout of the *waiting commands*, in frames (16.6ms).
+   * `0` means no timeout.
+   * @param magic A part of the protocol that hasn't been reverse-engineered
+   * yet. For now, it's magic (`0x003c0000`).
+   */
   bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS,
              u8 maxTransmissions = 4,
              u8 waitTimeout = 32,
-             u32 magic = LINK_RAW_WIRELESS_SETUP_MAGIC) {
+             u32 magic = SETUP_MAGIC) {
     u32 config =
         (u32)(magic |
               (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11) << 16) |
               (maxTransmissions << 8) | waitTimeout);
-    return sendCommand(LINK_RAW_WIRELESS_COMMAND_SETUP, {config}, 1).success;
+    return sendCommand(COMMAND_SETUP, {config}, 1).success;
   }
 
+  /**
+   * @brief Calls the Broadcast (`0x16`) command.
+   * @param gameName Game name. Maximum `14` characters + null terminator.
+   * @param userName User name. Maximum `8` characters + null terminator.
+   * @param gameId `(0 ~ 0x7FFF)` Game ID.
+   */
   bool broadcast(const char* gameName = "",
                  const char* userName = "",
                  u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
@@ -197,7 +239,7 @@ class LinkRawWireless {
 
     bool success =
         sendCommand(
-            LINK_RAW_WIRELESS_COMMAND_BROADCAST,
+            COMMAND_BROADCAST,
             {buildU32(buildU16(finalGameName[1], finalGameName[0]), gameId),
              buildU32(buildU16(finalGameName[5], finalGameName[4]),
                       buildU16(finalGameName[3], finalGameName[2])),
@@ -209,7 +251,7 @@ class LinkRawWireless {
                       buildU16(finalUserName[1], finalUserName[0])),
              buildU32(buildU16(finalUserName[7], finalUserName[6]),
                       buildU16(finalUserName[5], finalUserName[4]))},
-            LINK_RAW_WIRELESS_BROADCAST_LENGTH)
+            BROADCAST_LENGTH)
             .success;
 
     if (!success) {
@@ -220,23 +262,30 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the StartHost (`0x19`) command.
+   */
   bool startHost() {
-    bool success = sendCommand(LINK_RAW_WIRELESS_COMMAND_START_HOST).success;
+    bool success = sendCommand(COMMAND_START_HOST).success;
 
     if (!success) {
       reset();
       return false;
     }
 
-    wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
+    wait(TRANSFER_WAIT);
     LRWLOG("state = SERVING");
     state = SERVING;
 
     return true;
   }
 
+  /**
+   * @brief Calls the SlotStatus (`0x14`) command.
+   * @param response A structure that will be filled with the response data.
+   */
   bool getSlotStatus(SlotStatusResponse& response) {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_SLOT_STATUS);
+    auto result = sendCommand(COMMAND_SLOT_STATUS);
 
     if (!result.success) {
       reset();
@@ -257,8 +306,12 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the AcceptConnections (`0x1a`) command.
+   * @param response A structure that will be filled with the response data.
+   */
   bool acceptConnections(AcceptConnectionsResponse& response) {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_ACCEPT_CONNECTIONS);
+    auto result = sendCommand(COMMAND_ACCEPT_CONNECTIONS);
 
     if (!result.success) {
       reset();
@@ -280,8 +333,12 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the EndHost (`0x1b`) command.
+   * @param response A structure that will be filled with the response data.
+   */
   bool endHost(AcceptConnectionsResponse& response) {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_END_HOST);
+    auto result = sendCommand(COMMAND_END_HOST);
 
     if (!result.success) {
       reset();
@@ -303,9 +360,11 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the BroadcastRead1 (`0x1c`) command.
+   */
   bool broadcastReadStart() {
-    bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_START).success;
+    bool success = sendCommand(COMMAND_BROADCAST_READ_START).success;
 
     if (!success) {
       reset();
@@ -318,23 +377,24 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the BroadcastRead2 (`0x1d`) command.
+   */
   bool broadcastReadPoll(BroadcastReadPollResponse& response) {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_POLL);
+    auto result = sendCommand(COMMAND_BROADCAST_READ_POLL);
     bool success =
-        result.success &&
-        result.responsesSize % LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
+        result.success && result.responsesSize % BROADCAST_RESPONSE_LENGTH == 0;
 
     if (!success) {
       reset();
       return false;
     }
 
-    u32 totalBroadcasts =
-        result.responsesSize / LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH;
+    u32 totalBroadcasts = result.responsesSize / BROADCAST_RESPONSE_LENGTH;
 
     response.serversSize = 0;
     for (u32 i = 0; i < totalBroadcasts; i++) {
-      u32 start = LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH * i;
+      u32 start = BROADCAST_RESPONSE_LENGTH * i;
 
       Server server;
       server.id = (u16)result.responses[start];
@@ -357,9 +417,11 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the BroadcastRead3 (`0x1e`) command.
+   */
   bool broadcastReadEnd() {
-    bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_BROADCAST_READ_END).success;
+    bool success = sendCommand(COMMAND_BROADCAST_READ_END).success;
 
     if (!success) {
       reset();
@@ -372,9 +434,12 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the Connect (`0x1f`) command.
+   * @param serverId Device ID of the server.
+   */
   bool connect(u16 serverId) {
-    bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_CONNECT, {serverId}, 1).success;
+    bool success = sendCommand(COMMAND_CONNECT, {serverId}, 1).success;
 
     if (!success) {
       reset();
@@ -387,8 +452,12 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the IsFinishedConnect (`0x20`) command.
+   * @param response A structure that will be filled with the response data.
+   */
   bool keepConnecting(ConnectionStatus& response) {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_IS_FINISHED_CONNECT);
+    auto result = sendCommand(COMMAND_IS_FINISHED_CONNECT);
     if (!result.success || result.responsesSize == 0) {
       if (result.responsesSize == 0)
         LRWLOG("! empty response");
@@ -396,7 +465,7 @@ class LinkRawWireless {
       return false;
     }
 
-    if (result.responses[0] == LINK_RAW_WIRELESS_STILL_CONNECTING) {
+    if (result.responses[0] == WAIT_STILL_CONNECTING) {
       response.phase = STILL_CONNECTING;
       return true;
     }
@@ -415,8 +484,11 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the FinishConnection (`0x21`) command.
+   */
   bool finishConnection() {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_FINISH_CONNECTION);
+    auto result = sendCommand(COMMAND_FINISH_CONNECTION);
     if (!result.success || result.responsesSize == 0) {
       if (result.responsesSize == 0)
         LRWLOG("! empty response");
@@ -439,6 +511,13 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the SendData (`0x24`) command.
+   * @param data The values to be sent.
+   * @param dataSize The number of 32-bit values in the `data` array.
+   * @param _bytes The number of BYTES to send. If `0`, the method will use
+   * `dataSize * 4` instead.
+   */
   bool sendData(
       std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
       u32 dataSize,
@@ -453,9 +532,7 @@ class LinkRawWireless {
     dataSize++;
     LRWLOG("using header " + toHex(header));
 
-    bool success =
-        sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA, data, dataSize)
-            .success;
+    bool success = sendCommand(COMMAND_SEND_DATA, data, dataSize).success;
 
     if (!success) {
       reset();
@@ -465,6 +542,15 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the SendDataAndWait (`0x25`) command.
+   * @param data The values to be sent.
+   * @param dataSize The number of 32-bit values in the `data` array.
+   * @param remoteCommand A structure that will be filled with the remote
+   * command from the adapter.
+   * @param _bytes The number of BYTES to send. If `0`, the method will use
+   * `dataSize * 4` instead.
+   */
   bool sendDataAndWait(
       std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
       u32 dataSize,
@@ -480,8 +566,7 @@ class LinkRawWireless {
     dataSize++;
     LRWLOG("using header " + toHex(header));
 
-    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_SEND_DATA_AND_WAIT, data,
-                     dataSize, true)
+    if (!sendCommand(COMMAND_SEND_DATA_AND_WAIT, data, dataSize, true)
              .success) {
       reset();
       return false;
@@ -492,8 +577,12 @@ class LinkRawWireless {
     return remoteCommand.success;
   }
 
+  /**
+   * @brief Calls the ReceiveData (`0x26`) command.
+   * @param response A structure that will be filled with the response data.
+   */
   bool receiveData(ReceiveDataResponse& response) {
-    auto result = sendCommand(LINK_RAW_WIRELESS_COMMAND_RECEIVE_DATA);
+    auto result = sendCommand(COMMAND_RECEIVE_DATA);
     for (u32 i = 0; i < result.responsesSize; i++)
       response.data[i] = result.responses[i];
     response.dataSize = result.responsesSize;
@@ -521,8 +610,13 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Calls the Wait (`0x27`) command.
+   * @param remoteCommand A structure that will be filled with the remote
+   * command from the adapter.
+   */
   bool wait(RemoteCommand& remoteCommand) {
-    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_WAIT, {}, 0, true).success) {
+    if (!sendCommand(COMMAND_WAIT, {}, 0, true).success) {
       reset();
       return false;
     }
@@ -532,6 +626,13 @@ class LinkRawWireless {
     return remoteCommand.success;
   }
 
+  /**
+   * @brief Calls an arbitrary command and returns the response.
+   * @param type The ID of the command.
+   * @param params The command parameters.
+   * @param length The number of 32-bit values in the `params` array.
+   * @param invertsClock Whether this command inverts the clock or not (Wait).
+   */
   CommandResult sendCommand(
       u8 type,
       std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params =
@@ -543,8 +644,8 @@ class LinkRawWireless {
     u32 r;
 
     LRWLOG("sending command 0x" + toHex(command));
-    if ((r = transfer(command)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
-      logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
+    if ((r = transfer(command)) != DATA_REQUEST) {
+      logExpectedButReceived(DATA_REQUEST, r);
       return result;
     }
 
@@ -553,37 +654,34 @@ class LinkRawWireless {
       u32 param = params[i];
       LRWLOG("sending param" + std::to_string(parameterCount) + ": 0x" +
              toHex(param));
-      if ((r = transfer(param)) != LINK_RAW_WIRELESS_DATA_REQUEST) {
-        logExpectedButReceived(LINK_RAW_WIRELESS_DATA_REQUEST, r);
+      if ((r = transfer(param)) != DATA_REQUEST) {
+        logExpectedButReceived(DATA_REQUEST, r);
         return result;
       }
       parameterCount++;
     }
 
     LRWLOG("sending response request");
-    u32 response =
-        invertsClock
-            ? transferAndStartClockInversionACK(LINK_RAW_WIRELESS_DATA_REQUEST)
-            : transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+    u32 response = invertsClock
+                       ? transferAndStartClockInversionACK(DATA_REQUEST)
+                       : transfer(DATA_REQUEST);
     u16 header = msB32(response);
     u16 data = lsB32(response);
     u8 responses = msB16(data);
     u8 ack = lsB16(data);
 
-    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
+    if (header != COMMAND_HEADER) {
       LRWLOG("! expected HEADER 0x9966");
       LRWLOG("! but received 0x" + toHex(header));
       return result;
     }
-    if (ack != type + LINK_RAW_WIRELESS_RESPONSE_ACK) {
+    if (ack != type + RESPONSE_ACK) {
       if (ack == 0xee && responses == 1 && !invertsClock) {
-        u8 __attribute__((unused)) code =
-            (u8)transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+        u8 __attribute__((unused)) code = (u8)transfer(DATA_REQUEST);
         LRWLOG("! error received");
         LRWLOG(code == 1 ? "! invalid state" : "! unknown cmd");
       } else {
-        LRWLOG("! expected ACK 0x" +
-               toHex(type + LINK_RAW_WIRELESS_RESPONSE_ACK));
+        LRWLOG("! expected ACK 0x" + toHex(type + RESPONSE_ACK));
         LRWLOG("! but received 0x" + toHex(ack));
       }
       return result;
@@ -594,7 +692,7 @@ class LinkRawWireless {
       for (u32 i = 0; i < responses; i++) {
         LRWLOG("response " + std::to_string(i + 1) + "/" +
                std::to_string(responses) + ":");
-        u32 responseData = transfer(LINK_RAW_WIRELESS_DATA_REQUEST);
+        u32 responseData = transfer(DATA_REQUEST);
         result.responses[result.responsesSize++] = responseData;
         LRWLOG("<< " + toHex(responseData));
       }
@@ -604,6 +702,10 @@ class LinkRawWireless {
     return result;
   }
 
+  /**
+   * @brief Inverts the clock and waits until the adapter sends a command.
+   * Returns the remote command.
+   */
   RemoteCommand receiveCommandFromAdapter() {
     RemoteCommand remoteCommand;
 
@@ -611,8 +713,8 @@ class LinkRawWireless {
     linkSPI->activate(LinkSPI::Mode::SLAVE);
 
     LRWLOG("WAITING for adapter cmd");
-    u32 command = linkSPI->transfer(
-        LINK_RAW_WIRELESS_DATA_REQUEST, []() { return false; }, false, true);
+    u32 command =
+        linkSPI->transfer(DATA_REQUEST, []() { return false; }, false, true);
     if (!reverseAcknowledge()) {
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
@@ -623,7 +725,7 @@ class LinkRawWireless {
     u16 data = lsB32(command);
     u8 params = msB16(data);
     u8 commandId = lsB16(data);
-    if (header != LINK_RAW_WIRELESS_COMMAND_HEADER) {
+    if (header != COMMAND_HEADER) {
       LRWLOG("! expected HEADER 0x9966");
       LRWLOG("! but received 0x" + toHex(header));
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
@@ -636,8 +738,8 @@ class LinkRawWireless {
     for (u32 i = 0; i < params; i++) {
       LRWLOG("param " + std::to_string(i + 1) + "/" + std::to_string(params) +
              ":");
-      u32 paramData = linkSPI->transfer(
-          LINK_RAW_WIRELESS_DATA_REQUEST, []() { return false; }, false, true);
+      u32 paramData =
+          linkSPI->transfer(DATA_REQUEST, []() { return false; }, false, true);
       if (!reverseAcknowledge()) {
         linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
         reset();
@@ -647,17 +749,19 @@ class LinkRawWireless {
       LRWLOG("<< " + toHex(paramData));
     }
 
+    wait(TRANSFER_WAIT);
+
     LRWLOG("sending ack");
     command = linkSPI->transfer(
-        0x99660000 | ((commandId + 0x80) & 0xff), []() { return false; }, false,
-        true);
+        (COMMAND_HEADER << 16) | ((commandId + RESPONSE_ACK) & 0xff),
+        []() { return false; }, false, true);
     if (!reverseAcknowledge(true)) {
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
       return remoteCommand;
     }
 
-    if (command != LINK_RAW_WIRELESS_DATA_REQUEST) {
+    if (command != DATA_REQUEST) {
       LRWLOG("! expected CMD request");
       LRWLOG("! but received 0x" + toHex(command));
       linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
@@ -665,10 +769,10 @@ class LinkRawWireless {
       return remoteCommand;
     }
 
-    LRWLOG("setting SPI to 2Mbps");
+    LRWLOG("setting SPI to MASTER");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
 
-    wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
+    wait(TRANSFER_WAIT);
 
     remoteCommand.success = true;
     remoteCommand.commandId = commandId;
@@ -676,16 +780,41 @@ class LinkRawWireless {
     return remoteCommand;
   }
 
-  u32 getDeviceTransferLength() {
+  /**
+   * @brief Returns the maximum number of transferrable 32-bit values.
+   * It's 23 for servers and 4 for clients.
+   */
+  [[nodiscard]] u32 getDeviceTransferLength() {
     return state == SERVING ? LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH
                             : LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
   }
 
-  State getState() { return state; }
-  bool isConnected() { return sessionState.playerCount > 1; }
-  bool isSessionActive() { return state == SERVING || state == CONNECTED; }
-  u8 playerCount() { return sessionState.playerCount; }
-  u8 currentPlayerId() { return sessionState.currentPlayerId; }
+  /**
+   * @brief Returns the current state.
+   */
+  [[nodiscard]] State getState() { return state; }
+
+  /**
+   * @brief Returns `true` if the player count is higher than `1`.
+   */
+  [[nodiscard]] bool isConnected() { return sessionState.playerCount > 1; }
+
+  /**
+   * @brief Returns `true` if the state is `SERVING` or `CONNECTED`.
+   */
+  [[nodiscard]] bool isSessionActive() {
+    return state == SERVING || state == CONNECTED;
+  }
+
+  /**
+   * @brief Returns the number of connected players.
+   */
+  [[nodiscard]] u8 playerCount() { return sessionState.playerCount; }
+
+  /**
+   * @brief Returns the current player ID.
+   */
+  [[nodiscard]] u8 currentPlayerId() { return sessionState.currentPlayerId; }
 
   ~LinkRawWireless() {
     delete linkSPI;
@@ -708,6 +837,13 @@ class LinkRawWireless {
   State state = NEEDS_RESET;
   volatile bool isEnabled = false;
 
+  /**
+   * @brief Copies a null-terminated `source` string to a `target` destination
+   * (up to `length` characters).
+   * @param target Target string.
+   * @param source Source string.
+   * @param length Number of characters.
+   */
   void copyName(char* target, const char* source, u32 length) {
     u32 len = std::strlen(source);
 
@@ -718,6 +854,14 @@ class LinkRawWireless {
         target[i] = '\0';
   }
 
+  /**
+   * @brief Recovers parts of the `name` of a Wireless Adapter room.
+   * @param name Target string.
+   * @param nameCursor Current position within `name`.
+   * @param word Current value.
+   * @param includeFirstTwoBytes Whether the first two bytes from `word` should
+   * be used.
+   */
   void recoverName(char* name,
                    u32& nameCursor,
                    u32 word,
@@ -739,6 +883,10 @@ class LinkRawWireless {
       name[nameCursor++] = character;
   }
 
+  /**
+   * @brief Resets the adapter
+   * @param initialize Whether it's an initialization (first time) or not.
+   */
   bool reset(bool initialize = false) {
     resetState();
     if (initialize)
@@ -746,6 +894,9 @@ class LinkRawWireless {
     return initialize && start();
   }
 
+  /**
+   * @brief Resets all the state.
+   */
   void resetState() {
     LRWLOG("state = NEEDS_RESET");
     this->state = NEEDS_RESET;
@@ -753,8 +904,14 @@ class LinkRawWireless {
     this->sessionState.currentPlayerId = 0;
   }
 
+  /**
+   * @brief Stops the communication.
+   */
   void stop() { linkSPI->deactivate(); }
 
+  /**
+   * @brief Starts the communication.
+   */
   bool start() {
     pingAdapter();
     LRWLOG("setting SPI to 256Kbps");
@@ -763,10 +920,10 @@ class LinkRawWireless {
     if (!login())
       return false;
 
-    wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
+    wait(TRANSFER_WAIT);
 
     LRWLOG("sending HELLO command");
-    if (!sendCommand(LINK_RAW_WIRELESS_COMMAND_HELLO).success)
+    if (!sendCommand(COMMAND_HELLO).success)
       return false;
 
     LRWLOG("setting SPI to 2Mbps");
@@ -777,6 +934,9 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Sends the signal to reset the adapter.
+   */
   void pingAdapter() {
     LRWLOG("setting SO as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
@@ -784,29 +944,37 @@ class LinkRawWireless {
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     LRWLOG("setting SD = HIGH");
     linkGPIO->writePin(LinkGPIO::SD, true);
-    wait(LINK_RAW_WIRELESS_PING_WAIT);
+    wait(PING_WAIT);
     LRWLOG("setting SD = LOW");
     linkGPIO->writePin(LinkGPIO::SD, false);
   }
 
+  /**
+   * @brief Sends the login sequence to the adapter.
+   */
   bool login() {
     LoginMemory memory;
 
     LRWLOG("sending initial login packet");
-    if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[0], 0, memory))
+    if (!exchangeLoginPacket(LOGIN_PARTS[0], 0, memory))
       return false;
 
-    for (u32 i = 0; i < LINK_RAW_WIRELESS_LOGIN_STEPS; i++) {
+    for (u32 i = 0; i < LOGIN_STEPS; i++) {
       LRWLOG("sending login packet " + std::to_string(i + 1) + "/" +
-             std::to_string(LINK_RAW_WIRELESS_LOGIN_STEPS));
-      if (!exchangeLoginPacket(LINK_RAW_WIRELESS_LOGIN_PARTS[i],
-                               LINK_RAW_WIRELESS_LOGIN_PARTS[i], memory))
+             std::to_string(LOGIN_STEPS));
+      if (!exchangeLoginPacket(LOGIN_PARTS[i], LOGIN_PARTS[i], memory))
         return false;
     }
 
     return true;
   }
 
+  /**
+   * @brief Exchanges part of the login sequence with the adapter.
+   * @param data The value to be sent.
+   * @param expectedResponse The expected response.
+   * @param memory A structure that holds memory of the previous values.
+   */
   bool exchangeLoginPacket(u16 data,
                            u16 expectedResponse,
                            LoginMemory& memory) {
@@ -826,42 +994,61 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Builds a 32-bit value representing the command.
+   * @param type The ID of the command.
+   * @param length The number of 32-bit values that will be sent.
+   */
   u32 buildCommand(u8 type, u8 length = 0) {
-    return buildU32(LINK_RAW_WIRELESS_COMMAND_HEADER, buildU16(length, type));
+    return buildU32(COMMAND_HEADER, buildU16(length, type));
   }
 
+  /**
+   * @brief Transfers `data` via SPI and performs the adapter's ACK procedure.
+   * Returns the received value.
+   * @param data The value to be sent.
+   * @param customAck Whether the adapter's ACK procedure should be used or not.
+   */
   u32 transfer(u32 data, bool customAck = true) {
     if (!customAck)
-      wait(LINK_RAW_WIRELESS_TRANSFER_WAIT);
+      wait(TRANSFER_WAIT);
 
     u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
     u32 receivedData = linkSPI->transfer(
         data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); },
         false, customAck);
 
     if (customAck && !acknowledge())
-      return LINK_SPI_NO_DATA;
+      return LINK_SPI_NO_DATA_32;
 
     return receivedData;
   }
 
+  /**
+   * @brief Transfers `data` via SPI and performs the inverted adapter's ACK
+   * procedure. Returns the received value.
+   * @param data The value to be sent.
+   */
   u32 transferAndStartClockInversionACK(u32 data) {
     u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
     u32 receivedData = linkSPI->transfer(
         data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); },
         false, true);
 
     if (!reverseAcknowledgeStart())
-      return LINK_SPI_NO_DATA;
+      return LINK_SPI_NO_DATA_32;
 
     return receivedData;
   }
 
+  /**
+   * @brief Performs the adapter's ACK procedure.
+   */
   bool acknowledge() {
     u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
 
     linkSPI->_setSOLow();
     while (!linkSPI->_isSIHigh()) {
@@ -884,9 +1071,12 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Starts performing the inverted adapter's ACK procedure.
+   */
   bool reverseAcknowledgeStart() {
     u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
 
     linkSPI->_setSOLow();
     wait(1);
@@ -903,9 +1093,15 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Performs the inverted adapter's ACK procedure.
+   * @param isLastPart Whether it's the last part of the procedure or not.
+   * \warning `isLastPart` is required when there's no subsequent
+   * `linkSPI->transfer(...)` call.
+   */
   bool reverseAcknowledge(bool isLastPart = false) {
     u32 lines = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
 
     linkSPI->_setSOLow();
     while (linkSPI->_isSIHigh()) {
@@ -939,39 +1135,62 @@ class LinkRawWireless {
     return true;
   }
 
+  /**
+   * @brief Evaluates a timeout defined by `CMD_TIMEOUT`.
+   * @param lines A line counter that will be updated.
+   * @param vCount Starting `VCOUNT`.
+   */
   bool cmdTimeout(u32& lines, u32& vCount) {
-    return timeout(LINK_RAW_WIRELESS_CMD_TIMEOUT, lines, vCount);
+    return timeout(CMD_TIMEOUT, lines, vCount);
   }
 
+  /**
+   * @brief Evaluates a timeout defined by `limit`.
+   * @param limit Maximum number of lines to wait.
+   * @param lines A line counter that will be updated.
+   * @param vCount Starting `VCOUNT`.
+   */
   bool timeout(u32 limit, u32& lines, u32& vCount) {
-    if (REG_VCOUNT != vCount) {
-      lines += max((int)REG_VCOUNT - (int)vCount, 0);
-      vCount = REG_VCOUNT;
+    if (Link::_REG_VCOUNT != vCount) {
+      lines += Link::_max((int)Link::_REG_VCOUNT - (int)vCount, 0);
+      vCount = Link::_REG_VCOUNT;
     }
 
     return lines > limit;
   }
 
+  /**
+   * @brief Waits a number of `verticalLines`.
+   * @param verticalLines Number of lines to wait.
+   */
   void wait(u32 verticalLines) {
     u32 count = 0;
-    u32 vCount = REG_VCOUNT;
+    u32 vCount = Link::_REG_VCOUNT;
 
     while (count < verticalLines) {
-      if (REG_VCOUNT != vCount) {
+      if (Link::_REG_VCOUNT != vCount) {
         count++;
-        vCount = REG_VCOUNT;
+        vCount = Link::_REG_VCOUNT;
       }
     };
   }
 
+  /**
+   * @brief Logs an error message (expected vs received).
+   * @param expected The expected number.
+   * @param received The received number.
+   */
   void logExpectedButReceived(u32 expected, u32 received) {
     LRWLOG("! expected 0x" + toHex(expected));
     LRWLOG("! but received 0x" + toHex(received));
   }
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+  /**
+   * @brief Converts `w` to an hexadecimal string.
+   */
   template <typename I>
-  std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
+  [[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
     static const char* digits = "0123456789ABCDEF";
     std::string rc(hex_len, '0');
     for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
@@ -980,12 +1199,35 @@ class LinkRawWireless {
   }
 #endif
 
-  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
-  u8 msB16(u16 value) { return value >> 8; }
-  u8 lsB16(u16 value) { return value & 0xff; }
+  /**
+   * @brief Builds a u32 numbers from `msB` and `lsB`
+   */
+  [[nodiscard]] u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
+
+  /**
+   * @brief Builds a u16 numbers from `msB` and `lsB`
+   */
+  [[nodiscard]] u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
+
+  /**
+   * @brief Returns the higher 16 bits of `value`.
+   */
+  [[nodiscard]] u16 msB32(u32 value) { return value >> 16; }
+
+  /**
+   * @brief Returns the lower 16 bits of `value`.
+   */
+  [[nodiscard]] u16 lsB32(u32 value) { return value & 0xffff; }
+
+  /**
+   * @brief Returns the higher 8 bits of `value`.
+   */
+  [[nodiscard]] u8 msB16(u16 value) { return value >> 8; }
+
+  /**
+   * @brief Returns the lower 8 bits of `value`.
+   */
+  [[nodiscard]] u8 lsB16(u16 value) { return value & 0xff; }
 };
 
 extern LinkRawWireless* linkRawWireless;

@@ -1,9 +1,9 @@
+// (0) Include the header
+#include "../../../lib/LinkSPI.hpp"
+
 #include <tonc.h>
 #include <string>
 #include "../../_lib/interrupt.h"
-
-// (0) Include the header
-#include "../../../lib/LinkSPI.hpp"
 
 void log(std::string text);
 void wait(u32 verticalLines);
@@ -32,7 +32,7 @@ int main() {
   u32 counter = 0;
 
   while (true) {
-    std::string output = "LinkSPI_demo (v6.3.0)\n\n";
+    std::string output = "LinkSPI_demo (v7.0.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkSPI->isActive()) {
@@ -42,14 +42,17 @@ int main() {
       output += "\n(stop: press L+R)\n";
       output += "(hold A on start for async)\n";
       output += "(hold B on start for waitMode)\n";
+      output += "(hold UP for 8-bit mode)\n";
       output +=
-          "\n\n\n\n\n\n\n\n\n\n\n\n[!] to test this demo...\n      "
+          "\n\n\n\n\n\n\n\n\n[!] to test this demo...\n      "
           "...use a GBC Link Cable!";
 
       if ((keys & KEY_START) | (keys & KEY_SELECT)) {
         // (3) Initialize the library
         linkSPI->activate((keys & KEY_START) ? LinkSPI::Mode::MASTER_256KBPS
-                                             : LinkSPI::Mode::SLAVE);
+                                             : LinkSPI::Mode::SLAVE,
+                          (keys & KEY_UP) ? LinkSPI::DataSize::SIZE_8BIT
+                                          : LinkSPI::DataSize::SIZE_32BIT);
         linkSPI->setWaitModeActive(keys &
                                    KEY_B);  // see `waitMode` in README.md
         if (keys & KEY_A)

@@ -126,7 +126,6 @@ BUILD		:= build
 SRCDIRS		:= src ../_lib ../../lib \
 						 src/scenes \
 						 src/utils
-
 DATADIRS	:=
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine
@@ -156,10 +155,11 @@ CFLAGS		+= -Wall
 CFLAGS		+= $(INCLUDE)
 CFLAGS		+= -ffast-math -fno-strict-aliasing
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
+USERFLAGS ?=
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17 -DLINK_DEVELOPMENT $(USERFLAGS)
 
 ASFLAGS		:= $(ARCH) $(INCLUDE)
-LDFLAGS 	:= $(ARCH) -Wl,-Map,$(PROJ).map
+LDFLAGS 	:= $(ARCH) -Wl,--print-memory-usage,-Map,$(PROJ).map
 
 # --- switched additions ----------------------------------------------
 

@@ -1,8 +1,8 @@
-#include <tonc.h>
-#include <string>
-
 // (0) Include the header
 #include "../../../lib/LinkGPIO.hpp"
+
+#include <tonc.h>
+#include <string>
 
 void log(std::string text);
 std::string mode(std::string name, LinkGPIO::Pin pin);
@@ -27,7 +27,7 @@ int main() {
 
   while (true) {
     // (3) Use the pins
-    std::string output = "LinkGPIO_demo (v6.3.0)\n\n";
+    std::string output = "LinkGPIO_demo (v7.0.0)\n\n";
 
     // Commands
     u16 keys = ~REG_KEYS & KEY_ANY;
