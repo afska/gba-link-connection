@@ -611,7 +611,7 @@ class LinkUniversal {
     if (mode == LINK_CABLE)
       linkCable->deactivate();
     else
-      linkWireless->deactivate();
+      linkWireless->deactivate(false);
   }
 
   void toggleMode() {
@@ -645,8 +645,12 @@ class LinkUniversal {
   void start() {
     if (mode == LINK_CABLE)
       linkCable->activate();
-    else
-      linkWireless->activate();
+    else {
+      if (!linkWireless->activate()) {
+        toggleMode();
+        return;
+      }
+    }
 
     state = WAITING;
     resetState();
