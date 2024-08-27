@@ -198,7 +198,7 @@ class LinkWireless {
   static constexpr int PING_WAIT = 50;
   static constexpr int TRANSFER_WAIT = 15;
   static constexpr int BROADCAST_SEARCH_WAIT_FRAMES = 60;
-  static constexpr int CMD_TIMEOUT = 100;
+  static constexpr int CMD_TIMEOUT = 10;
   static constexpr int LOGIN_STEPS = 9;
   static constexpr int COMMAND_HEADER_VALUE = 0x9966;
   static constexpr int RESPONSE_ACK_VALUE = 0x80;

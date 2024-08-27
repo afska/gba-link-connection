@@ -55,7 +55,7 @@ class LinkRawWireless {
 
   static constexpr int PING_WAIT = 50;
   static constexpr int TRANSFER_WAIT = 15;
-  static constexpr int CMD_TIMEOUT = 100;
+  static constexpr int CMD_TIMEOUT = 10;
   static constexpr int LOGIN_STEPS = 9;
   static constexpr int COMMAND_HEADER = 0x9966;
   static constexpr int RESPONSE_ACK = 0x80;
