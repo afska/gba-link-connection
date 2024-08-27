@@ -199,7 +199,7 @@ Name | Type | Default | Description
 `timeout` | **u32** | `10` | Maximum number of *frames* without receiving data from other player before resetting the connection.
 `interval` | **u16** | `50` | Number of *1024-cycle ticks* (61.04μs) between transfers *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values will transfer faster but also consume more CPU. You can use `Link::perFrame(...)` to convert from *packets per frame* to *interval values*.
 `sendTimerId` | **u8** *(0~3)* | `3` | GBA Timer to use for sending.
-`asyncACKTimerId` | **s8** *(0~3 or -1)* | `-1` | GBA Timer to use for ACKs. If you have free timers, use one here to reduce CPU usage.
+`asyncACKTimerId` | **s8** *(0~3 or -1)* | `-1` | This GBA timer is used to asynchronously acknowledge the adapter transfers. It is disabled by default, with the acknowledgment procedure performed during SERIAL interrupts.
 
 You can update these values at any time without creating a new instance:
 - Call `deactivate()`.

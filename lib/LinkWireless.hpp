@@ -304,8 +304,9 @@ class LinkWireless {
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
    * @param sendTimerId GBA Timer to use for sending.
-   * @param asyncACKTimerId GBA Timer to use for ACKs. If you have free timers,
-   * use one here to reduce CPU usage.
+   * @param asyncACKTimerId This GBA timer is used to asynchronously acknowledge
+   * the adapter transfers. It is disabled by default, with the acknowledgment
+   * procedure performed during SERIAL interrupts.
    * \warning You can use `Link::perFrame(...)` to convert from *packets per
    * frame* to *interval values*.
    */
