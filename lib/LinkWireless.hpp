@@ -12,8 +12,6 @@
 //       irq_add(II_VBLANK, LINK_WIRELESS_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_WIRELESS_ISR_SERIAL);
 //       irq_add(II_TIMER3, LINK_WIRELESS_ISR_TIMER);
-//       irq_add(II_TIMER2, LINK_WIRELESS_ISR_ACK_TIMER); // --v
-//       // optional, for `LinkWireless::asyncACKTimerId` -----^
 // - 3) Initialize the library with:
 //       linkWireless->activate();
 // - 4) Start a server:
@@ -161,7 +159,6 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.0";
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
-#define LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID -1
 #define LINK_WIRELESS_BARRIER asm volatile("" ::: "memory")
 #define LINK_WIRELESS_CODE_IWRAM \
   __attribute__((section(".iwram"), target("arm"), noinline))
@@ -235,13 +232,10 @@ class LinkWireless {
   u32 lastVBlankTime = 0;
   u32 lastSerialTime = 0;
   u32 lastTimerTime = 0;
-  u32 lastACKTimerTime = 0;
   u32 lastFrameSerialIRQs = 0;
   u32 lastFrameTimerIRQs = 0;
-  u32 lastFrameACKTimerIRQs = 0;
   u32 serialIRQCount = 0;
   u32 timerIRQCount = 0;
-  u32 ackTimerIRQCount = 0;
 #endif
 
   enum State {
@@ -304,20 +298,15 @@ class LinkWireless {
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
    * @param sendTimerId GBA Timer to use for sending.
-   * @param asyncACKTimerId This GBA timer is used to asynchronously acknowledge
-   * the adapter transfers. It is disabled by default, with the acknowledgment
-   * procedure performed during SERIAL interrupts.
    * \warning You can use `Link::perFrame(...)` to convert from *packets per
    * frame* to *interval values*.
    */
-  explicit LinkWireless(
-      bool forwarding = true,
-      bool retransmission = true,
-      u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
-      u32 timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-      u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-      u8 sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-      s8 asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID) {
+  explicit LinkWireless(bool forwarding = true,
+                        bool retransmission = true,
+                        u8 maxPlayers = LINK_WIRELESS_MAX_PLAYERS,
+                        u32 timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
+                        u16 interval = LINK_WIRELESS_DEFAULT_INTERVAL,
+                        u8 sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID) {
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
     maxPlayers = 2;
 #endif
@@ -328,7 +317,6 @@ class LinkWireless {
     this->config.timeout = timeout;
     this->config.interval = interval;
     this->config.sendTimerId = sendTimerId;
-    this->config.asyncACKTimerId = asyncACKTimerId;
   }
 
   /**
@@ -861,21 +849,17 @@ class LinkWireless {
     lastVBlankTime = profileStop();
     lastFrameSerialIRQs = serialIRQCount;
     lastFrameTimerIRQs = timerIRQCount;
-    lastFrameACKTimerIRQs = ackTimerIRQCount;
     serialIRQCount = 0;
     timerIRQCount = 0;
-    ackTimerIRQCount = 0;
 #endif
   }
 
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
   void _onSerial();
   void _onTimer();
-  void _onACKTimer();
 #else
   void _onSerial() { __onSerial(); }
   void _onTimer() { __onTimer(); }
-  void _onACKTimer() { __onACKTimer(); }
 #endif
 
   /**
@@ -893,40 +877,25 @@ class LinkWireless {
     linkSPI->_onSerial(true);
 
     bool hasNewData = linkSPI->getAsyncState() == LinkSPI::AsyncState::READY;
-    if (!usesAsyncACK()) {
-      if (hasNewData) {
-        if (!acknowledge()) {
-          reset();
-          lastError = ACKNOWLEDGE_FAILED;
-          return;
-        }
-      } else
+    if (hasNewData) {
+      if (!acknowledge()) {
+        reset();
+        lastError = ACKNOWLEDGE_FAILED;
         return;
-    }
+      }
+    } else
+      return;
     u32 newData = linkSPI->getAsyncData();
 
     if (!isSessionActive())
       return;
 
     if (asyncCommand.isActive) {
-      if (usesAsyncACK()) {
-        if (asyncCommand.ackStep != AsyncCommand::ACKStep::READY)
-          return;
+      if (asyncCommand.state == AsyncCommand::State::PENDING) {
+        updateAsyncCommand(newData);
 
-        if (hasNewData) {
-          linkSPI->_setSOLow();
-          asyncCommand.ackStep = AsyncCommand::ACKStep::WAITING_FOR_HIGH;
-          asyncCommand.pendingData = newData;
-          startACKTimer();
-        } else
-          return;
-      } else {
-        if (asyncCommand.state == AsyncCommand::State::PENDING) {
-          updateAsyncCommand(newData);
-
-          if (asyncCommand.state == AsyncCommand::State::COMPLETED)
-            processAsyncCommand();
-        }
+        if (asyncCommand.state == AsyncCommand::State::COMPLETED)
+          processAsyncCommand();
       }
     }
 
@@ -960,47 +929,6 @@ class LinkWireless {
 #endif
   }
 
-  /**
-   * @brief This method is called by the other TIMER interrupt handler.
-   * \warning This is internal API!
-   */
-  LINK_WIRELESS_ALWAYS_INLINE void __onACKTimer() {
-    if (!isEnabled || !asyncCommand.isActive ||
-        asyncCommand.ackStep == AsyncCommand::ACKStep::READY)
-      return;
-
-    if (asyncCommand.ackStep == AsyncCommand::ACKStep::WAITING_FOR_HIGH) {
-      if (!linkSPI->_isSIHigh())
-        return;
-
-      linkSPI->_setSOHigh();
-      asyncCommand.ackStep = AsyncCommand::ACKStep::WAITING_FOR_LOW;
-    } else if (asyncCommand.ackStep == AsyncCommand::ACKStep::WAITING_FOR_LOW) {
-      if (linkSPI->_isSIHigh())
-        return;
-
-#ifdef PROFILING_ENABLED
-      profileStart();
-#endif
-
-      linkSPI->_setSOLow();
-      asyncCommand.ackStep = AsyncCommand::ACKStep::READY;
-      stopACKTimer();
-
-      if (asyncCommand.state == AsyncCommand::State::PENDING) {
-        updateAsyncCommand(asyncCommand.pendingData);
-
-        if (asyncCommand.state == AsyncCommand::State::COMPLETED)
-          processAsyncCommand();
-      }
-
-#ifdef PROFILING_ENABLED
-      lastACKTimerTime = profileStop();
-      ackTimerIRQCount++;
-#endif
-    }
-  }
-
   struct Config {
     bool forwarding;
     bool retransmission;
@@ -1008,7 +936,6 @@ class LinkWireless {
     u32 timeout;
     u32 interval;
     u32 sendTimerId;
-    s8 asyncACKTimerId;
   };
 
   /**
@@ -1088,8 +1015,6 @@ class LinkWireless {
       DATA_REQUEST
     };
 
-    enum ACKStep { READY, WAITING_FOR_HIGH, WAITING_FOR_LOW };
-
     u8 type;
     u32 parameters[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
     u32 responses[LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
@@ -1098,8 +1023,6 @@ class LinkWireless {
     Step step;
     u32 sentParameters, totalParameters;
     u32 receivedResponses, totalResponses;
-    u32 pendingData;
-    ACKStep ackStep;
     bool isActive;
   };
 
@@ -1560,17 +1483,6 @@ class LinkWireless {
     nextAsyncCommandDataSize++;
   }
 
-  void startACKTimer() {
-    Link::_REG_TM[config.asyncACKTimerId].start = -1;
-    Link::_REG_TM[config.asyncACKTimerId].cnt =
-        Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
-  }
-
-  void stopACKTimer() {
-    Link::_REG_TM[config.asyncACKTimerId].cnt =
-        Link::_REG_TM[config.asyncACKTimerId].cnt & (~Link::_TM_ENABLE);
-  }
-
   void copyName(char* target, const char* source, u32 length) {
     u32 len = std::strlen(source);
 
@@ -1664,9 +1576,6 @@ class LinkWireless {
 
   void stop() {
     stopTimer();
-    if (usesAsyncACK())
-      stopACKTimer();
-
     linkSPI->deactivate();
   }
 
@@ -1808,8 +1717,6 @@ class LinkWireless {
     asyncCommand.totalParameters = withData ? nextAsyncCommandDataSize : 0;
     asyncCommand.receivedResponses = 0;
     asyncCommand.totalResponses = 0;
-    asyncCommand.pendingData = 0;
-    asyncCommand.ackStep = AsyncCommand::ACKStep::READY;
     asyncCommand.isActive = true;
 
     u32 command = buildCommand(type, asyncCommand.totalParameters);
@@ -1937,8 +1844,6 @@ class LinkWireless {
     return true;
   }
 
-  bool usesAsyncACK() { return config.asyncACKTimerId > -1; }
-
   bool cmdTimeout(u32& lines, u32& vCount) {
     return timeout(CMD_TIMEOUT, lines, vCount);
   }
@@ -2037,13 +1942,6 @@ inline void LINK_WIRELESS_ISR_SERIAL() {
  */
 inline void LINK_WIRELESS_ISR_TIMER() {
   linkWireless->_onTimer();
-}
-
-/**
- * @brief TIMER interrupt handler used for ACKs.
- */
-inline void LINK_WIRELESS_ISR_ACK_TIMER() {
-  linkWireless->_onACKTimer();
 }
 
 #endif  // LINK_WIRELESS_H

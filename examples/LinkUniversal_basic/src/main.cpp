@@ -43,21 +43,20 @@ int main() {
   u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_UNIVERSAL_MAX_PLAYERS;
 
   // (1) Create a LinkUniversal instance
-  linkUniversal = new LinkUniversal(
-      protocol, "LinkUNI",
-      (LinkUniversal::CableOptions){
-          .baudRate = LinkCable::BAUD_RATE_1,
-          .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-          .interval = LINK_CABLE_DEFAULT_INTERVAL,
-          .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
-      (LinkUniversal::WirelessOptions){
-          .retransmission = true,
-          .maxPlayers = maxPlayers,
-          .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-          .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-          .asyncACKTimerId = LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
-      __qran_seed);
+  linkUniversal =
+      new LinkUniversal(protocol, "LinkUNI",
+                        (LinkUniversal::CableOptions){
+                            .baudRate = LinkCable::BAUD_RATE_1,
+                            .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
+                            .interval = LINK_CABLE_DEFAULT_INTERVAL,
+                            .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
+                        (LinkUniversal::WirelessOptions){
+                            .retransmission = true,
+                            .maxPlayers = maxPlayers,
+                            .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
+                            .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
+                            .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
+                        __qran_seed);
 
   // (2) Add the required interrupt service routines
   interrupt_init();

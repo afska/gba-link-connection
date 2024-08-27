@@ -22,7 +22,7 @@ C_LinkUniversalHandle C_LinkUniversal_create(
       LinkUniversal::WirelessOptions{
           wirelessOptions.retransmission, wirelessOptions.maxPlayers,
           wirelessOptions.timeout, wirelessOptions.interval,
-          wirelessOptions.sendTimerId, wirelessOptions.asyncACKTimerId},
+          wirelessOptions.sendTimerId},
       randomSeed);
 }
 
@@ -124,9 +124,5 @@ void C_LinkUniversal_onSerial(C_LinkUniversalHandle handle) {
 
 void C_LinkUniversal_onTimer(C_LinkUniversalHandle handle) {
   static_cast<LinkUniversal*>(handle)->_onTimer();
-}
-
-void C_LinkUniversal_onACKTimer(C_LinkUniversalHandle handle) {
-  static_cast<LinkUniversal*>(handle)->_onACKTimer();
 }
 }

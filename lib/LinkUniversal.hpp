@@ -12,8 +12,6 @@
 //       irq_add(II_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
 //       irq_add(II_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
 //       irq_add(II_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-//       irq_add(II_TIMER2, LINK_UNIVERSAL_ISR_ACK_TIMER); // (*)
-//       // optional, for `LinkWireless::asyncACKTimerId` -----^
 // - 3) Initialize the library with:
 //       linkUniversal->activate();
 // - 4) Sync:
@@ -120,7 +118,6 @@ class LinkUniversal {
     u32 timeout;
     u16 interval;
     u8 sendTimerId;
-    s8 asyncACKTimerId;
   };
 
   /**
@@ -147,8 +144,7 @@ class LinkUniversal {
                                  true, LINK_UNIVERSAL_MAX_PLAYERS,
                                  LINK_WIRELESS_DEFAULT_TIMEOUT,
                                  LINK_WIRELESS_DEFAULT_INTERVAL,
-                                 LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-                                 LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID},
+                                 LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
                          int randomSeed = 123) {
     this->linkCable =
         new LinkCable(cableOptions.baudRate, cableOptions.timeout,
@@ -157,7 +153,7 @@ class LinkUniversal {
         wirelessOptions.retransmission, true,
         Link::_min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
         wirelessOptions.timeout, wirelessOptions.interval,
-        wirelessOptions.sendTimerId, wirelessOptions.asyncACKTimerId);
+        wirelessOptions.sendTimerId);
 
     this->config.protocol = protocol;
     this->config.gameName = gameName;
@@ -440,15 +436,6 @@ class LinkUniversal {
       linkWireless->_onTimer();
   }
 
-  /**
-   * @brief This method is called by the other TIMER interrupt handler.
-   * \warning This is internal API!
-   */
-  void _onACKTimer() {
-    if (mode == LINK_WIRELESS)
-      linkWireless->_onACKTimer();
-  }
-
   LinkCable* linkCable;
   LinkWireless* linkWireless;
 
@@ -710,13 +697,6 @@ inline void LINK_UNIVERSAL_ISR_SERIAL() {
  */
 inline void LINK_UNIVERSAL_ISR_TIMER() {
   linkUniversal->_onTimer();
-}
-
-/**
- * @brief TIMER interrupt handler used for ACKs.
- */
-inline void LINK_UNIVERSAL_ISR_ACK_TIMER() {
-  linkUniversal->_onACKTimer();
 }
 
 #endif  // LINK_UNIVERSAL_H

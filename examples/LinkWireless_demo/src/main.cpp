@@ -34,7 +34,7 @@ void hang();
 
 LinkWireless::Error lastError;
 LinkWireless* linkWireless = nullptr;
-bool forwarding, retransmission, asyncACK;
+bool forwarding, retransmission;
 u32 maxPlayers;
 
 void init() {
@@ -69,20 +69,17 @@ start:
       "Press A to start\n\n"
       "hold LEFT on start:\n -> disable forwarding\n\n"
       "hold UP on start:\n -> disable retransmission\n\n"
-      "hold B on start:\n -> set 2 players\n\n"
-      "hold START on start:\n -> async ACK");
+      "hold B on start:\n -> set 2 players");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
   maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
-  asyncACK = initialKeys & KEY_START;
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(
       forwarding, retransmission, maxPlayers, LINK_WIRELESS_DEFAULT_TIMEOUT,
-      LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-      asyncACK ? 0 : -1);
+      LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
   // linkWireless->debug = [](std::string str) { log(str); };
 
   // (2) Add the required interrupt service routines
@@ -93,10 +90,6 @@ start:
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_WIRELESS_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-
-  // (only required when using async ACK)
-  interrupt_set_handler(INTR_TIMER0, LINK_WIRELESS_ISR_ACK_TIMER);
-  interrupt_enable(INTR_TIMER0);
 
   // (3) Initialize the library
   linkWireless->activate();
@@ -114,8 +107,7 @@ start:
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
         (forwarding ? "ON" : "OFF") +
         "\n-> retransmission: " + (retransmission ? "ON" : "OFF") +
-        "\n-> max players: " + std::to_string(maxPlayers) +
-        "\n-> async ACK: " + (asyncACK ? "ON" : "OFF"));
+        "\n-> max players: " + std::to_string(maxPlayers));
 
     // SELECT = back
     if (keys & KEY_SELECT) {
@@ -431,22 +423,16 @@ void messageLoop() {
       output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
       output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
       output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);
-      if (asyncACK)
-        output += " | " + std::to_string(linkWireless->lastACKTimerTime);
       output +=
           "\n_serialIRQs: " + std::to_string(linkWireless->lastFrameSerialIRQs);
       output +=
           "\n_timerIRQs: " + std::to_string(linkWireless->lastFrameTimerIRQs);
-      if (asyncACK)
-        output += " | " + std::to_string(linkWireless->lastFrameACKTimerIRQs);
       output +=
           "\n_ms: " +
           std::to_string(linkWireless->toMs(
               linkWireless->lastVBlankTime +
               linkWireless->lastSerialTime * linkWireless->lastFrameSerialIRQs +
-              linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs +
-              linkWireless->lastACKTimerTime *
-                  linkWireless->lastFrameACKTimerIRQs));
+              linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs));
 #else
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";

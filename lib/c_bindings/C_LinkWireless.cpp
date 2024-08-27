@@ -12,10 +12,9 @@ C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
                                            u8 maxPlayers,
                                            u32 timeout,
                                            u16 interval,
-                                           u8 sendTimerId,
-                                           s8 asyncACKTimerId) {
+                                           u8 sendTimerId) {
   return new LinkWireless(forwarding, retransmission, maxPlayers, timeout,
-                          interval, sendTimerId, asyncACKTimerId);
+                          interval, sendTimerId);
 }
 
 void C_LinkWireless_destroy(C_LinkWirelessHandle handle) {
@@ -185,9 +184,5 @@ void C_LinkWireless_onSerial(C_LinkWirelessHandle handle) {
 
 void C_LinkWireless_onTimer(C_LinkWirelessHandle handle) {
   static_cast<LinkWireless*>(handle)->_onTimer();
-}
-
-void C_LinkWireless_onACKTimer(C_LinkWirelessHandle handle) {
-  static_cast<LinkWireless*>(handle)->_onACKTimer();
 }
 }

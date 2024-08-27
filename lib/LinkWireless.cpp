@@ -31,21 +31,5 @@ LINK_WIRELESS_CODE_IWRAM void LinkWireless::_onTimer() {
   irqEnd();
 #endif
 }
-LINK_WIRELESS_CODE_IWRAM void LinkWireless::_onACKTimer() {
-#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  if (interrupt)
-    return;
-
-  interrupt = true;
-  LINK_WIRELESS_BARRIER;
-  Link::_REG_IME = 1;
-#endif
-
-  __onACKTimer();
-
-#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  irqEnd();
-#endif
-}
 
 #endif

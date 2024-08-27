@@ -48,8 +48,7 @@ LinkUniversal* linkUniversal =
                           .maxPlayers = 2,
                           .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
                           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-                          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID,
-                          .asyncACKTimerId = 0},
+                          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
                       __qran_seed);
 LinkUniversal* linkConnection = linkUniversal;
 #endif
@@ -76,8 +75,6 @@ void init() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
-  interrupt_set_handler(INTR_TIMER0, LINK_UNIVERSAL_ISR_ACK_TIMER);
-  interrupt_enable(INTR_TIMER0);
 #endif
 }
 

@@ -44,7 +44,6 @@ typedef struct {
   u32 timeout;
   u16 interval;
   u8 sendTimerId;
-  s8 asyncACKTimerId;
 } C_LinkUniversal_WirelessOptions;
 
 C_LinkUniversalHandle C_LinkUniversal_createDefault();
@@ -90,7 +89,6 @@ u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);
 void C_LinkUniversal_onVBlank(C_LinkUniversalHandle handle);
 void C_LinkUniversal_onSerial(C_LinkUniversalHandle handle);
 void C_LinkUniversal_onTimer(C_LinkUniversalHandle handle);
-void C_LinkUniversal_onACKTimer(C_LinkUniversalHandle handle);
 
 extern C_LinkUniversalHandle cLinkUniversal;
 
@@ -104,10 +102,6 @@ inline void C_LINK_UNIVERSAL_ISR_SERIAL() {
 
 inline void C_LINK_UNIVERSAL_ISR_TIMER() {
   C_LinkUniversal_onTimer(cLinkUniversal);
-}
-
-inline void C_LINK_UNIVERSAL_ISR_ACK_TIMER() {
-  C_LinkUniversal_onACKTimer(cLinkUniversal);
 }
 
 #ifdef __cplusplus

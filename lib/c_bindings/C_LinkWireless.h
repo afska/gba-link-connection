@@ -73,8 +73,7 @@ C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
                                            u8 maxPlayers,
                                            u32 timeout,
                                            u16 interval,
-                                           u8 sendTimerId,
-                                           s8 asyncACKTimerId);
+                                           u8 sendTimerId);
 void C_LinkWireless_destroy(C_LinkWirelessHandle handle);
 
 bool C_LinkWireless_activate(C_LinkWirelessHandle handle);
@@ -122,7 +121,6 @@ u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle);
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle);
 void C_LinkWireless_onSerial(C_LinkWirelessHandle handle);
 void C_LinkWireless_onTimer(C_LinkWirelessHandle handle);
-void C_LinkWireless_onACKTimer(C_LinkWirelessHandle handle);
 
 extern C_LinkWirelessHandle cLinkWireless;
 
@@ -136,10 +134,6 @@ inline void C_LINK_WIRELESS_ISR_SERIAL() {
 
 inline void C_LINK_WIRELESS_ISR_TIMER() {
   C_LinkWireless_onTimer(cLinkWireless);
-}
-
-inline void C_LINK_WIRELESS_ISR_ACK_TIMER() {
-  C_LinkWireless_onACKTimer(cLinkWireless);
 }
 
 #ifdef __cplusplus
