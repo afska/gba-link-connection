@@ -79,7 +79,7 @@ C_LinkSomething_destroy(cLinkSomething); // C
 
 *(aka Multi-Play Mode)*
 
-This is the Link Port mode that games use for multiplayer.
+[⬆️](#gba-link-connection) This is the Link Port mode that games use for multiplayer.
 
 The library uses message queues to send/receive data and transmits when it's possible. As it uses CPU interrupts, the connection is alive even if a console drops a frame or gets stuck in a long iteration loop. After such an event, all nodes end up receiving all the pending messages.
 
@@ -131,7 +131,7 @@ Name | Return type | Description
 
 *(aka Multiboot through Multi-Play Mode)*
 
-This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
+[⬆️](#gba-link-connection) This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 3 slaves, using a single cartridge.
 
 Its demo (`LinkCableMultiboot_demo`) has all the other gba-link-connection ROMs bundled with it, so it can be used to quickly test the library.
 
@@ -151,6 +151,8 @@ Name | Return type | Description
 ⚠️ stop DMA before sending the ROM! _(you might need to stop your audio player)_
 
 # 🔧👾 LinkRawCable
+
+[⬆️](#gba-link-connection)
 
 - This is a minimal hardware wrapper designed for the *Multi-Play mode*.
 - It doesn't include any of the features of [👾 LinkCable](#-LinkCable), so it's not well suited for games.
@@ -181,7 +183,7 @@ Name | Return type | Description
 
 *(aka GBA Wireless Adapter)*
 
-This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this blog post](docs/wireless_adapter.md) is very helpful. I've updated it to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
+[⬆️](#gba-link-connection) This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this blog post](docs/wireless_adapter.md) is very helpful. I've updated it to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
 
 The library, by default, implements a lightweight protocol (on top of the adapter's message system) that sends packet IDs and checksums. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
 
@@ -251,7 +253,7 @@ Name | Return type | Description
 
 *(aka Multiboot through Wireless Adapter)*
 
-This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 4 slaves, wirelessly, using a single cartridge.
+[⬆️](#gba-link-connection) This tool allows sending Multiboot ROMs (small 256KiB programs that fit in EWRAM) from one GBA to up to 4 slaves, wirelessly, using a single cartridge.
 
 Its demo (`LinkWirelessMultiboot_demo`) has all the other gba-link-connection ROMs bundled with it, so it can be used to quickly test the library.
 
@@ -264,6 +266,8 @@ Name | Return type | Description
 `sendRom(rom, romSize, gameName, userName, gameId, players, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. The `players` must be the exact number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. During the process, the library will continuously invoke `cancel` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, as this also ensures compatibility with Multiboot via Link Cable. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
 
 # 🔧📻 LinkRawWireless
+
+[⬆️](#gba-link-connection)
 
 - This is a minimal hardware wrapper designed for the *Wireless Adapter*.
 - It doesn't include any of the features of [📻 LinkWireless](#-LinkWireless), so it's not well suited for games.
@@ -278,7 +282,7 @@ Name | Return type | Description
 
 # 🔧🏛 LinkWirelessOpenSDK
 
-All first-party games, including the Multiboot 'bootloader' sent by the adapter, use an official software-level protocol. This class provides methods for creating and reading packets that adhere to this protocol. It's supposed to be used in conjunction with [🔧📻 LinkRawWireless](#-LinkRawWireless).
+[⬆️](#gba-link-connection) All first-party games, including the Multiboot 'bootloader' sent by the adapter, use an official software-level protocol. This class provides methods for creating and reading packets that adhere to this protocol. It's supposed to be used in conjunction with [🔧📻 LinkRawWireless](#-LinkRawWireless).
 
 ## Methods
 
@@ -293,7 +297,7 @@ Name | Return type | Description
 
 # 🌎 LinkUniversal
 
-A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and tries to connect to other peers, supporting the hot swapping of cables and adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
+[⬆️](#gba-link-connection) A multiuse library that doesn't care whether you plug a Link Cable or a Wireless Adapter. It continuously switches between both and tries to connect to other peers, supporting the hot swapping of cables and adapters and all the features from [👾 LinkCable](#-LinkCable) and [📻 LinkWireless](#-LinkWireless).
 
 https://github.com/afska/gba-link-connection/assets/1631752/d1f49a48-6b17-4954-99d6-d0b7586f5730
 
@@ -329,7 +333,7 @@ Name | Return type | Description
 
 *(aka General Purpose Mode)*
 
-This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
+[⬆️](#gba-link-connection) This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/b53ddc3d-46c5-441b-9036-489150d9de9f)
 
@@ -352,7 +356,7 @@ Name | Return type | Description
 
 *(aka Normal Mode)*
 
-This is the GBA's implementation of SPI. You can use this to interact with other GBAs or computers that know SPI.
+[⬆️](#gba-link-connection) This is the GBA's implementation of SPI. You can use this to interact with other GBAs or computers that know SPI.
 
 ![screenshot](https://user-images.githubusercontent.com/1631752/213068614-875049f6-bb01-41b6-9e30-98c73cc69b25.png)
 
@@ -408,7 +412,7 @@ The GBA operates using **SPI mode 3** (`CPOL=1, CPHA=1`). Here's a connection di
 
 *(aka UART Mode)*
 
-This is the GBA's implementation of UART. You can use this to interact with a PC using a _USB to UART cable_. You can change the buffer size by setting the compile-time constant `LINK_UART_QUEUE_SIZE`.
+[⬆️](#gba-link-connection) This is the GBA's implementation of UART. You can use this to interact with a PC using a _USB to UART cable_. You can change the buffer size by setting the compile-time constant `LINK_UART_QUEUE_SIZE`.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/2ca8abb8-1a38-40bb-bf7d-bf29a0f880cd)
 
@@ -446,7 +450,7 @@ The GBA operates using `1` stop bit, but everything else can be configured. By d
 
 *(aka JOYBUS Mode)*
 
-This is the GBA's implementation of JOYBUS, in which users connect the console to a *GameCube* (or *Wii* with GC ports) using an official adapter. The library can be tested using *Dolphin/mGBA* and [gba-joybus-tester](https://github.com/afska/gba-joybus-tester).
+[⬆️](#gba-link-connection) This is the GBA's implementation of JOYBUS, in which users connect the console to a *GameCube* (or *Wii* with GC ports) using an official adapter. The library can be tested using *Dolphin/mGBA* and [gba-joybus-tester](https://github.com/afska/gba-joybus-tester).
 
 ![screenshot](https://github.com/user-attachments/assets/93c11c9a-bdbf-4726-a070-895465739789)
 
@@ -476,7 +480,7 @@ Name | Return type | Description
 
 *(aka Mobile Adapter GB)*
 
-This is a driver for an accessory that enables online conectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
+[⬆️](#gba-link-connection) This is a driver for an accessory that enables online conectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
 
 The original accessory was sold in Japan only and using it nowadays is hard since it relies on old tech, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
 
@@ -537,7 +541,7 @@ Name | Return type | Description
 
 # 🖱️ LinkPS2Mouse
 
-A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games. It's a straight port from [this library](https://github.com/kristopher/PS2-Mouse-Arduino).
+[⬆️](#gba-link-connection) A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games. It's a straight port from [this library](https://github.com/kristopher/PS2-Mouse-Arduino).
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/6856ff0d-0f06-4a9d-8ded-280052e02b8d)
 
@@ -570,7 +574,7 @@ Name | Return type | Description
 
 # ⌨️ LinkPS2Keyboard
 
-A PS/2 keyboard driver for the GBA. Use it to add keyboard support to your homebrew games.
+[⬆️](#gba-link-connection) A PS/2 keyboard driver for the GBA. Use it to add keyboard support to your homebrew games.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/4c5fa3ed-5d96-45fe-ad24-73bc3f71c63f)
 
