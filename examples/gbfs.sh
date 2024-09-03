@@ -46,7 +46,7 @@ SIZE=$(wc -c < $FILE_TMP)
 DIFF=$(($SIZE % 1024))
 if (($DIFF > 0)); then
 	PAD_NEEDED=$((1024 - $DIFF))
-	dd if=/dev/zero bs=1 count=$PAD_NEEDED >> $FILE_TMP
+	dd if=/dev/zero bs=$PAD_NEEDED count=1 >> $FILE_TMP
 fi
 if [ $? -ne 0 ]; then
   exit 1
