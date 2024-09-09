@@ -341,7 +341,7 @@ Name | Return type | Description
 
 Name | Return type | Description
 --- | --- | ---
-`reset()` | - | Resets communication mode to General Purpose. **Required to initialize the library!**
+`reset()` | - | Resets communication mode to General Purpose (same as `Link::reset()`). **Required to initialize the library!**
 `setMode(pin, direction)` | - | Configures a `pin` to use a `direction` (input or output).
 `getMode(pin)` | **LinkGPIO::Direction** | Returns the direction set at `pin`.
 `readPin(pin)` | **bool** | Returns whether a `pin` is *HIGH* or not (when set as an input).

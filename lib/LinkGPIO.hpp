@@ -50,7 +50,8 @@ class LinkGPIO {
   enum Direction { INPUT, OUTPUT };
 
   /**
-   * @brief Resets communication mode to General Purpose.
+   * @brief Resets communication mode to General Purpose (same as
+   * `Link::reset()`).
    * \warning Required to initialize the library!
    */
   void reset() {

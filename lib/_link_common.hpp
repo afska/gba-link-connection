@@ -268,6 +268,12 @@ class Queue {
   volatile bool _needsClear = false;
 };
 
+// Reset communication registers
+static inline void reset() {
+  _REG_RCNT = (1 << 15);
+  _REG_SIOCNT = 0;
+}
+
 // Packets per frame -> Timer interval
 static inline u16 perFrame(u16 packets) {
   return (1667 * 1024) / (packets * 6104);
