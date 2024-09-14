@@ -635,7 +635,7 @@ class LinkWireless {
       return false;
     }
 
-    if (!_canSend()) {
+    if (!_canAddNewMessage()) {
       if (_author < 0)
         lastError = BUFFER_IS_FULL;
       return false;
@@ -733,11 +733,19 @@ class LinkWireless {
   [[nodiscard]] bool _hasActiveAsyncCommand() { return asyncCommand.isActive; }
 
   /**
-   * @brief Returns whether there's room for new outgoing messages or not.
+   * @brief Returns whether there's room for sending messages or not.
    * \warning This is internal API!
    */
   [[nodiscard]] bool _canSend() {
     return !sessionState.outgoingMessages.isFull();
+  }
+
+  /**
+   * @brief Returns whether there's room for scheduling new messages or not.
+   * \warning This is internal API!
+   */
+  [[nodiscard]] bool _canAddNewMessage() {
+    return !sessionState.newOutgoingMessages.isFull();
   }
 
   /**
