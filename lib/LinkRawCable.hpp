@@ -44,7 +44,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.0.0";
+static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.0.1";
 
 #define LINK_RAW_CABLE_MAX_PLAYERS 4
 #define LINK_RAW_CABLE_DISCONNECTED 0xffff

@@ -80,7 +80,7 @@ int main() {
       selectRight();
 
     // Menu
-    log("LinkCableMultiboot_demo\n  (v7.0.0)\n\n"
+    log("LinkCableMultiboot_demo\n  (v7.0.1)\n\n"
         "Press A to send the ROM...\n"
         "Press B to launch the ROM...\nLEFT/RIGHT: select ROM\nL: toggle "
         "mode\n\nSelected ROM:\n  " +

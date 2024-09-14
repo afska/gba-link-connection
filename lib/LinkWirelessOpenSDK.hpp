@@ -16,7 +16,7 @@
 
 #include "LinkRawWireless.hpp"
 
-static volatile char VERSION[] = "LinkWirelessOpenSDK/v7.0.0";
+static volatile char VERSION[] = "LinkWirelessOpenSDK/v7.0.1";
 
 /**
  * @brief An open-source implementation of the "official" Wireless Adapter

@@ -37,7 +37,7 @@
 #define LINK_UART_QUEUE_SIZE 256
 #endif
 
-static volatile char LINK_UART_VERSION[] = "LinkUART/v7.0.0";
+static volatile char LINK_UART_VERSION[] = "LinkUART/v7.0.1";
 
 #define LINK_UART_BARRIER asm volatile("" ::: "memory")
 

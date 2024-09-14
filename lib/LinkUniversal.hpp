@@ -70,7 +70,7 @@
 #define LINK_UNIVERSAL_GAME_ID_FILTER 0
 #endif
 
-static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.0.0";
+static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.0.1";
 
 #define LINK_UNIVERSAL_DISCONNECTED LINK_CABLE_DISCONNECTED
 #define LINK_UNIVERSAL_NO_DATA LINK_CABLE_NO_DATA

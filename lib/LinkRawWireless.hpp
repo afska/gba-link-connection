@@ -25,7 +25,7 @@
  */
 // #define LINK_RAW_WIRELESS_ENABLE_LOGGING
 
-static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v7.0.0";
+static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v7.0.1";
 
 #define LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30

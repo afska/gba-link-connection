@@ -61,7 +61,7 @@
 #define LINK_CABLE_QUEUE_SIZE 15
 #endif
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.0";
+static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.0.1";
 
 #define LINK_CABLE_MAX_PLAYERS 4
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
