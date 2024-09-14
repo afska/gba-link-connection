@@ -22,7 +22,7 @@ A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. 
 
 > <img alt="rlabs" width="16" height="16" src="https://user-images.githubusercontent.com/1631752/116227197-400d2380-a72a-11eb-9e7b-389aae76f13e.png" /> Created by [[r]labs](https://r-labs.io).
 
-> 💬 Check out my other GBA projects: [piuGBA](https://github.com/afska/piugba), [gba-remote-play](https://github.com/afska/gba-remote-play), [gba-flashcartio](https://github.com/afska/gba-flashcartio)
+> 💬 Check out my other GBA projects: [piuGBA](https://github.com/afska/piugba), [beat-beast](https://github.com/afska/beat-beast), [gba-remote-play](https://github.com/afska/gba-remote-play), [gba-flashcartio](https://github.com/afska/gba-flashcartio).
 
 ## Usage
 
