@@ -1457,7 +1457,7 @@ class LinkWireless {
   }
 
   void copyIncomingState() {  // (irq only)
-    if (sessionState.newIncomingMessages.isReading())
+    if (sessionState.incomingMessages.isReading())
       return;
 
     while (!sessionState.newIncomingMessages.isEmpty()) {
