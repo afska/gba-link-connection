@@ -961,7 +961,7 @@ class LinkWireless {
     bool acceptCalled = false;
     bool pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-    bool sendReceiveLatch = false;
+    bool sendReceiveLatch = false;  // true = send ; false = receive
     bool shouldWaitForServer = false;
 #endif
 
@@ -1055,6 +1055,7 @@ class LinkWireless {
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   void irqEnd() {
+    Link::_REG_IME = 0;
     interrupt = false;
     LINK_WIRELESS_BARRIER;
     if (pendingVBlank) {
