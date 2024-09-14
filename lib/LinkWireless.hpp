@@ -656,7 +656,7 @@ class LinkWireless {
    * @param messages The array to be filled with data.
    */
   bool receive(Message messages[]) {
-    if (!isEnabled || state == NEEDS_RESET || !isSessionActive())
+    if (!isSessionActive())
       return false;
 
     LINK_WIRELESS_BARRIER;
