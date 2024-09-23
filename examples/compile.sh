@@ -156,11 +156,9 @@ cd ..
 
 # LinkWirelessMultiboot_demo
 cd LinkWirelessMultiboot_demo/
-sed $sed_inplace_option -e "s/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
-make rebuild
+make rebuild USERFLAGS="-LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING=1"
 cp LinkWirelessMultiboot_demo.out.gba ../LinkWirelessMultiboot_demo.gba
 cp ../hello.gbfs content.gbfs
-sed $sed_inplace_option -e "s/#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/\/\/ #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING/g" ../../lib/LinkWirelessMultiboot.hpp
 cd ..
 
 # Compile all ROMs as normal
