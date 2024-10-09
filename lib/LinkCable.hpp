@@ -55,8 +55,8 @@
  * most games.
  * \warning This affects how much memory is allocated. With the default value,
  * it's around `390` bytes. There's a double-buffered pending queue (to avoid
- * data races), 1 incoming queue and 1 outgoing queue. \warning You can
- * approximate the usage with `LINK_CABLE_QUEUE_SIZE * 26`.
+ * data races), 1 incoming queue and 1 outgoing queue.
+ * \warning You can approximate the usage with `LINK_CABLE_QUEUE_SIZE * 26`.
  */
 #define LINK_CABLE_QUEUE_SIZE 15
 #endif
