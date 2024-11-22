@@ -938,6 +938,7 @@ class LinkRawWireless {
    * @brief Sends the signal to reset the adapter.
    */
   void pingAdapter() {
+    linkGPIO->reset();
     LRWLOG("setting SO as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
     LRWLOG("setting SD as OUTPUT");
@@ -1200,12 +1201,12 @@ class LinkRawWireless {
 #endif
 
   /**
-   * @brief Builds a u32 numbers from `msB` and `lsB`
+   * @brief Builds a u32 number from `msB` and `lsB`
    */
   [[nodiscard]] u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
 
   /**
-   * @brief Builds a u16 numbers from `msB` and `lsB`
+   * @brief Builds a u16 number from `msB` and `lsB`
    */
   [[nodiscard]] u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
 

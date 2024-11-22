@@ -1623,6 +1623,7 @@ class LinkWireless {
   }
 
   void pingAdapter() {
+    linkGPIO->reset();
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     linkGPIO->writePin(LinkGPIO::SD, true);
