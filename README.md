@@ -183,7 +183,7 @@ Name | Return type | Description
 
 *(aka GBA Wireless Adapter)*
 
-[⬆️](#gba-link-connection) This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this blog post](docs/wireless_adapter.md) is very helpful. I've updated it to add more details about the things I learnt by the means of ~~reverse engineering~~ brute force and trial&error.
+[⬆️](#gba-link-connection) This is a driver for an accessory that enables wireless games up to 5 players. The inner workings of the adapter are highly unknown, but [this blog post](docs/wireless_adapter.md) is very helpful. I've updated it to add more details about the things I learned by means of ~~reverse engineering~~ brute force and trial&error.
 
 The library, by default, implements a lightweight protocol (on top of the adapter's message system) that sends packet IDs and checksums. This allows detecting disconnections, forwarding messages to all nodes, and retransmitting to prevent packet loss.
 
@@ -263,7 +263,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 
 Name | Return type | Description
 --- | --- | ---
-`sendRom(rom, romSize, gameName, userName, gameId, players, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. The `players` must be the exact number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. During the process, the library will continuously invoke `cancel` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, as this also ensures compatibility with Multiboot via Link Cable. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
+`sendRom(rom, romSize, gameName, userName, gameId, players, cancel)` | **LinkWirelessMultiboot::Result** | Sends the `rom`. The `players` must be the exact number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. During the process, the library will continuously invoke `cancel` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`.
 
 # 🔧📻 LinkRawWireless
 
@@ -480,7 +480,7 @@ Name | Return type | Description
 
 *(aka Mobile Adapter GB)*
 
-[⬆️](#gba-link-connection) This is a driver for an accessory that enables online conectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
+[⬆️](#gba-link-connection) This is a driver for an accessory that enables online connectivity on the GB and GBA. The protocol was reverse-engineered by the *REON Team*.
 
 The original accessory was sold in Japan only and using it nowadays is hard since it relies on old tech, but REON has created an open-source implementation called [libmobile](https://github.com/REONTeam/libmobile), as well as support for emulators and microcontrollers.
 
