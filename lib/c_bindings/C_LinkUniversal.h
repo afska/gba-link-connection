@@ -83,7 +83,7 @@ C_LinkUniversal_Protocol C_LinkUniversal_getProtocol(
 void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
                                  C_LinkUniversal_Protocol protocol);
 
-void C_LinkUniversal_updateInterval(C_LinkUniversalHandle handle);
+void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle);
 
 u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle);
 u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);

@@ -106,8 +106,8 @@ void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
       static_cast<LinkUniversal::Protocol>(protocol));
 }
 
-void C_LinkUniversal_updateInterval(C_LinkUniversalHandle handle) {
-  return static_cast<LinkUniversal*>(handle)->updateInterval();
+void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->resetTimer();
 }
 
 u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {

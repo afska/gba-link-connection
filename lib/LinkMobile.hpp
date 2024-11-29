@@ -494,6 +494,7 @@ class LinkMobile {
    * reuse the struct. When the transfer is completed, the `completed` field
    * will be `true`. If the transfer was successful, the `success` field will be
    * `true`.
+   * @param connectionId The ID of the connection (or `0xff` for P2P).
    * \warning Non-blocking. Returns `true` immediately, or `false` if
    * there's no active call or available request slots.
    */

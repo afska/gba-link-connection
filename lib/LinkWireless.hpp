@@ -722,10 +722,9 @@ class LinkWireless {
   }
 
   /**
-   * @brief Restarts the send timer using `config.interval` without
-   * disconnecting.
+   * @brief Restarts the send timer without disconnecting.
    */
-  void updateInterval() {
+  void resetTimer() {
     if (!isEnabled)
       return;
 
@@ -953,9 +952,9 @@ class LinkWireless {
     bool forwarding;
     bool retransmission;
     u8 maxPlayers;
-    u32 timeout;
-    u16 interval;
-    u8 sendTimerId;
+    u32 timeout;     // can be changed in realtime
+    u16 interval;    // can be changed in realtime, but call `resetTimer()`
+    u8 sendTimerId;  // can be changed in realtime, but call `resetTimer()`
   };
 
   /**

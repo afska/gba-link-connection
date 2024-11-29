@@ -73,8 +73,8 @@ void C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
   static_cast<LinkCable*>(handle)->send(data);
 }
 
-void C_LinkCable_updateInterval(C_LinkCableHandle handle) {
-  static_cast<LinkCable*>(handle)->updateInterval();
+void C_LinkCable_resetTimer(C_LinkCableHandle handle) {
+  static_cast<LinkCable*>(handle)->resetTimer();
 }
 
 void C_LinkCable_onVBlank(C_LinkCableHandle handle) {

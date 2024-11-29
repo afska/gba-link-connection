@@ -67,11 +67,11 @@ u16 getInterval() {
 void setInterval(u16 interval) {
 #ifndef USE_LINK_UNIVERSAL
   linkConnection->config.interval = interval;
-  linkConnection->updateInterval();
+  linkConnection->resetTimer();
 #else
   linkConnection->linkCable->config.interval = interval;
   linkConnection->linkWireless->config.interval = interval;
-  linkConnection->updateInterval();
+  linkConnection->resetTimer();
 #endif
 }
 
@@ -164,11 +164,11 @@ void test(bool withSync) {
     }
     if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
       setInterval(getInterval() + 5);
-      linkConnection->updateInterval();
+      linkConnection->resetTimer();
     }
     if (didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
       setInterval(getInterval() - 5);
-      linkConnection->updateInterval();
+      linkConnection->resetTimer();
     }
 
     linkConnection->sync();
@@ -266,12 +266,12 @@ void measureLatency(bool withPong) {
     }
     if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
       setInterval(getInterval() + 5);
-      linkConnection->updateInterval();
+      linkConnection->resetTimer();
       counter = samples = totalMs = 0;
     }
     if (didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
       setInterval(getInterval() - 5);
-      linkConnection->updateInterval();
+      linkConnection->resetTimer();
       counter = samples = totalMs = 0;
     }
 

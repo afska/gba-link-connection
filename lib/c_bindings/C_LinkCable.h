@@ -50,7 +50,7 @@ u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
 
 void C_LinkCable_send(C_LinkCableHandle handle, u16 data);
 
-void C_LinkCable_updateInterval(C_LinkCableHandle handle);
+void C_LinkCable_resetTimer(C_LinkCableHandle handle);
 
 void C_LinkCable_onVBlank(C_LinkCableHandle handle);
 void C_LinkCable_onSerial(C_LinkCableHandle handle);
