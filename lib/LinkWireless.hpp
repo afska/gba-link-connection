@@ -208,6 +208,7 @@ class LinkWireless {
   static constexpr int COMMAND_BROADCAST = 0x16;
   static constexpr int COMMAND_START_HOST = 0x19;
   static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1a;
+  static constexpr int COMMAND_END_HOST = 0x1b;
   static constexpr int COMMAND_BROADCAST_READ_START = 0x1c;
   static constexpr int COMMAND_BROADCAST_READ_POLL = 0x1d;
   static constexpr int COMMAND_BROADCAST_READ_END = 0x1e;
@@ -434,6 +435,40 @@ class LinkWireless {
 
     wait(TRANSFER_WAIT);
     state = SERVING;
+
+    return true;
+  }
+
+  /**
+   * @brief Closes the server while keeping the session active, to prevent new
+   * users from joining the room.
+   * \warning Closing the server can fail if the adapter is busy. In that case,
+   * this will return `false` and `getLastError()` will be `BUSY_TRY_AGAIN`.
+   */
+  bool closeServer() {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (state != SERVING) {
+      lastError = WRONG_STATE;
+      return false;
+    }
+
+    isSendingSyncCommand = true;
+    if (asyncCommand.isActive) {
+      lastError = BUSY_TRY_AGAIN;
+      isSendingSyncCommand = false;
+      return false;
+    }
+
+    sessionState.serverClosed = true;
+    sessionState.acceptCalled = true;
+
+    bool success = sendCommand(COMMAND_END_HOST, false).success;
+
+    if (!success) {
+      reset();
+      lastError = COMMAND_FAILED;
+      return false;
+    }
 
     return true;
   }
@@ -861,7 +896,8 @@ class LinkWireless {
 #endif
 
     sessionState.recvFlag = false;
-    sessionState.acceptCalled = false;
+    if (!sessionState.serverClosed)
+      sessionState.acceptCalled = false;
     sessionState.pingSent = false;
 
 #ifdef PROFILING_ENABLED
@@ -978,6 +1014,7 @@ class LinkWireless {
     bool msgFlags[LINK_WIRELESS_MAX_PLAYERS];    // (~= LinkCable::msgFlags)
 
     bool acceptCalled = false;
+    bool serverClosed = false;
     bool pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     bool sendReceiveLatch = false;  // true = send ; false = receive
@@ -1567,6 +1604,7 @@ class LinkWireless {
     this->sessionState.recvFlag = false;
     this->sessionState.recvTimeout = 0;
     this->sessionState.acceptCalled = false;
+    this->sessionState.serverClosed = false;
     this->sessionState.pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     this->sessionState.sendReceiveLatch = false;

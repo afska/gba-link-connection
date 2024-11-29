@@ -363,6 +363,17 @@ void messageLoop() {
           waitFor(KEY_DOWN);
         }
       }
+
+      // In the profiler ROM, pressing START+UP will close the server
+      if ((keys & KEY_START) &&
+          linkWireless->getState() == LinkWireless::State::SERVING) {
+        linkWireless->closeServer();
+        if (linkWireless->getLastError() ==
+            LinkWireless::Error::BUSY_TRY_AGAIN) {
+          log("Busy!");
+          waitFor(KEY_DOWN);
+        }
+      }
 #endif
 
       altView = !altView;

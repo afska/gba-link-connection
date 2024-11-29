@@ -40,6 +40,10 @@ bool C_LinkWireless_serve(C_LinkWirelessHandle handle,
   return static_cast<LinkWireless*>(handle)->serve(gameName, userName, gameId);
 }
 
+bool C_LinkWireless_closeServer(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->closeServer();
+}
+
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
                                C_LinkWireless_Server servers[]) {
   LinkWireless::Server cppServers[C_LINK_WIRELESS_MAX_SERVERS];

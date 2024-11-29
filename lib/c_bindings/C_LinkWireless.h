@@ -93,6 +93,7 @@ bool C_LinkWireless_serve(C_LinkWirelessHandle handle,
                           const char* gameName,
                           const char* userName,
                           u16 gameId);
+bool C_LinkWireless_closeServer(C_LinkWirelessHandle handle);
 
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
                                C_LinkWireless_Server servers[]);
