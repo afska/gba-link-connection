@@ -5,7 +5,6 @@
 //   - The units will start running at the same time when both receive a 1.
 //   - When a GBA receives something not equal to previousValue + 1, it hangs.
 //   - It should continue until reaching 65534, with no packet loss.
-//   - The user can purposely mess up the sync by pressing START to add lag.
 // B) Packet sync test:
 //   - Like (A), but using synchronous transfers.
 //   - The test will ensure the remote counters match local counters.
@@ -13,6 +12,9 @@
 //   - Measures how much time it takes to receive a packet from the other node.
 // R) Measure ping-pong latency:
 //   - Like (L), but adding a validation response and adding that time.
+// Controls:
+// - The user can purposely mess up the sync by pressing START to add lag.
+// - The interval can be changed mid-test with the LEFT/RIGHT keys.
 
 #include "main.h"
 #include <string>
@@ -25,6 +27,7 @@ void measureLatency(bool withPong);
 void forceSync();
 void log(std::string text);
 void waitFor(u16 key);
+bool didPress(u16 key, bool& pressed);
 void wait(u32 verticalLines);
 bool needsReset();
 void profileStart();
@@ -52,6 +55,25 @@ LinkUniversal* linkUniversal =
                       __qran_seed);
 LinkUniversal* linkConnection = linkUniversal;
 #endif
+
+u16 getInterval() {
+#ifndef USE_LINK_UNIVERSAL
+  return linkConnection->config.interval;
+#else
+  return linkConnection->linkCable->config.interval;
+#endif
+}
+
+void setInterval(u16 interval) {
+#ifndef USE_LINK_UNIVERSAL
+  linkConnection->config.interval = interval;
+  linkConnection->updateInterval();
+#else
+  linkConnection->linkCable->config.interval = interval;
+  linkConnection->linkWireless->config.interval = interval;
+  linkConnection->updateInterval();
+#endif
+}
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -92,28 +114,19 @@ int main() {
 
     output +=
         "A: Test packet loss\nB: Test packet sync\nL: Measure ping latency\nR: "
-        "Measure ping-pong latency\n\nLEFT: t=100\nRIGHT: t=25\nDOWN: "
-        "t=200\nUP: t=10\nSTART: Add lag\nSELECT: Reset ";
+        "Measure ping-pong latency\n\nHold DOWN: Initial t=100\nHold UP: "
+        "Initial t=25\n\nLEFT/RIGHT: Change t\nSTART: Add lag\nSELECT: Reset ";
     log(output);
 
     waitFor(KEY_A | KEY_B | KEY_L | KEY_R);
     u16 initialKeys = ~REG_KEYS & KEY_ANY;
 
     u32 interval = 50;
-    if (initialKeys & KEY_LEFT)
-      interval = 100;
-    if (initialKeys & KEY_RIGHT)
-      interval = 25;
     if (initialKeys & KEY_DOWN)
-      interval = 200;
+      interval = 100;
     if (initialKeys & KEY_UP)
-      interval = 10;
-#ifndef USE_LINK_UNIVERSAL
-    linkConnection->config.interval = interval;
-#else
-    linkConnection->linkCable->config.interval = interval;
-    linkConnection->linkWireless->config.interval = interval;
-#endif
+      interval = 25;
+    setInterval(interval);
 
     linkConnection->activate();
 
@@ -135,6 +148,8 @@ void test(bool withSync) {
   u16 expectedCounter = 0;
   bool error = false;
   u16 receivedRemoteCounter = 0;
+  bool increasingInterval = false;
+  bool decreasingInterval = false;
 
   log("Waiting for data...");
 
@@ -142,18 +157,26 @@ void test(bool withSync) {
     if (needsReset())
       return;
 
+    u16 keys = ~REG_KEYS & KEY_ANY;
+    if (keys & KEY_START) {
+      log("Lagging...");
+      wait(1500);
+    }
+    if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
+      setInterval(getInterval() + 5);
+      linkConnection->updateInterval();
+    }
+    if (didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
+      setInterval(getInterval() - 5);
+      linkConnection->updateInterval();
+    }
+
     linkConnection->sync();
     auto playerCount = linkConnection->playerCount();
 
     std::string output = "";
 
     if (linkConnection->isConnected() && playerCount == 2) {
-      u16 keys = ~REG_KEYS & KEY_ANY;
-      if (keys & KEY_START) {
-        log("Lagging...");
-        wait(1500);
-      }
-
       auto currentPlayerId = linkConnection->currentPlayerId();
       auto remotePlayerId = !currentPlayerId;
 
@@ -229,10 +252,28 @@ void measureLatency(bool withPong) {
   u32 counter = 0;
   u32 samples = 0;
   u32 totalMs = 0;
+  bool increasingInterval = false;
+  bool decreasingInterval = false;
 
   while (true) {
     if (needsReset())
       return;
+
+    u16 keys = ~REG_KEYS & KEY_ANY;
+    if (keys & KEY_START) {
+      log("Lagging...");
+      wait(1500);
+    }
+    if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
+      setInterval(getInterval() + 5);
+      linkConnection->updateInterval();
+      counter = samples = totalMs = 0;
+    }
+    if (didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
+      setInterval(getInterval() - 5);
+      linkConnection->updateInterval();
+      counter = samples = totalMs = 0;
+    }
 
     linkConnection->sync();
     auto playerCount = linkConnection->playerCount();
@@ -319,6 +360,18 @@ void waitFor(u16 key) {
   do {
     keys = ~REG_KEYS & KEY_ANY;
   } while (!(keys & key));
+}
+
+bool didPress(u16 key, bool& pressed) {
+  u16 keys = ~REG_KEYS & KEY_ANY;
+  bool isPressedNow = false;
+  if ((keys & key) && !pressed) {
+    pressed = true;
+    isPressedNow = true;
+  }
+  if (pressed && !(keys & key))
+    pressed = false;
+  return isPressedNow;
 }
 
 void wait(u32 verticalLines) {

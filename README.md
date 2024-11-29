@@ -124,6 +124,7 @@ Name | Return type | Description
 `read(playerId)` | **u16** | Dequeues and returns the next message from player #`playerId`. If there's no data from that player, a `0` will be returned.
 `peek(playerId)` | **u16** | Returns the next message from player #`playerId` without dequeuing it. If there's no data from that player, a `0` will be returned.
 `send(data)` | - | Sends `data` to all connected players.
+`updateInterval()` | - | Restarts the send timer using `config.interval` without disconnecting.
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
 
@@ -246,6 +247,7 @@ Name | Return type | Description
 `playerCount()` | **u8** *(1~5)* | Returns the number of connected players.
 `currentPlayerId()` | **u8** *(0~4)* | Returns the current player ID.
 `getLastError([clear])` | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared if `clear` is `true` (default behavior).
+`updateInterval()` | - | Restarts the send timer using `config.interval` without disconnecting.
 
 ⚠️ `0xFFFF` is a reserved value, so don't send it!
 
@@ -328,6 +330,7 @@ Name | Return type | Description
 `getProtocol()` | **LinkUniversal::Protocol** | Returns the active protocol (one of `LinkUniversal::Protocol::AUTODETECT`, `LinkUniversal::Protocol::CABLE`, `LinkUniversal::Protocol::WIRELESS_AUTO`, `LinkUniversal::Protocol::WIRELESS_SERVER`, or `LinkUniversal::Protocol::WIRELESS_CLIENT`).
 `getWirelessState()` | **LinkWireless::State** | Returns the wireless state (same as [📻 LinkWireless](#-LinkWireless)'s `getState()`).
 `setProtocol(protocol)` | - | Sets the active `protocol`.
+`updateInterval()` | - | Restarts the send timers using `linkCable->config.interval` and `linkWireless->config.interval` without disconnecting.
 
 # 🔌 LinkGPIO
 

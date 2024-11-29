@@ -138,6 +138,10 @@ C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
       static_cast<LinkWireless*>(handle)->getLastError(clear));
 }
 
+void C_LinkWireless_updateInterval(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->updateInterval();
+}
+
 bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->_hasActiveAsyncCommand();
 }

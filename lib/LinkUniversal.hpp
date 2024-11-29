@@ -386,6 +386,20 @@ class LinkUniversal {
    */
   void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
 
+  /**
+   * @brief Restarts the send timer using `config.interval` without
+   * disconnecting.
+   */
+  void updateInterval() {
+    if (!isEnabled)
+      return;
+
+    if (linkCable->isActive())
+      linkCable->updateInterval();
+    if (linkWireless->isActive())
+      linkWireless->updateInterval();
+  }
+
   ~LinkUniversal() {
     delete linkCable;
     delete linkWireless;

@@ -721,6 +721,18 @@ class LinkWireless {
     return error;
   }
 
+  /**
+   * @brief Restarts the send timer using `config.interval` without
+   * disconnecting.
+   */
+  void updateInterval() {
+    if (!isEnabled)
+      return;
+
+    stopTimer();
+    startTimer();
+  }
+
   ~LinkWireless() {
     delete linkSPI;
     delete linkGPIO;
@@ -942,8 +954,8 @@ class LinkWireless {
     bool retransmission;
     u8 maxPlayers;
     u32 timeout;
-    u32 interval;
-    u32 sendTimerId;
+    u16 interval;
+    u8 sendTimerId;
   };
 
   /**

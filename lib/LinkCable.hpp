@@ -267,6 +267,18 @@ class LinkCable {
   }
 
   /**
+   * @brief Restarts the send timer using `config.interval` without
+   * disconnecting.
+   */
+  void updateInterval() {
+    if (!isEnabled)
+      return;
+
+    stopTimer();
+    startTimer();
+  }
+
+  /**
    * @brief This method is called by the VBLANK interrupt handler.
    * \warning This is internal API!
    */
@@ -356,7 +368,7 @@ class LinkCable {
   struct Config {
     BaudRate baudRate;
     u32 timeout;
-    u32 interval;
+    u16 interval;
     u8 sendTimerId;
   };
 

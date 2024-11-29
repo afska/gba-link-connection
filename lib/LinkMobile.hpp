@@ -707,7 +707,7 @@ class LinkMobile {
 
   struct Config {
     u32 timeout;
-    u32 timerId;
+    u8 timerId;
   };
 
   /**

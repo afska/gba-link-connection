@@ -107,6 +107,8 @@ u8 C_LinkWireless_currentPlayerId(C_LinkWirelessHandle handle);
 C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
                                                  bool clear);
 
+void C_LinkWireless_updateInterval(C_LinkWirelessHandle handle);
+
 bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle);
 bool C_LinkWireless_canSend(C_LinkWirelessHandle handle);
 
