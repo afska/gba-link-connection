@@ -67,6 +67,15 @@ typedef struct {
   u8 currentPlayerCount;
 } C_LinkWireless_Server;
 
+typedef struct {
+  bool forwarding;
+  bool retransmission;
+  u8 maxPlayers;
+  u32 timeout;     // can be changed in realtime
+  u16 interval;    // can be changed in realtime, but call `resetTimer()`
+  u8 sendTimerId;  // can be changed in realtime, but call `resetTimer()`
+} C_LinkWireless_Config;
+
 C_LinkWirelessHandle C_LinkWireless_createDefault();
 C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
                                            bool retransmission,
@@ -108,6 +117,10 @@ C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
                                                  bool clear);
 
 void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle);
+
+C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle);
+void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
+                              C_LinkWireless_Config config);
 
 bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle);
 bool C_LinkWireless_canSend(C_LinkWirelessHandle handle);

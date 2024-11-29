@@ -23,6 +23,13 @@ typedef enum {
   C_LINK_CABLE_BAUD_RATE_3   // 115200 bps
 } C_LinkCable_BaudRate;
 
+typedef struct {
+  C_LinkCable_BaudRate baudRate;
+  u32 timeout;     // can be changed in realtime
+  u16 interval;    // can be changed in realtime, but call `resetTimer()`
+  u8 sendTimerId;  // can be changed in realtime, but call `resetTimer()`
+} C_LinkCable_Config;
+
 C_LinkCableHandle C_LinkCable_createDefault();
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,
                                      u32 timeout,
@@ -51,6 +58,9 @@ u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
 void C_LinkCable_send(C_LinkCableHandle handle, u16 data);
 
 void C_LinkCable_resetTimer(C_LinkCableHandle handle);
+
+C_LinkCable_Config C_LinkCable_getConfig(C_LinkCableHandle handle);
+void C_LinkCable_setConfig(C_LinkCableHandle handle, C_LinkCable_Config config);
 
 void C_LinkCable_onVBlank(C_LinkCableHandle handle);
 void C_LinkCable_onSerial(C_LinkCableHandle handle);

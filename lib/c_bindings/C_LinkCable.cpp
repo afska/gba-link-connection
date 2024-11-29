@@ -77,6 +77,25 @@ void C_LinkCable_resetTimer(C_LinkCableHandle handle) {
   static_cast<LinkCable*>(handle)->resetTimer();
 }
 
+C_LinkCable_Config C_LinkCable_getConfig(C_LinkCableHandle handle) {
+  C_LinkCable_Config config;
+  config.baudRate = static_cast<C_LinkCable_BaudRate>(
+      static_cast<LinkCable*>(handle)->config.baudRate);
+  config.timeout = static_cast<LinkCable*>(handle)->config.timeout;
+  config.interval = static_cast<LinkCable*>(handle)->config.interval;
+  config.sendTimerId = static_cast<LinkCable*>(handle)->config.sendTimerId;
+  return config;
+}
+
+void C_LinkCable_setConfig(C_LinkCableHandle handle,
+                           C_LinkCable_Config config) {
+  static_cast<LinkCable*>(handle)->config.baudRate =
+      static_cast<LinkCable::BaudRate>(config.baudRate);
+  static_cast<LinkCable*>(handle)->config.timeout = config.timeout;
+  static_cast<LinkCable*>(handle)->config.interval = config.interval;
+  static_cast<LinkCable*>(handle)->config.sendTimerId = config.sendTimerId;
+}
+
 void C_LinkCable_onVBlank(C_LinkCableHandle handle) {
   static_cast<LinkCable*>(handle)->_onVBlank();
 }

@@ -142,6 +142,29 @@ void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->resetTimer();
 }
 
+C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle) {
+  C_LinkWireless_Config config;
+  config.forwarding = static_cast<LinkWireless*>(handle)->config.forwarding;
+  config.retransmission =
+      static_cast<LinkWireless*>(handle)->config.retransmission;
+  config.maxPlayers = static_cast<LinkWireless*>(handle)->config.maxPlayers;
+  config.timeout = static_cast<LinkWireless*>(handle)->config.timeout;
+  config.interval = static_cast<LinkWireless*>(handle)->config.interval;
+  config.sendTimerId = static_cast<LinkWireless*>(handle)->config.sendTimerId;
+  return config;
+}
+
+void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
+                              C_LinkWireless_Config config) {
+  static_cast<LinkWireless*>(handle)->config.forwarding = config.forwarding;
+  static_cast<LinkWireless*>(handle)->config.retransmission =
+      config.retransmission;
+  static_cast<LinkWireless*>(handle)->config.maxPlayers = config.maxPlayers;
+  static_cast<LinkWireless*>(handle)->config.timeout = config.timeout;
+  static_cast<LinkWireless*>(handle)->config.interval = config.interval;
+  static_cast<LinkWireless*>(handle)->config.sendTimerId = config.sendTimerId;
+}
+
 bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->_hasActiveAsyncCommand();
 }

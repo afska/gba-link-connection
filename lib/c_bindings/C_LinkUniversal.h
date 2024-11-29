@@ -6,6 +6,8 @@ extern "C" {
 #endif
 
 #include <tonc_core.h>
+#include "C_LinkCable.h"
+#include "C_LinkWireless.h"
 
 typedef void* C_LinkUniversalHandle;
 
@@ -87,6 +89,10 @@ void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle);
 
 u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle);
 u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);
+
+C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle);
+C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
+    C_LinkUniversalHandle handle);
 
 void C_LinkUniversal_onVBlank(C_LinkUniversalHandle handle);
 void C_LinkUniversal_onSerial(C_LinkUniversalHandle handle);

@@ -118,6 +118,15 @@ u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->_getSubWaitCount();
 }
 
+C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->linkCable;
+}
+
+C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
+    C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->linkWireless;
+}
+
 void C_LinkUniversal_onVBlank(C_LinkUniversalHandle handle) {
   static_cast<LinkUniversal*>(handle)->_onVBlank();
 }
