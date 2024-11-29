@@ -95,7 +95,7 @@ void C_LinkRawWireless_destroy(C_LinkRawWirelessHandle handle);
 
 bool C_LinkRawWireless_isActive(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_activate(C_LinkRawWirelessHandle handle);
-bool C_LinkRawWireless_deactivate(C_LinkRawWirelessHandle handle);
+void C_LinkRawWireless_deactivate(C_LinkRawWirelessHandle handle);
 
 bool C_LinkRawWireless_setup(C_LinkRawWirelessHandle handle,
                              u8 maxPlayers,
@@ -141,6 +141,8 @@ bool C_LinkRawWireless_receiveData(
     C_LinkRawWireless_ReceiveDataResponse* response);
 bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
                             C_LinkRawWireless_RemoteCommand* remoteCommand);
+
+bool C_LinkRawWireless_bye(C_LinkRawWirelessHandle handle);
 
 u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle);
 C_LinkRawWireless_State C_LinkRawWireless_getState(

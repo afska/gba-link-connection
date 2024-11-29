@@ -182,14 +182,10 @@ class LinkRawWireless {
   /**
    * @brief Deactivates the library.
    */
-  bool deactivate() {
-    bool success = sendCommand(COMMAND_BYE).success;
-
+  void deactivate() {
     isEnabled = false;
     resetState();
     stop();
-
-    return success;
   }
 
   /**
@@ -625,6 +621,11 @@ class LinkRawWireless {
 
     return remoteCommand.success;
   }
+
+  /**
+   * @brief Calls the Bye (`3d`) command.
+   */
+  bool bye() { return sendCommand(COMMAND_BYE).success; }
 
   /**
    * @brief Calls an arbitrary command and returns the response.

@@ -18,8 +18,8 @@ bool C_LinkRawWireless_activate(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->activate();
 }
 
-bool C_LinkRawWireless_deactivate(C_LinkRawWirelessHandle handle) {
-  return static_cast<LinkRawWireless*>(handle)->deactivate();
+void C_LinkRawWireless_deactivate(C_LinkRawWirelessHandle handle) {
+  static_cast<LinkRawWireless*>(handle)->deactivate();
 }
 
 bool C_LinkRawWireless_setup(C_LinkRawWirelessHandle handle,
@@ -197,6 +197,10 @@ bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
   std::memcpy(remoteCommand->params, nativeRemoteCommand.params,
               LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
   return success;
+}
+
+bool C_LinkRawWireless_bye(C_LinkRawWirelessHandle handle) {
+  return static_cast<LinkRawWireless*>(handle)->bye();
 }
 
 u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle) {
