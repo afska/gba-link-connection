@@ -264,6 +264,10 @@ void MultibootScene::processButtons() {
         romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
         [](LinkWirelessMultiboot::MultibootProgress progress) {
           u16 keys = ~REG_KEYS & KEY_ANY;
+          if (keys & KEY_A) {
+            // A = Start transfer before the player count is reached
+            *progress.ready = true;
+          }
           return (keys & KEY_L) && (keys & KEY_R);
         });
     log("-> result: " + std::to_string(result));

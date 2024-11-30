@@ -38,6 +38,7 @@ typedef struct {
   C_LinkWirelessMultiboot_State state;
   u32 connectedClients;
   u32 percentage;
+  bool* ready;
 } C_LinkWirelessMultiboot_Progress;
 
 typedef bool (*C_LinkWirelessMultiboot_CancelCallback)(

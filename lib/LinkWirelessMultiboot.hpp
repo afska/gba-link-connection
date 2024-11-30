@@ -123,6 +123,7 @@ class LinkWirelessMultiboot {
     State state = STOPPED;
     u32 connectedClients = 0;
     u32 percentage = 0;
+    bool* ready = nullptr;
   };
 
   /**
@@ -140,6 +141,8 @@ class LinkWirelessMultiboot {
    * the ROM bytes.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted.
+   * \warning You can start the transfer before the player count is reached by
+   * running `*progress.ready = true;` in the `cancel` callback.
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename C>
@@ -157,6 +160,8 @@ class LinkWirelessMultiboot {
     if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
       return INVALID_PLAYERS;
+
+    resetState();
 
     _LWMLOG_("starting...");
     LINK_WIRELESS_MULTIBOOT_TRY(activate())
@@ -333,6 +338,7 @@ class LinkWirelessMultiboot {
   };
 
   MultibootProgress progress;
+  volatile bool readyFlag = false;
   volatile Result lastResult;
   ClientHeader lastValidHeader;
 
@@ -381,7 +387,8 @@ class LinkWirelessMultiboot {
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
 
     u32 currentPlayers = 1;
-    while (linkRawWireless->playerCount() < players) {
+    while (linkRawWireless->playerCount() < players &&
+           (!readyFlag || linkRawWireless->playerCount() <= 1)) {
       if (cancel(progress))
         return finish(CANCELED);
 
@@ -398,6 +405,8 @@ class LinkWirelessMultiboot {
         LINK_WIRELESS_MULTIBOOT_TRY(handshakeClient(lastClientNumber, cancel))
       }
     }
+
+    readyFlag = true;
 
     return SUCCESS;
   }
@@ -762,10 +771,16 @@ class LinkWirelessMultiboot {
 
   __attribute__((noinline)) Result finish(Result result) {
     linkRawWireless->deactivate();
+    resetState();
+    return result;
+  }
+
+  void resetState() {
     progress.state = STOPPED;
     progress.connectedClients = 0;
     progress.percentage = 0;
-    return result;
+    progress.ready = &readyFlag;
+    readyFlag = false;
   }
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING

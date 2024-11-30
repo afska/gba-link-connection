@@ -28,6 +28,7 @@ C_LinkWirelessMultiboot_Result C_LinkWirelessMultiboot_sendRom(
             static_cast<C_LinkWirelessMultiboot_State>(progress.state);
         cProgress.connectedClients = progress.connectedClients;
         cProgress.percentage = progress.percentage;
+        cProgress.ready = progress.ready;
         return cancel(cProgress);
       });
 
