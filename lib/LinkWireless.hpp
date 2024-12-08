@@ -447,7 +447,7 @@ class LinkWireless {
    */
   bool closeServer() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (state != SERVING) {
+    if (state != SERVING || sessionState.serverClosed) {
       lastError = WRONG_STATE;
       return false;
     }
