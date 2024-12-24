@@ -945,10 +945,10 @@ class LinkRawWireless {
     LRWLOG("setting SD as OUTPUT");
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     LRWLOG("setting SD = HIGH");
-    linkGPIO->writePin(LinkGPIO::SD, true);
+    linkGPIO->writePin(LinkGPIO::Pin::SD, true);
     wait(PING_WAIT);
     LRWLOG("setting SD = LOW");
-    linkGPIO->writePin(LinkGPIO::SD, false);
+    linkGPIO->writePin(LinkGPIO::Pin::SD, false);
   }
 
   /**

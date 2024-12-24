@@ -1675,9 +1675,9 @@ class LinkWireless {
     linkGPIO->reset();
     linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
-    linkGPIO->writePin(LinkGPIO::SD, true);
+    linkGPIO->writePin(LinkGPIO::Pin::SD, true);
     wait(PING_WAIT);
-    linkGPIO->writePin(LinkGPIO::SD, false);
+    linkGPIO->writePin(LinkGPIO::Pin::SD, false);
   }
 
   bool login() {
