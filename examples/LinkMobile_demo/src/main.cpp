@@ -174,6 +174,12 @@ void handleP2P() {
   }
 
   if (dataTransfer.completed) {
+    if (!dataTransfer.success) {
+      // Hang up when a transfer fails
+      linkMobile->hangUp();
+      return;
+    }
+
     // Save a copy of last received data
     if (dataTransfer.size > 0)
       lastCompletedTransfer = dataTransfer;
