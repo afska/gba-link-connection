@@ -156,7 +156,7 @@ cd ..
 
 # LinkWirelessMultiboot_demo
 cd LinkWirelessMultiboot_demo/
-make rebuild USERFLAGS="-LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING=1"
+make rebuild USERFLAGS="-DLINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING=1"
 cp LinkWirelessMultiboot_demo.out.gba ../LinkWirelessMultiboot_demo.gba
 cp ../hello.gbfs content.gbfs
 cd ..
