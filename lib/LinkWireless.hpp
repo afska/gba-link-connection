@@ -734,6 +734,11 @@ class LinkWireless {
   }
 
   /**
+   * @brief Returns `true` if the server was closed with `closeServer()`.
+   */
+  [[nodiscard]] bool isServerClosed() { return sessionState.serverClosed; }
+
+  /**
    * @brief Returns the number of connected players.
    */
   [[nodiscard]] u8 playerCount() { return sessionState.playerCount; }

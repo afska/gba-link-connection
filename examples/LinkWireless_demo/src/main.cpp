@@ -353,24 +353,27 @@ void messageLoop() {
     if (didPress(KEY_UP, switching)) {
 #ifdef PROFILING_ENABLED
       // In the profiler ROM, pressing UP will update the broadcast data
-      if (linkWireless->getState() == LinkWireless::State::SERVING) {
+      if (linkWireless->getState() == LinkWireless::State::SERVING &&
+          !(keys & KEY_START)) {
         linkWireless->serve("LinkWireless",
                             ("N = " + std::to_string(counters[0])).c_str(),
                             counters[0]);
         if (linkWireless->getLastError() ==
             LinkWireless::Error::BUSY_TRY_AGAIN) {
-          log("Busy!");
+          log("Busy! Can't update.");
           waitFor(KEY_DOWN);
         }
       }
 
       // In the profiler ROM, pressing START+UP will close the server
-      if ((keys & KEY_START) &&
-          linkWireless->getState() == LinkWireless::State::SERVING) {
-        linkWireless->closeServer();
-        if (linkWireless->getLastError() ==
-            LinkWireless::Error::BUSY_TRY_AGAIN) {
-          log("Busy!");
+      if (linkWireless->getState() == LinkWireless::State::SERVING &&
+          !linkWireless->isServerClosed() && (keys & KEY_START)) {
+        if (linkWireless->closeServer()) {
+          log("Server closed!");
+          waitFor(KEY_DOWN);
+        } else if (linkWireless->getLastError() ==
+                   LinkWireless::Error::BUSY_TRY_AGAIN) {
+          log("Busy! Can't close.");
           waitFor(KEY_DOWN);
         }
       }

@@ -128,6 +128,10 @@ bool C_LinkWireless_isSessionActive(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->isSessionActive();
 }
 
+bool C_LinkWireless_isServerClosed(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->isServerClosed();
+}
+
 u8 C_LinkWireless_playerCount(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->playerCount();
 }
