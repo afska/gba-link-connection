@@ -19,17 +19,17 @@ C_LinkWirelessMultiboot_Result C_LinkWirelessMultiboot_sendRom(
     const char* userName,
     u16 gameId,
     u8 players,
-    C_LinkWirelessMultiboot_CancelCallback cancel) {
+    C_LinkWirelessMultiboot_ListenerCallback listener) {
   auto result = static_cast<LinkWirelessMultiboot*>(handle)->sendRom(
       rom, romSize, gameName, userName, gameId, players,
-      [cancel](LinkWirelessMultiboot::MultibootProgress progress) {
+      [listener](LinkWirelessMultiboot::MultibootProgress progress) {
         C_LinkWirelessMultiboot_Progress cProgress;
         cProgress.state =
             static_cast<C_LinkWirelessMultiboot_State>(progress.state);
         cProgress.connectedClients = progress.connectedClients;
         cProgress.percentage = progress.percentage;
         cProgress.ready = progress.ready;
-        return cancel(cProgress);
+        return listener(cProgress);
       });
 
   return static_cast<C_LinkWirelessMultiboot_Result>(result);

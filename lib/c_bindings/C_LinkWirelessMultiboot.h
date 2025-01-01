@@ -38,10 +38,10 @@ typedef struct {
   C_LinkWirelessMultiboot_State state;
   u32 connectedClients;
   u32 percentage;
-  bool* ready;
+  volatile bool* ready;
 } C_LinkWirelessMultiboot_Progress;
 
-typedef bool (*C_LinkWirelessMultiboot_CancelCallback)(
+typedef bool (*C_LinkWirelessMultiboot_ListenerCallback)(
     C_LinkWirelessMultiboot_Progress progress);
 
 C_LinkWirelessMultibootHandle C_LinkWirelessMultiboot_create();
@@ -55,7 +55,7 @@ C_LinkWirelessMultiboot_Result C_LinkWirelessMultiboot_sendRom(
     const char* userName,
     u16 gameId,
     u8 players,
-    C_LinkWirelessMultiboot_CancelCallback cancel);
+    C_LinkWirelessMultiboot_ListenerCallback listener);
 
 extern C_LinkWirelessMultibootHandle cLinkWirelessMultiboot;
 

@@ -123,7 +123,7 @@ class LinkWirelessMultiboot {
     State state = STOPPED;
     u32 connectedClients = 0;
     u32 percentage = 0;
-    bool* ready = nullptr;
+    volatile bool* ready = nullptr;
   };
 
   /**
@@ -139,10 +139,11 @@ class LinkWirelessMultiboot {
    * @param players The exact number of consoles that will download the ROM.
    * Once this number of players is reached, the code will start transmitting
    * the ROM bytes.
-   * @param cancel A function that will be continuously invoked. If it returns
-   * `true`, the transfer will be aborted.
+   * @param listener A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted. It receives a
+   * `LinkWirelessMultiboot::MultibootProgress` object with details.
    * \warning You can start the transfer before the player count is reached by
-   * running `*progress.ready = true;` in the `cancel` callback.
+   * running `*progress.ready = true;` in the `listener` callback.
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename C>
@@ -152,7 +153,7 @@ class LinkWirelessMultiboot {
                  const char* userName,
                  const u16 gameId,
                  u8 players,
-                 C cancel) {
+                 C listener) {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
@@ -170,22 +171,22 @@ class LinkWirelessMultiboot {
 
     _LWMLOG_("waiting for connections...");
     progress.state = WAITING;
-    LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, cancel))
+    LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, listener))
 
     _LWMLOG_("all players are connected");
     progress.state = PREPARING;
     linkRawWireless->wait(FRAME_LINES);
 
     _LWMLOG_("rom start command...");
-    LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(cancel))
+    LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(listener))
 
     _LWMLOG_("SENDING ROM!");
     progress.state = SENDING;
-    LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, cancel))
+    LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, listener))
     linkRawWireless->wait(FRAME_LINES * 10);
 
     progress.state = CONFIRMING;
-    LINK_WIRELESS_MULTIBOOT_TRY(confirm(cancel))
+    LINK_WIRELESS_MULTIBOOT_TRY(confirm(listener))
 
     _LWMLOG_("SUCCESS!");
     return finish(SUCCESS);
@@ -379,13 +380,13 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result waitForClients(u8 players, C cancel) {
+  Result waitForClients(u8 players, C listener) {
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
 
     u32 currentPlayers = 1;
-    while (linkRawWireless->playerCount() < players &&
-           (!readyFlag || linkRawWireless->playerCount() <= 1)) {
-      if (cancel(progress))
+    while ((linkRawWireless->playerCount() < players && !readyFlag) ||
+           linkRawWireless->playerCount() <= 1) {
+      if (listener(progress))
         return finish(CANCELED);
 
       linkRawWireless->acceptConnections(acceptResponse);
@@ -398,7 +399,7 @@ class LinkWirelessMultiboot {
             acceptResponse
                 .connectedClients[acceptResponse.connectedClientsSize - 1]
                 .clientNumber;
-        LINK_WIRELESS_MULTIBOOT_TRY(handshakeClient(lastClientNumber, cancel))
+        LINK_WIRELESS_MULTIBOOT_TRY(handshakeClient(lastClientNumber, listener))
       }
     }
 
@@ -408,7 +409,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result handshakeClient(u8 clientNumber, C cancel) {
+  Result handshakeClient(u8 clientNumber, C listener) {
     ClientPacket handshakePackets[2];
     volatile bool hasReceivedName = false;
 
@@ -418,7 +419,7 @@ class LinkWirelessMultiboot {
         [this](LinkRawWireless::ReceiveDataResponse& response) {
           return sendAndExpectData(toArray(), 0, 1, response);
         },
-        [](ClientPacket packet) { return true; }, cancel))
+        [](ClientPacket packet) { return true; }, listener))
     // (initial client packet received)
 
     _LWMLOG_("handshake (1/2)...");
@@ -428,7 +429,7 @@ class LinkWirelessMultiboot {
           auto header = packet.header;
           return header.n == 2 && header.commState == CommState::STARTING;
         },
-        cancel))
+        listener))
     // (n = 2, commState = 1)
 
     _LWMLOG_("handshake (2/2)...");
@@ -442,7 +443,7 @@ class LinkWirelessMultiboot {
             handshakePackets[0] = packet;
           return isValid;
         },
-        cancel))
+        listener))
     // (n = 1, commState = 2)
 
     _LWMLOG_("receiving name...");
@@ -458,7 +459,7 @@ class LinkWirelessMultiboot {
           }
           return header.commState == CommState::OFF;
         },
-        cancel))
+        listener))
     // (commState = 0)
 
     _LWMLOG_("validating name...");
@@ -477,7 +478,7 @@ class LinkWirelessMultiboot {
     _LWMLOG_("draining queue...");
     volatile bool hasFinished = false;
     while (!hasFinished) {
-      if (cancel(progress))
+      if (listener(progress))
         return finish(CANCELED);
 
       LinkRawWireless::ReceiveDataResponse response;
@@ -493,20 +494,20 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result sendRomStartCommand(C cancel) {
+  Result sendRomStartCommand(C listener) {
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY(exchangeNewData(
           i,
           linkWirelessOpenSDK->createServerBuffer(
               CMD_START, CMD_START_SIZE, {1, 0, CommState::STARTING}, 1 << i),
-          cancel))
+          listener))
     }
 
     return SUCCESS;
   }
 
   template <typename C>
-  Result sendRomBytes(const u8* rom, u32 romSize, C cancel) {
+  Result sendRomBytes(const u8* rom, u32 romSize, C listener) {
     ChildrenData childrenData;
     TransferArray transfers;
     u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER];
@@ -523,7 +524,7 @@ class LinkWirelessMultiboot {
 
     while (transfers[minClient = findMinClient(transfers)].transferred() <
            romSize) {
-      if (cancel(progress))
+      if (listener(progress))
         return finish(CANCELED);
 
       LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive())
@@ -602,14 +603,14 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result confirm(C cancel) {
+  Result confirm(C listener) {
     _LWMLOG_("confirming (1/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY(
           exchangeNewData(i,
                           linkWirelessOpenSDK->createServerBuffer(
                               {}, 0, {0, 0, CommState::ENDING}, 1 << i),
-                          cancel))
+                          listener))
     }
 
     LINK_WIRELESS_MULTIBOOT_BARRIER;
@@ -627,7 +628,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result exchangeNewData(u8 clientNumber, SendBuffer sendBuffer, C cancel) {
+  Result exchangeNewData(u8 clientNumber, SendBuffer sendBuffer, C listener) {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
@@ -638,13 +639,13 @@ class LinkWirelessMultiboot {
           return header.isACK == 1 &&
                  header.sequence() == sendBuffer.header.sequence();
         },
-        cancel))
+        listener))
 
     return SUCCESS;
   }
 
   template <typename V, typename C>
-  Result exchangeACKData(u8 clientNumber, V validatePacket, C cancel) {
+  Result exchangeACKData(u8 clientNumber, V validatePacket, C listener) {
     LINK_WIRELESS_MULTIBOOT_TRY(exchangeData(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
@@ -652,7 +653,7 @@ class LinkWirelessMultiboot {
                                        lastValidHeader, clientNumber),
                                    response);
         },
-        validatePacket, cancel))
+        validatePacket, listener))
 
     return SUCCESS;
   }
@@ -661,10 +662,10 @@ class LinkWirelessMultiboot {
   Result exchangeData(u8 clientNumber,
                       F sendAction,
                       V validatePacket,
-                      C cancel) {
+                      C listener) {
     volatile bool hasFinished = false;
     while (!hasFinished) {
-      if (cancel(progress))
+      if (listener(progress))
         return finish(CANCELED);
 
       LinkRawWireless::ReceiveDataResponse response;
