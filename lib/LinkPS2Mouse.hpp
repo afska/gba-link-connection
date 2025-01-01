@@ -41,7 +41,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.1";
+static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.1.0";
 
 #define LINK_PS2_MOUSE_LEFT_CLICK 0b001
 #define LINK_PS2_MOUSE_RIGHT_CLICK 0b010

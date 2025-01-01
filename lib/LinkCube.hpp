@@ -44,7 +44,7 @@
 #define LINK_CUBE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.0.1";
+static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.1.0";
 
 #define LINK_CUBE_BARRIER asm volatile("" ::: "memory")
 

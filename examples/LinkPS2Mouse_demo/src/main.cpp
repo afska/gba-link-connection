@@ -37,7 +37,7 @@ int main() {
   init();
 
   while (true) {
-    std::string output = "LinkPS2Mouse_demo (v7.0.1)\n\n";
+    std::string output = "LinkPS2Mouse_demo (v7.1.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkPS2Mouse->isActive()) {
