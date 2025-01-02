@@ -249,7 +249,7 @@ class LinkWirelessMultiboot {
     while ((linkRawWireless->playerCount() < players && !readyFlag) ||
            linkRawWireless->playerCount() <= 1) {
       if (listener(progress))
-        return finish(CANCELED);
+        return CANCELED;
 
       linkRawWireless->acceptConnections(acceptResponse);
 
@@ -332,7 +332,7 @@ class LinkWirelessMultiboot {
       for (u32 j = 0; j < BOOTLOADER_HANDSHAKE_SIZE; j++) {
         if (!hasReceivedName || receivedPayload[j] != expectedPayload[j]) {
           _LWMLOG_("! bad payload");
-          return finish(BAD_HANDSHAKE);
+          return BAD_HANDSHAKE;
         }
       }
     }
@@ -341,7 +341,7 @@ class LinkWirelessMultiboot {
     volatile bool hasFinished = false;
     while (!hasFinished) {
       if (listener(progress))
-        return finish(CANCELED);
+        return CANCELED;
 
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(toArray(), 0, 1, response))
@@ -387,7 +387,7 @@ class LinkWirelessMultiboot {
     while (multiTransfer.minClientTransferredBytes(progress.connectedClients,
                                                    &minClient) < romSize) {
       if (listener(progress))
-        return finish(CANCELED);
+        return CANCELED;
 
       LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive())
 
@@ -484,7 +484,7 @@ class LinkWirelessMultiboot {
     volatile bool hasFinished = false;
     while (!hasFinished) {
       if (listener(progress))
-        return finish(CANCELED);
+        return CANCELED;
 
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY(sendAction(response))
