@@ -418,6 +418,203 @@ class LinkWirelessOpenSDK {
     serverSerializer.asStruct = serverHeader;
     return serverSerializer.asInt & HEADER_MASK_SERVER;
   }
+
+ public:
+  template <u32 MaxInflightPackets>
+  struct Transfer {
+   private:
+    struct PendingTransfer {
+      u32 cursor;
+      bool ack;
+      bool isActive = false;
+    };
+
+    struct PendingTransferList {
+      std::array<PendingTransfer, MaxInflightPackets> transfers;
+
+      PendingTransfer* max(bool ack = false) {
+        int maxCursor = -1;
+        int maxI = -1;
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive && (int)transfers[i].cursor > maxCursor &&
+              (!ack || transfers[i].ack)) {
+            maxCursor = transfers[i].cursor;
+            maxI = i;
+          }
+        }
+        return maxI > -1 ? &transfers[maxI] : nullptr;
+      }
+
+      PendingTransfer* minWithoutAck() {
+        u32 minCursor = 0xffffffff;
+        int minI = -1;
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive && transfers[i].cursor < minCursor &&
+              !transfers[i].ack) {
+            minCursor = transfers[i].cursor;
+            minI = i;
+          }
+        }
+        return minI > -1 ? &transfers[minI] : nullptr;
+      }
+
+      void addIfNeeded(u32 newCursor) {
+        auto maxTransfer = max();
+        if (maxTransfer != nullptr && newCursor <= maxTransfer->cursor)
+          return;
+
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (!transfers[i].isActive) {
+            transfers[i].cursor = newCursor;
+            transfers[i].ack = false;
+            transfers[i].isActive = true;
+            break;
+          }
+        }
+      }
+
+      int ack(SequenceNumber sequence) {
+        int index = findIndex(sequence);
+        if (index == -1)
+          return -1;
+
+        transfers[index].ack = true;
+
+        auto maxAckTransfer = max(true);
+        bool canUpdateCursor = maxAckTransfer != nullptr &&
+                               isAckCompleteUpTo(maxAckTransfer->cursor);
+
+        if (canUpdateCursor)
+          cleanup();
+
+        return canUpdateCursor ? maxAckTransfer->cursor + 1 : -1;
+      }
+
+      void cleanup() {
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive && transfers[i].ack)
+            transfers[i].isActive = false;
+        }
+      }
+
+      bool isFull() { return size() == MaxInflightPackets; }
+
+      u32 size() {
+        u32 size = 0;
+        for (u32 i = 0; i < MaxInflightPackets; i++)
+          if (transfers[i].isActive)
+            size++;
+        return size;
+      }
+
+     private:
+      bool isAckCompleteUpTo(u32 cursor) {
+        for (u32 i = 0; i < MaxInflightPackets; i++)
+          if (transfers[i].isActive && !transfers[i].ack &&
+              transfers[i].cursor < cursor)
+            return false;
+        return true;
+      }
+
+      int findIndex(SequenceNumber sequence) {
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive &&
+              SequenceNumber::fromPacketId(transfers[i].cursor) == sequence) {
+            return i;
+          }
+        }
+
+        return -1;
+      }
+    };
+
+   public:
+    u32 cursor = 0;
+    PendingTransferList pendingTransferList;
+
+    u32 nextCursor(bool canSendInflightPackets) {
+      u32 pendingCount = pendingTransferList.size();
+
+      if (canSendInflightPackets && pendingCount > 0 &&
+          pendingCount < MaxInflightPackets) {
+        return pendingTransferList.max()->cursor + 1;
+      } else {
+        auto minWithoutAck = pendingTransferList.minWithoutAck();
+        return minWithoutAck != nullptr ? minWithoutAck->cursor : cursor;
+      }
+    }
+
+    void addIfNeeded(u32 newCursor) {
+      if (newCursor >= cursor)
+        pendingTransferList.addIfNeeded(newCursor);
+    }
+
+    u32 transferred() { return cursor * MAX_PAYLOAD_SERVER; }
+
+    SequenceNumber sequence() { return SequenceNumber::fromPacketId(cursor); }
+  };
+
+  template <u32 MaxInflightPackets>
+  struct MultiTransfer {
+    std::array<Transfer<MaxInflightPackets>, LINK_RAW_WIRELESS_MAX_PLAYERS - 1>
+        transfers;
+
+   public:
+    void updateACKs(ChildrenData childrenData, u32 connectedClients) {
+      for (u32 i = 0; i < connectedClients; i++) {
+        for (u32 j = 0; j < childrenData.responses[i].packetsSize; j++) {
+          auto header = childrenData.responses[i].packets[j].header;
+
+          if (header.isACK) {
+            int newAckCursor =
+                transfers[i].pendingTransferList.ack(header.sequence());
+            if (newAckCursor > -1)
+              transfers[i].cursor = newAckCursor;
+          }
+        }
+      }
+    }
+
+    u32 minClientTransferredBytes(u32 connectedClients, u32* minClient = NULL) {
+      auto currentMinClient = findMinClient(connectedClients);
+      if (minClient != NULL)
+        *minClient = currentMinClient;
+      return transfers[currentMinClient].transferred();
+    }
+
+    u32 findMinClient(u32 connectedClients) {
+      u32 minTransferredBytes = 0xffffffff;
+      u32 minClient = 0;
+
+      for (u32 i = 0; i < connectedClients; i++) {
+        u32 transferred = transfers[i].transferred();
+        if (transferred < minTransferredBytes) {
+          minTransferredBytes = transferred;
+          minClient = i;
+        }
+      }
+
+      return minClient;
+    }
+
+    u32 findMinCursor(u32 connectedClients) {
+      u32 minNextCursor = 0xffffffff;
+
+      bool canSendInflightPackets = true;
+      for (u32 i = 0; i < connectedClients; i++) {
+        if (transfers[i].pendingTransferList.isFull())
+          canSendInflightPackets = false;
+      }
+
+      for (u32 i = 0; i < connectedClients; i++) {
+        u32 nextCursor = transfers[i].nextCursor(canSendInflightPackets);
+        if (nextCursor < minNextCursor)
+          minNextCursor = nextCursor;
+      }
+
+      return minNextCursor;
+    }
+  };
 };
 
 #endif  // LINK_WIRELESS_OPEN_SDK_H

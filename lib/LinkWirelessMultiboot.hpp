@@ -199,146 +199,10 @@ class LinkWirelessMultiboot {
   LinkWirelessOpenSDK* linkWirelessOpenSDK = new LinkWirelessOpenSDK();
 
  private:
-  struct PendingTransfer {
-    u32 cursor;
-    bool ack;
-    bool isActive = false;
-  };
-
-  struct PendingTransferList {
-    std::array<PendingTransfer, MAX_INFLIGHT_PACKETS> transfers;
-
-    PendingTransfer* max(bool ack = false) {
-      int maxCursor = -1;
-      int maxI = -1;
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
-        if (transfers[i].isActive && (int)transfers[i].cursor > maxCursor &&
-            (!ack || transfers[i].ack)) {
-          maxCursor = transfers[i].cursor;
-          maxI = i;
-        }
-      }
-      return maxI > -1 ? &transfers[maxI] : nullptr;
-    }
-
-    PendingTransfer* minWithoutAck() {
-      u32 minCursor = 0xffffffff;
-      int minI = -1;
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
-        if (transfers[i].isActive && transfers[i].cursor < minCursor &&
-            !transfers[i].ack) {
-          minCursor = transfers[i].cursor;
-          minI = i;
-        }
-      }
-      return minI > -1 ? &transfers[minI] : nullptr;
-    }
-
-    void addIfNeeded(u32 newCursor) {
-      auto maxTransfer = max();
-      if (maxTransfer != nullptr && newCursor <= maxTransfer->cursor)
-        return;
-
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
-        if (!transfers[i].isActive) {
-          transfers[i].cursor = newCursor;
-          transfers[i].ack = false;
-          transfers[i].isActive = true;
-          break;
-        }
-      }
-    }
-
-    int ack(Sequence sequence) {
-      int index = findIndex(sequence);
-      if (index == -1)
-        return -1;
-
-      transfers[index].ack = true;
-
-      auto maxAckTransfer = max(true);
-      bool canUpdateCursor = maxAckTransfer != nullptr &&
-                             isAckCompleteUpTo(maxAckTransfer->cursor);
-
-      if (canUpdateCursor)
-        cleanup();
-
-      return canUpdateCursor ? maxAckTransfer->cursor + 1 : -1;
-    }
-
-    void cleanup() {
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
-        if (transfers[i].isActive && transfers[i].ack)
-          transfers[i].isActive = false;
-      }
-    }
-
-    bool isFull() { return size() == MAX_INFLIGHT_PACKETS; }
-
-    u32 size() {
-      u32 size = 0;
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++)
-        if (transfers[i].isActive)
-          size++;
-      return size;
-    }
-
-   private:
-    bool isAckCompleteUpTo(u32 cursor) {
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++)
-        if (transfers[i].isActive && !transfers[i].ack &&
-            transfers[i].cursor < cursor)
-          return false;
-      return true;
-    }
-
-    int findIndex(Sequence sequence) {
-      for (u32 i = 0; i < MAX_INFLIGHT_PACKETS; i++) {
-        if (transfers[i].isActive &&
-            Sequence::fromPacketId(transfers[i].cursor) == sequence) {
-          return i;
-        }
-      }
-
-      return -1;
-    }
-  };
-
-  struct Transfer {
-    u32 cursor = 0;
-    PendingTransferList pendingTransferList;
-
-    u32 nextCursor(bool canSendInflightPackets) {
-      u32 pendingCount = pendingTransferList.size();
-
-      if (canSendInflightPackets && pendingCount > 0 &&
-          pendingCount < MAX_INFLIGHT_PACKETS) {
-        return pendingTransferList.max()->cursor + 1;
-      } else {
-        auto minWithoutAck = pendingTransferList.minWithoutAck();
-        return minWithoutAck != nullptr ? minWithoutAck->cursor : cursor;
-      }
-    }
-
-    void addIfNeeded(u32 newCursor) {
-      if (newCursor >= cursor)
-        pendingTransferList.addIfNeeded(newCursor);
-    }
-
-    u32 transferred() {
-      return cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
-    }
-
-    Sequence sequence() { return Sequence::fromPacketId(cursor); }
-  };
-
   MultibootProgress progress;
   volatile bool readyFlag = false;
   volatile Result lastResult;
   ClientHeader lastValidHeader;
-
-  using TransferArray =
-      std::array<Transfer, LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS - 1>;
 
   Result activate() {
     if (!linkRawWireless->activate()) {
@@ -506,8 +370,8 @@ class LinkWirelessMultiboot {
 
   template <typename C>
   Result sendRomBytes(const u8* rom, u32 romSize, C listener) {
-    ChildrenData childrenData;
-    TransferArray transfers;
+    LinkWirelessOpenSDK::MultiTransfer<MAX_INFLIGHT_PACKETS> multiTransfer;
+
     u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER];
     for (u32 i = 0; i < LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER; i++) {
       firstPagePatch[i] =
@@ -520,14 +384,14 @@ class LinkWirelessMultiboot {
     progress.percentage = 0;
     u32 minClient = 0;
 
-    while (transfers[minClient = findMinClient(transfers)].transferred() <
-           romSize) {
+    while (multiTransfer.minClientTransferredBytes(progress.connectedClients,
+                                                   &minClient) < romSize) {
       if (listener(progress))
         return finish(CANCELED);
 
       LINK_WIRELESS_MULTIBOOT_TRY(ensureAllClientsAreStillAlive())
 
-      u32 cursor = findMinCursor(transfers);
+      u32 cursor = multiTransfer.findMinCursor(progress.connectedClients);
       u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
       auto sequence = Sequence::fromPacketId(cursor);
       const u8* bufferToSend = cursor == 0 ? (const u8*)firstPagePatch : rom;
@@ -536,28 +400,17 @@ class LinkWirelessMultiboot {
           bufferToSend, romSize, sequence, 0b1111, offset);
 
       for (u32 i = 0; i < progress.connectedClients; i++)
-        transfers[i].addIfNeeded(cursor);
+        multiTransfer.transfers[i].addIfNeeded(cursor);
 
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY(sendAndExpectData(sendBuffer, response))
-      childrenData = linkWirelessOpenSDK->getChildrenData(response);
 
-      for (u32 i = 0; i < progress.connectedClients; i++) {
-        for (u32 j = 0; j < childrenData.responses[i].packetsSize; j++) {
-          auto header = childrenData.responses[i].packets[j].header;
+      auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      multiTransfer.updateACKs(childrenData, progress.connectedClients);
 
-          if (header.isACK) {
-            int newAckCursor =
-                transfers[i].pendingTransferList.ack(header.sequence());
-            if (newAckCursor > -1)
-              transfers[i].cursor = newAckCursor;
-          }
-        }
-      }
-
-      u32 newPercentage = Link::_min(
-          transfers[findMinClient(transfers)].transferred() * 100 / romSize,
-          100);
+      auto transferredBytes =
+          multiTransfer.minClientTransferredBytes(progress.connectedClients);
+      u32 newPercentage = Link::_min(transferredBytes * 100 / romSize, 100);
       if (newPercentage != progress.percentage) {
         progress.percentage = newPercentage;
         _LWMLOG_("-> " + std::to_string(newPercentage));
@@ -565,39 +418,6 @@ class LinkWirelessMultiboot {
     }
 
     return SUCCESS;
-  }
-
-  u32 findMinClient(TransferArray& transfers) {
-    u32 minTransferredBytes = 0xffffffff;
-    u32 minClient = 0;
-
-    for (u32 i = 0; i < progress.connectedClients; i++) {
-      u32 transferred = transfers[i].transferred();
-      if (transferred < minTransferredBytes) {
-        minTransferredBytes = transferred;
-        minClient = i;
-      }
-    }
-
-    return minClient;
-  }
-
-  u32 findMinCursor(TransferArray& transfers) {
-    u32 minNextCursor = 0xffffffff;
-
-    bool canSendInflightPackets = true;
-    for (u32 i = 0; i < progress.connectedClients; i++) {
-      if (transfers[i].pendingTransferList.isFull())
-        canSendInflightPackets = false;
-    }
-
-    for (u32 i = 0; i < progress.connectedClients; i++) {
-      u32 nextCursor = transfers[i].nextCursor(canSendInflightPackets);
-      if (nextCursor < minNextCursor)
-        minNextCursor = nextCursor;
-    }
-
-    return minNextCursor;
   }
 
   template <typename C>
