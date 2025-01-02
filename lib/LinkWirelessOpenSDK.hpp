@@ -431,6 +431,7 @@ class LinkWirelessOpenSDK {
     struct PendingTransferList {
       std::array<PendingTransfer, MaxInflightPackets> transfers = {};
 
+      [[nodiscard]]
       PendingTransfer* max(bool ack = false) {
         int maxCursor = -1;
         int maxI = -1;
@@ -444,6 +445,7 @@ class LinkWirelessOpenSDK {
         return maxI > -1 ? &transfers[maxI] : nullptr;
       }
 
+      [[nodiscard]]
       PendingTransfer* minWithoutAck() {
         u32 minCursor = 0xffffffff;
         int minI = -1;
@@ -496,8 +498,12 @@ class LinkWirelessOpenSDK {
         }
       }
 
-      bool isFull() { return size() == MaxInflightPackets; }
+      [[nodiscard]]
+      bool isFull() {
+        return size() == MaxInflightPackets;
+      }
 
+      [[nodiscard]]
       u32 size() {
         u32 size = 0;
         for (u32 i = 0; i < MaxInflightPackets; i++)
@@ -507,6 +513,7 @@ class LinkWirelessOpenSDK {
       }
 
      private:
+      [[nodiscard]]
       bool isAckCompleteUpTo(u32 cursor) {
         for (u32 i = 0; i < MaxInflightPackets; i++)
           if (transfers[i].isActive && !transfers[i].ack &&
@@ -515,6 +522,7 @@ class LinkWirelessOpenSDK {
         return true;
       }
 
+      [[nodiscard]]
       int findIndex(SequenceNumber sequence) {
         for (u32 i = 0; i < MaxInflightPackets; i++) {
           if (transfers[i].isActive &&
@@ -531,6 +539,7 @@ class LinkWirelessOpenSDK {
     u32 cursor = 0;
     PendingTransferList pendingTransferList;
 
+    [[nodiscard]]
     u32 nextCursor(bool canSendInflightPackets) {
       u32 pendingCount = pendingTransferList.size();
 
@@ -548,15 +557,32 @@ class LinkWirelessOpenSDK {
         pendingTransferList.addIfNeeded(newCursor);
     }
 
-    u32 transferred() { return cursor * MAX_PAYLOAD_SERVER; }
+    [[nodiscard]]
+    u32 transferred() {
+      return cursor * MAX_PAYLOAD_SERVER;
+    }
 
-    SequenceNumber sequence() { return SequenceNumber::fromPacketId(cursor); }
+    [[nodiscard]]
+    SequenceNumber sequence() {
+      return SequenceNumber::fromPacketId(cursor);
+    }
   };
 
  public:
+  /**
+   * @brief A file transfer from a host to N clients.
+   * @tparam MaxInflightPackets Maximum number of packets that can be sent
+   * without a confirmation.
+   */
   template <u32 MaxInflightPackets>
   class MultiTransfer {
    public:
+    /**
+     * @brief Construct a new MultiTransfer object.
+     * @param linkWirelessOpenSDK An pointer to a `LinkWirelessOpenSDK`.
+     * @param fileSize Size of the file.
+     * @param connectedClients Number of clients.
+     */
     explicit MultiTransfer(LinkWirelessOpenSDK* linkWirelessOpenSDK,
                            u32 fileSize,
                            u32 connectedClients) {
@@ -566,9 +592,30 @@ class LinkWirelessOpenSDK {
       this->transfers = {};
     }
 
-    bool hasFinished() { return finished; }
-    u32 getCursor() { return cursor; }
+    /**
+     * @brief Returns whether the transfer has completed or not.
+     */
+    [[nodiscard]]
+    bool hasFinished() {
+      return finished;
+    }
 
+    /**
+     * @brief Returns the current cursor (packet number).
+     */
+    [[nodiscard]]
+    u32 getCursor() {
+      return cursor;
+    }
+
+    /**
+     * @brief Returns a `SendBuffer`, ready for use with
+     * `LinkRawWireless::sendData(...)` to send the next packet. The internal
+     * state is updated to keep track of the transfer.
+     * @param fileBytes The pointer to the file bytes. It should always be the
+     * same across all calls unless you're changing it on the fly.
+     */
+    [[nodiscard]]
     SendBuffer<ServerSDKHeader> createNextSendBuffer(const u8* fileBytes) {
       if (finished)
         return SendBuffer<ServerSDKHeader>{};
@@ -585,6 +632,12 @@ class LinkWirelessOpenSDK {
       return sendBuffer;
     }
 
+    /**
+     * @brief Processes a response from `LinkRawWireless::receiveData(...)`,
+     * updating the cursor and the internal state.
+     * @param response The received response from the adapter.
+     * @return The completion percentage (0~100).
+     */
     u32 processResponse(LinkRawWireless::ReceiveDataResponse response) {
       if (finished)
         return 100;
@@ -623,10 +676,12 @@ class LinkWirelessOpenSDK {
       }
     }
 
+    [[nodiscard]]
     u32 minClientTransferredBytes() {
       return transfers[findMinClient()].transferred();
     }
 
+    [[nodiscard]]
     u32 findMinClient() {
       u32 minTransferredBytes = 0xffffffff;
       u32 minClient = 0;
@@ -642,6 +697,7 @@ class LinkWirelessOpenSDK {
       return minClient;
     }
 
+    [[nodiscard]]
     u32 findMinCursor() {
       u32 minNextCursor = 0xffffffff;
 

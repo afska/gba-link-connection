@@ -293,6 +293,8 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 
 [⬆️](#gba-link-connection) All first-party games, including the Multiboot 'bootloader' sent by the adapter, use an official software-level protocol. This class provides methods for creating and reading packets that adhere to this protocol. It's supposed to be used in conjunction with [🔧📻 LinkRawWireless](#-LinkRawWireless).
 
+Additionally, there's a `LinkWirelessOpenSDK::MultiTransfer` class for file transfers, used by multiboot.
+
 ## Methods
 
 | Name                                                                                  | Return type                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
