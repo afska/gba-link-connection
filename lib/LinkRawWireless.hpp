@@ -227,7 +227,7 @@ class LinkRawWireless {
       LRWLOG("! game name too long");
       return false;
     }
-    if (std::strlen(userName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
+    if (std::strlen(userName) > LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH) {
       LRWLOG("! user name too long");
       return false;
     }

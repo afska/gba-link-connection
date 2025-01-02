@@ -387,7 +387,7 @@ class LinkWireless {
       lastError = GAME_NAME_TOO_LONG;
       return false;
     }
-    if (std::strlen(userName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH) {
+    if (std::strlen(userName) > LINK_WIRELESS_MAX_USER_NAME_LENGTH) {
       lastError = USER_NAME_TOO_LONG;
       return false;
     }
