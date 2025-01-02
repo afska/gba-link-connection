@@ -419,7 +419,6 @@ class LinkWirelessOpenSDK {
     return serverSerializer.asInt & HEADER_MASK_SERVER;
   }
 
- public:
   template <u32 MaxInflightPackets>
   struct Transfer {
    private:
@@ -430,7 +429,7 @@ class LinkWirelessOpenSDK {
     };
 
     struct PendingTransferList {
-      std::array<PendingTransfer, MaxInflightPackets> transfers;
+      std::array<PendingTransfer, MaxInflightPackets> transfers = {};
 
       PendingTransfer* max(bool ack = false) {
         int maxCursor = -1;
@@ -554,13 +553,62 @@ class LinkWirelessOpenSDK {
     SequenceNumber sequence() { return SequenceNumber::fromPacketId(cursor); }
   };
 
+ public:
   template <u32 MaxInflightPackets>
-  struct MultiTransfer {
+  class MultiTransfer {
+   public:
+    explicit MultiTransfer(LinkWirelessOpenSDK* linkWirelessOpenSDK,
+                           u32 fileSize,
+                           u32 connectedClients) {
+      this->linkWirelessOpenSDK = linkWirelessOpenSDK;
+      this->fileSize = fileSize;
+      this->connectedClients = connectedClients;
+      this->transfers = {};
+    }
+
+    bool hasFinished() { return finished; }
+    u32 getCursor() { return cursor; }
+
+    SendBuffer<ServerSDKHeader> createNextSendBuffer(const u8* fileBytes) {
+      if (finished)
+        return SendBuffer<ServerSDKHeader>{};
+
+      u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
+      auto sequence = SequenceNumber::fromPacketId(cursor);
+
+      auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
+          fileBytes, fileSize, sequence, 0b1111, offset);
+
+      for (u32 i = 0; i < connectedClients; i++)
+        transfers[i].addIfNeeded(cursor);
+
+      return sendBuffer;
+    }
+
+    u32 processResponse(LinkRawWireless::ReceiveDataResponse response) {
+      if (finished)
+        return 100;
+
+      auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      updateACKs(childrenData);
+
+      auto transferredBytes = minClientTransferredBytes();
+      finished = transferredBytes >= fileSize;
+      cursor = findMinCursor();
+      return Link::_min(transferredBytes * 100 / fileSize, 100);
+    }
+
+   private:
     std::array<Transfer<MaxInflightPackets>, LINK_RAW_WIRELESS_MAX_PLAYERS - 1>
         transfers;
 
-   public:
-    void updateACKs(ChildrenData childrenData, u32 connectedClients) {
+    LinkWirelessOpenSDK* linkWirelessOpenSDK;
+    u32 fileSize;
+    u32 connectedClients;
+    bool finished = false;
+    u32 cursor = 0;
+
+    void updateACKs(ChildrenData childrenData) {
       for (u32 i = 0; i < connectedClients; i++) {
         for (u32 j = 0; j < childrenData.responses[i].packetsSize; j++) {
           auto header = childrenData.responses[i].packets[j].header;
@@ -575,14 +623,11 @@ class LinkWirelessOpenSDK {
       }
     }
 
-    u32 minClientTransferredBytes(u32 connectedClients, u32* minClient = NULL) {
-      auto currentMinClient = findMinClient(connectedClients);
-      if (minClient != NULL)
-        *minClient = currentMinClient;
-      return transfers[currentMinClient].transferred();
+    u32 minClientTransferredBytes() {
+      return transfers[findMinClient()].transferred();
     }
 
-    u32 findMinClient(u32 connectedClients) {
+    u32 findMinClient() {
       u32 minTransferredBytes = 0xffffffff;
       u32 minClient = 0;
 
@@ -597,7 +642,7 @@ class LinkWirelessOpenSDK {
       return minClient;
     }
 
-    u32 findMinCursor(u32 connectedClients) {
+    u32 findMinCursor() {
       u32 minNextCursor = 0xffffffff;
 
       bool canSendInflightPackets = true;
