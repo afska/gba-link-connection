@@ -375,6 +375,7 @@ class LinkRawWireless {
 
   /**
    * @brief Calls the BroadcastRead2 (`0x1d`) command.
+   * @param response A structure that will be filled with the response data.
    */
   bool broadcastReadPoll(BroadcastReadPollResponse& response) {
     auto result = sendCommand(COMMAND_BROADCAST_READ_POLL);
