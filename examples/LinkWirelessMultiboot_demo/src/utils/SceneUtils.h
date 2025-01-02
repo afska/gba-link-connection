@@ -37,16 +37,4 @@ inline void SCENE_write(std::string text, u32 row) {
                                  TEXT_MIDDLE_COL - text.length() / 2);
 }
 
-inline void SCENE_wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
-}
-
 #endif  // SCENE_UTILS_H

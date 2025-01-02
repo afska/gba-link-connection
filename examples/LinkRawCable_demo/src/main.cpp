@@ -6,7 +6,6 @@
 #include "../../_lib/interrupt.h"
 
 void log(std::string text);
-void wait(u32 verticalLines);
 inline void VBLANK() {}
 
 // (1) Create a LinkRawCable instance
@@ -70,13 +69,13 @@ int main() {
                 return (keys & KEY_L) && (keys & KEY_R);
               });
           log(output + ">> " + std::to_string(counter));
-          wait(228 * 60);
+          Link::wait(228 * 60);
           log(output + "<< [" + std::to_string(response.data[0]) + "," +
               std::to_string(response.data[1]) + "," +
               std::to_string(response.data[2]) + "," +
               std::to_string(response.data[3]) + "]\n" +
               "_pID: " + std::to_string(response.playerId));
-          wait(228 * 60);
+          Link::wait(228 * 60);
         }
       } else {
         // (6) Exchange data asynchronously
@@ -85,7 +84,7 @@ int main() {
           counter++;
           linkRawCable->transferAsync(counter);
           log(output + ">> " + std::to_string(counter));
-          wait(228 * 60);
+          Link::wait(228 * 60);
         }
         if (linkRawCable->getAsyncState() == LinkRawCable::AsyncState::READY) {
           LinkRawCable::Response response = linkRawCable->getAsyncData();
@@ -94,7 +93,7 @@ int main() {
               std::to_string(response.data[2]) + "," +
               std::to_string(response.data[3]) + "]\n" +
               "_pID: " + std::to_string(response.playerId));
-          wait(228 * 60);
+          Link::wait(228 * 60);
         }
       }
 
@@ -119,16 +118,4 @@ void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }

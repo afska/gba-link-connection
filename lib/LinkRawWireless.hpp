@@ -272,7 +272,7 @@ class LinkRawWireless {
       return false;
     }
 
-    wait(TRANSFER_WAIT);
+    Link::wait(TRANSFER_WAIT);
     LRWLOG("state = SERVING");
     state = SERVING;
 
@@ -754,7 +754,7 @@ class LinkRawWireless {
       LRWLOG("<< " + toHex(paramData));
     }
 
-    wait(TRANSFER_WAIT);
+    Link::wait(TRANSFER_WAIT);
 
     LRWLOG("sending ack");
     command = linkSPI->transfer(
@@ -777,7 +777,7 @@ class LinkRawWireless {
     LRWLOG("setting SPI to MASTER");
     linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
 
-    wait(TRANSFER_WAIT);
+    Link::wait(TRANSFER_WAIT);
 
     remoteCommand.success = true;
     remoteCommand.commandId = commandId;
@@ -925,7 +925,7 @@ class LinkRawWireless {
     if (!login())
       return false;
 
-    wait(TRANSFER_WAIT);
+    Link::wait(TRANSFER_WAIT);
 
     LRWLOG("sending HELLO command");
     if (!sendCommand(COMMAND_HELLO).success)
@@ -950,7 +950,7 @@ class LinkRawWireless {
     linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     LRWLOG("setting SD = HIGH");
     linkGPIO->writePin(LinkGPIO::Pin::SD, true);
-    wait(PING_WAIT);
+    Link::wait(PING_WAIT);
     LRWLOG("setting SD = LOW");
     linkGPIO->writePin(LinkGPIO::Pin::SD, false);
   }
@@ -1017,7 +1017,7 @@ class LinkRawWireless {
    */
   u32 transfer(u32 data, bool customAck = true) {
     if (!customAck)
-      wait(TRANSFER_WAIT);
+      Link::wait(TRANSFER_WAIT);
 
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
@@ -1085,7 +1085,7 @@ class LinkRawWireless {
     u32 vCount = Link::_REG_VCOUNT;
 
     linkSPI->_setSOLow();
-    wait(1);
+    Link::wait(1);
     linkSPI->_setSOHigh();
     while (linkSPI->_isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
@@ -1163,22 +1163,6 @@ class LinkRawWireless {
     }
 
     return lines > limit;
-  }
-
-  /**
-   * @brief Waits a number of `verticalLines`.
-   * @param verticalLines Number of lines to wait.
-   */
-  void wait(u32 verticalLines) {
-    u32 count = 0;
-    u32 vCount = Link::_REG_VCOUNT;
-
-    while (count < verticalLines) {
-      if (Link::_REG_VCOUNT != vCount) {
-        count++;
-        vCount = Link::_REG_VCOUNT;
-      }
-    };
   }
 
   /**

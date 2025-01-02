@@ -67,7 +67,7 @@ void TestScene::tick(u16 keys) {
   }
   if (selectHandler->hasBeenPressedNow()) {
     DEBULOG("! lagging...");
-    SCENE_wait(9000);
+    Link::wait(9000);
   }
 
   // determine which value should be sent

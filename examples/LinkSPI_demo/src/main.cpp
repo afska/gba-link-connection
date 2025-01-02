@@ -6,7 +6,6 @@
 #include "../../_lib/interrupt.h"
 
 void log(std::string text);
-void wait(u32 verticalLines);
 inline void VBLANK() {}
 
 // (1) Create a LinkSPI instance
@@ -86,11 +85,11 @@ int main() {
             return (keys & KEY_L) && (keys & KEY_R);
           });
           log(output + ">> " + std::to_string(counter));
-          wait(228 * 60);
+          Link::wait(228 * 60);
         }
         if (linkSPI->getAsyncState() == LinkSPI::AsyncState::READY) {
           log(output + "<< " + std::to_string(linkSPI->getAsyncData()));
-          wait(228 * 60);
+          Link::wait(228 * 60);
         }
       }
 
@@ -114,16 +113,4 @@ void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }

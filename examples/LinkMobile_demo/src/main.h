@@ -44,7 +44,6 @@ std::string getResultString(LinkMobile::CommandResult cmdResult);
 
 void log(std::string text);
 std::string toStr(char* chars, int size);
-void wait(unsigned int verticalLines);
 bool didPress(unsigned short key, bool& pressed);
 void waitForA();
 

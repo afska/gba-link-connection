@@ -150,6 +150,18 @@ static inline int _min(int a, int b) {
   return (a < b) ? (a) : (b);
 }
 
+static inline void wait(u32 verticalLines) {
+  u32 count = 0;
+  u32 vCount = Link::_REG_VCOUNT;
+
+  while (count < verticalLines) {
+    if (Link::_REG_VCOUNT != vCount) {
+      count++;
+      vCount = Link::_REG_VCOUNT;
+    }
+  };
+}
+
 // Queue
 
 template <typename T, u32 Size, bool Overwrite = true>

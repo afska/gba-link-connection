@@ -175,7 +175,7 @@ class LinkWirelessMultiboot {
 
     _LWMLOG_("all players are connected");
     progress.state = PREPARING;
-    linkRawWireless->wait(FRAME_LINES);
+    Link::wait(FRAME_LINES);
 
     _LWMLOG_("rom start command...");
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomStartCommand(listener))
@@ -183,7 +183,7 @@ class LinkWirelessMultiboot {
     _LWMLOG_("SENDING ROM!");
     progress.state = SENDING;
     LINK_WIRELESS_MULTIBOOT_TRY(sendRomBytes(rom, romSize, listener))
-    linkRawWireless->wait(FRAME_LINES * 10);
+    Link::wait(FRAME_LINES * 10);
 
     progress.state = CONFIRMING;
     LINK_WIRELESS_MULTIBOOT_TRY(confirm(listener))

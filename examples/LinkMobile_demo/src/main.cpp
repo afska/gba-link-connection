@@ -90,7 +90,7 @@ start:
 
         if (!didShutdown) {
           log("Waiting...");
-          wait(228 * 60 * 3);
+          Link::wait(228 * 60 * 3);
         }
 
         goto start;
@@ -600,18 +600,6 @@ std::string toStr(char* chars, int size) {
     copiedChars[i] = chars[i];
   copiedChars[size] = '\0';
   return std::string(copiedChars);
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }
 
 bool didPress(u16 key, bool& pressed) {

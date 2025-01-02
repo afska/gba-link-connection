@@ -29,7 +29,6 @@ void messageLoop();
 void log(std::string text);
 void waitFor(u16 key);
 bool didPress(u16 key, bool& pressed);
-void wait(u32 verticalLines);
 void hang();
 
 LinkWireless::Error lastError;
@@ -460,7 +459,7 @@ void messageLoop() {
 
     // Test lag
     if (keys & KEY_DOWN)
-      wait(9000);
+      Link::wait(9000);
 
     // Print
     VBlankIntrWait();
@@ -491,18 +490,6 @@ bool didPress(u16 key, bool& pressed) {
   if (pressed && !(keys & key))
     pressed = false;
   return isPressedNow;
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }
 
 void hang() {

@@ -119,7 +119,7 @@ class LinkCableMultiboot {
     deactivate();
 
     // (*) instead of 1/16s, waiting a random number of frames works better
-    wait(WAIT_BEFORE_RETRY + FRAME_LINES * _qran_range(1, 30));
+    Link::wait(WAIT_BEFORE_RETRY + FRAME_LINES * _qran_range(1, 30));
 
     // 1. Prepare a "Multiboot Parameter Structure" in RAM.
     PartialResult partialResult = NEEDS_RETRY;
@@ -361,18 +361,6 @@ class LinkCableMultiboot {
   Result error(Result error) {
     deactivate();
     return error;
-  }
-
-  void wait(u32 verticalLines) {
-    u32 count = 0;
-    u32 vCount = Link::_REG_VCOUNT;
-
-    while (count < verticalLines) {
-      if (Link::_REG_VCOUNT != vCount) {
-        count++;
-        vCount = Link::_REG_VCOUNT;
-      }
-    };
   }
 
   int _qran() {

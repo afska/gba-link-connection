@@ -28,7 +28,6 @@ void forceSync();
 void log(std::string text);
 void waitFor(u16 key);
 bool didPress(u16 key, bool& pressed);
-void wait(u32 verticalLines);
 bool needsReset();
 void profileStart();
 u32 profileStop();
@@ -160,7 +159,7 @@ void test(bool withSync) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_START) {
       log("Lagging...");
-      wait(1500);
+      Link::wait(1500);
     }
     if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
       setInterval(getInterval() + 5);
@@ -262,7 +261,7 @@ void measureLatency(bool withPong) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_START) {
       log("Lagging...");
-      wait(1500);
+      Link::wait(1500);
     }
     if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
       setInterval(getInterval() + 5);
@@ -372,18 +371,6 @@ bool didPress(u16 key, bool& pressed) {
   if (pressed && !(keys & key))
     pressed = false;
   return isPressedNow;
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }
 
 bool needsReset() {
