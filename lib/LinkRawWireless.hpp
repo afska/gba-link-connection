@@ -53,6 +53,7 @@ class LinkRawWireless {
   using u16 = unsigned short;
   using u8 = unsigned char;
 
+ public:
   static constexpr int PING_WAIT = 50;
   static constexpr int TRANSFER_WAIT = 15;
   static constexpr int CMD_TIMEOUT = 10;
@@ -87,7 +88,6 @@ class LinkRawWireless {
   static constexpr u16 LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                         0x4e45, 0x4f44, 0x4f44, 0x8001};
 
- public:
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   typedef void (*Logger)(std::string);
   Logger logger = [](std::string str) {};
@@ -218,12 +218,15 @@ class LinkRawWireless {
    */
   bool broadcast(const char* gameName = "",
                  const char* userName = "",
-                 u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID) {
-    if (std::strlen(gameName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
+                 u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID,
+                 bool _validateNames = true) {
+    if (_validateNames &&
+        std::strlen(gameName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
       LRWLOG("! game name too long");
       return false;
     }
-    if (std::strlen(userName) > LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH) {
+    if (_validateNames &&
+        std::strlen(userName) > LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH) {
       LRWLOG("! user name too long");
       return false;
     }
