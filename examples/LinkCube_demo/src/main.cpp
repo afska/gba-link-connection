@@ -6,7 +6,6 @@
 #include "../../_lib/interrupt.h"
 
 void log(std::string text);
-void wait(u32 verticalLines);
 bool didPress(unsigned short key, bool& pressed);
 inline void VBLANK() {}
 
@@ -93,18 +92,6 @@ void log(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
   tte_write(text.c_str());
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }
 
 bool didPress(u16 key, bool& pressed) {
