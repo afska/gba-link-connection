@@ -1,3 +1,5 @@
+#define LINK_RAW_WIRELESS_ENABLE_LOGGING
+
 #include "../../../../lib/LinkRawWireless.hpp"
 
 #include "DebugScene.h"
@@ -218,11 +220,11 @@ void DebugScene::addCommandMenuOptions() {
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x1b (EndHost)", .command = 0x1b});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1c (BroadcastRead1)", .command = 0x1c});
+      CommandMenuOption{.name = "0x1c (BroadcastReadStart)", .command = 0x1c});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1d (BroadcastRead2)", .command = 0x1d});
+      CommandMenuOption{.name = "0x1d (BroadcastReadPoll)", .command = 0x1d});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1e (BroadcastRead3)", .command = 0x1e});
+      CommandMenuOption{.name = "0x1e (BroadcastReadEnd)", .command = 0x1e});
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x1f (Connect)", .command = 0x1f});
   commandMenuOptions.push_back(
@@ -472,8 +474,22 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     case 0x10:
     case 0x11:
     case 0x12:
-    case 0x13:
       goto simple;
+    case 0x13: {
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::SystemStatusResponse response;
+        bool success = linkRawWireless->getSystemStatus(response);
+
+        if (success) {
+          log("< [device id] " + linkRawWireless->toHex(response.deviceId, 4));
+          log("< [player id] " + std::to_string(response.currentPlayerId));
+          log("< [state] " + std::to_string(response.adapterState));
+          log("< [closed] " + std::to_string(response.isServerClosed));
+        }
+
+        return success;
+      });
+    }
     case 0x14: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::SlotStatusResponse response;

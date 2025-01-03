@@ -43,6 +43,21 @@ bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->startHost();
 }
 
+bool C_LinkRawWireless_getSystemStatus(
+    C_LinkRawWirelessHandle handle,
+    C_LinkRawWireless_SystemStatusResponse* response) {
+  LinkRawWireless::SystemStatusResponse nativeResponse;
+  bool success =
+      static_cast<LinkRawWireless*>(handle)->getSystemStatus(nativeResponse);
+  response->deviceId = nativeResponse.deviceId;
+  response->currentPlayerId = nativeResponse.currentPlayerId;
+  response->adapterState =
+      static_cast<C_LinkRawWireless_State>(nativeResponse.adapterState);
+  response->isServerClosed = nativeResponse.isServerClosed;
+
+  return success;
+}
+
 bool C_LinkRawWireless_getSlotStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SlotStatusResponse* response) {

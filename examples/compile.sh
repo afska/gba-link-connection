@@ -63,7 +63,7 @@ compile() {
 
   # LinkRawWireless_demo
   cd LinkRawWireless_demo/
-  make rebuild $args USERFLAGS="-DLINK_RAW_WIRELESS_ENABLE_LOGGING=1"
+  make rebuild $args
   cp LinkRawWireless_demo$suffix.gba ../$folder/
   cd ..
 

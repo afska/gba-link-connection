@@ -56,6 +56,13 @@ typedef struct {
 } C_LinkRawWireless_ConnectedClient;
 
 typedef struct {
+  u16 deviceId;
+  u8 currentPlayerId;
+  C_LinkRawWireless_State adapterState;
+  bool isServerClosed;
+} C_LinkRawWireless_SystemStatusResponse;
+
+typedef struct {
   u8 nextClientNumber;
   C_LinkRawWireless_ConnectedClient
       connectedClients[C_LINK_RAW_WIRELESS_MAX_PLAYERS];
@@ -107,6 +114,9 @@ bool C_LinkRawWireless_broadcast(C_LinkRawWirelessHandle handle,
                                  const char* userName,
                                  u16 gameId);
 bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle);
+bool C_LinkRawWireless_getSystemStatus(
+    C_LinkRawWirelessHandle handle,
+    C_LinkRawWireless_SystemStatusResponse* response);
 bool C_LinkRawWireless_getSlotStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SlotStatusResponse* response);

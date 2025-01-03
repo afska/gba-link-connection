@@ -1,3 +1,5 @@
+#define LINK_RAW_WIRELESS_ENABLE_LOGGING
+
 #include "../../../lib/LinkRawWireless.hpp"
 
 #include <libgba-sprite-engine/gba_engine.h>

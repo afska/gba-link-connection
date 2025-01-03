@@ -450,7 +450,8 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 * Bits `16-23`: A 4-bit array with slots. If the console is a client, it'll have a 1 in the position assigned to that slot (e.g. the one with `clientNumber` 3 will have `0100`). The host will always have `0000` here.
 * Bits `24-31`: A number indicating the state of the adapter
   - `0` = idle
-  - `1`/`2` = serving (host)
+  - `1` = serving (host), closed server
+  - `2` = serving (host), open server
   - `3` = searching
   - `4` = connecting
   - `5` = connected (client)

@@ -70,6 +70,7 @@ class LinkRawWireless {
   static constexpr int COMMAND_SETUP = 0x17;
   static constexpr int COMMAND_BROADCAST = 0x16;
   static constexpr int COMMAND_START_HOST = 0x19;
+  static constexpr int COMMAND_SYSTEM_STATUS = 0x13;
   static constexpr int COMMAND_SLOT_STATUS = 0x14;
   static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1a;
   static constexpr int COMMAND_END_HOST = 0x1b;
@@ -131,6 +132,13 @@ class LinkRawWireless {
   struct ConnectedClient {
     u16 deviceId = 0;
     u8 clientNumber = 0;
+  };
+
+  struct SystemStatusResponse {
+    u16 deviceId = 0;
+    u8 currentPlayerId = 0;
+    State adapterState = AUTHENTICATED;
+    bool isServerClosed = false;
   };
 
   struct SlotStatusResponse {
@@ -278,6 +286,62 @@ class LinkRawWireless {
     Link::wait(TRANSFER_WAIT);
     LRWLOG("state = SERVING");
     state = SERVING;
+
+    return true;
+  }
+
+  /**
+   * @brief Calls the SystemStatus (`0x13`) command.
+   * @param response A structure that will be filled with the response data.
+   */
+  bool getSystemStatus(SystemStatusResponse& response) {
+    auto result = sendCommand(COMMAND_SYSTEM_STATUS);
+
+    if (!result.success || result.responsesSize != 1) {
+      reset();
+      return false;
+    }
+
+    u32 status = result.responses[0];
+
+    response.deviceId = lsB32(status);
+
+    u8 slot = lsB16(msB32(status)) & 0b1111;
+    response.currentPlayerId = slot == 0b0001   ? 1
+                               : slot == 0b0010 ? 2
+                               : slot == 0b0100 ? 3
+                               : slot == 0b1000 ? 4
+                                                : 0;
+
+    u8 adapterState = msB16(msB32(status));
+    response.isServerClosed = false;
+    switch (adapterState) {
+      case 1: {
+        response.adapterState = State::SERVING;
+        response.isServerClosed = true;
+        break;
+      }
+      case 2: {
+        response.adapterState = State::SERVING;
+        break;
+      }
+      case 3: {
+        response.adapterState = State::SEARCHING;
+        break;
+      }
+      case 4: {
+        response.adapterState = State::CONNECTING;
+        break;
+      }
+      case 5: {
+        response.adapterState = State::CONNECTED;
+        break;
+      }
+      default: {
+        response.adapterState = State::AUTHENTICATED;
+        break;
+      }
+    }
 
     return true;
   }
