@@ -105,10 +105,10 @@ bool C_LinkRawWireless_broadcastReadPoll(
   for (u32 i = 0; i < response->serversSize; i++) {
     response->servers[i].id = nativeResponse.servers[i].id;
     response->servers[i].gameId = nativeResponse.servers[i].gameId;
-    std::memcpy(response->servers[i].gameName,
+    LINK_MEMCPY(response->servers[i].gameName,
                 nativeResponse.servers[i].gameName,
                 LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1);
-    std::memcpy(response->servers[i].userName,
+    LINK_MEMCPY(response->servers[i].userName,
                 nativeResponse.servers[i].userName,
                 LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1);
     response->servers[i].nextClientNumber =
@@ -146,7 +146,7 @@ bool C_LinkRawWireless_sendData(C_LinkRawWirelessHandle handle,
                                 u32 dataSize,
                                 u32 _bytes) {
   std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
-  std::memcpy(dataArray.data(), data, dataSize * sizeof(u32));
+  LINK_MEMCPY(dataArray.data(), data, dataSize * sizeof(u32));
   return static_cast<LinkRawWireless*>(handle)->sendData(dataArray, dataSize,
                                                          _bytes);
 }
@@ -159,13 +159,13 @@ bool C_LinkRawWireless_sendDataAndWait(
     u32 _bytes) {
   std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
   LinkRawWireless::RemoteCommand nativeRemoteCommand;
-  std::memcpy(dataArray.data(), data, dataSize * sizeof(u32));
+  LINK_MEMCPY(dataArray.data(), data, dataSize * sizeof(u32));
   bool success = static_cast<LinkRawWireless*>(handle)->sendDataAndWait(
       dataArray, dataSize, nativeRemoteCommand, _bytes);
   remoteCommand->success = nativeRemoteCommand.success;
   remoteCommand->commandId = nativeRemoteCommand.commandId;
   remoteCommand->paramsSize = nativeRemoteCommand.paramsSize;
-  std::memcpy(remoteCommand->params, nativeRemoteCommand.params,
+  LINK_MEMCPY(remoteCommand->params, nativeRemoteCommand.params,
               LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
   return success;
 }
@@ -194,7 +194,7 @@ bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
   remoteCommand->success = nativeRemoteCommand.success;
   remoteCommand->commandId = nativeRemoteCommand.commandId;
   remoteCommand->paramsSize = nativeRemoteCommand.paramsSize;
-  std::memcpy(remoteCommand->params, nativeRemoteCommand.params,
+  LINK_MEMCPY(remoteCommand->params, nativeRemoteCommand.params,
               LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
   return success;
 }

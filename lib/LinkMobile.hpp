@@ -62,7 +62,6 @@
 
 #include "_link_common.hpp"
 
-#include <cstring>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
@@ -369,7 +368,7 @@ class LinkMobile {
     auto request = UserRequest{.type = UserRequest::Type::PPP_LOGIN};
     copyString(request.password, password, LINK_MOBILE_MAX_PASSWORD_LENGTH);
 
-    if (std::strlen(loginId) > 0)
+    if (LINK_STRLEN(loginId) > 0)
       copyString(request.loginId, loginId, LINK_MOBILE_MAX_LOGIN_ID_LENGTH);
     else if (adapterConfiguration.isValid())
       copyString(request.loginId, adapterConfiguration.fields._ispNumber1,
@@ -399,7 +398,7 @@ class LinkMobile {
 
     result->completed = false;
     result->success = false;
-    u32 size = std::strlen(domainName);
+    u32 size = LINK_STRLEN(domainName);
     if (size > LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH)
       size = LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH;
 
@@ -1364,7 +1363,7 @@ class LinkMobile {
 
   void cmdDialTelephone(const char* phoneNumber) {
     addData(DIAL_PHONE_FIRST_BYTE[adapterType], true);
-    for (u32 i = 0; i < std::strlen(phoneNumber); i++)
+    for (u32 i = 0; i < LINK_STRLEN(phoneNumber); i++)
       addData(phoneNumber[i]);
     sendCommandAsync(buildCommand(COMMAND_DIAL_TELEPHONE, true));
   }
@@ -1400,12 +1399,12 @@ class LinkMobile {
   }
 
   void cmdISPLogin(const char* loginId, const char* password) {
-    u32 loginIdLength = std::strlen(loginId);
+    u32 loginIdLength = LINK_STRLEN(loginId);
     addData(loginIdLength, true);
     for (u32 i = 0; i < loginIdLength; i++)
       addData(loginId[i]);
 
-    u32 passwordLength = std::strlen(password);
+    u32 passwordLength = LINK_STRLEN(password);
     addData(passwordLength);
     for (u32 i = 0; i < passwordLength; i++)
       addData(password[i]);
@@ -1506,7 +1505,7 @@ class LinkMobile {
   }
 
   void copyString(char* target, const char* source, u32 length) {
-    u32 len = std::strlen(source);
+    u32 len = LINK_STRLEN(source);
 
     for (u32 i = 0; i < length + 1; i++)
       if (i < len)

@@ -12,6 +12,22 @@
 #define LINK_ENABLE_DEBUG_LOGS 0
 #endif
 
+/**
+ * @brief strlen(...) implementation (by default, std::strlen)
+ */
+#ifndef LINK_STRLEN
+#include <cstring>
+#define LINK_STRLEN std::strlen
+#endif
+
+/**
+ * @brief memcpy(...) implementation (by default, std::memcpy)
+ */
+#ifndef LINK_MEMCPY
+#include <cstring>
+#define LINK_MEMCPY std::memcpy
+#endif
+
 #if LINK_ENABLE_DEBUG_LOGS != 0
 #include <stdarg.h>
 #include <stdio.h>

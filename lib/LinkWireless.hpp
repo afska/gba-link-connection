@@ -347,9 +347,9 @@ class LinkWireless {
     if (linkRawWireless->getState() != LinkWireless::State::AUTHENTICATED &&
         linkRawWireless->getState() != LinkWireless::State::SERVING)
       return badRequest(WRONG_STATE);
-    if (std::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
+    if (LINK_STRLEN(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
       return badRequest(GAME_NAME_TOO_LONG);
-    if (std::strlen(userName) > LINK_WIRELESS_MAX_USER_NAME_LENGTH)
+    if (LINK_STRLEN(userName) > LINK_WIRELESS_MAX_USER_NAME_LENGTH)
       return badRequest(USER_NAME_TOO_LONG);
 
     isSendingSyncCommand = true;
@@ -484,9 +484,9 @@ class LinkWireless {
       Server server;
       server.id = foundServers[i].id;
       server.gameId = foundServers[i].gameId;
-      std::memcpy(server.gameName, foundServers[i].gameName,
+      LINK_MEMCPY(server.gameName, foundServers[i].gameName,
                   LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1);
-      std::memcpy(server.userName, foundServers[i].userName,
+      LINK_MEMCPY(server.userName, foundServers[i].userName,
                   LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1);
       u8 nextClientNumber = foundServers[i].nextClientNumber;
       server.currentPlayerCount =

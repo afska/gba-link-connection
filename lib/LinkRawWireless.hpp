@@ -15,7 +15,6 @@
 #include "_link_common.hpp"
 
 #include <array>
-#include <cstring>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
@@ -221,12 +220,12 @@ class LinkRawWireless {
                  u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID,
                  bool _validateNames = true) {
     if (_validateNames &&
-        std::strlen(gameName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
+        LINK_STRLEN(gameName) > LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH) {
       LRWLOG("! game name too long");
       return false;
     }
     if (_validateNames &&
-        std::strlen(userName) > LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH) {
+        LINK_STRLEN(userName) > LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH) {
       LRWLOG("! user name too long");
       return false;
     }
@@ -850,7 +849,7 @@ class LinkRawWireless {
    * @param length Number of characters.
    */
   void copyName(char* target, const char* source, u32 length) {
-    u32 len = std::strlen(source);
+    u32 len = LINK_STRLEN(source);
 
     for (u32 i = 0; i < length + 1; i++)
       if (i < len)
