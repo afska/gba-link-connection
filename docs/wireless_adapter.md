@@ -613,6 +613,7 @@ enum CommState : unsigned int {
 - Transfers can contain more than one packet.
 - As the maximum transfer lengths are `87` (server) and `16` (client), based on header sizes, the maximum payload lengths are `84` and `14`.
 - The `targetSlots` field inside the server header is a bit array that indicates which clients the message is directed to. E.g. `0b0100` means 'client 2 only' and `0b1111` means 'all clients'.
+- In `ServerSDKHeader` and `ClientSDKHeader`, all the non-documented bits (including `_unused_`) should be `0`. Otherwise, the official SDK might not respond!
 
 ### (1) Client handshake
 

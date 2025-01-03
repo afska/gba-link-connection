@@ -63,8 +63,6 @@ static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
     return lastResult;                        \
   }
 
-#define _LWMNI_ __attribute__((noinline))
-
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #include <string>
 #define _LWMLOG_(str) logger(str)
@@ -154,13 +152,13 @@ class LinkWirelessMultiboot {
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename C>
-  _LWMNI_ Result sendRom(const u8* rom,
-                         u32 romSize,
-                         const char* gameName,
-                         const char* userName,
-                         const u16 gameId,
-                         u8 players,
-                         C listener) {
+  Result sendRom(const u8* rom,
+                 u32 romSize,
+                 const char* gameName,
+                 const char* userName,
+                 const u16 gameId,
+                 u8 players,
+                 C listener) {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
@@ -211,7 +209,7 @@ class LinkWirelessMultiboot {
   volatile Result lastResult;
   ClientHeader lastValidHeader;
 
-  _LWMNI_ Result activate() {
+  Result activate() {
     if (!linkRawWireless->activate()) {
       _LWMLOG_("! adapter not detected");
       return ADAPTER_NOT_DETECTED;
@@ -221,10 +219,10 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  _LWMNI_ Result initialize(const char* gameName,
-                            const char* userName,
-                            const u16 gameId,
-                            u8 players) {
+  Result initialize(const char* gameName,
+                    const char* userName,
+                    const u16 gameId,
+                    u8 players) {
     if (!linkRawWireless->setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
                                 SETUP_MAGIC)) {
       _LWMLOG_("! setup failed");
@@ -249,7 +247,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  _LWMNI_ Result waitForClients(u8 players, C listener) {
+  Result waitForClients(u8 players, C listener) {
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
 
     u32 currentPlayers = 1;
@@ -279,7 +277,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  _LWMNI_ Result handshakeClient(u8 clientNumber, C listener) {
+  Result handshakeClient(u8 clientNumber, C listener) {
     ClientPacket handshakePackets[2] = {ClientPacket{}, ClientPacket{}};
     volatile bool hasReceivedName = false;
 
@@ -365,7 +363,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  _LWMNI_ Result sendRomStartCommand(C listener) {
+  Result sendRomStartCommand(C listener) {
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeNewData(
           i,
@@ -378,7 +376,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  _LWMNI_ Result sendRomBytes(const u8* rom, u32 romSize, C listener) {
+  Result sendRomBytes(const u8* rom, u32 romSize, C listener) {
     u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER];
     for (u32 i = 0; i < LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER; i++) {
       firstPagePatch[i] =
@@ -415,7 +413,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  _LWMNI_ Result confirm(C listener) {
+  Result confirm(C listener) {
     _LWMLOG_("confirming (1/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(
@@ -440,9 +438,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  _LWMNI_ Result exchangeNewData(u8 clientNumber,
-                                 SendBuffer sendBuffer,
-                                 C listener) {
+  Result exchangeNewData(u8 clientNumber, SendBuffer sendBuffer, C listener) {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
@@ -459,9 +455,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename V, typename C>
-  _LWMNI_ Result exchangeACKData(u8 clientNumber,
-                                 V validatePacket,
-                                 C listener) {
+  Result exchangeACKData(u8 clientNumber, V validatePacket, C listener) {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
@@ -475,8 +469,10 @@ class LinkWirelessMultiboot {
   }
 
   template <typename F, typename V, typename C>
-  _LWMNI_ Result
-  exchangeData(u8 clientNumber, F sendAction, V validatePacket, C listener) {
+  Result exchangeData(u8 clientNumber,
+                      F sendAction,
+                      V validatePacket,
+                      C listener) {
     volatile bool hasFinished = false;
     while (!hasFinished) {
       if (listener(progress))
@@ -501,14 +497,13 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  _LWMNI_ Result
-  sendAndExpectData(SendBuffer sendBuffer,
-                    LinkRawWireless::ReceiveDataResponse& response) {
+  Result sendAndExpectData(SendBuffer sendBuffer,
+                           LinkRawWireless::ReceiveDataResponse& response) {
     return sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
                              sendBuffer.totalByteCount, response);
   }
 
-  _LWMNI_ Result sendAndExpectData(
+  Result sendAndExpectData(
       std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
       u32 dataSize,
       u32 _bytes,
@@ -555,7 +550,7 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  _LWMNI_ Result ensureAllClientsAreStillAlive() {
+  Result ensureAllClientsAreStillAlive() {
     LinkRawWireless::SlotStatusResponse slotStatusResponse;
     if (!linkRawWireless->getSlotStatus(slotStatusResponse))
       return FAILURE;
@@ -566,14 +561,14 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  _LWMNI_ Result finish(Result result) {
+  Result finish(Result result) {
     linkRawWireless->bye();
     linkRawWireless->deactivate();
     resetState();
     return result;
   }
 
-  _LWMNI_ void resetState() {
+  void resetState() {
     progress.state = STOPPED;
     progress.connectedClients = 0;
     progress.percentage = 0;
@@ -602,7 +597,6 @@ class LinkWirelessMultiboot {
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
 
-#undef _LWMNI_
 #undef _LWMLOG_
 
 #endif  // LINK_WIRELESS_MULTIBOOT_H
