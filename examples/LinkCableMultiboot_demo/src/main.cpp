@@ -1,8 +1,8 @@
 // (0) Include the header
 #include "../../../lib/LinkCableMultiboot.hpp"
 
-#include <string.h>
 #include <tonc.h>
+#include <cstring>
 #include <string>
 
 extern "C" {
@@ -119,7 +119,7 @@ int main() {
           (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
 
       void* EWRAM = (void*)0x02000000;
-      memcpy(EWRAM, romToSend, fileLength);
+      std::memcpy(EWRAM, romToSend, fileLength);
 
       asm volatile(
           "mov r0, %0\n"

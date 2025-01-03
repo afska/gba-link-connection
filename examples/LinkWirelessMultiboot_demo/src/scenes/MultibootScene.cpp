@@ -4,8 +4,8 @@
 #include "MultibootScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
-#include <string.h>
 #include <tonc.h>
+#include <cstring>
 #include <functional>
 
 #include "utils/InputHandler.h"
@@ -157,7 +157,7 @@ void launchROM() {
       (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
 
   void* EWRAM = (void*)0x02000000;
-  memcpy(EWRAM, romToSend, fileLength);
+  std::memcpy(EWRAM, romToSend, fileLength);
 
   asm volatile(
       "mov r0, %0\n"
