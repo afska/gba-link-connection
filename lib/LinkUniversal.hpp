@@ -450,7 +450,14 @@ class LinkUniversal {
       linkWireless->_onTimer();
   }
 
+  /**
+   * @brief The internal `LinkCable` instance.
+   */
   LinkCable* linkCable;
+
+  /**
+   * @brief The internal `LinkWireless` instance.
+   */
   LinkWireless* linkWireless;
 
  private:
