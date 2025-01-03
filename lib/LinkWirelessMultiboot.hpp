@@ -519,7 +519,7 @@ class LinkWirelessMultiboot {
       return FAILURE;
     }
 
-    if (remoteCommand.commandId != 0x28) {
+    if (remoteCommand.commandId != LinkRawWireless::EVENT_DATA_AVAILABLE) {
       _LWMLOG_("! expected EVENT 0x28");
       _LWMLOG_("! but got " + toHex(remoteCommand.commandId));
       return FAILURE;

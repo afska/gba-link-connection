@@ -84,6 +84,10 @@ class LinkRawWireless {
   static constexpr int COMMAND_RECEIVE_DATA = 0x26;
   static constexpr int COMMAND_WAIT = 0x27;
   static constexpr int COMMAND_BYE = 0x3d;
+  static constexpr int EVENT_WAIT_TIMEOUT = 0x27;
+  static constexpr int EVENT_DATA_AVAILABLE = 0x28;
+  static constexpr int EVENT_DISCONNECTED = 0x29;
+
   static constexpr u16 LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
                                         0x4e45, 0x4f44, 0x4f44, 0x8001};
 
