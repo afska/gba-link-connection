@@ -456,7 +456,7 @@ void messageLoop() {
           "\n_timerIRQs: " + std::to_string(linkWireless->lastFrameTimerIRQs);
       output +=
           "\n_ms: " +
-          std::to_string(linkWireless->toMs(
+          std::to_string(Common::toMs(
               linkWireless->lastVBlankTime +
               linkWireless->lastSerialTime * linkWireless->lastFrameSerialIRQs +
               linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs));

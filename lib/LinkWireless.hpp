@@ -369,8 +369,8 @@ class LinkWireless {
              const char* userName = "",
              u16 gameId = LINK_WIRELESS_MAX_GAME_ID) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless->getState() != LinkWireless::State::AUTHENTICATED &&
-        linkRawWireless->getState() != LinkWireless::State::SERVING)
+    if (linkRawWireless->state != LinkWireless::State::AUTHENTICATED &&
+        linkRawWireless->state != LinkWireless::State::SERVING)
       return badRequest(WRONG_STATE);
     if (LINK_STRLEN(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
       return badRequest(GAME_NAME_TOO_LONG);
@@ -1686,13 +1686,6 @@ class LinkWireless {
     Link::_REG_TM2CNT_H = 0;
 
     return (Link::_REG_TM1CNT_L | (Link::_REG_TM2CNT_L << 16));
-  }
-
- public:
-  u32 toMs(u32 cycles) {
-    // CPU Frequency * time per frame = cycles per frame
-    // 16780000 * (1/60) ~= 279666
-    return (cycles * 1000) / (279666 * 60);
   }
 #endif
 };
