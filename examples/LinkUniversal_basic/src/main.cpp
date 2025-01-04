@@ -18,45 +18,55 @@ void init() {
   tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
 }
 
+inline void ISR_reset() {
+  RegisterRamReset(RESET_REG | RESET_VRAM);
+  SoftReset();
+}
+
 int main() {
   init();
 
-  log("LinkUniversal_basic (v7.1.0)\n\n\n"
-      "Press A to start\n\n\n"
+  log("LinkUniversal_basic (v7.1.0)\n"
+      "Press A to start\n\n"
       "hold LEFT on start:\n -> force cable\n\n"
       "hold RIGHT on start:\n -> force wireless\n\n"
       "hold UP on start:\n -> force wireless server\n\n"
       "hold DOWN on start:\n -> force wireless client\n\n"
-      "hold B on start:\n -> set 2 players (wireless)");
+      "hold B on start:\n -> set 2 players (wireless)\n\nhold R on start:\n -> "
+      "restore wireless multiboot");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
   bool forceWireless = initialKeys & KEY_RIGHT;
   bool forceWirelessServer = initialKeys & KEY_UP;
   bool forceWirelessClient = initialKeys & KEY_DOWN;
+  bool restoreWirelessMultiboot = initialKeys & KEY_R;
   LinkUniversal::Protocol protocol =
       forceCable            ? LinkUniversal::Protocol::CABLE
       : forceWireless       ? LinkUniversal::Protocol::WIRELESS_AUTO
       : forceWirelessServer ? LinkUniversal::Protocol::WIRELESS_SERVER
       : forceWirelessClient ? LinkUniversal::Protocol::WIRELESS_CLIENT
-                            : LinkUniversal::Protocol::AUTODETECT;
+      : restoreWirelessMultiboot
+          ? LinkUniversal::Protocol::WIRELESS_RESTORE_FROM_MULTIBOOT
+          : LinkUniversal::Protocol::AUTODETECT;
   u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_UNIVERSAL_MAX_PLAYERS;
 
   // (1) Create a LinkUniversal instance
-  linkUniversal =
-      new LinkUniversal(protocol, "LinkUNI",
-                        (LinkUniversal::CableOptions){
-                            .baudRate = LinkCable::BAUD_RATE_1,
-                            .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
-                            .interval = LINK_CABLE_DEFAULT_INTERVAL,
-                            .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
-                        (LinkUniversal::WirelessOptions){
-                            .retransmission = true,
-                            .maxPlayers = maxPlayers,
-                            .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
-                            .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-                            .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
-                        __qran_seed);
+  linkUniversal = new LinkUniversal(
+      protocol, "LinkUNI",
+      (LinkUniversal::CableOptions){
+          .baudRate = LinkCable::BAUD_RATE_1,
+          .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
+          .interval = LINK_CABLE_DEFAULT_INTERVAL,
+          .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
+      (LinkUniversal::WirelessOptions){
+          .retransmission = true,
+          .maxPlayers = maxPlayers,
+          .timeout = restoreWirelessMultiboot ? (u32)1000
+                                              : LINK_WIRELESS_DEFAULT_TIMEOUT,
+          .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
+          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
+      __qran_seed);
 
   // (2) Add the required interrupt service routines
   interrupt_init();
@@ -66,6 +76,11 @@ int main() {
   interrupt_enable(INTR_SERIAL);
   interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
+
+  // B+START+SELECT = Reset
+  REG_KEYCNT = 0b1100000000001110;
+  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
+  interrupt_enable(INTR_KEYPAD);
 
   // (3) Initialize the library
   linkUniversal->activate();
