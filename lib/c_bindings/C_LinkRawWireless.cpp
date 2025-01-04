@@ -18,6 +18,10 @@ bool C_LinkRawWireless_activate(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->activate();
 }
 
+bool C_LinkRawWireless_restoreFromMultiboot(C_LinkRawWirelessHandle handle) {
+  return static_cast<LinkRawWireless*>(handle)->restoreFromMultiboot();
+}
+
 void C_LinkRawWireless_deactivate(C_LinkRawWirelessHandle handle) {
   static_cast<LinkRawWireless*>(handle)->deactivate();
 }

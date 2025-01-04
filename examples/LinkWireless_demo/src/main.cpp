@@ -68,16 +68,20 @@ start:
       "Press A to start\n\n"
       "hold LEFT on start:\n -> disable forwarding\n\n"
       "hold UP on start:\n -> disable retransmission\n\n"
+      "hold RIGHT on start:\n -> restore from multiboot\n -> high "
+      "timeout\n\n"
       "hold B on start:\n -> set 2 players");
   waitFor(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
   maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_WIRELESS_MAX_PLAYERS;
+  bool isRestoringFromMultiboot = initialKeys & KEY_RIGHT;
 
   // (1) Create a LinkWireless instance
   linkWireless = new LinkWireless(
-      forwarding, retransmission, maxPlayers, LINK_WIRELESS_DEFAULT_TIMEOUT,
+      forwarding, retransmission, maxPlayers,
+      isRestoringFromMultiboot ? 1000 : LINK_WIRELESS_DEFAULT_TIMEOUT,
       LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
   // linkWireless->debug = [](std::string str) { log(str); };
 
@@ -91,7 +95,17 @@ start:
   interrupt_enable(INTR_TIMER3);
 
   // (3) Initialize the library
-  linkWireless->activate();
+  if (isRestoringFromMultiboot) {
+    // Restore from multiboot
+    bool success = linkWireless->restoreFromMultiboot();
+    if (!success) {
+      log("Multiboot restoration failed!");
+      hang();
+    }
+  } else {
+    // Normal initialization
+    linkWireless->activate();
+  }
 
   bool activating = false;
   bool serving = false;
@@ -100,13 +114,21 @@ start:
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
+    // If a session is already active (multiboot), go straight the message loop
+    if (linkWireless->isSessionActive()) {
+      messageLoop();
+      VBlankIntrWait();
+      continue;
+    }
+
     // Menu
     log(std::string("") +
         "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
         (forwarding ? "ON" : "OFF") +
         "\n-> retransmission: " + (retransmission ? "ON" : "OFF") +
-        "\n-> max players: " + std::to_string(maxPlayers));
+        "\n-> max players: " + std::to_string(maxPlayers) +
+        "\n-> timeout: " + std::to_string(linkWireless->config.timeout));
 
     // SELECT = back
     if (keys & KEY_SELECT) {

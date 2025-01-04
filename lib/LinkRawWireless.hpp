@@ -191,8 +191,9 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Restore the state from an existing connection after a fresh boot.
-   * Returns whether restoration was successful or not.
+   * @brief Restores the state from an existing connection after a fresh boot.
+   * Returns whether restoration was successful or not. On success, the state
+   * should be either `SERVING` or `CONNECTED`.
    */
   bool restoreFromMultiboot() {
     isEnabled = false;
@@ -218,6 +219,7 @@ class LinkRawWireless {
       }
 
       state = SERVING;
+      sessionState.isServerClosed = systemStatus.isServerClosed;
     } else if (systemStatus.adapterState == CONNECTED) {
       LRWLOG("restoring CONNECTED state");
       state = CONNECTED;
@@ -329,6 +331,9 @@ class LinkRawWireless {
     Link::wait(TRANSFER_WAIT);
     LRWLOG("state = SERVING");
     state = SERVING;
+
+    LRWLOG("server OPEN");
+    sessionState.isServerClosed = false;
 
     return true;
   }
@@ -470,6 +475,9 @@ class LinkRawWireless {
     sessionState.playerCount = 1 + result.responsesSize;
     if (sessionState.playerCount != oldPlayerCount)
       LRWLOG("now: " + std::to_string(sessionState.playerCount) + " players");
+
+    LRWLOG("server CLOSED");
+    sessionState.isServerClosed = true;
 
     return true;
   }
@@ -927,6 +935,11 @@ class LinkRawWireless {
   }
 
   /**
+   * @brief Returns `true` if the server was closed with `endHost()`.
+   */
+  [[nodiscard]] bool isServerClosed() { return sessionState.isServerClosed; }
+
+  /**
    * @brief Returns the number of connected players.
    */
   [[nodiscard]] u8 playerCount() { return sessionState.playerCount; }
@@ -944,6 +957,7 @@ class LinkRawWireless {
   struct SessionState {
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
+    bool isServerClosed = false;
   };
 
   struct LoginMemory {
@@ -1022,6 +1036,7 @@ class LinkRawWireless {
     this->state = NEEDS_RESET;
     this->sessionState.playerCount = 1;
     this->sessionState.currentPlayerId = 0;
+    this->sessionState.isServerClosed = false;
   }
 
   /**

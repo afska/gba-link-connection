@@ -87,6 +87,7 @@ C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
 void C_LinkWireless_destroy(C_LinkWirelessHandle handle);
 
 bool C_LinkWireless_activate(C_LinkWirelessHandle handle);
+bool C_LinkWireless_restoreFromMultiboot(C_LinkWirelessHandle handle);
 bool C_LinkWireless_deactivate(C_LinkWirelessHandle handle);
 bool C_LinkWireless_deactivateButKeepOn(C_LinkWirelessHandle handle);
 
@@ -137,7 +138,7 @@ u32 C_LinkWireless_lastPacketIdFromServer(C_LinkWirelessHandle handle);
 u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle);
 
 C_LinkRawWirelessHandle C_LinkWireless_getLinkRawWireless(
-    C_LinkUniversalHandle handle);
+    C_LinkWirelessHandle handle);
 
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle);
 void C_LinkWireless_onSerial(C_LinkWirelessHandle handle);

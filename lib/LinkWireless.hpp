@@ -307,6 +307,27 @@ class LinkWireless {
   }
 
   /**
+   * @brief Restores the state from an existing connection after a fresh boot.
+   * Returns whether restoration was successful or not. On success, the state
+   * should be either `SERVING` or `CONNECTED`.
+   */
+  bool restoreFromMultiboot() {
+    isEnabled = false;
+
+    resetState();
+    stopTimer();
+    startTimer();
+
+    if (!linkRawWireless->restoreFromMultiboot()) {
+      deactivate();
+      return false;
+    }
+
+    isEnabled = true;
+    return true;
+  }
+
+  /**
    * @brief Puts the adapter into a low consumption mode and then deactivates
    * the library. It returns a boolean indicating whether the transition to low
    * consumption mode was successful.
@@ -386,18 +407,15 @@ class LinkWireless {
   bool closeServer() {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless->state != LinkWireless::State::SERVING ||
-        sessionState.serverClosed)
+        linkRawWireless->sessionState.isServerClosed)
       return badRequest(WRONG_STATE);
 
     isSendingSyncCommand = true;
     if (asyncCommand.isActive)
       return badRequest(BUSY_TRY_AGAIN);
 
-    sessionState.serverClosed = true;
-    sessionState.acceptCalled = true;
-
-    bool success =
-        linkRawWireless->sendCommand(LinkRawWireless::COMMAND_END_HOST).success;
+    LinkRawWireless::AcceptConnectionsResponse response;
+    bool success = linkRawWireless->endHost(response);
 
     if (!success)
       return abort(COMMAND_FAILED);
@@ -623,7 +641,9 @@ class LinkWireless {
   /**
    * @brief Returns `true` if the server was closed with `closeServer()`.
    */
-  [[nodiscard]] bool isServerClosed() { return sessionState.serverClosed; }
+  [[nodiscard]] bool isServerClosed() {
+    return linkRawWireless->sessionState.isServerClosed;
+  }
 
   /**
    * @brief Returns the number of connected players.
@@ -783,8 +803,7 @@ class LinkWireless {
 #endif
 
     sessionState.recvFlag = false;
-    if (!sessionState.serverClosed)
-      sessionState.acceptCalled = false;
+    sessionState.acceptCalled = false;
     sessionState.pingSent = false;
 
 #ifdef PROFILING_ENABLED
@@ -904,7 +923,6 @@ class LinkWireless {
     bool msgFlags[LINK_WIRELESS_MAX_PLAYERS];    // (~= LinkCable::msgFlags)
 
     bool acceptCalled = false;
-    bool serverClosed = false;
     bool pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     bool sendReceiveLatch = false;  // true = send ; false = receive
@@ -1068,6 +1086,7 @@ class LinkWireless {
 
   void acceptConnectionsOrTransferData() {  // (irq only)
     if (linkRawWireless->state == LinkWireless::State::SERVING &&
+        !linkRawWireless->sessionState.isServerClosed &&
         !sessionState.acceptCalled &&
         linkRawWireless->sessionState.playerCount < config.maxPlayers) {
       // AcceptConnections (start)
@@ -1456,7 +1475,6 @@ class LinkWireless {
     this->sessionState.recvFlag = false;
     this->sessionState.recvTimeout = 0;
     this->sessionState.acceptCalled = false;
-    this->sessionState.serverClosed = false;
     this->sessionState.pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     this->sessionState.sendReceiveLatch = false;
