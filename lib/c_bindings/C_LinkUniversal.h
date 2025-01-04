@@ -60,7 +60,8 @@ void C_LinkUniversal_destroy(C_LinkUniversalHandle handle);
 
 bool C_LinkUniversal_isActive(C_LinkUniversalHandle handle);
 void C_LinkUniversal_activate(C_LinkUniversalHandle handle);
-void C_LinkUniversal_deactivate(C_LinkUniversalHandle handle);
+bool C_LinkUniversal_deactivate(C_LinkUniversalHandle handle);
+bool C_LinkUniversal_deactivateButKeepWirelessOn(C_LinkUniversalHandle handle);
 
 bool C_LinkUniversal_isConnected(C_LinkUniversalHandle handle);
 u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle);

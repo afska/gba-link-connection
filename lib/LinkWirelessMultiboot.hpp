@@ -581,10 +581,9 @@ class LinkWirelessMultiboot {
   }
 
   Result finish(Result result, bool keepConnectionAlive = false) {
-    if (result != SUCCESS || !keepConnectionAlive) {
+    if (result != SUCCESS || !keepConnectionAlive)
       linkRawWireless->bye();
-      linkRawWireless->deactivate();
-    }
+    linkRawWireless->deactivate();
     resetState();
     return result;
   }

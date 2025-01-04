@@ -38,8 +38,12 @@ void C_LinkUniversal_activate(C_LinkUniversalHandle handle) {
   static_cast<LinkUniversal*>(handle)->activate();
 }
 
-void C_LinkUniversal_deactivate(C_LinkUniversalHandle handle) {
-  static_cast<LinkUniversal*>(handle)->deactivate();
+bool C_LinkUniversal_deactivate(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->deactivate();
+}
+
+bool C_LinkUniversal_deactivateButKeepWirelessOn(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->deactivate(false);
 }
 
 bool C_LinkUniversal_isConnected(C_LinkUniversalHandle handle) {

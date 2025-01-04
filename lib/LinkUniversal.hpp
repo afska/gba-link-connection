@@ -175,13 +175,15 @@ class LinkUniversal {
   }
 
   /**
-   * @brief Deactivates the library.
+   * @brief Deactivates the library, disabling both cable and wireless modes.
+   * Returns whether the deactivation of the Wireless Adapter was successful.
    */
-  void deactivate() {
+  bool deactivate(bool turnOffWireless = true) {
     isEnabled = false;
     linkCable->deactivate();
-    linkWireless->deactivate();
+    bool success = linkWireless->deactivate(turnOffWireless);
     resetState();
+    return success;
   }
 
   /**
