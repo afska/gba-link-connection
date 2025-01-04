@@ -191,6 +191,49 @@ class LinkRawWireless {
   }
 
   /**
+   * @brief Restore the state from an existing connection after a fresh boot.
+   * Returns whether restoration was successful or not.
+   */
+  bool restoreFromMultiboot() {
+    isEnabled = false;
+
+    resetState();
+
+    LRWLOG("setting SPI to 2Mbps");
+    linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+
+    SystemStatusResponse systemStatus;
+    if (!getSystemStatus(systemStatus)) {
+      deactivate();
+      return false;
+    }
+
+    if (systemStatus.adapterState == SERVING) {
+      LRWLOG("restoring SERVING state");
+
+      SlotStatusResponse slotStatus;
+      if (!getSlotStatus(slotStatus)) {
+        deactivate();
+        return false;
+      }
+
+      state = SERVING;
+    } else if (systemStatus.adapterState == CONNECTED) {
+      LRWLOG("restoring CONNECTED state");
+      state = CONNECTED;
+    } else {
+      LRWLOG("! invalid adapter state");
+      deactivate();
+      return false;
+    }
+
+    sessionState.currentPlayerId = systemStatus.currentPlayerId;
+
+    isEnabled = true;
+    return true;
+  }
+
+  /**
    * @brief Deactivates the library.
    */
   void deactivate() {
@@ -368,6 +411,11 @@ class LinkRawWireless {
                             .clientNumber = (u8)msB32(result.responses[i])};
       }
     }
+
+    u8 oldPlayerCount = sessionState.playerCount;
+    sessionState.playerCount = 1 + response.connectedClientsSize;
+    if (sessionState.playerCount != oldPlayerCount)
+      LRWLOG("now: " + std::to_string(sessionState.playerCount) + " players");
 
     return true;
   }

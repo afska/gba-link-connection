@@ -541,13 +541,15 @@ While the clock is inverted, the acknowledge procedure is 'standard' but with th
 
 To host a 'multiboot' room, a host sets the **multiboot flag** (bit 15) in its game ID (inside broadcast data) and starts serving.
 
-- 1. For each new client that connects, it runs a small handshake where the client sends their 'game name' and 'player name'. The bootloader always sends `RFU-MB-DL` as game name and `PLAYER A` (or `B`, `C`, `D`) as player name.
+1. For each new client that connects, it runs a small handshake where the client sends their 'game name' and 'player name'. The bootloader always sends `RFU-MB-DL` as game name and `PLAYER A` (or `B`, `C`, `D`) as player name.
 
-- 2. When the host player confirms that all players are ready, it sends a 'rom start' command.
+2. When the host player confirms that all players are ready, it sends a 'rom start' command.
 
-- 3. The host sends the rom bytes in 84-byte chunks.
+3. The host sends the rom bytes in 84-byte chunks.
 
-- 4. The host sends a 'rom end' command and the games boot.
+4. The host sends a 'rom end' command and the games boot.
+
+5. Since the adapter hardware is still connected, the games 'restore' the SDK state to preserve the session and avoid reconnecting clients. The `0x13` command returns whether we are a server or a client, as well as the client number.
 
 ### Valid header
 

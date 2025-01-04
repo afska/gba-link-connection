@@ -71,8 +71,8 @@ static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
 #endif
 
 /**
- * @brief A Wireless Multiboot tool to send small ROMs from a GBA to up to 4
- * slaves.
+ * @brief A Multiboot tool to send small ROMs from a GBA to up to 4 slaves via
+ * GBA Wireless Adapter.
  */
 class LinkWirelessMultiboot {
  private:
@@ -147,6 +147,9 @@ class LinkWirelessMultiboot {
    * @param listener A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted. It receives a
    * `LinkWirelessMultiboot::MultibootProgress` object with details.
+   * @param keepConnectionAlive If a `true`, the adapter won't be reset after a
+   * successful transfer, so users can continue the session using
+   * `LinkWireless::restoreFromMultiboot()`.
    * \warning You can start the transfer before the player count is reached by
    * running `*progress.ready = true;` in the `listener` callback.
    * \warning Blocks the system until completion or cancellation.
@@ -158,7 +161,8 @@ class LinkWirelessMultiboot {
                  const char* userName,
                  const u16 gameId,
                  u8 players,
-                 C listener) {
+                 C listener,
+                 bool keepConnectionAlive = false) {
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
@@ -192,7 +196,18 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY(confirm(listener))
 
     _LWMLOG_("SUCCESS!");
-    return finish(SUCCESS);
+    return finish(SUCCESS, keepConnectionAlive);
+  }
+
+  /**
+   * @brief Turns off the adapter. It returns a boolean indicating whether the
+   * transition to low consumption mode was successful.
+   */
+  bool reset() {
+    bool success = linkRawWireless->bye();
+    linkRawWireless->deactivate();
+    resetState();
+    return success;
   }
 
   ~LinkWirelessMultiboot() {
@@ -256,7 +271,8 @@ class LinkWirelessMultiboot {
       if (listener(progress))
         return CANCELED;
 
-      linkRawWireless->acceptConnections(acceptResponse);
+      if (!linkRawWireless->acceptConnections(acceptResponse))
+        return FAILURE;
 
       if (linkRawWireless->playerCount() > currentPlayers) {
         currentPlayers = linkRawWireless->playerCount();
@@ -272,6 +288,9 @@ class LinkWirelessMultiboot {
     }
 
     readyFlag = true;
+
+    if (!linkRawWireless->endHost(acceptResponse))
+      return FAILURE;
 
     return SUCCESS;
   }
@@ -561,9 +580,11 @@ class LinkWirelessMultiboot {
     return SUCCESS;
   }
 
-  Result finish(Result result) {
-    linkRawWireless->bye();
-    linkRawWireless->deactivate();
+  Result finish(Result result, bool keepConnectionAlive = false) {
+    if (result != SUCCESS || !keepConnectionAlive) {
+      linkRawWireless->bye();
+      linkRawWireless->deactivate();
+    }
     resetState();
     return result;
   }

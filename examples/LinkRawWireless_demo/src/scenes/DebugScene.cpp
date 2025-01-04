@@ -30,6 +30,8 @@ static std::unique_ptr<InputHandler> selectHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> startHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> rightHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
 
 static std::vector<std::string> logLines;
 static u32 currentLogLine = 0;
@@ -145,6 +147,7 @@ void DebugScene::load() {
   log("  (v7.1.0)");
   log("");
   log("START: reset wireless adapter");
+  log("RIGHT: restore from multiboot");
   log("A: send command");
   log("B: toggle log level");
   log("UP/DOWN: scroll up/down");
@@ -268,6 +271,7 @@ void DebugScene::processKeys(u16 keys) {
   rHandler->setIsPressed(keys & KEY_R);
   selectHandler->setIsPressed(keys & KEY_SELECT);
   startHandler->setIsPressed(keys & KEY_START);
+  rightHandler->setIsPressed(keys & KEY_RIGHT);
 }
 
 void DebugScene::processButtons() {
@@ -316,6 +320,9 @@ void DebugScene::processButtons() {
 
   if (startHandler->hasBeenPressedNow())
     resetAdapter();
+
+  if (rightHandler->hasBeenPressedNow())
+    restoreFromMultiboot();
 }
 
 void DebugScene::toggleLogLevel() {
@@ -969,4 +976,9 @@ void DebugScene::logOperation(std::string name,
 void DebugScene::resetAdapter() {
   logOperation("resetting adapter",
                []() { return linkRawWireless->activate(); });
+}
+
+void DebugScene::restoreFromMultiboot() {
+  logOperation("restoring from multiboot",
+               []() { return linkRawWireless->restoreFromMultiboot(); });
 }

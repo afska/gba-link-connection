@@ -57,6 +57,19 @@ C_LinkWirelessMultiboot_Result C_LinkWirelessMultiboot_sendRom(
     u8 players,
     C_LinkWirelessMultiboot_ListenerCallback listener);
 
+C_LinkWirelessMultiboot_Result
+C_LinkWirelessMultiboot_sendRomAndKeepConnectionAlive(
+    C_LinkWirelessMultibootHandle handle,
+    const u8* rom,
+    u32 romSize,
+    const char* gameName,
+    const char* userName,
+    u16 gameId,
+    u8 players,
+    C_LinkWirelessMultiboot_ListenerCallback listener);
+
+bool C_LinkWirelessMultiboot_reset(C_LinkWirelessMultibootHandle handle);
+
 extern C_LinkWirelessMultibootHandle cLinkWirelessMultiboot;
 
 #ifdef __cplusplus

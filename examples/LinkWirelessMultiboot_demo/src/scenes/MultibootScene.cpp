@@ -269,7 +269,8 @@ void MultibootScene::processButtons() {
             *progress.ready = true;
           }
           return (keys & KEY_L) && (keys & KEY_R);
-        });
+        },
+        true);
     log("-> result: " + std::to_string(result));
     print();
   }
