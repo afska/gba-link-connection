@@ -1,12 +1,9 @@
 // (0) Include the header
 #include "../../../lib/LinkCube.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-void log(std::string text);
-bool didPress(unsigned short key, bool& pressed);
 inline void VBLANK() {}
 
 bool a = false, b = false, l = false;
@@ -15,8 +12,7 @@ bool a = false, b = false, l = false;
 LinkCube* linkCube = new LinkCube();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
@@ -48,13 +44,13 @@ int main() {
         ")\n\nReceived:\n" + received;
 
     // (4) Send 32-bit values
-    if (didPress(KEY_A, a)) {
+    if (Common::didPress(KEY_A, a)) {
       counter++;
       linkCube->send(counter);
     }
 
     // +1024
-    if (didPress(KEY_L, l)) {
+    if (Common::didPress(KEY_L, l)) {
       counter += 1024;
       linkCube->send(counter);
     }
@@ -65,7 +61,7 @@ int main() {
     }
 
     // Clear
-    if (didPress(KEY_B, b))
+    if (Common::didPress(KEY_B, b))
       received = "";
 
     // Reset warning
@@ -82,26 +78,8 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-bool didPress(u16 key, bool& pressed) {
-  u16 keys = ~REG_KEYS & KEY_ANY;
-  bool isPressedNow = false;
-  if ((keys & key) && !pressed) {
-    pressed = true;
-    isPressedNow = true;
-  }
-  if (pressed && !(keys & key))
-    pressed = false;
-  return isPressedNow;
 }

@@ -1,29 +1,17 @@
 // (0) Include the header
 #include "../../../lib/LinkPS2Mouse.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-void log(std::string text);
 inline void VBLANK() {}
 inline void TIMER() {}
 
 // (1) Create a LinkPS2Mouse instance
 LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse(2);
 
-inline void ISR_reset() {
-  REG_IME = 0;
-  RegisterRamReset(RESET_REG | RESET_VRAM);
-#if MULTIBOOT_BUILD == 1
-  *(vu8*)0x03007FFA = 0x01;
-#endif
-  SoftReset();
-}
-
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
@@ -34,7 +22,7 @@ void init() {
 
   // B = SoftReset
   REG_KEYCNT = 0b10 | (1 << 14);
-  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
+  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
   interrupt_enable(INTR_KEYPAD);
 }
 
@@ -52,7 +40,7 @@ int main() {
 
       if (keys & KEY_A) {
         // (3) Initialize the library
-        log("Waiting...");
+        Common::log("Waiting...");
         linkPS2Mouse->activate();
         VBlankIntrWait();
         continue;
@@ -67,14 +55,8 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }

@@ -4,8 +4,8 @@
 #include "main.h"
 #include <libgba-sprite-engine/gba_engine.h>
 #include "../../_lib/interrupt.h"
+#include "../../_lib/libgba-sprite-engine/scene.h"
 #include "scenes/TestScene.h"
-#include "utils/SceneUtils.h"
 
 void setUpInterrupts();
 void printTutorial();
@@ -46,11 +46,11 @@ int main() {
 
     // log player ID/count and important flags
     TextStream::instance().setText(
-        "P" + asStr(linkConnection->currentPlayerId()) + "/" +
-            asStr(linkConnection->playerCount()) + "-R" +
-            asStr(isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
-            asStr(isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, BIT_START)),
+        "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+            std::to_string(linkConnection->playerCount()) + "-R" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)),
         0, 14);
 
     engine->update();
@@ -59,15 +59,6 @@ int main() {
   }
 
   return 0;
-}
-
-inline void ISR_reset() {
-  REG_IME = 0;
-  RegisterRamReset(RESET_REG | RESET_VRAM);
-#if MULTIBOOT_BUILD == 1
-  *(vu8*)0x03007FFA = 0x01;
-#endif
-  SoftReset();
 }
 
 inline void setUpInterrupts() {
@@ -93,7 +84,7 @@ inline void setUpInterrupts() {
 
   // A+B+START+SELECT = SoftReset
   REG_KEYCNT = 0b1100000000001111;
-  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
+  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
   interrupt_enable(INTR_KEYPAD);
 }
 

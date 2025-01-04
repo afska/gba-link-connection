@@ -5,12 +5,10 @@
 #include "DebugScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
-#include <tonc.h>
 #include <algorithm>
 #include <functional>
-
-#include "utils/InputHandler.h"
-#include "utils/SceneUtils.h"
+#include "../../../_lib/common.h"
+#include "../../../_lib/libgba-sprite-engine/scene.h"
 
 DebugScene::DebugScene(std::shared_ptr<GBAEngine> engine) : Scene(engine) {}
 

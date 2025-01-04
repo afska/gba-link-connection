@@ -4,33 +4,20 @@
 // (0) Include the header
 #include "../../../lib/LinkUniversal.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
-
-void log(std::string text);
-void waitFor(u16 key);
 
 LinkUniversal* linkUniversal = nullptr;
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
-}
-
-inline void ISR_reset() {
-  REG_IME = 0;
-  RegisterRamReset(RESET_REG | RESET_VRAM);
-#if MULTIBOOT_BUILD == 1
-  *(vu8*)0x03007FFA = 0x01;
-#endif
-  SoftReset();
+  Common::initTTE();
 }
 
 int main() {
   init();
 
-  log("LinkUniversal_basic (v7.1.0)\n"
+  Common::log(
+      "LinkUniversal_basic (v7.1.0)\n"
       "Press A to start\n\n"
       "hold LEFT on start:\n -> force cable\n\n"
       "hold RIGHT on start:\n -> force wireless\n\n"
@@ -38,7 +25,7 @@ int main() {
       "hold DOWN on start:\n -> force wireless client\n\n"
       "hold B on start:\n -> set 2 players (wireless)\n\nhold R on start:\n -> "
       "restore wireless multiboot");
-  waitFor(KEY_A);
+  Common::waitForKey(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   bool forceCable = initialKeys & KEY_LEFT;
   bool forceWireless = initialKeys & KEY_RIGHT;
@@ -83,7 +70,7 @@ int main() {
 
   // B+START+SELECT = SoftReset
   REG_KEYCNT = 0b1100000000001110;
-  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
+  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
   interrupt_enable(INTR_KEYPAD);
 
   // (3) Initialize the library
@@ -133,21 +120,8 @@ int main() {
     }
 
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-void waitFor(u16 key) {
-  u16 keys;
-  do {
-    keys = ~REG_KEYS & KEY_ANY;
-  } while (!(keys & key));
 }

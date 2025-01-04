@@ -5,7 +5,6 @@
 
 #include "main.h"
 
-#include <tonc.h>
 #include <functional>
 #include "../../_lib/interrupt.h"
 
@@ -35,8 +34,7 @@ std::string selectedDomain = "";
 LinkMobile* linkMobile = nullptr;
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 }
 
 int main() {
@@ -77,7 +75,7 @@ start:
     }
 
     // SELECT = stop
-    if (didPress(KEY_SELECT, select)) {
+    if (Common::didPress(KEY_SELECT, select)) {
       bool didShutdown = linkMobile->getState() == LinkMobile::State::SHUTDOWN;
 
       if (hasError || didShutdown) {
@@ -103,13 +101,13 @@ start:
     switch (linkMobile->getState()) {
       case LinkMobile::State::SESSION_ACTIVE: {
         // L = Read Configuration
-        if (didPress(KEY_L, l)) {
+        if (Common::didPress(KEY_L, l)) {
           readConfiguration();
           waitForA();
         }
 
         // R = Call someone
-        if (didPress(KEY_R, r)) {
+        if (Common::didPress(KEY_R, r)) {
           std::string number = getNumberInput();
           if (number != "") {
             // (4) Call someone
@@ -118,7 +116,7 @@ start:
         }
 
         // START = Call the ISP
-        if (didPress(KEY_START, start)) {
+        if (Common::didPress(KEY_START, start)) {
           std::string password = getPasswordInput();
           if (password != "") {
             // (7) Connect to the internet
@@ -129,7 +127,7 @@ start:
       }
       case LinkMobile::State::CALL_ESTABLISHED: {
         // L = hang up
-        if (didPress(KEY_L, l)) {
+        if (Common::didPress(KEY_L, l)) {
           // (6) Hang up
           linkMobile->hangUp();
         }
@@ -137,7 +135,7 @@ start:
       }
       case LinkMobile::State::PPP_ACTIVE: {
         // A = DNS query
-        if (didPress(KEY_A, a) && !waitingDNS) {
+        if (Common::didPress(KEY_A, a) && !waitingDNS) {
           std::string domain = getDomainInput();
           if (domain != "") {
             // (8) Run DNS queries
@@ -146,7 +144,7 @@ start:
           }
         }
         // L = hang up
-        if (didPress(KEY_L, l)) {
+        if (Common::didPress(KEY_L, l)) {
           // (6) Hang up
           linkMobile->hangUp();
         }
@@ -249,7 +247,7 @@ void handlePPP() {
       log("Downloading... (" + std::to_string(chunk) + ", " +
           std::to_string(retry) + ")\n (hold START = close conn)\n\n" + output);
 
-      if (didPress(KEY_START, start)) {
+      if (Common::didPress(KEY_START, start)) {
         log("Closing...");
         LinkMobile::CloseConn closeConn;
         linkMobile->closeConnection(
@@ -424,43 +422,43 @@ std::string getInput(std::string& field,
     std::string output = "Type " + inputName + ":\n\n";
     output += ">> " + field + "\n\n";
 
-    if (didPress(KEY_RIGHT, right)) {
+    if (Common::didPress(KEY_RIGHT, right)) {
       selectedX++;
       if (selectedX >= (int)renderRows[0].size())
         selectedX = renderRows[0].size() - 1;
     }
-    if (didPress(KEY_LEFT, left)) {
+    if (Common::didPress(KEY_LEFT, left)) {
       selectedX--;
       if (selectedX < 0)
         selectedX = 0;
     }
-    if (didPress(KEY_UP, up)) {
+    if (Common::didPress(KEY_UP, up)) {
       selectedY--;
       if (selectedY < 0)
         selectedY = 0;
     }
-    if (didPress(KEY_DOWN, down)) {
+    if (Common::didPress(KEY_DOWN, down)) {
       selectedY++;
       if (selectedY >= (int)renderRows.size())
         selectedY = renderRows.size() - 1;
     }
-    if (didPress(KEY_B, b)) {
+    if (Common::didPress(KEY_B, b)) {
       if (field.size() > 0)
         field = field.substr(0, field.size() - 1);
       else
         return "";
     }
-    if (didPress(KEY_A, a)) {
+    if (Common::didPress(KEY_A, a)) {
       if (field.size() < maxChars)
         field += renderRows[selectedY][selectedX];
     }
-    if (didPress(KEY_SELECT, select)) {
+    if (Common::didPress(KEY_SELECT, select)) {
       field = defaultValues[selectedDefaultValue].value;
       selectedDefaultValue = (selectedDefaultValue + 1) % defaultValues.size();
     }
-    if (didPress(KEY_START, start))
+    if (Common::didPress(KEY_START, start))
       return field;
-    if (altName != "" && didPress(KEY_L, l))
+    if (altName != "" && Common::didPress(KEY_L, l))
       altActive = !altActive;
 
     for (int y = 0; y < (int)renderRows.size(); y++) {
@@ -589,9 +587,7 @@ std::string getResultString(LinkMobile::CommandResult cmdResult) {
 void log(std::string text) {
   if (linkMobile != nullptr)
     VBlankIntrWait();
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
+  Common::log(text);
 }
 
 std::string toStr(char* chars, int size) {
@@ -602,20 +598,8 @@ std::string toStr(char* chars, int size) {
   return std::string(copiedChars);
 }
 
-bool didPress(u16 key, bool& pressed) {
-  u16 keys = ~REG_KEYS & KEY_ANY;
-  bool isPressedNow = false;
-  if ((keys & key) && !pressed) {
-    pressed = true;
-    isPressedNow = true;
-  }
-  if (pressed && !(keys & key))
-    pressed = false;
-  return isPressedNow;
-}
-
 void waitForA() {
-  while (!didPress(KEY_A, a))
+  while (!Common::didPress(KEY_A, a))
     ;
 }
 

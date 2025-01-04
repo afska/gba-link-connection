@@ -1,19 +1,16 @@
 // (0) Include the header
 #include "../../../lib/LinkSPI.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-void log(std::string text);
 inline void VBLANK() {}
 
 // (1) Create a LinkSPI instance
 LinkSPI* linkSPI = new LinkSPI();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
@@ -65,7 +62,7 @@ int main() {
           linkSPI->getMode() == LinkSPI::Mode::SLAVE ? "[slave]" : "[master]";
       output += std::string(modeName) + "\n";
       if (firstTransfer) {
-        log(output + "Waiting...");
+        Common::log(output + "Waiting...");
         firstTransfer = false;
       }
 
@@ -86,11 +83,11 @@ int main() {
             u16 keys = ~REG_KEYS & KEY_ANY;
             return (keys & KEY_L) && (keys & KEY_R);
           });
-          log(output + ">> " + std::to_string(counter));
+          Common::log(output + ">> " + std::to_string(counter));
           Link::wait(228 * 60);
         }
         if (linkSPI->getAsyncState() == LinkSPI::AsyncState::READY) {
-          log(output + "<< " + std::to_string(linkSPI->getAsyncData()));
+          Common::log(output + "<< " + std::to_string(linkSPI->getAsyncData()));
           Link::wait(228 * 60);
         }
       }
@@ -105,14 +102,8 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }

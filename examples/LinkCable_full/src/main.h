@@ -9,7 +9,8 @@
 #include "../../../lib/LinkUniversal.hpp"
 #endif
 
-#include <tonc.h>
+#include "../../_lib/common.h"
+#include "../../_lib/libgba-sprite-engine/scene.h"
 
 #ifndef USE_LINK_UNIVERSAL
 extern LinkCable* linkConnection;

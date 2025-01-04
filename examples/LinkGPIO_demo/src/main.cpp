@@ -1,10 +1,8 @@
 // (0) Include the header
 #include "../../../lib/LinkGPIO.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 
-void log(std::string text);
 std::string mode(std::string name, LinkGPIO::Pin pin);
 std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh);
 
@@ -12,8 +10,7 @@ std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh);
 LinkGPIO* linkGPIO = new LinkGPIO();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   irq_init(NULL);
   irq_add(II_VBLANK, NULL);
@@ -80,16 +77,10 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }
 
 std::string mode(std::string name, LinkGPIO::Pin pin) {

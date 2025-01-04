@@ -4,18 +4,14 @@
 // (0) Include the header
 #include "../../../lib/LinkCable.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
-
-void log(std::string text);
 
 // (1) Create a LinkCable instance
 LinkCable* linkCable = new LinkCable();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the required interrupt service routines
   interrupt_init();
@@ -67,14 +63,8 @@ int main() {
     }
 
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }

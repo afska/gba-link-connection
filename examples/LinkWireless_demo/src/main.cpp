@@ -1,22 +1,17 @@
 // (0) Include the header
 #include "../../../lib/LinkWireless.hpp"
 
-#include <tonc.h>
 #include <cstring>
 #include <functional>
-#include <string>
 #include <vector>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
-
-#ifdef PROFILING_ENABLED
-#include <regex>
-#endif
 
 #define CHECK_ERRORS(MESSAGE)                                             \
   if ((lastError = linkWireless->getLastError()) ||                       \
       linkWireless->getState() == LinkWireless::State::NEEDS_RESET) {     \
-    log(std::string(MESSAGE) + " (" + std::to_string(lastError) + ") [" + \
-        std::to_string(linkWireless->getState()) + "]");                  \
+    Common::log(std::string(MESSAGE) + " (" + std::to_string(lastError) + \
+                ") [" + std::to_string(linkWireless->getState()) + "]");  \
     hang();                                                               \
     linkWireless->activate();                                             \
     return;                                                               \
@@ -26,9 +21,6 @@ void activate();
 void serve();
 void connect();
 void messageLoop();
-void log(std::string text);
-void waitFor(u16 key);
-bool didPress(u16 key, bool& pressed);
 void hang();
 
 LinkWireless::Error lastError;
@@ -37,8 +29,7 @@ bool forwarding, retransmission;
 u32 maxPlayers;
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 }
 
 int main() {
@@ -63,15 +54,15 @@ int main() {
 
 start:
   // Options
-  log("LinkWireless_demo (v7.1.0)\n" + buildSettings +
-      "\n"
-      "Press A to start\n\n"
-      "hold LEFT on start:\n -> disable forwarding\n\n"
-      "hold UP on start:\n -> disable retransmission\n\n"
-      "hold RIGHT on start:\n -> restore from multiboot\n -> high "
-      "timeout\n\n"
-      "hold B on start:\n -> set 2 players");
-  waitFor(KEY_A);
+  Common::log("LinkWireless_demo (v7.1.0)\n" + buildSettings +
+              "\n"
+              "Press A to start\n\n"
+              "hold LEFT on start:\n -> disable forwarding\n\n"
+              "hold UP on start:\n -> disable retransmission\n\n"
+              "hold RIGHT on start:\n -> restore from multiboot\n -> high "
+              "timeout\n\n"
+              "hold B on start:\n -> set 2 players");
+  Common::waitForKey(KEY_A);
   u16 initialKeys = ~REG_KEYS & KEY_ANY;
   forwarding = !(initialKeys & KEY_LEFT);
   retransmission = !(initialKeys & KEY_UP);
@@ -83,7 +74,7 @@ start:
       forwarding, retransmission, maxPlayers,
       isRestoringFromMultiboot ? 1000 : LINK_WIRELESS_DEFAULT_TIMEOUT,
       LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
-  // linkWireless->debug = [](std::string str) { log(str); };
+  // linkWireless->debug = [](std::string str) { Common::log(str); };
 
   // (2) Add the required interrupt service routines
   interrupt_init();
@@ -99,7 +90,7 @@ start:
     // Restore from multiboot
     bool success = linkWireless->restoreFromMultiboot();
     if (!success) {
-      log("Multiboot restoration failed!");
+      Common::log("Multiboot restoration failed!");
       hang();
     }
   } else {
@@ -114,7 +105,7 @@ start:
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    // If a session is already active (multiboot), go straight the message loop
+    // If a session is active (multiboot), go straight to the message loop
     if (linkWireless->isSessionActive()) {
       messageLoop();
       VBlankIntrWait();
@@ -122,7 +113,8 @@ start:
     }
 
     // Menu
-    log(std::string("") +
+    Common::log(
+        std::string("") +
         "L = Serve\nR = Connect\n\n (DOWN = ok)\n "
         "(SELECT = cancel)\n (START = activate)\n\n-> forwarding: " +
         (forwarding ? "ON" : "OFF") +
@@ -143,15 +135,15 @@ start:
     }
 
     // START = Activate
-    if (didPress(KEY_START, activating))
+    if (Common::didPress(KEY_START, activating))
       activate();
 
     // L = Serve
-    if (didPress(KEY_L, serving))
+    if (Common::didPress(KEY_L, serving))
       serve();
 
     // R = Connect
-    if (didPress(KEY_R, connecting))
+    if (Common::didPress(KEY_R, connecting))
       connect();
 
     VBlankIntrWait();
@@ -161,29 +153,29 @@ start:
 }
 
 void activate() {
-  log("Trying...");
+  Common::log("Trying...");
 
   if (linkWireless->activate())
-    log("Activated!");
+    Common::log("Activated!");
   else
-    log("Activation failed! :(");
+    Common::log("Activation failed! :(");
 
   hang();
 }
 
 void serve() {
-  log("Serving...");
+  Common::log("Serving...");
 
   // (4) Start a server
   linkWireless->serve("LinkWireless", "Demo");
   CHECK_ERRORS("Serve failed :(")
 
-  log("Listening...");
+  Common::log("Listening...");
 
   do {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
-      log("Canceled!");
+      Common::log("Canceled!");
       linkWireless->activate();
       hang();
       return;
@@ -192,7 +184,7 @@ void serve() {
            !linkWireless->isConnected());
   CHECK_ERRORS("Accept failed :(")
 
-  log("Connection accepted!");
+  Common::log("Connection accepted!");
 
   messageLoop();
 }
@@ -206,7 +198,7 @@ void connect() {
     std::string dots = "";
     for (u32 i = 0; i < dotsCount; i++)
       dots += ".";
-    log("Searching" + dots);
+    Common::log("Searching" + dots);
   };
 
   // (5) Connect to a server
@@ -215,7 +207,7 @@ void connect() {
   CHECK_ERRORS("Search failed :(")
 
   if (servers[0].id == LINK_WIRELESS_END) {
-    log("Nothing found :(");
+    Common::log("Nothing found :(");
     hang();
     return;
   } else {
@@ -238,10 +230,10 @@ void connect() {
         str += " -> user: " + std::string(server.userName) + "\n";
       str += "\n";
     }
-    log(str);
+    Common::log(str);
   }
 
-  waitFor(KEY_START | KEY_SELECT);
+  Common::waitForKey(KEY_START | KEY_SELECT);
   if ((~REG_KEYS & KEY_ANY) & KEY_SELECT) {
     linkWireless->activate();
     return;
@@ -253,7 +245,7 @@ void connect() {
   while (linkWireless->getState() == LinkWireless::State::CONNECTING) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
-      log("Canceled!");
+      Common::log("Canceled!");
       linkWireless->activate();
       hang();
       return;
@@ -263,14 +255,14 @@ void connect() {
     CHECK_ERRORS("Connect failed 2 :(")
   }
 
-  log("Connected! " + std::to_string(linkWireless->currentPlayerId()) + "\n" +
-      "Waiting for server...");
+  Common::log("Connected! " + std::to_string(linkWireless->currentPlayerId()) +
+              "\n" + "Waiting for server...");
 
   while (linkWireless->getState() == LinkWireless::State::CONNECTED &&
          !linkWireless->isConnected()) {
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_SELECT) {
-      log("Canceled!");
+      Common::log("Canceled!");
       linkWireless->activate();
       hang();
       return;
@@ -371,7 +363,7 @@ void messageLoop() {
     }
 
     // Packet loss check setting
-    if (didPress(KEY_UP, switching)) {
+    if (Common::didPress(KEY_UP, switching)) {
 #ifdef PROFILING_ENABLED
       // In the profiler ROM, pressing UP will update the broadcast data
       if (linkWireless->getState() == LinkWireless::State::SERVING &&
@@ -381,8 +373,8 @@ void messageLoop() {
                             counters[0]);
         if (linkWireless->getLastError() ==
             LinkWireless::Error::BUSY_TRY_AGAIN) {
-          log("Busy! Can't update.");
-          waitFor(KEY_DOWN);
+          Common::log("Busy! Can't update.");
+          Common::waitForKey(KEY_DOWN);
         }
       }
 
@@ -390,12 +382,12 @@ void messageLoop() {
       if (linkWireless->getState() == LinkWireless::State::SERVING &&
           !linkWireless->isServerClosed() && (keys & KEY_START)) {
         if (linkWireless->closeServer()) {
-          log("Server closed!");
-          waitFor(KEY_DOWN);
+          Common::log("Server closed!");
+          Common::waitForKey(KEY_DOWN);
         } else if (linkWireless->getLastError() ==
                    LinkWireless::Error::BUSY_TRY_AGAIN) {
-          log("Busy! Can't close.");
-          waitFor(KEY_DOWN);
+          Common::log("Busy! Can't close.");
+          Common::waitForKey(KEY_DOWN);
         }
       }
 #endif
@@ -412,17 +404,17 @@ void messageLoop() {
     }
 
     // Normal output
+    std::string altOptionName = "Packet loss check";
+#ifdef PROFILING_ENABLED
+    altOptionName = "Show profiler";
+#endif
     std::string output =
         "Player #" + std::to_string(linkWireless->currentPlayerId()) + " (" +
         std::to_string(linkWireless->playerCount()) + " total)" +
         "\n\n(press A to increment counter)\n(hold B to do it "
-        "continuously)\n(hold LEFT for double send)\n\nPacket loss check: " +
-        (altView ? "ON" : "OFF") + "\n(switch with UP)\n\n";
-
-#ifdef PROFILING_ENABLED
-    output = std::regex_replace(output, std::regex("Packet loss check"),
-                                "Show profiler");
-#endif
+        "continuously)\n(hold LEFT for double send)\n\n" +
+        altOptionName + ": " + (altView ? "ON" : "OFF") +
+        "\n(switch with UP)\n\n";
 
     for (u32 i = 0; i < linkWireless->playerCount(); i++) {
       output +=
@@ -485,35 +477,10 @@ void messageLoop() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-void waitFor(u16 key) {
-  u16 keys;
-  do {
-    keys = ~REG_KEYS & KEY_ANY;
-  } while (!(keys & key));
-}
-
-bool didPress(u16 key, bool& pressed) {
-  u16 keys = ~REG_KEYS & KEY_ANY;
-  bool isPressedNow = false;
-  if ((keys & key) && !pressed) {
-    pressed = true;
-    isPressedNow = true;
-  }
-  if (pressed && !(keys & key))
-    pressed = false;
-  return isPressedNow;
 }
 
 void hang() {
-  waitFor(KEY_DOWN);
+  Common::waitForKey(KEY_DOWN);
 }

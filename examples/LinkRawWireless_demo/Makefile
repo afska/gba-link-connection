@@ -123,9 +123,8 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba -lgba-sprite-engine
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib ../../lib \
-						 src/scenes \
-						 src/utils
+SRCDIRS		:= src ../_lib ../_lib/libgba-sprite-engine ../../lib \
+						 src/scenes
 DATADIRS	:=
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine

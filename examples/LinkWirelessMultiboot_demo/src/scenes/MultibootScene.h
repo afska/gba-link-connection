@@ -5,7 +5,6 @@
 #include <libgba-sprite-engine/gba_engine.h>
 #include <libgba-sprite-engine/scene.h>
 #include <libgba-sprite-engine/sprites/sprite.h>
-
 #include <string>
 #include <vector>
 

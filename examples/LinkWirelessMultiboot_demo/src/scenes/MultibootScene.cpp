@@ -4,15 +4,13 @@
 #include "MultibootScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
-#include <tonc.h>
 #include <cstring>
 #include <functional>
-
-#include "utils/InputHandler.h"
-#include "utils/SceneUtils.h"
+#include "../../../_lib/common.h"
+#include "../../../_lib/libgba-sprite-engine/scene.h"
 
 extern "C" {
-#include "../../_lib/libgbfs/gbfs.h"
+#include "../../../_lib/libgbfs/gbfs.h"
 }
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);

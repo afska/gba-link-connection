@@ -1,11 +1,9 @@
-#include <tonc.h>
-#include <string>
-#include "../../_lib/interrupt.h"
-
 // (0) Include the header
 #include "../../../lib/LinkPS2Keyboard.hpp"
 
-void log(std::string text);
+#include "../../_lib/common.h"
+#include "../../_lib/interrupt.h"
+
 static std::string scanCodes = "";
 static std::string output = "";
 static u32 irqs = 0;
@@ -22,8 +20,7 @@ LinkPS2Keyboard* linkPS2Keyboard = new LinkPS2Keyboard([](u8 scanCode) {
 });
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
@@ -47,7 +44,7 @@ int main() {
 
       if (keys & KEY_A) {
         // (3) Initialize the library
-        log("Waiting...");
+        Common::log("Waiting...");
         linkPS2Keyboard->activate();
         VBlankIntrWait();
         continue;
@@ -63,14 +60,8 @@ int main() {
     // Print
     VBlankIntrWait();
     LINK_PS2_KEYBOARD_ISR_VBLANK();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }

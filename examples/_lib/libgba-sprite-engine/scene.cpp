@@ -1,4 +1,4 @@
-#include "SceneUtils.h"
+#include "scene.h"
 
 #include <libgba-sprite-engine/gba_engine.h>
 

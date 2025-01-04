@@ -17,7 +17,6 @@
 // - The interval can be changed mid-test with the LEFT/RIGHT keys.
 
 #include "main.h"
-#include <string>
 #include "../../_lib/interrupt.h"
 
 #define FINAL_VALUE 65534
@@ -25,13 +24,7 @@
 void test(bool withSync);
 void measureLatency(bool withPong);
 void forceSync();
-void log(std::string text);
-void waitFor(u16 key);
-bool didPress(u16 key, bool& pressed);
 bool needsReset();
-void profileStart();
-u32 profileStop();
-u32 toMs(u32 cycles);
 
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
@@ -75,8 +68,8 @@ void setInterval(u16 interval) {
 }
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
+  Common::initTTE();
 
   interrupt_init();
 
@@ -115,9 +108,9 @@ int main() {
         "A: Test packet loss\nB: Test packet sync\nL: Measure ping latency\nR: "
         "Measure ping-pong latency\n\nHold DOWN: Initial t=100\nHold UP: "
         "Initial t=25\n\nLEFT/RIGHT: Change t\nSTART: Add lag\nSELECT: Reset ";
-    log(output);
+    Common::log(output);
 
-    waitFor(KEY_A | KEY_B | KEY_L | KEY_R);
+    Common::waitForKey(KEY_A | KEY_B | KEY_L | KEY_R);
     u16 initialKeys = ~REG_KEYS & KEY_ANY;
 
     u32 interval = 50;
@@ -150,7 +143,7 @@ void test(bool withSync) {
   bool increasingInterval = false;
   bool decreasingInterval = false;
 
-  log("Waiting for data...");
+  Common::log("Waiting for data...");
 
   while (true) {
     if (needsReset())
@@ -158,14 +151,15 @@ void test(bool withSync) {
 
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_START) {
-      log("Lagging...");
+      Common::log("Lagging...");
       Link::wait(1500);
     }
-    if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
+    if (Common::didPress(KEY_RIGHT, increasingInterval) &&
+        getInterval() < 200) {
       setInterval(getInterval() + 5);
       linkConnection->resetTimer();
     }
-    if (didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
+    if (Common::didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
       setInterval(getInterval() - 5);
       linkConnection->resetTimer();
     }
@@ -229,14 +223,14 @@ void test(bool withSync) {
     }
 
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
 
     if (error) {
       while (true)
         if (needsReset())
           return;
     } else if (localCounter == FINAL_VALUE && expectedCounter == FINAL_VALUE) {
-      log("Test passed!");
+      Common::log("Test passed!");
       while (true)
         if (needsReset())
           return;
@@ -245,7 +239,7 @@ void test(bool withSync) {
 }
 
 void measureLatency(bool withPong) {
-  log("Waiting for data...");
+  Common::log("Waiting for data...");
 
   bool didInitialize = false;
   u32 counter = 0;
@@ -260,15 +254,16 @@ void measureLatency(bool withPong) {
 
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_START) {
-      log("Lagging...");
+      Common::log("Lagging...");
       Link::wait(1500);
     }
-    if (didPress(KEY_RIGHT, increasingInterval) && getInterval() < 200) {
+    if (Common::didPress(KEY_RIGHT, increasingInterval) &&
+        getInterval() < 200) {
       setInterval(getInterval() + 5);
       linkConnection->resetTimer();
       counter = samples = totalMs = 0;
     }
-    if (didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
+    if (Common::didPress(KEY_LEFT, decreasingInterval) && getInterval() > 5) {
       setInterval(getInterval() - 5);
       linkConnection->resetTimer();
       counter = samples = totalMs = 0;
@@ -290,36 +285,36 @@ void measureLatency(bool withPong) {
 
       u32 sentPacket = ++counter;
 
-      profileStart();
+      Common::profileStart();
       linkConnection->send(sentPacket);
       if (!linkConnection->waitFor(remotePlayerId, needsReset)) {
-        log("No response! (1) Press DOWN");
-        profileStop();
-        waitFor(KEY_DOWN);
+        Common::log("No response! (1) Press DOWN");
+        Common::profileStop();
+        Common::waitForKey(KEY_DOWN);
         return;
       }
       u16 receivedPacket = linkConnection->read(remotePlayerId);
       if (withPong) {
         linkConnection->send(receivedPacket);
         if (!linkConnection->waitFor(remotePlayerId, needsReset)) {
-          log("No response! (2) Press DOWN");
-          profileStop();
-          waitFor(KEY_DOWN);
+          Common::log("No response! (2) Press DOWN");
+          Common::profileStop();
+          Common::waitForKey(KEY_DOWN);
           return;
         }
         u16 validation = linkConnection->read(remotePlayerId);
         if (validation != sentPacket) {
-          log("Invalid response! Press DOWN\n  value = " +
-              std::to_string(validation) +
-              "\n  expected = " + std::to_string(sentPacket));
-          profileStop();
-          waitFor(KEY_DOWN);
+          Common::log("Invalid response! Press DOWN\n  value = " +
+                      std::to_string(validation) +
+                      "\n  expected = " + std::to_string(sentPacket));
+          Common::profileStop();
+          Common::waitForKey(KEY_DOWN);
           return;
         }
       }
-      u32 elapsedCycles = profileStop();
+      u32 elapsedCycles = Common::profileStop();
 
-      u32 elapsedMilliseconds = toMs(elapsedCycles);
+      u32 elapsedMilliseconds = Common::toMs(elapsedCycles);
       samples++;
       totalMs += elapsedMilliseconds;
       u32 average = Div(totalMs, samples);
@@ -330,10 +325,10 @@ void measureLatency(bool withPong) {
                            std::to_string(average) + " ms avg" +
                            "\nValue sent:\n  " + std::to_string(sentPacket);
       VBlankIntrWait();
-      log(output);
+      Common::log(output);
     } else {
       VBlankIntrWait();
-      log("Waiting...");
+      Common::log("Waiting...");
     }
   }
 }
@@ -348,56 +343,7 @@ void forceSync() {
   linkConnection->read(remotePlayerId);
 }
 
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-void waitFor(u16 key) {
-  u16 keys;
-  do {
-    keys = ~REG_KEYS & KEY_ANY;
-  } while (!(keys & key));
-}
-
-bool didPress(u16 key, bool& pressed) {
-  u16 keys = ~REG_KEYS & KEY_ANY;
-  bool isPressedNow = false;
-  if ((keys & key) && !pressed) {
-    pressed = true;
-    isPressedNow = true;
-  }
-  if (pressed && !(keys & key))
-    pressed = false;
-  return isPressedNow;
-}
-
 bool needsReset() {
   u16 keys = ~REG_KEYS & KEY_ANY;
   return keys & KEY_SELECT;
-}
-
-void profileStart() {
-  REG_TM1CNT_L = 0;
-  REG_TM2CNT_L = 0;
-
-  REG_TM1CNT_H = 0;
-  REG_TM2CNT_H = 0;
-
-  REG_TM2CNT_H = TM_ENABLE | TM_CASCADE;
-  REG_TM1CNT_H = TM_ENABLE | TM_FREQ_1;
-}
-
-u32 profileStop() {
-  REG_TM1CNT_H = 0;
-  REG_TM2CNT_H = 0;
-
-  return (REG_TM1CNT_L | (REG_TM2CNT_L << 16));
-}
-
-u32 toMs(u32 cycles) {
-  // CPU Frequency * time per frame = cycles per frame
-  // 16780000 * (1/60) ~= 279666
-  return (cycles * 1000) / (279666 * 60);
 }

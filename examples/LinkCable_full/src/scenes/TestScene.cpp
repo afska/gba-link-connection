@@ -3,8 +3,6 @@
 #include <libgba-sprite-engine/background/text_stream.h>
 
 #include "../main.h"
-#include "utils/InputHandler.h"
-#include "utils/SceneUtils.h"
 
 TestScene::TestScene(std::shared_ptr<GBAEngine> engine) : Scene(engine) {}
 
@@ -20,7 +18,7 @@ static std::unique_ptr<InputHandler> selectHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 
 inline void send(u16 data) {
-  DEBULOG("-> " + asStr(data));
+  DEBULOG("-> " + std::to_string(data));
   linkConnection->send(data);
 }
 
@@ -58,7 +56,7 @@ void TestScene::tick(u16 keys) {
   if (!isConnected && linkConnection->isConnected()) {
     isConnected = true;
     initialized = false;
-    DEBULOG("! connected (" + asStr(linkConnection->playerCount()) +
+    DEBULOG("! connected (" + std::to_string(linkConnection->playerCount()) +
             " players)");
   }
   if (isConnected && !linkConnection->isConnected()) {
@@ -98,8 +96,8 @@ void TestScene::tick(u16 keys) {
       while (linkConnection->canRead(i)) {
         u16 message = linkConnection->read(i);
         if (i != linkConnection->currentPlayerId())
-          DEBULOG("<-p" + asStr(i) + ": " + asStr(message) + " (frame " +
-                  asStr(frameCounter) + ")");
+          DEBULOG("<-p" + std::to_string(i) + ": " + std::to_string(message) +
+                  " (frame " + std::to_string(frameCounter) + ")");
       }
     }
   }

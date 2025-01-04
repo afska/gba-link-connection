@@ -3,8 +3,8 @@
 
 #include "../../../lib/LinkMobile.hpp"
 
-#include <string>
 #include <vector>
+#include "../../_lib/common.h"
 
 struct DefaultValue {
   std::string name;
@@ -44,7 +44,6 @@ std::string getResultString(LinkMobile::CommandResult cmdResult);
 
 void log(std::string text);
 std::string toStr(char* chars, int size);
-bool didPress(unsigned short key, bool& pressed);
 void waitForA();
 
 template <typename I>
