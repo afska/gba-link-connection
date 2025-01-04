@@ -321,7 +321,8 @@ class LinkWireless {
     stopTimer();
     startTimer();
 
-    if (!linkRawWireless->restoreExistingConnection()) {
+    if (!linkRawWireless->restoreExistingConnection() ||
+        linkRawWireless->sessionState.playerCount > config.maxPlayers) {
       deactivate();
       return false;
     }
