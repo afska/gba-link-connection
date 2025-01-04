@@ -88,7 +88,7 @@ start:
   // (3) Initialize the library
   if (isRestoringFromMultiboot) {
     // Restore from multiboot
-    bool success = linkWireless->restoreFromMultiboot();
+    bool success = linkWireless->restoreExistingConnection();
     if (!success) {
       Common::log("Multiboot restoration failed!");
       hang();

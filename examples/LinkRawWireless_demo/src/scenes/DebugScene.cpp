@@ -320,7 +320,7 @@ void DebugScene::processButtons() {
     resetAdapter();
 
   if (rightHandler->hasBeenPressedNow())
-    restoreFromMultiboot();
+    restoreExistingConnection();
 }
 
 void DebugScene::toggleLogLevel() {
@@ -976,7 +976,7 @@ void DebugScene::resetAdapter() {
                []() { return linkRawWireless->activate(); });
 }
 
-void DebugScene::restoreFromMultiboot() {
+void DebugScene::restoreExistingConnection() {
   logOperation("restoring from multiboot",
-               []() { return linkRawWireless->restoreFromMultiboot(); });
+               []() { return linkRawWireless->restoreExistingConnection(); });
 }

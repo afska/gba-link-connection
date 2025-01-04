@@ -102,7 +102,8 @@ void C_LinkRawWireless_destroy(C_LinkRawWirelessHandle handle);
 
 bool C_LinkRawWireless_isActive(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_activate(C_LinkRawWirelessHandle handle);
-bool C_LinkRawWireless_restoreFromMultiboot(C_LinkRawWirelessHandle handle);
+bool C_LinkRawWireless_restoreExistingConnection(
+    C_LinkRawWirelessHandle handle);
 void C_LinkRawWireless_deactivate(C_LinkRawWirelessHandle handle);
 
 bool C_LinkRawWireless_setup(C_LinkRawWirelessHandle handle,

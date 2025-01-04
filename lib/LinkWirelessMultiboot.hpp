@@ -149,7 +149,7 @@ class LinkWirelessMultiboot {
    * `LinkWirelessMultiboot::MultibootProgress` object with details.
    * @param keepConnectionAlive If a `true`, the adapter won't be reset after a
    * successful transfer, so users can continue the session using
-   * `LinkWireless::restoreFromMultiboot()`.
+   * `LinkWireless::restoreExistingConnection()`.
    * \warning You can start the transfer before the player count is reached by
    * running `*progress.ready = true;` in the `listener` callback.
    * \warning Blocks the system until completion or cancellation.

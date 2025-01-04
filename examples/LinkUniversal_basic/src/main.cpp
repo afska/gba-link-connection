@@ -38,7 +38,7 @@ int main() {
       : forceWirelessServer ? LinkUniversal::Protocol::WIRELESS_SERVER
       : forceWirelessClient ? LinkUniversal::Protocol::WIRELESS_CLIENT
       : restoreWirelessMultiboot
-          ? LinkUniversal::Protocol::WIRELESS_RESTORE_FROM_MULTIBOOT
+          ? LinkUniversal::Protocol::WIRELESS_RESTORE_EXISTING
           : LinkUniversal::Protocol::AUTODETECT;
   u32 maxPlayers = (initialKeys & KEY_B) ? 2 : LINK_UNIVERSAL_MAX_PLAYERS;
 

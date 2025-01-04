@@ -307,18 +307,21 @@ class LinkWireless {
   }
 
   /**
-   * @brief Restores the state from an existing connection after a fresh boot.
-   * Returns whether restoration was successful or not. On success, the state
-   * should be either `SERVING` or `CONNECTED`.
+   * @brief Restores the state from an existing connection on the Wireless
+   * Adapter hardware. This is useful, for example, after a fresh launch of a
+   * Multiboot game, to synchronize the library with the current state and
+   * avoid a reconnection. Returns whether the restoration was successful.
+   * On success, the state should be either `SERVING` or `CONNECTED`.
+   * \warning This should be used as a replacement for `activate()`.
    */
-  bool restoreFromMultiboot() {
+  bool restoreExistingConnection() {
     isEnabled = false;
 
     resetState();
     stopTimer();
     startTimer();
 
-    if (!linkRawWireless->restoreFromMultiboot()) {
+    if (!linkRawWireless->restoreExistingConnection()) {
       deactivate();
       return false;
     }

@@ -87,7 +87,7 @@ C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
 void C_LinkWireless_destroy(C_LinkWirelessHandle handle);
 
 bool C_LinkWireless_activate(C_LinkWirelessHandle handle);
-bool C_LinkWireless_restoreFromMultiboot(C_LinkWirelessHandle handle);
+bool C_LinkWireless_restoreExistingConnection(C_LinkWirelessHandle handle);
 bool C_LinkWireless_deactivate(C_LinkWirelessHandle handle);
 bool C_LinkWireless_deactivateButKeepOn(C_LinkWirelessHandle handle);
 

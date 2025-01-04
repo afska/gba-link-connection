@@ -103,7 +103,7 @@ class LinkUniversal {
     WIRELESS_AUTO,
     WIRELESS_SERVER,
     WIRELESS_CLIENT,
-    WIRELESS_RESTORE_FROM_MULTIBOOT
+    WIRELESS_RESTORE_EXISTING
   };
 
   struct CableOptions {
@@ -608,7 +608,7 @@ class LinkUniversal {
       case WIRELESS_AUTO:
       case WIRELESS_SERVER:
       case WIRELESS_CLIENT:
-      case WIRELESS_RESTORE_FROM_MULTIBOOT: {
+      case WIRELESS_RESTORE_EXISTING: {
         setMode(LINK_WIRELESS);
         break;
       }
@@ -620,7 +620,7 @@ class LinkUniversal {
   void stop() {
     if (mode == LINK_CABLE)
       linkCable->deactivate();
-    else if (config.protocol != WIRELESS_RESTORE_FROM_MULTIBOOT)
+    else if (config.protocol != WIRELESS_RESTORE_EXISTING)
       linkWireless->deactivate(false);
   }
 
@@ -637,7 +637,7 @@ class LinkUniversal {
       case WIRELESS_AUTO:
       case WIRELESS_SERVER:
       case WIRELESS_CLIENT:
-      case WIRELESS_RESTORE_FROM_MULTIBOOT: {
+      case WIRELESS_RESTORE_EXISTING: {
         setMode(LINK_WIRELESS);
         break;
       }
@@ -657,8 +657,8 @@ class LinkUniversal {
     if (mode == LINK_CABLE) {
       linkCable->activate();
     } else {
-      bool success = config.protocol == WIRELESS_RESTORE_FROM_MULTIBOOT
-                         ? linkWireless->restoreFromMultiboot()
+      bool success = config.protocol == WIRELESS_RESTORE_EXISTING
+                         ? linkWireless->restoreExistingConnection()
                          : linkWireless->activate();
       if (!success) {
         toggleMode();
