@@ -166,8 +166,12 @@ LDFLAGS 	:= $(ARCH) -Wl,--print-memory-usage,-Map,$(PROJ).map
 # --- Multiboot ? ---
 ifeq ($(strip $(bMB)), 1)
 	TARGET	:= $(PROJ).mb
+	CFLAGS   += -DMULTIBOOT_BUILD=1
+	CXXFLAGS += -DMULTIBOOT_BUILD=1
 else
 	TARGET	:= $(PROJ)
+	CFLAGS   += -DMULTIBOOT_BUILD=0
+	CXXFLAGS += -DMULTIBOOT_BUILD=0
 endif
 
 # --- Save temporary files ? ---

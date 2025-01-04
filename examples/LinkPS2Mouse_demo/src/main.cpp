@@ -12,7 +12,12 @@ inline void TIMER() {}
 // (1) Create a LinkPS2Mouse instance
 LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse(2);
 
-inline void KEYPAD() {
+inline void ISR_reset() {
+  REG_IME = 0;
+  RegisterRamReset(RESET_REG | RESET_VRAM);
+#if MULTIBOOT_BUILD == 1
+  *(vu8*)0x03007FFA = 0x01;
+#endif
   SoftReset();
 }
 
@@ -27,9 +32,9 @@ void init() {
   interrupt_set_handler(INTR_TIMER2, TIMER);
   interrupt_enable(INTR_TIMER2);
 
-  // Interrupt to handle B event (to reset)
+  // B = SoftReset
   REG_KEYCNT = 0b10 | (1 << 14);
-  interrupt_set_handler(INTR_KEYPAD, KEYPAD);
+  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
   interrupt_enable(INTR_KEYPAD);
 }
 

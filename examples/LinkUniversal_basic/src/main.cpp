@@ -19,7 +19,11 @@ void init() {
 }
 
 inline void ISR_reset() {
+  REG_IME = 0;
   RegisterRamReset(RESET_REG | RESET_VRAM);
+#if MULTIBOOT_BUILD == 1
+  *(vu8*)0x03007FFA = 0x01;
+#endif
   SoftReset();
 }
 
@@ -77,7 +81,7 @@ int main() {
   interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
   interrupt_enable(INTR_TIMER3);
 
-  // B+START+SELECT = Reset
+  // B+START+SELECT = SoftReset
   REG_KEYCNT = 0b1100000000001110;
   interrupt_set_handler(INTR_KEYPAD, ISR_reset);
   interrupt_enable(INTR_KEYPAD);
