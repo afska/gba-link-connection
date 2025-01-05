@@ -80,10 +80,10 @@ static volatile char LINK_UNIVERSAL_VERSION[] = "LinkUniversal/v7.1.0";
  */
 class LinkUniversal {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
-  using s8 = signed char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
+  using s8 = Link::s8;
   using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE>;
 
   static constexpr int MAX_ROOM_NUMBER = 32000;

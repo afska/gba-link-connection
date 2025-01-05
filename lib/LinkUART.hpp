@@ -46,11 +46,11 @@ static volatile char LINK_UART_VERSION[] = "LinkUART/v7.1.0";
  */
 class LinkUART {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
-  using vu32 = volatile unsigned int;
-  using vs32 = volatile signed int;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
+  using vu32 = Link::vu32;
+  using vs32 = Link::vs32;
   using U8Queue = Link::Queue<u8, LINK_UART_QUEUE_SIZE>;
 
   static constexpr int BIT_CTS = 2;

@@ -174,12 +174,12 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.1.0";
  */
 class LinkWireless {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
-  using vu32 = volatile unsigned int;
-  using vs32 = volatile signed int;
-  using s8 = signed char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
+  using vu32 = Link::vu32;
+  using vs32 = Link::vs32;
+  using s8 = Link::s8;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY

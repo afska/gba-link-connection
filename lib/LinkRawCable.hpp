@@ -56,9 +56,9 @@ static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.1.0";
  */
 class LinkRawCable {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
 
   static constexpr int BIT_SLAVE = 2;
   static constexpr int BIT_READY = 3;

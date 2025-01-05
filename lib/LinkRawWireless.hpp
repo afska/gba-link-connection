@@ -48,10 +48,10 @@ static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v7.1.0";
  */
 class LinkRawWireless {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
-  using vu8 = volatile unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
+  using vu8 = Link::vu8;
 
  public:
   static constexpr int PING_WAIT = 50;

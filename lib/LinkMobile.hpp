@@ -100,9 +100,9 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.1.0";
  */
 class LinkMobile {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int INIT_WAIT_FRAMES = 7;

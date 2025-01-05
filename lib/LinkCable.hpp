@@ -78,12 +78,12 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.1.0";
  */
 class LinkCable {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
-  using vu32 = volatile unsigned int;
-  using vs32 = volatile signed int;
-  using vu8 = volatile unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
+  using vu32 = Link::vu32;
+  using vs32 = Link::vs32;
+  using vu8 = Link::vu8;
   using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE>;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;

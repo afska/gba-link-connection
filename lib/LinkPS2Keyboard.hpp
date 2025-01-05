@@ -50,9 +50,9 @@ static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.1.0";
  */
 class LinkPS2Keyboard {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
 
   static constexpr int RCNT_GPIO_AND_SI_IRQ = 0b1000000100000000;
   static constexpr int RCNT_GPIO = 0b1000000000000000;
