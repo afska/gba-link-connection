@@ -151,14 +151,9 @@ class LinkCableMultiboot {
     return result == 1 ? FAILURE_DURING_TRANSFER : SUCCESS;
   }
 
-  ~LinkCableMultiboot() {
-    delete linkRawCable;
-    delete linkSPI;
-  }
-
  private:
-  LinkRawCable* linkRawCable = new LinkRawCable();
-  LinkSPI* linkSPI = new LinkSPI();
+  LinkRawCable linkRawCable;
+  LinkSPI linkSPI;
   TransferMode _mode;
   int randomSeed = 123;
 
@@ -328,7 +323,7 @@ class LinkCableMultiboot {
   Response transfer(u32 data, F cancel) {
     if (_mode == TransferMode::MULTI_PLAY) {
       Response response;
-      auto response16bit = linkRawCable->transfer(data, cancel);
+      auto response16bit = linkRawCable.transfer(data, cancel);
       for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
         response.data[i] = response16bit.data[i];
       response.playerId = response16bit.playerId;
@@ -337,7 +332,7 @@ class LinkCableMultiboot {
       Response response = {
           .data = {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
                    LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED}};
-      response.data[1] = linkSPI->transfer(data, cancel) >> 16;
+      response.data[1] = linkSPI.transfer(data, cancel) >> 16;
       response.playerId = 0;
       return response;
     }
@@ -346,16 +341,16 @@ class LinkCableMultiboot {
  public:
   void activate() {
     if (_mode == TransferMode::MULTI_PLAY)
-      linkRawCable->activate(MAX_BAUD_RATE);
+      linkRawCable.activate(MAX_BAUD_RATE);
     else
-      linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+      linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
   }
 
   void deactivate() {
     if (_mode == TransferMode::MULTI_PLAY)
-      linkRawCable->deactivate();
+      linkRawCable.deactivate();
     else
-      linkSPI->deactivate();
+      linkSPI.deactivate();
   }
 
   Result error(Result error) {

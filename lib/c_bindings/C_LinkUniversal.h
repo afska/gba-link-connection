@@ -79,6 +79,8 @@ u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, u8 playerId);
 
 bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data);
 
+void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle);
+
 C_LinkUniversal_State C_LinkUniversal_getState(C_LinkUniversalHandle handle);
 C_LinkUniversal_Mode C_LinkUniversal_getMode(C_LinkUniversalHandle handle);
 C_LinkUniversal_Protocol C_LinkUniversal_getProtocol(
@@ -87,14 +89,12 @@ C_LinkUniversal_Protocol C_LinkUniversal_getProtocol(
 void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
                                  C_LinkUniversal_Protocol protocol);
 
-void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle);
-
-u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle);
-u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);
-
 C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle);
 C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
     C_LinkUniversalHandle handle);
+
+u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle);
+u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);
 
 void C_LinkUniversal_onVBlank(C_LinkUniversalHandle handle);
 void C_LinkUniversal_onSerial(C_LinkUniversalHandle handle);

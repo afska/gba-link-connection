@@ -34,7 +34,7 @@ LinkUniversal* linkUniversal =
     new LinkUniversal(LinkUniversal::Protocol::AUTODETECT,
                       "LinkUniversal",
                       (LinkUniversal::CableOptions){
-                          .baudRate = LinkCable::BAUD_RATE_1,
+                          .baudRate = LinkCable::BaudRate::BAUD_RATE_1,
                           .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
                           .interval = LINK_CABLE_DEFAULT_INTERVAL,
                           .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},
@@ -52,7 +52,7 @@ u16 getInterval() {
 #ifndef USE_LINK_UNIVERSAL
   return linkConnection->config.interval;
 #else
-  return linkConnection->linkCable->config.interval;
+  return linkConnection->getLinkCable()->config.interval;
 #endif
 }
 
@@ -61,8 +61,8 @@ void setInterval(u16 interval) {
   linkConnection->config.interval = interval;
   linkConnection->resetTimer();
 #else
-  linkConnection->linkCable->config.interval = interval;
-  linkConnection->linkWireless->config.interval = interval;
+  linkConnection->getLinkCable()->config.interval = interval;
+  linkConnection->getLinkWireless()->config.interval = interval;
   linkConnection->resetTimer();
 #endif
 }

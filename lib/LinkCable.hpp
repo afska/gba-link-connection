@@ -165,9 +165,10 @@ class LinkCable {
   [[nodiscard]] u8 currentPlayerId() { return state.currentPlayerId; }
 
   /**
-   * @brief Call this method whenever you need to fetch new data. It doesn't
-   * block the system; it simply collects and queues a set of messages from the
-   * interrupt world for later processing with the `read(...)` method.
+   * @brief Call this method whenever you need to fetch new data. It does not
+   * **wait** for new messages; instead, it collects and queues any available
+   * messages from the interrupt world for later processing with the `read(...)`
+   * method.
    */
   void sync() {
     if (!isEnabled)
@@ -266,8 +267,6 @@ class LinkCable {
     stopTimer();
     startTimer();
   }
-
-  ~LinkCable() { delete linkRawCable; }
 
   /**
    * @brief This method is called by the VBLANK interrupt handler.
@@ -388,7 +387,7 @@ class LinkCable {
     bool IRQFlag;
   };
 
-  LinkRawCable* linkRawCable = new LinkRawCable();
+  LinkRawCable linkRawCable;
   ExternalState state;
   InternalState _state;
   volatile bool isEnabled = false;
@@ -437,12 +436,12 @@ class LinkCable {
 
   void stop() {
     stopTimer();
-    linkRawCable->deactivate();
+    linkRawCable.deactivate();
   }
 
   void start() {
     startTimer();
-    linkRawCable->activate(config.baudRate);
+    linkRawCable.activate(config.baudRate);
     LinkRawCable::setInterruptsOn();
   }
 

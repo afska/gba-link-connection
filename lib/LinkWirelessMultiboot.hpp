@@ -204,27 +204,22 @@ class LinkWirelessMultiboot {
    * transition to low consumption mode was successful.
    */
   bool reset() {
-    bool success = linkRawWireless->bye();
-    linkRawWireless->deactivate();
+    bool success = linkRawWireless.bye();
+    linkRawWireless.deactivate();
     resetState();
     return success;
   }
 
-  ~LinkWirelessMultiboot() {
-    delete linkRawWireless;
-    delete linkWirelessOpenSDK;
-  }
-
  private:
-  LinkRawWireless* linkRawWireless = new LinkRawWireless();
-  LinkWirelessOpenSDK* linkWirelessOpenSDK = new LinkWirelessOpenSDK();
+  LinkRawWireless linkRawWireless;
+  LinkWirelessOpenSDK linkWirelessOpenSDK;
   MultibootProgress progress;
   volatile bool readyFlag = false;
   volatile Result lastResult;
   ClientHeader lastValidHeader;
 
   Result activate() {
-    if (!linkRawWireless->activate()) {
+    if (!linkRawWireless.activate()) {
       _LWMLOG_("! adapter not detected");
       return ADAPTER_NOT_DETECTED;
     }
@@ -237,21 +232,21 @@ class LinkWirelessMultiboot {
                     const char* userName,
                     const u16 gameId,
                     u8 players) {
-    if (!linkRawWireless->setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
-                                SETUP_MAGIC)) {
+    if (!linkRawWireless.setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
+                               SETUP_MAGIC)) {
       _LWMLOG_("! setup failed");
       return FAILURE;
     }
     _LWMLOG_("setup ok");
 
-    if (!linkRawWireless->broadcast(gameName, userName,
-                                    gameId | GAME_ID_MULTIBOOT_FLAG)) {
+    if (!linkRawWireless.broadcast(gameName, userName,
+                                   gameId | GAME_ID_MULTIBOOT_FLAG)) {
       _LWMLOG_("! broadcast failed");
       return FAILURE;
     }
     _LWMLOG_("broadcast data set");
 
-    if (!linkRawWireless->startHost()) {
+    if (!linkRawWireless.startHost()) {
       _LWMLOG_("! start host failed");
       return FAILURE;
     }
@@ -265,16 +260,16 @@ class LinkWirelessMultiboot {
     LinkRawWireless::AcceptConnectionsResponse acceptResponse;
 
     u32 currentPlayers = 1;
-    while ((linkRawWireless->playerCount() < players && !readyFlag) ||
-           linkRawWireless->playerCount() <= 1) {
+    while ((linkRawWireless.playerCount() < players && !readyFlag) ||
+           linkRawWireless.playerCount() <= 1) {
       if (listener(progress))
         return CANCELED;
 
-      if (!linkRawWireless->acceptConnections(acceptResponse))
+      if (!linkRawWireless.acceptConnections(acceptResponse))
         return FAILURE;
 
-      if (linkRawWireless->playerCount() > currentPlayers) {
-        currentPlayers = linkRawWireless->playerCount();
+      if (linkRawWireless.playerCount() > currentPlayers) {
+        currentPlayers = linkRawWireless.playerCount();
         progress.connectedClients = currentPlayers - 1;
 
         u8 lastClientNumber =
@@ -288,7 +283,7 @@ class LinkWirelessMultiboot {
 
     readyFlag = true;
 
-    if (!linkRawWireless->endHost(acceptResponse))
+    if (!linkRawWireless.endHost(acceptResponse))
       return FAILURE;
 
     return SUCCESS;
@@ -370,7 +365,7 @@ class LinkWirelessMultiboot {
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(
           sendAndExpectData(toArray(), 0, 1, response))
-      auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      auto childrenData = linkWirelessOpenSDK.getChildrenData(response);
       hasFinished = childrenData.responses[clientNumber].packetsSize == 0;
     }
     // (no more client packets)
@@ -385,7 +380,7 @@ class LinkWirelessMultiboot {
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeNewData(
           i,
-          linkWirelessOpenSDK->createServerBuffer(
+          linkWirelessOpenSDK.createServerBuffer(
               CMD_START, CMD_START_SIZE, {1, 0, CommState::STARTING}, 1 << i),
           listener))
     }
@@ -406,7 +401,7 @@ class LinkWirelessMultiboot {
     progress.percentage = 0;
 
     LinkWirelessOpenSDK::MultiTransfer<MAX_INFLIGHT_PACKETS> multiTransfer(
-        linkWirelessOpenSDK, romSize, progress.connectedClients);
+        &linkWirelessOpenSDK, romSize, progress.connectedClients);
 
     while (!multiTransfer.hasFinished()) {
       if (listener(progress))
@@ -436,7 +431,7 @@ class LinkWirelessMultiboot {
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(
           exchangeNewData(i,
-                          linkWirelessOpenSDK->createServerBuffer(
+                          linkWirelessOpenSDK.createServerBuffer(
                               {}, 0, {0, 0, CommState::ENDING}, 1 << i),
                           listener))
     }
@@ -447,7 +442,7 @@ class LinkWirelessMultiboot {
     for (u32 i = 0; i < progress.connectedClients; i++) {
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(
-          sendAndExpectData(linkWirelessOpenSDK->createServerBuffer(
+          sendAndExpectData(linkWirelessOpenSDK.createServerBuffer(
                                 {}, 0, {1, 0, CommState::OFF}, 1 << i),
                             response))
     }
@@ -477,7 +472,7 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData(linkWirelessOpenSDK->createServerACKBuffer(
+          return sendAndExpectData(linkWirelessOpenSDK.createServerACKBuffer(
                                        lastValidHeader, clientNumber),
                                    response);
         },
@@ -498,7 +493,7 @@ class LinkWirelessMultiboot {
 
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAction(response))
-      auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      auto childrenData = linkWirelessOpenSDK.getChildrenData(response);
 
       for (u32 i = 0; i < childrenData.responses[clientNumber].packetsSize;
            i++) {
@@ -530,7 +525,7 @@ class LinkWirelessMultiboot {
     volatile bool success = false;
 
     success =
-        linkRawWireless->sendDataAndWait(data, dataSize, remoteCommand, _bytes);
+        linkRawWireless.sendDataAndWait(data, dataSize, remoteCommand, _bytes);
 
     if (!success) {
       _LWMLOG_("! sendDataAndWait failed");
@@ -558,7 +553,7 @@ class LinkWirelessMultiboot {
       }
     }
 
-    success = linkRawWireless->receiveData(response);
+    success = linkRawWireless.receiveData(response);
 
     if (!success) {
       _LWMLOG_("! receiveData failed");
@@ -570,7 +565,7 @@ class LinkWirelessMultiboot {
 
   Result ensureAllClientsAreStillAlive() {
     LinkRawWireless::SlotStatusResponse slotStatusResponse;
-    if (!linkRawWireless->getSlotStatus(slotStatusResponse))
+    if (!linkRawWireless.getSlotStatus(slotStatusResponse))
       return FAILURE;
 
     if (slotStatusResponse.connectedClientsSize < progress.connectedClients)
@@ -581,8 +576,8 @@ class LinkWirelessMultiboot {
 
   Result finish(Result result, bool keepConnectionAlive = false) {
     if (result != SUCCESS || !keepConnectionAlive)
-      linkRawWireless->bye();
-    linkRawWireless->deactivate();
+      linkRawWireless.bye();
+    linkRawWireless.deactivate();
     resetState();
     return result;
   }

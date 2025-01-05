@@ -618,7 +618,7 @@ class LinkMobile {
    * @brief Returns the current operation mode (`LinkSPI::DataSize`).
    */
   [[nodiscard]] LinkSPI::DataSize getDataSize() {
-    return linkSPI->getDataSize();
+    return linkSPI.getDataSize();
   }
 
   /**
@@ -626,8 +626,6 @@ class LinkMobile {
    * be aborted.
    */
   [[nodiscard]] Error getError() { return error; }
-
-  ~LinkMobile() { delete linkSPI; }
 
   /**
    * @brief This method is called by the VBLANK interrupt handler.
@@ -662,8 +660,8 @@ class LinkMobile {
     if (!isEnabled)
       return;
 
-    linkSPI->_onSerial();
-    u32 newData = linkSPI->getAsyncData();
+    linkSPI._onSerial();
+    u32 newData = linkSPI.getAsyncData();
 
     if (state == NEEDS_RESET)
       return;
@@ -700,7 +698,7 @@ class LinkMobile {
     if (!isEnabled || !hasPendingTransfer)
       return;
 
-    linkSPI->transferAsync(pendingTransfer);
+    linkSPI.transferAsync(pendingTransfer);
     stopTimer();
     hasPendingTransfer = false;
   }
@@ -887,7 +885,7 @@ class LinkMobile {
 
   using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE, false>;
 
-  LinkSPI* linkSPI = new LinkSPI();
+  LinkSPI linkSPI;
   RequestQueue userRequests;
   AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
@@ -1137,8 +1135,8 @@ class LinkMobile {
 
         setState(WAITING_32BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
-        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                          LinkSPI::DataSize::SIZE_32BIT);
+        linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
+                         LinkSPI::DataSize::SIZE_32BIT);
         break;
       }
       case READING_CONFIGURATION: {
@@ -1307,8 +1305,8 @@ class LinkMobile {
 
         setState(WAITING_8BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
-        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                          LinkSPI::DataSize::SIZE_8BIT);
+        linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
+                         LinkSPI::DataSize::SIZE_8BIT);
         break;
       }
       default: {
@@ -1576,12 +1574,12 @@ class LinkMobile {
 
   void stop() {
     stopTimer();
-    linkSPI->deactivate();
+    linkSPI.deactivate();
   }
 
   void start() {
-    linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                      LinkSPI::DataSize::SIZE_8BIT);
+    linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
+                     LinkSPI::DataSize::SIZE_8BIT);
 
     setState(PINGING);
     transferAsync(0);
@@ -1876,7 +1874,7 @@ class LinkMobile {
   }
 
   bool isSIO32Mode() {
-    return linkSPI->getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
+    return linkSPI.getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
   }
 
   static u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {

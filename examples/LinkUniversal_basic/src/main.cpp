@@ -46,7 +46,7 @@ int main() {
   linkUniversal = new LinkUniversal(
       protocol, "LinkUNI",
       (LinkUniversal::CableOptions){
-          .baudRate = LinkCable::BAUD_RATE_1,
+          .baudRate = LinkCable::BaudRate::BAUD_RATE_1,
           .timeout = LINK_CABLE_DEFAULT_TIMEOUT,
           .interval = LINK_CABLE_DEFAULT_INTERVAL,
           .sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID},

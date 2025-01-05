@@ -88,6 +88,10 @@ bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data) {
   return static_cast<LinkUniversal*>(handle)->send(data);
 }
 
+void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->resetTimer();
+}
+
 C_LinkUniversal_State C_LinkUniversal_getState(C_LinkUniversalHandle handle) {
   return static_cast<C_LinkUniversal_State>(
       static_cast<LinkUniversal*>(handle)->getState());
@@ -110,8 +114,13 @@ void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
       static_cast<LinkUniversal::Protocol>(protocol));
 }
 
-void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle) {
-  return static_cast<LinkUniversal*>(handle)->resetTimer();
+C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->getLinkCable();
+}
+
+C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
+    C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->getLinkWireless();
 }
 
 u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {
@@ -120,15 +129,6 @@ u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {
 
 u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->_getSubWaitCount();
-}
-
-C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle) {
-  return static_cast<LinkUniversal*>(handle)->linkCable;
-}
-
-C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
-    C_LinkUniversalHandle handle) {
-  return static_cast<LinkUniversal*>(handle)->linkWireless;
 }
 
 void C_LinkUniversal_onVBlank(C_LinkUniversalHandle handle) {

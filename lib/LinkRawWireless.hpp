@@ -204,7 +204,7 @@ class LinkRawWireless {
     resetState();
 
     LRWLOG("setting SPI to 2Mbps");
-    linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+    linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
 
     SystemStatusResponse systemStatus;
     if (!getSystemStatus(systemStatus)) {
@@ -841,13 +841,13 @@ class LinkRawWireless {
     RemoteCommand remoteCommand;
 
     LRWLOG("setting SPI to SLAVE");
-    linkSPI->activate(LinkSPI::Mode::SLAVE);
+    linkSPI.activate(LinkSPI::Mode::SLAVE);
 
     LRWLOG("WAITING for adapter cmd");
     u32 command =
-        linkSPI->transfer(DATA_REQUEST, []() { return false; }, false, true);
+        linkSPI.transfer(DATA_REQUEST, []() { return false; }, false, true);
     if (!reverseAcknowledge()) {
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
       return remoteCommand;
     }
@@ -859,7 +859,7 @@ class LinkRawWireless {
     if (header != COMMAND_HEADER) {
       LRWLOG("! expected HEADER 0x9966");
       LRWLOG("! but received 0x" + toHex(header));
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
       return remoteCommand;
     }
@@ -870,9 +870,9 @@ class LinkRawWireless {
       LRWLOG("param " + std::to_string(i + 1) + "/" + std::to_string(params) +
              ":");
       u32 paramData =
-          linkSPI->transfer(DATA_REQUEST, []() { return false; }, false, true);
+          linkSPI.transfer(DATA_REQUEST, []() { return false; }, false, true);
       if (!reverseAcknowledge()) {
-        linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+        linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
         reset();
         return remoteCommand;
       }
@@ -883,11 +883,11 @@ class LinkRawWireless {
     Link::wait(TRANSFER_WAIT);
 
     LRWLOG("sending ack");
-    command = linkSPI->transfer(
+    command = linkSPI.transfer(
         (COMMAND_HEADER << 16) | ((commandId + RESPONSE_ACK) & 0xff),
         []() { return false; }, false, true);
     if (!reverseAcknowledge(true)) {
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
       return remoteCommand;
     }
@@ -895,13 +895,13 @@ class LinkRawWireless {
     if (command != DATA_REQUEST) {
       LRWLOG("! expected CMD request");
       LRWLOG("! but received 0x" + toHex(command));
-      linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+      linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
       reset();
       return remoteCommand;
     }
 
     LRWLOG("setting SPI to MASTER");
-    linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+    linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
 
     Link::wait(TRANSFER_WAIT);
 
@@ -952,11 +952,6 @@ class LinkRawWireless {
    */
   [[nodiscard]] u8 currentPlayerId() { return sessionState.currentPlayerId; }
 
-  ~LinkRawWireless() {
-    delete linkSPI;
-    delete linkGPIO;
-  }
-
   struct SessionState {
     u8 playerCount = 1;
     u8 currentPlayerId = 0;
@@ -968,8 +963,8 @@ class LinkRawWireless {
     u16 previousAdapterData = 0xffff;
   };
 
-  LinkSPI* linkSPI = new LinkSPI();
-  LinkGPIO* linkGPIO = new LinkGPIO();
+  LinkSPI linkSPI;
+  LinkGPIO linkGPIO;
   SessionState sessionState;
   State state = NEEDS_RESET;
   volatile bool isEnabled = false;
@@ -1045,7 +1040,7 @@ class LinkRawWireless {
   /**
    * @brief Stops the communication.
    */
-  void stop() { linkSPI->deactivate(); }
+  void stop() { linkSPI.deactivate(); }
 
   /**
    * @brief Starts the communication.
@@ -1053,7 +1048,7 @@ class LinkRawWireless {
   bool start() {
     pingAdapter();
     LRWLOG("setting SPI to 256Kbps");
-    linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);
+    linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
 
     if (!login())
       return false;
@@ -1065,7 +1060,7 @@ class LinkRawWireless {
       return false;
 
     LRWLOG("setting SPI to 2Mbps");
-    linkSPI->activate(LinkSPI::Mode::MASTER_2MBPS);
+    linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
     LRWLOG("state = AUTHENTICATED");
     state = AUTHENTICATED;
 
@@ -1076,16 +1071,16 @@ class LinkRawWireless {
    * @brief Sends the signal to reset the adapter.
    */
   void pingAdapter() {
-    linkGPIO->reset();
+    linkGPIO.reset();
     LRWLOG("setting SO as OUTPUT");
-    linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
+    linkGPIO.setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
     LRWLOG("setting SD as OUTPUT");
-    linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
+    linkGPIO.setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
     LRWLOG("setting SD = HIGH");
-    linkGPIO->writePin(LinkGPIO::Pin::SD, true);
+    linkGPIO.writePin(LinkGPIO::Pin::SD, true);
     Link::wait(PING_WAIT);
     LRWLOG("setting SD = LOW");
-    linkGPIO->writePin(LinkGPIO::Pin::SD, false);
+    linkGPIO.writePin(LinkGPIO::Pin::SD, false);
   }
 
   /**
@@ -1154,7 +1149,7 @@ class LinkRawWireless {
 
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
-    u32 receivedData = linkSPI->transfer(
+    u32 receivedData = linkSPI.transfer(
         data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); },
         false, customAck);
 
@@ -1172,7 +1167,7 @@ class LinkRawWireless {
   u32 transferAndStartClockInversionACK(u32 data) {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
-    u32 receivedData = linkSPI->transfer(
+    u32 receivedData = linkSPI.transfer(
         data, [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); },
         false, true);
 
@@ -1189,23 +1184,23 @@ class LinkRawWireless {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
 
-    linkSPI->_setSOLow();
-    while (!linkSPI->_isSIHigh()) {
+    linkSPI._setSOLow();
+    while (!linkSPI._isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
         LRWLOG("! ACK 1 failed. I put SO=LOW,");
         LRWLOG("! but SI didn't become HIGH.");
         return false;
       }
     }
-    linkSPI->_setSOHigh();
-    while (linkSPI->_isSIHigh()) {
+    linkSPI._setSOHigh();
+    while (linkSPI._isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
         LRWLOG("! ACK 2 failed. I put SO=HIGH,");
         LRWLOG("! but SI didn't become LOW.");
         return false;
       }
     }
-    linkSPI->_setSOLow();
+    linkSPI._setSOLow();
 
     return true;
   }
@@ -1217,17 +1212,17 @@ class LinkRawWireless {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
 
-    linkSPI->_setSOLow();
+    linkSPI._setSOLow();
     Link::wait(1);
-    linkSPI->_setSOHigh();
-    while (linkSPI->_isSIHigh()) {
+    linkSPI._setSOHigh();
+    while (linkSPI._isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
         LRWLOG("! Rev0 failed. I put SO=HIGH,");
         LRWLOG("! but SI didn't become LOW.");
         return false;
       }
     }
-    linkSPI->_setSOLow();
+    linkSPI._setSOLow();
 
     return true;
   }
@@ -1236,14 +1231,14 @@ class LinkRawWireless {
    * @brief Performs the inverted adapter's ACK procedure.
    * @param isLastPart Whether it's the last part of the procedure or not.
    * \warning `isLastPart` is required when there's no subsequent
-   * `linkSPI->transfer(...)` call.
+   * `linkSPI.transfer(...)` call.
    */
   bool reverseAcknowledge(bool isLastPart = false) {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
 
-    linkSPI->_setSOLow();
-    while (linkSPI->_isSIHigh()) {
+    linkSPI._setSOLow();
+    while (linkSPI._isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
         LRWLOG("! RevAck0 failed. I put SO=LOW,");
         LRWLOG("! but SI didn't become LOW.");
@@ -1251,18 +1246,18 @@ class LinkRawWireless {
       }
     }
 
-    linkSPI->_setSOHigh();
-    while (!linkSPI->_isSIHigh()) {
+    linkSPI._setSOHigh();
+    while (!linkSPI._isSIHigh()) {
       if (cmdTimeout(lines, vCount)) {
         LRWLOG("! RevAck1 failed. I put SO=HIGH,");
         LRWLOG("! but SI didn't become HIGH.");
         return false;
       }
     }
-    // (normally, this occurs on the next linkSPI->transfer(...) call)
+    // (normally, this occurs on the next linkSPI.transfer(...) call)
     if (isLastPart) {
-      linkSPI->_setSOLow();
-      while (linkSPI->_isSIHigh()) {
+      linkSPI._setSOLow();
+      while (linkSPI._isSIHigh()) {
         if (cmdTimeout(lines, vCount)) {
           LRWLOG("! RevAck2 failed. I put SO=LOW,");
           LRWLOG("! but SI didn't become LOW.");
