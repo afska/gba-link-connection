@@ -447,6 +447,8 @@ void messageLoop() {
     }
     if (altView) {
 #ifdef PROFILING_ENABLED
+      output +=
+          "\n_rejected: " + std::to_string(linkWireless->rejectedMessages);
       output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
       output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
       output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);

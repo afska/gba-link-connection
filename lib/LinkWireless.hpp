@@ -201,6 +201,7 @@ class LinkWireless {
 // std::function<void(std::string str)> debug;
 // #define PROFILING_ENABLED
 #ifdef PROFILING_ENABLED
+  u32 rejectedMessages = 0;
   u32 lastVBlankTime = 0;
   u32 lastSerialTime = 0;
   u32 lastTimerTime = 0;
@@ -1211,8 +1212,12 @@ class LinkWireless {
           MAX_PACKET_IDS;
 
       if (config.retransmission && !isConfirmation &&
-          message.packetId != expectedPacketId)
+          message.packetId != expectedPacketId) {
+#ifdef PROFILING_ENABLED
+        rejectedMessages++;
+#endif
         return false;
+      }
 
       if (!isConfirmation)
         message.packetId =
@@ -1222,8 +1227,12 @@ class LinkWireless {
           (sessionState.lastPacketIdFromServer + 1) % MAX_PACKET_IDS;
 
       if (config.retransmission && !isConfirmation &&
-          message.packetId != expectedPacketId)
+          message.packetId != expectedPacketId) {
+#ifdef PROFILING_ENABLED
+        rejectedMessages++;
+#endif
         return false;
+      }
 
       linkRawWireless.sessionState.playerCount = remotePlayerCount;
 
