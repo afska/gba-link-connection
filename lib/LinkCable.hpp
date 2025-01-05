@@ -83,6 +83,7 @@ class LinkCable {
   using u8 = unsigned char;
   using vu32 = volatile unsigned int;
   using vs32 = volatile signed int;
+  using vu8 = volatile unsigned char;
   using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE>;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
@@ -373,8 +374,8 @@ class LinkCable {
  private:
   struct ExternalState {
     U16Queue syncedIncomingMessages[LINK_CABLE_MAX_PLAYERS];
-    u8 playerCount;
-    u8 currentPlayerId;
+    vu8 playerCount;
+    vu8 currentPlayerId;
   };
 
   struct InternalState {

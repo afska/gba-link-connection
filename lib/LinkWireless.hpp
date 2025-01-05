@@ -981,7 +981,7 @@ class LinkWireless {
   u32 nextAsyncCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
   u32 nextAsyncCommandDataSize = 0;
   volatile bool isSendingSyncCommand = false;
-  Error lastError = NONE;
+  volatile Error lastError = NONE;
   volatile bool isEnabled = false;
 
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM

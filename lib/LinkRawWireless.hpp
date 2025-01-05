@@ -51,6 +51,7 @@ class LinkRawWireless {
   using u32 = unsigned int;
   using u16 = unsigned short;
   using u8 = unsigned char;
+  using vu8 = volatile unsigned char;
 
  public:
   static constexpr int PING_WAIT = 50;
@@ -953,9 +954,9 @@ class LinkRawWireless {
   [[nodiscard]] u8 currentPlayerId() { return sessionState.currentPlayerId; }
 
   struct SessionState {
-    u8 playerCount = 1;
-    u8 currentPlayerId = 0;
-    bool isServerClosed = false;
+    vu8 playerCount = 1;
+    vu8 currentPlayerId = 0;
+    volatile bool isServerClosed = false;
   };
 
   struct LoginMemory {
@@ -966,7 +967,7 @@ class LinkRawWireless {
   LinkSPI linkSPI;
   LinkGPIO linkGPIO;
   SessionState sessionState;
-  State state = NEEDS_RESET;
+  volatile State state = NEEDS_RESET;
   volatile bool isEnabled = false;
 
   /**

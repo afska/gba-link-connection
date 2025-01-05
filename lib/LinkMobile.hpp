@@ -892,8 +892,8 @@ class LinkMobile {
   u32 waitFrames = 0;
   u32 timeoutStateFrames = 0;
   u32 pingFrameCount = 0;
-  Role role = Role::NO_P2P_CONNECTION;
-  State state = NEEDS_RESET;
+  volatile Role role = Role::NO_P2P_CONNECTION;
+  volatile State state = NEEDS_RESET;
   PacketData nextCommandData;
   u32 nextCommandDataSize = 0;
   bool hasPendingTransfer = false;

@@ -295,8 +295,8 @@ class LinkSPI {
   Mode mode = Mode::SLAVE;
   DataSize dataSize = DataSize::SIZE_32BIT;
   bool waitMode = false;
-  AsyncState asyncState = IDLE;
-  u32 asyncData = 0;
+  volatile AsyncState asyncState = IDLE;
+  volatile u32 asyncData = 0;
   volatile bool isEnabled = false;
 
   void setNormalMode() {

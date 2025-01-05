@@ -52,6 +52,8 @@ using vu32 = volatile unsigned int;
 using vs32 = volatile signed int;
 using vu16 = volatile unsigned short;
 using vs16 = volatile signed short;
+using vu8 = volatile unsigned char;
+using vs8 = volatile signed char;
 
 // Structs
 

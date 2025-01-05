@@ -258,7 +258,7 @@ class LinkRawCable {
 
  private:
   BaudRate baudRate = BaudRate::BAUD_RATE_1;
-  AsyncState asyncState = IDLE;
+  volatile AsyncState asyncState = IDLE;
   Response asyncData = EMPTY_RESPONSE;
   volatile bool isEnabled = false;
 
