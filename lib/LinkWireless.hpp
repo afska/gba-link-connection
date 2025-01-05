@@ -837,16 +837,16 @@ class LinkWireless {
     profileStart();
 #endif
 
-    auto linkSPI = linkRawWireless.linkSPI;
-    linkSPI._onSerial(true);
+    auto linkSPI = &linkRawWireless.linkSPI;
+    linkSPI->_onSerial(true);
 
-    bool hasNewData = linkSPI.getAsyncState() == LinkSPI::AsyncState::READY;
+    bool hasNewData = linkSPI->getAsyncState() == LinkSPI::AsyncState::READY;
     if (hasNewData) {
       if (!linkRawWireless.acknowledge())
         return (void)abort(ACKNOWLEDGE_FAILED);
     } else
       return;
-    u32 newData = linkSPI.getAsyncData();
+    u32 newData = linkSPI->getAsyncData();
 
     if (!isSessionActive())
       return;
