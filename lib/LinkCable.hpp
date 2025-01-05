@@ -166,10 +166,8 @@ class LinkCable {
   [[nodiscard]] u8 currentPlayerId() { return state.currentPlayerId; }
 
   /**
-   * @brief Call this method whenever you need to fetch new data. It does not
-   * **wait** for new messages; instead, it collects and queues any available
-   * messages from the interrupt world for later processing with the `read(...)`
-   * method.
+   * @brief Collects available messages from interrupts for later processing
+   * with `read(...)`. Call this method whenever you need to fetch new data.
    */
   void sync() {
     if (!isEnabled)

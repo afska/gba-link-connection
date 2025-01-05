@@ -210,11 +210,10 @@ class LinkUniversal {
   }
 
   /**
-   * @brief Call this method whenever you need to fetch new data, but at least
-   * once per frame, as it also maintains the connection state. It does not
-   * **wait** for new messages; instead, it collects and queues any available
-   * messages from the interrupt world for later processing with the `read(...)`
-   * method.
+   * @brief Collects available messages from interrupts for later processing
+   * with `read(...)`. Call this method whenever you need to fetch new data, and
+   * at least once per frame, as it also manages connection state, auto-pairing,
+   * and protocol switching.
    */
   void sync() {
     if (!isEnabled)
