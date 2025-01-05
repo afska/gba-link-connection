@@ -887,6 +887,7 @@ class LinkMobile {
 
   using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE, false>;
 
+  LinkSPI* linkSPI = new LinkSPI();
   RequestQueue userRequests;
   AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
@@ -894,7 +895,6 @@ class LinkMobile {
   u32 timeoutStateFrames = 0;
   u32 pingFrameCount = 0;
   Role role = Role::NO_P2P_CONNECTION;
-  LinkSPI* linkSPI = new LinkSPI();
   State state = NEEDS_RESET;
   PacketData nextCommandData;
   u32 nextCommandDataSize = 0;

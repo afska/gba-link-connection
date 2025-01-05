@@ -215,10 +215,9 @@ class LinkWirelessMultiboot {
     delete linkWirelessOpenSDK;
   }
 
+ private:
   LinkRawWireless* linkRawWireless = new LinkRawWireless();
   LinkWirelessOpenSDK* linkWirelessOpenSDK = new LinkWirelessOpenSDK();
-
- private:
   MultibootProgress progress;
   volatile bool readyFlag = false;
   volatile Result lastResult;

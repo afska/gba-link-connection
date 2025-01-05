@@ -119,7 +119,7 @@ You can also change these compile-time constants:
 | `isConnected()`             | **bool**       | Returns `true` if there are at least 2 connected players.                                                                                                                        |
 | `playerCount()`             | **u8** _(0~4)_ | Returns the number of connected players.                                                                                                                                         |
 | `currentPlayerId()`         | **u8** _(0~3)_ | Returns the current player ID.                                                                                                                                                   |
-| `sync()`                    | -              | Call this method every time you need to fetch new data.                                                                                                                          |
+| `sync()`                    | -              | Call this method whenever you need to fetch new data. It does not **wait** for new messages; instead, it collects and queues any available messages from the interrupt world for later processing with the `read(...)` method.                                                                                                                          |
 | `waitFor(playerId)`         | **bool**       | Waits for data from player #`playerId`. Returns `true` on success, or `false` on disconnection.                                                                                  |
 | `waitFor(playerId, cancel)` | **bool**       | Like `waitFor(playerId)` but accepts a `cancel()` function. The library will continuously invoke it, and abort the wait if it returns `true`.                                    |
 | `canRead(playerId)`         | **bool**       | Returns `true` if there are pending messages from player #`playerId`. Keep in mind that if this returns `false`, it will keep doing so until you _fetch new data_ with `sync()`. |
@@ -180,8 +180,11 @@ You can change these compile-time constants:
 | `isMaster()`                       | **bool**                     | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.                                                                      |
 | `isReady()`                        | **bool**                     | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.                                                       |
 
-- don't send `0xFFFF`, it's a reserved value that means _disconnected client_
-- only `transfer(...)` if `isReady()`
+⚠️ don't send `0xFFFF`, it's a reserved value that means _disconnected client_
+
+⚠️ only `transfer(...)` if `isReady()`
+
+⚠️ if you're building a game, use `LinkCable`
 
 # 📻 LinkWireless
 

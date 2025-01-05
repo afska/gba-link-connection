@@ -36,6 +36,7 @@
 // considerations:
 // - don't send 0xFFFF, it's a reserved value that means <disconnected client>
 // - only transfer(...) if isReady()
+// - if you're building a game, use `LinkCable`.
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -51,6 +52,7 @@ static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.1.0";
 
 /**
  * @brief A low level handler for the Link Port (Multi-Play Mode).
+ * \warning If you're building a game, use `LinkCable`.
  */
 class LinkRawCable {
  private:
@@ -206,13 +208,13 @@ class LinkRawCable {
    * @brief Returns whether the console is connected as master or not. Returns
    * garbage when the cable is not properly connected.
    */
-  [[nodiscard]] bool isMaster() { return !isBitHigh(BIT_SLAVE); }
+  [[nodiscard]] bool isMaster() { return isMasterNode(); }
 
   /**
    * @brief Returns whether all connected consoles have entered the multiplayer
    * mode. Returns garbage when the cable is not properly connected.
    */
-  [[nodiscard]] bool isReady() { return isBitHigh(BIT_READY); }
+  [[nodiscard]] bool isReady() { return allReady(); }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.
@@ -229,6 +231,31 @@ class LinkRawCable {
       asyncData = getData();
   }
 
+  // -------------
+  // Low-level API
+  // -------------
+  static void setData(u16 data) { Link::_REG_SIOMLT_SEND = data; }
+  [[nodiscard]] static Response getData() {
+    Response response = EMPTY_RESPONSE;
+
+    for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
+      response.data[i] = Link::_REG_SIOMULTI[i];
+
+    response.playerId =
+        (Link::_REG_SIOCNT & (0b11 << BITS_PLAYER_ID)) >> BITS_PLAYER_ID;
+
+    return response;
+  }
+  [[nodiscard]] static bool isMasterNode() { return !isBitHigh(BIT_SLAVE); }
+  [[nodiscard]] static bool allReady() { return isBitHigh(BIT_READY); }
+  [[nodiscard]] static bool hasError() { return isBitHigh(BIT_ERROR); }
+  [[nodiscard]] static bool isSending() { return isBitHigh(BIT_START); }
+  static void startTransfer() { setBitHigh(BIT_START); }
+  static void stopTransfer() { setBitLow(BIT_START); }
+  static void setInterruptsOn() { setBitHigh(BIT_IRQ); }
+  static void setInterruptsOff() { setBitLow(BIT_IRQ); }
+  // -------------
+
  private:
   BaudRate baudRate = BaudRate::BAUD_RATE_1;
   AsyncState asyncState = IDLE;
@@ -243,35 +270,14 @@ class LinkRawCable {
   }
 
   void setGeneralPurposeMode() {
+    Link::_REG_SIOMLT_SEND = 0;
     Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
                       (1 << BIT_GENERAL_PURPOSE_HIGH);
   }
 
-  void setData(u16 data) { Link::_REG_SIOMLT_SEND = data; }
-  Response getData() {
-    Response response = EMPTY_RESPONSE;
-
-    for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
-      response.data[i] = Link::_REG_SIOMULTI[i];
-
-    response.playerId =
-        (Link::_REG_SIOCNT & (0b11 << BITS_PLAYER_ID)) >> BITS_PLAYER_ID;
-
-    return response;
-  }
-
-  bool hasError() { return isBitHigh(BIT_ERROR); }
-  bool isSending() { return isBitHigh(BIT_START); }
-
-  void startTransfer() { setBitHigh(BIT_START); }
-  void stopTransfer() { setBitLow(BIT_START); }
-
-  void setInterruptsOn() { setBitHigh(BIT_IRQ); }
-  void setInterruptsOff() { setBitLow(BIT_IRQ); }
-
-  bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
+  static bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
+  static void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
+  static void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkRawCable* linkRawCable;

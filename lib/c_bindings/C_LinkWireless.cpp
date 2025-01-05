@@ -213,11 +213,6 @@ u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->_nextPendingPacketId();
 }
 
-C_LinkRawWirelessHandle C_LinkWireless_getLinkRawWireless(
-    C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->linkRawWireless;
-}
-
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle) {
   static_cast<LinkWireless*>(handle)->_onVBlank();
 }

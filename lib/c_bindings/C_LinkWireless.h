@@ -6,7 +6,6 @@ extern "C" {
 #endif
 
 #include <tonc_core.h>
-#include "C_LinkRawWireless.h"
 
 typedef void* C_LinkWirelessHandle;
 
@@ -136,9 +135,6 @@ u32 C_LinkWireless_lastPacketIdFromClient1(C_LinkWirelessHandle handle);
 u32 C_LinkWireless_lastConfirmationFromServer(C_LinkWirelessHandle handle);
 u32 C_LinkWireless_lastPacketIdFromServer(C_LinkWirelessHandle handle);
 u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle);
-
-C_LinkRawWirelessHandle C_LinkWireless_getLinkRawWireless(
-    C_LinkWirelessHandle handle);
 
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle);
 void C_LinkWireless_onSerial(C_LinkWirelessHandle handle);

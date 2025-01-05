@@ -968,9 +968,9 @@ class LinkRawWireless {
     u16 previousAdapterData = 0xffff;
   };
 
-  SessionState sessionState;
   LinkSPI* linkSPI = new LinkSPI();
   LinkGPIO* linkGPIO = new LinkGPIO();
+  SessionState sessionState;
   State state = NEEDS_RESET;
   volatile bool isEnabled = false;
 

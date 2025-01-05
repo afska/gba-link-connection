@@ -907,11 +907,6 @@ class LinkWireless {
    */
   Config config;
 
-  /**
-   * @brief The internal `LinkRawWireless` instance.
-   */
-  LinkRawWireless* linkRawWireless = new LinkRawWireless();
-
  private:
   using MessageQueue = Link::Queue<Message, LINK_WIRELESS_QUEUE_SIZE, false>;
 
@@ -982,6 +977,7 @@ class LinkWireless {
     bool isActive;
   };
 
+  LinkRawWireless* linkRawWireless = new LinkRawWireless();
   SessionState sessionState;
   AsyncCommand asyncCommand;
   u32 nextAsyncCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];

@@ -48,6 +48,8 @@
 
 #include "_link_common.hpp"
 
+#include "LinkRawCable.hpp"
+
 #ifndef LINK_CABLE_QUEUE_SIZE
 /**
  * @brief Buffer size (how many incoming and outgoing messages the queues can
@@ -85,23 +87,9 @@ class LinkCable {
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
-  static constexpr int BIT_SLAVE = 2;
-  static constexpr int BIT_READY = 3;
-  static constexpr int BITS_PLAYER_ID = 4;
-  static constexpr int BIT_ERROR = 6;
-  static constexpr int BIT_START = 7;
-  static constexpr int BIT_MULTIPLAYER = 13;
-  static constexpr int BIT_IRQ = 14;
-  static constexpr int BIT_GENERAL_PURPOSE_LOW = 14;
-  static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
 
  public:
-  enum BaudRate {
-    BAUD_RATE_0,  // 9600 bps
-    BAUD_RATE_1,  // 38400 bps
-    BAUD_RATE_2,  // 57600 bps
-    BAUD_RATE_3   // 115200 bps
-  };
+  using BaudRate = LinkRawCable::BaudRate;
 
   /**
    * @brief Constructs a new LinkCable object.
@@ -115,7 +103,7 @@ class LinkCable {
    * \warning You can use `Link::perFrame(...)` to convert from *packets per
    * frame* to *interval values*.
    */
-  explicit LinkCable(BaudRate baudRate = BAUD_RATE_1,
+  explicit LinkCable(BaudRate baudRate = BaudRate::BAUD_RATE_1,
                      u32 timeout = LINK_CABLE_DEFAULT_TIMEOUT,
                      u16 interval = LINK_CABLE_DEFAULT_INTERVAL,
                      u8 sendTimerId = LINK_CABLE_DEFAULT_SEND_TIMER_ID) {
@@ -177,7 +165,9 @@ class LinkCable {
   [[nodiscard]] u8 currentPlayerId() { return state.currentPlayerId; }
 
   /**
-   * @brief Call this method every time you need to fetch new data.
+   * @brief Call this method whenever you need to fetch new data. It doesn't
+   * block the system; it simply collects and queues a set of messages from the
+   * interrupt world for later processing with the `read(...)` method.
    */
   void sync() {
     if (!isEnabled)
@@ -277,6 +267,8 @@ class LinkCable {
     startTimer();
   }
 
+  ~LinkCable() { delete linkRawCable; }
+
   /**
    * @brief This method is called by the VBLANK interrupt handler.
    * \warning This is internal API!
@@ -311,17 +303,20 @@ class LinkCable {
     if (!isEnabled)
       return;
 
-    if (!isReady() || hasError()) {
+    if (!LinkRawCable::allReady() || LinkRawCable::hasError()) {
       reset();
       return;
     }
+
+    auto response = LinkRawCable::getData();
+    state.currentPlayerId = response.playerId;
 
     _state.IRQFlag = true;
     _state.IRQTimeout = 0;
 
     u8 newPlayerCount = 0;
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      u16 data = Link::_REG_SIOMULTI[i];
+      u16 data = response.data[i];
 
       if (data != LINK_CABLE_DISCONNECTED) {
         if (data != LINK_CABLE_NO_DATA && i != state.currentPlayerId)
@@ -339,12 +334,10 @@ class LinkCable {
     }
 
     state.playerCount = newPlayerCount;
-    state.currentPlayerId =
-        (Link::_REG_SIOCNT & (0b11 << BITS_PLAYER_ID)) >> BITS_PLAYER_ID;
 
-    Link::_REG_SIOMLT_SEND = LINK_CABLE_NO_DATA;
+    LinkRawCable::setData(LINK_CABLE_NO_DATA);
 
-    if (!isMaster())
+    if (!LinkRawCable::isMasterNode())
       sendPendingData();
 
     copyState();
@@ -358,7 +351,8 @@ class LinkCable {
     if (!isEnabled)
       return;
 
-    if (isMaster() && isReady() && !isSending())
+    if (LinkRawCable::isMasterNode() && LinkRawCable::allReady() &&
+        !LinkRawCable::isSending())
       sendPendingData();
 
     copyState();
@@ -394,15 +388,12 @@ class LinkCable {
     bool IRQFlag;
   };
 
+  LinkRawCable* linkRawCable = new LinkRawCable();
   ExternalState state;
   InternalState _state;
   volatile bool isEnabled = false;
   volatile bool isReadingMessages = false;
 
-  bool isMaster() { return !isBitHigh(BIT_SLAVE); }
-  bool isReady() { return isBitHigh(BIT_READY); }
-  bool hasError() { return isBitHigh(BIT_ERROR); }
-  bool isSending() { return isBitHigh(BIT_START); }
   bool didTimeout() { return _state.IRQTimeout >= config.timeout; }
 
   void sendPendingData() {
@@ -415,10 +406,10 @@ class LinkCable {
   }
 
   void transfer(u16 data) {
-    Link::_REG_SIOMLT_SEND = data;
+    LinkRawCable::setData(data);
 
-    if (isMaster())
-      setBitHigh(BIT_START);
+    if (LinkRawCable::isMasterNode())
+      LinkRawCable::startTransfer();
   }
 
   void reset() {
@@ -445,15 +436,14 @@ class LinkCable {
   }
 
   void stop() {
-    Link::_REG_SIOMLT_SEND = LINK_CABLE_NO_DATA;
     stopTimer();
-    setGeneralPurposeMode();
+    linkRawCable->deactivate();
   }
 
   void start() {
     startTimer();
-    setMultiPlayMode();
-    setInterruptsOn();
+    linkRawCable->activate(config.baudRate);
+    LinkRawCable::setInterruptsOn();
   }
 
   void stopTimer() {
@@ -502,24 +492,6 @@ class LinkCable {
     _state.msgTimeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
     _state.msgFlags[playerId] = false;
   }
-
-  void setInterruptsOn() { setBitHigh(BIT_IRQ); }
-
-  void setMultiPlayMode() {
-    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
-    Link::_REG_SIOCNT = (1 << BIT_MULTIPLAYER);
-    Link::_REG_SIOCNT |= config.baudRate;
-    Link::_REG_SIOMLT_SEND = 0;
-  }
-
-  void setGeneralPurposeMode() {
-    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
-                      (1 << BIT_GENERAL_PURPOSE_HIGH);
-  }
-
-  bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
-  void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
-  void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }
 };
 
 extern LinkCable* linkCable;
