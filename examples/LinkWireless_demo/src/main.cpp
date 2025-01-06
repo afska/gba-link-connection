@@ -279,6 +279,18 @@ void messageLoop() {
   u32 lastLostPacketExpected = 0;
   u32 lastLostPacketReceived = 0;
   u32 lastLostPacketReceivedPacketId = 0;
+#else
+  u32 vblanks = 0;
+  u32 totalVBlankTime = 0;
+  u32 totalSerialTime = 0;
+  u32 totalTimerTime = 0;
+  u32 totalSerialIRQs = 0;
+  u32 totalTimerIRQs = 0;
+  u32 avgVBlankTime = 0;
+  u32 avgSerialTime = 0;
+  u32 avgTimerTime = 0;
+  u32 avgSerialIRQs = 0;
+  u32 avgTimerIRQs = 0;
 #endif
 
   while (true) {
@@ -377,6 +389,29 @@ void messageLoop() {
     }
 
     // Normal output
+#ifdef PROFILING_ENABLED
+    vblanks++;
+    totalVBlankTime += linkWireless->lastVBlankTime;
+    totalSerialTime += linkWireless->lastSerialTime;
+    totalTimerTime += linkWireless->lastTimerTime;
+    totalSerialIRQs += linkWireless->lastFrameSerialIRQs;
+    totalTimerIRQs += linkWireless->lastFrameTimerIRQs;
+
+    if (vblanks >= 60) {
+      avgVBlankTime = totalVBlankTime / 60;
+      avgSerialTime = totalSerialTime / 60;
+      avgTimerTime = totalTimerTime / 60;
+      avgSerialIRQs = totalSerialIRQs / 60;
+      avgTimerIRQs = totalTimerIRQs / 60;
+
+      vblanks = 0;
+      totalVBlankTime = 0;
+      totalSerialTime = 0;
+      totalTimerTime = 0;
+      totalSerialIRQs = 0;
+      totalTimerIRQs = 0;
+    }
+#endif
     std::string output =
         "Player #" + std::to_string(linkWireless->currentPlayerId()) + " (" +
         std::to_string(linkWireless->playerCount()) + " total)" +
@@ -420,19 +455,14 @@ void messageLoop() {
     }
     if (altView) {
 #ifdef PROFILING_ENABLED
-      output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
-      output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
-      output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);
-      output +=
-          "\n_serialIRQs: " + std::to_string(linkWireless->lastFrameSerialIRQs);
-      output +=
-          "\n_timerIRQs: " + std::to_string(linkWireless->lastFrameTimerIRQs);
-      output +=
-          "\n_ms: " +
-          std::to_string(linkWireless->toMs(
-              linkWireless->lastVBlankTime +
-              linkWireless->lastSerialTime * linkWireless->lastFrameSerialIRQs +
-              linkWireless->lastTimerTime * linkWireless->lastFrameTimerIRQs));
+      output += "\n_onVBlank: " + std::to_string(avgVBlankTime);
+      output += "\n_onSerial: " + std::to_string(avgSerialTime);
+      output += "\n_onTimer: " + std::to_string(avgTimerTime);
+      output += "\n_serialIRQs: " + std::to_string(avgSerialIRQs);
+      output += "\n_timerIRQs: " + std::to_string(avgTimerIRQs);
+      output += "\n_ms: " + std::to_string(linkWireless->toMs(
+                                avgVBlankTime + avgSerialTime * avgSerialIRQs +
+                                avgTimerTime * avgTimerIRQs));
 #else
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
