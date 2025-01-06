@@ -446,7 +446,7 @@ void messageLoop() {
         "Player #" + std::to_string(linkWireless->currentPlayerId()) + " (" +
         std::to_string(linkWireless->playerCount()) + " total)" +
         "\n\n(press A to increment counter)\n(hold B to do it "
-        "continuously)\n(hold LEFT for double send)\n\n" +
+        "continuously)\n(press RIGHT for more options)\n\n" +
         altOptionName + ": " + (altView ? "ON" : "OFF") +
         "\n(switch with UP)\n\n";
 
@@ -500,7 +500,17 @@ void messageLoop() {
 #endif
     }
 
-    // Test interval change
+    // RIGHT = More options
+    if (keys & KEY_RIGHT) {
+      Common::log(
+          "- Hold LEFT = Double send\n- Hold DOWN = Test lag\n- L = Decrease "
+          "interval\n- R = Increase interval\n- DOWN = Close dialogs\n- "
+          "START+UP: Close srv (prof)\n- UP: Update brdcst (prof)\n- "
+          "SELECT = Disconnect");
+      hang();
+    }
+
+    // L = Decrease interval
     if (keys & KEY_L) {
       linkWireless->config.interval =
           Link::_max(linkWireless->config.interval - 5, 5);
@@ -510,6 +520,7 @@ void messageLoop() {
       hang();
     }
 
+    // R = Increase interval
     if (keys & KEY_R) {
       linkWireless->config.interval =
           Link::_min(linkWireless->config.interval + 5, 200);
@@ -519,7 +530,7 @@ void messageLoop() {
       hang();
     }
 
-    // Test lag
+    // DOWN = Test lag
     if (keys & KEY_DOWN)
       Link::wait(9000);
 
