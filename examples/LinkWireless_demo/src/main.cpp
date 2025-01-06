@@ -500,6 +500,25 @@ void messageLoop() {
 #endif
     }
 
+    // Test interval change
+    if (keys & KEY_L) {
+      linkWireless->config.interval =
+          Link::_max(linkWireless->config.interval - 5, 5);
+      linkWireless->resetTimer();
+      Common::log("New interval: " +
+                  std::to_string(linkWireless->config.interval));
+      hang();
+    }
+
+    if (keys & KEY_R) {
+      linkWireless->config.interval =
+          Link::_min(linkWireless->config.interval + 5, 200);
+      linkWireless->resetTimer();
+      Common::log("New interval: " +
+                  std::to_string(linkWireless->config.interval));
+      hang();
+    }
+
     // Test lag
     if (keys & KEY_DOWN)
       Link::wait(9000);
