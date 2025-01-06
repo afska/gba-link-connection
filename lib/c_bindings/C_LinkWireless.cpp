@@ -177,42 +177,6 @@ void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
   static_cast<LinkWireless*>(handle)->config.sendTimerId = config.sendTimerId;
 }
 
-bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_hasActiveAsyncCommand();
-}
-
-bool C_LinkWireless_canSend(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_canSend();
-}
-
-u32 C_LinkWireless_getPendingCount(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_getPendingCount();
-}
-
-u32 C_LinkWireless_lastPacketId(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastPacketId();
-}
-
-u32 C_LinkWireless_lastConfirmationFromClient1(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastConfirmationFromClient1();
-}
-
-u32 C_LinkWireless_lastPacketIdFromClient1(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastPacketIdFromClient1();
-}
-
-u32 C_LinkWireless_lastConfirmationFromServer(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastConfirmationFromServer();
-}
-
-u32 C_LinkWireless_lastPacketIdFromServer(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastPacketIdFromServer();
-}
-
-u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_nextPendingPacketId();
-}
-
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle) {
   static_cast<LinkWireless*>(handle)->_onVBlank();
 }

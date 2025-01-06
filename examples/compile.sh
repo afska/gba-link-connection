@@ -116,14 +116,12 @@ compile() {
   cd ..
 
   # LinkWireless_demo_profiler
-  if [ "$1" != "multiboot" ]; then
-    cd LinkWireless_demo/
-    mv LinkWireless_demo.gba backup.gba
-    make rebuild USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DPROFILING_ENABLED=1"
-    cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
-    mv backup.gba LinkWireless_demo.gba
-    cd ..
-  fi
+  cd LinkWireless_demo/
+  mv LinkWireless_demo$suffix.gba backup.gba
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_PROFILING_ENABLED=1"
+  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_profiler$suffix.gba
+  mv backup.gba LinkWireless_demo$suffix.gba
+  cd ..
 }
 
 # Cleanup

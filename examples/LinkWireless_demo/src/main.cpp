@@ -48,7 +48,7 @@ int main() {
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
   buildSettings += " + 2players\n";
 #endif
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
   buildSettings += " + profiler\n";
 #endif
 
@@ -286,7 +286,7 @@ void messageLoop() {
   bool altView = false;
   bool switching = false;
 
-#ifndef PROFILING_ENABLED
+#ifndef LINK_WIRELESS_PROFILING_ENABLED
   u32 lostPackets = 0;
   u32 lastLostPacketPlayerId = 0;
   u32 lastLostPacketExpected = 0;
@@ -338,13 +338,13 @@ void messageLoop() {
       if (message.packetId == LINK_WIRELESS_END)
         break;
 
-#ifndef PROFILING_ENABLED
+#ifndef LINK_WIRELESS_PROFILING_ENABLED
       u32 expected = counters[message.playerId] + 1;
 #endif
 
       counters[message.playerId] = message.data;
 
-#ifndef PROFILING_ENABLED
+#ifndef LINK_WIRELESS_PROFILING_ENABLED
       // Check for packet loss
       if (altView && message.data != expected) {
         lostPackets++;
@@ -364,7 +364,7 @@ void messageLoop() {
 
     // Packet loss check setting
     if (Common::didPress(KEY_UP, switching)) {
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
       // In the profiler ROM, pressing UP will update the broadcast data
       if (linkWireless->getState() == LinkWireless::State::SERVING &&
           !(keys & KEY_START)) {
@@ -393,7 +393,7 @@ void messageLoop() {
 #endif
 
       altView = !altView;
-#ifndef PROFILING_ENABLED
+#ifndef LINK_WIRELESS_PROFILING_ENABLED
       if (!altView) {
         lostPackets = 0;
         lastLostPacketPlayerId = 0;
@@ -405,7 +405,7 @@ void messageLoop() {
 
     // Normal output
     std::string altOptionName = "Packet loss check";
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     altOptionName = "Show profiler";
 #endif
     std::string output =
@@ -446,9 +446,7 @@ void messageLoop() {
       }
     }
     if (altView) {
-#ifdef PROFILING_ENABLED
-      output +=
-          "\n_rejected: " + std::to_string(linkWireless->rejectedMessages);
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
       output += "\n_onVBlank: " + std::to_string(linkWireless->lastVBlankTime);
       output += "\n_onSerial: " + std::to_string(linkWireless->lastSerialTime);
       output += "\n_onTimer: " + std::to_string(linkWireless->lastTimerTime);

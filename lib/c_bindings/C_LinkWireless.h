@@ -125,17 +125,6 @@ C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle);
 void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
                               C_LinkWireless_Config config);
 
-bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle);
-bool C_LinkWireless_canSend(C_LinkWirelessHandle handle);
-
-u32 C_LinkWireless_getPendingCount(C_LinkWirelessHandle handle);
-u32 C_LinkWireless_lastPacketId(C_LinkWirelessHandle handle);
-u32 C_LinkWireless_lastConfirmationFromClient1(C_LinkWirelessHandle handle);
-u32 C_LinkWireless_lastPacketIdFromClient1(C_LinkWirelessHandle handle);
-u32 C_LinkWireless_lastConfirmationFromServer(C_LinkWirelessHandle handle);
-u32 C_LinkWireless_lastPacketIdFromServer(C_LinkWirelessHandle handle);
-u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle);
-
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle);
 void C_LinkWireless_onSerial(C_LinkWirelessHandle handle);
 void C_LinkWireless_onTimer(C_LinkWirelessHandle handle);

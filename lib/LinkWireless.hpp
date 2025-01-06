@@ -199,9 +199,8 @@ class LinkWireless {
 #endif
 
 // std::function<void(std::string str)> debug;
-// #define PROFILING_ENABLED
-#ifdef PROFILING_ENABLED
-  u32 rejectedMessages = 0;
+// #define LINK_WIRELESS_PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
   u32 lastVBlankTime = 0;
   u32 lastSerialTime = 0;
   u32 lastTimerTime = 0;
@@ -688,12 +687,6 @@ class LinkWireless {
   }
 
   /**
-   * @brief Returns whether it's running an async command or not.
-   * \warning This is internal API!
-   */
-  [[nodiscard]] bool _hasActiveAsyncCommand() { return asyncCommand.isActive; }
-
-  /**
    * @brief Returns whether there's room for sending messages or not.
    * \warning This is internal API!
    */
@@ -786,7 +779,7 @@ class LinkWireless {
 #endif
 #endif
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     profileStart();
 #endif
 
@@ -808,7 +801,7 @@ class LinkWireless {
     sessionState.acceptCalled = false;
     sessionState.pingSent = false;
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     lastVBlankTime = profileStop();
     lastFrameSerialIRQs = serialIRQCount;
     lastFrameTimerIRQs = timerIRQCount;
@@ -833,7 +826,7 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     profileStart();
 #endif
 
@@ -860,7 +853,7 @@ class LinkWireless {
       }
     }
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     lastSerialTime = profileStop();
     serialIRQCount++;
 #endif
@@ -874,7 +867,7 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     profileStart();
 #endif
 
@@ -884,7 +877,7 @@ class LinkWireless {
     if (!asyncCommand.isActive)
       acceptConnectionsOrTransferData();
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
     lastTimerTime = profileStop();
     timerIRQCount++;
 #endif
@@ -1210,14 +1203,12 @@ class LinkWireless {
       u32 expectedPacketId =
           (sessionState.lastPacketIdFromClients[message.playerId] + 1) %
           MAX_PACKET_IDS;
+      // if message.packetId > expectedPacketId = packet loss (gap)
+      // if message.packetId < expectedPacketId = retransmission of old packet
 
       if (config.retransmission && !isConfirmation &&
-          message.packetId != expectedPacketId) {
-#ifdef PROFILING_ENABLED
-        rejectedMessages++;
-#endif
+          message.packetId != expectedPacketId)
         return false;
-      }
 
       if (!isConfirmation)
         message.packetId =
@@ -1227,12 +1218,8 @@ class LinkWireless {
           (sessionState.lastPacketIdFromServer + 1) % MAX_PACKET_IDS;
 
       if (config.retransmission && !isConfirmation &&
-          message.packetId != expectedPacketId) {
-#ifdef PROFILING_ENABLED
-        rejectedMessages++;
-#endif
+          message.packetId != expectedPacketId)
         return false;
-      }
 
       linkRawWireless.sessionState.playerCount = remotePlayerCount;
 
@@ -1670,7 +1657,7 @@ class LinkWireless {
   u8 msB16(u16 value) { return value >> 8; }
   u8 lsB16(u16 value) { return value & 0xff; }
 
-#ifdef PROFILING_ENABLED
+#ifdef LINK_WIRELESS_PROFILING_ENABLED
   void profileStart() {
     Link::_REG_TM1CNT_L = 0;
     Link::_REG_TM2CNT_L = 0;
