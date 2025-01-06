@@ -87,18 +87,18 @@ compile() {
 
   # LinkUniversal_full
   cd LinkCable_full/
-  mv LinkCable_full$suffix.gba backup.gba
+  mv LinkCable_full$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DUSE_LINK_UNIVERSAL=1 -DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkCable_full$suffix.gba ../$folder/LinkUniversal_full$suffix.gba
-  mv backup.gba LinkCable_full$suffix.gba
+  mv backup.gba LinkCable_full$suffix.gba || :
   cd ..
 
   # LinkUniversal_stress
   cd LinkCable_stress/
-  mv LinkCable_stress$suffix.gba backup.gba
+  mv LinkCable_stress$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DUSE_LINK_UNIVERSAL=1 -DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkCable_stress$suffix.gba ../$folder/LinkUniversal_stress$suffix.gba
-  mv backup.gba LinkCable_stress$suffix.gba
+  mv backup.gba LinkCable_stress$suffix.gba || :
   cd ..
 
   # LinkWireless_demo
@@ -109,18 +109,18 @@ compile() {
 
   # LinkWireless_demo_2players
   cd LinkWireless_demo/
-  mv LinkWireless_demo$suffix.gba backup.gba
+  mv LinkWireless_demo$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_ENABLE_NESTED_IRQ=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_TWO_PLAYERS_ONLY=1"
   cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_2players$suffix.gba
-  mv backup.gba LinkWireless_demo$suffix.gba
+  mv backup.gba LinkWireless_demo$suffix.gba || :
   cd ..
 
   # LinkWireless_demo_profiler
   cd LinkWireless_demo/
-  mv LinkWireless_demo$suffix.gba backup.gba
+  mv LinkWireless_demo$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_PROFILING_ENABLED=1"
   cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_profiler$suffix.gba
-  mv backup.gba LinkWireless_demo$suffix.gba
+  mv backup.gba LinkWireless_demo$suffix.gba || :
   cd ..
 }
 
