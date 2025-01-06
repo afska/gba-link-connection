@@ -201,13 +201,12 @@ class LinkWireless {
 // std::function<void(std::string str)> debug;
 // #define LINK_WIRELESS_PROFILING_ENABLED
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
-  u32 lastVBlankTime = 0;
-  u32 lastSerialTime = 0;
-  u32 lastTimerTime = 0;
-  u32 lastFrameSerialIRQs = 0;
-  u32 lastFrameTimerIRQs = 0;
-  u32 serialIRQCount = 0;
-  u32 timerIRQCount = 0;
+  u32 vblankTime = 0;
+  u32 serialTime = 0;
+  u32 timerTime = 0;
+  u32 vblankIRQs = 0;
+  u32 serialIRQs = 0;
+  u32 timerIRQs = 0;
 #endif
 
   using State = LinkRawWireless::State;
@@ -802,11 +801,8 @@ class LinkWireless {
     sessionState.pingSent = false;
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
-    lastVBlankTime = profileStop();
-    lastFrameSerialIRQs = serialIRQCount;
-    lastFrameTimerIRQs = timerIRQCount;
-    serialIRQCount = 0;
-    timerIRQCount = 0;
+    vblankTime += profileStop();
+    vblankIRQs++;
 #endif
   }
 
@@ -854,8 +850,8 @@ class LinkWireless {
     }
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
-    lastSerialTime = profileStop();
-    serialIRQCount++;
+    serialTime += profileStop();
+    serialIRQs++;
 #endif
   }
 
@@ -878,8 +874,8 @@ class LinkWireless {
       acceptConnectionsOrTransferData();
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
-    lastTimerTime = profileStop();
-    timerIRQCount++;
+    timerTime += profileStop();
+    timerIRQs++;
 #endif
   }
 

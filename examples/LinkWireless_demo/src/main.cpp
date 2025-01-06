@@ -293,15 +293,10 @@ void messageLoop() {
   u32 lastLostPacketReceived = 0;
   u32 lastLostPacketReceivedPacketId = 0;
 #else
-  u32 vblanks = 0;
-  u32 totalVBlankTime = 0;
-  u32 totalSerialTime = 0;
-  u32 totalTimerTime = 0;
-  u32 totalSerialIRQs = 0;
-  u32 totalTimerIRQs = 0;
   u32 avgVBlankTime = 0;
   u32 avgSerialTime = 0;
   u32 avgTimerTime = 0;
+  u32 avgTime = 0;
   u32 avgSerialIRQs = 0;
   u32 avgTimerIRQs = 0;
 #endif
@@ -420,26 +415,22 @@ void messageLoop() {
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
     altOptionName = "Show profiler";
 
-    vblanks++;
-    totalVBlankTime += linkWireless->lastVBlankTime;
-    totalSerialTime += linkWireless->lastSerialTime;
-    totalTimerTime += linkWireless->lastTimerTime;
-    totalSerialIRQs += linkWireless->lastFrameSerialIRQs;
-    totalTimerIRQs += linkWireless->lastFrameTimerIRQs;
+    if (linkWireless->vblankIRQs >= 60) {
+      avgVBlankTime = linkWireless->vblankTime / 60;
+      avgSerialTime = linkWireless->serialTime / linkWireless->serialIRQs;
+      avgTimerTime = linkWireless->timerTime / linkWireless->timerIRQs;
+      avgSerialIRQs = linkWireless->serialIRQs / 60;
+      avgTimerIRQs = linkWireless->timerIRQs / 60;
+      avgTime = (linkWireless->vblankTime + linkWireless->serialTime +
+                 linkWireless->timerTime) /
+                60;
 
-    if (vblanks >= 60) {
-      avgVBlankTime = totalVBlankTime / 60;
-      avgSerialTime = totalSerialTime / 60;
-      avgTimerTime = totalTimerTime / 60;
-      avgSerialIRQs = totalSerialIRQs / 60;
-      avgTimerIRQs = totalTimerIRQs / 60;
-
-      vblanks = 0;
-      totalVBlankTime = 0;
-      totalSerialTime = 0;
-      totalTimerTime = 0;
-      totalSerialIRQs = 0;
-      totalTimerIRQs = 0;
+      linkWireless->vblankIRQs = 0;
+      linkWireless->vblankTime = 0;
+      linkWireless->serialTime = 0;
+      linkWireless->timerTime = 0;
+      linkWireless->serialIRQs = 0;
+      linkWireless->timerIRQs = 0;
     }
 #endif
     std::string output =
@@ -486,9 +477,7 @@ void messageLoop() {
       output += "\n_onTimer: " + std::to_string(avgTimerTime);
       output += "\n_serialIRQs: " + std::to_string(avgSerialIRQs);
       output += "\n_timerIRQs: " + std::to_string(avgTimerIRQs);
-      output += "\n_ms: " + std::to_string(Common::toMs(
-                                avgVBlankTime + avgSerialTime * avgSerialIRQs +
-                                avgTimerTime * avgTimerIRQs));
+      output += "\n_ms: " + std::to_string(Common::toMs(avgTime));
 #else
       if (lostPackets > 0) {
         output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
