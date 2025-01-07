@@ -957,6 +957,31 @@ class LinkRawWireless {
    */
   [[nodiscard]] u8 currentPlayerId() { return sessionState.currentPlayerId; }
 
+  /**
+   * @brief Resets all the state.
+   */
+  void resetState() {
+    LRWLOG("state = NEEDS_RESET");
+    this->state = NEEDS_RESET;
+    this->sessionState.playerCount = 1;
+    this->sessionState.currentPlayerId = 0;
+    this->sessionState.isServerClosed = false;
+  }
+
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+  /**
+   * @brief Converts `w` to an hexadecimal string.
+   */
+  template <typename I>
+  [[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+      rc[i] = digits[(w >> j) & 0x0f];
+    return rc;
+  }
+#endif
+
   struct SessionState {
     vu8 playerCount = 1;
     vu8 currentPlayerId = 0;
@@ -972,15 +997,10 @@ class LinkRawWireless {
   LinkGPIO linkGPIO;
   SessionState sessionState;
   volatile State state = NEEDS_RESET;
+
+  //  private: // TODO
   volatile bool isEnabled = false;
 
-  /**
-   * @brief Copies a null-terminated `source` string to a `target` destination
-   * (up to `length` characters).
-   * @param target Target string.
-   * @param source Source string.
-   * @param length Number of characters.
-   */
   void copyName(char* target, const char* source, u32 length) {
     u32 len = LINK_STRLEN(source);
 
@@ -991,14 +1011,6 @@ class LinkRawWireless {
         target[i] = '\0';
   }
 
-  /**
-   * @brief Recovers parts of the `name` of a Wireless Adapter room.
-   * @param name Target string.
-   * @param nameCursor Current position within `name`.
-   * @param word Current value.
-   * @param includeFirstTwoBytes Whether the first two bytes from `word` should
-   * be used.
-   */
   void recoverName(char* name,
                    u32& nameCursor,
                    u32 word,
@@ -1020,10 +1032,6 @@ class LinkRawWireless {
       name[nameCursor++] = character;
   }
 
-  /**
-   * @brief Resets the adapter
-   * @param initialize Whether it's an initialization (first time) or not.
-   */
   bool reset(bool initialize = false) {
     resetState();
     if (initialize)
@@ -1031,25 +1039,8 @@ class LinkRawWireless {
     return initialize && start();
   }
 
-  /**
-   * @brief Resets all the state.
-   */
-  void resetState() {
-    LRWLOG("state = NEEDS_RESET");
-    this->state = NEEDS_RESET;
-    this->sessionState.playerCount = 1;
-    this->sessionState.currentPlayerId = 0;
-    this->sessionState.isServerClosed = false;
-  }
-
-  /**
-   * @brief Stops the communication.
-   */
   void stop() { linkSPI.deactivate(); }
 
-  /**
-   * @brief Starts the communication.
-   */
   bool start() {
     pingAdapter();
     LRWLOG("setting SPI to 256Kbps");
@@ -1072,9 +1063,6 @@ class LinkRawWireless {
     return true;
   }
 
-  /**
-   * @brief Sends the signal to reset the adapter.
-   */
   void pingAdapter() {
     linkGPIO.reset();
     LRWLOG("setting SO as OUTPUT");
@@ -1088,9 +1076,6 @@ class LinkRawWireless {
     linkGPIO.writePin(LinkGPIO::Pin::SD, false);
   }
 
-  /**
-   * @brief Sends the login sequence to the adapter.
-   */
   bool login() {
     LoginMemory memory;
 
@@ -1108,12 +1093,6 @@ class LinkRawWireless {
     return true;
   }
 
-  /**
-   * @brief Exchanges part of the login sequence with the adapter.
-   * @param data The value to be sent.
-   * @param expectedResponse The expected response.
-   * @param memory A structure that holds memory of the previous values.
-   */
   bool exchangeLoginPacket(u16 data,
                            u16 expectedResponse,
                            LoginMemory& memory) {
@@ -1134,21 +1113,10 @@ class LinkRawWireless {
     return true;
   }
 
-  /**
-   * @brief Builds a 32-bit value representing the command.
-   * @param type The ID of the command.
-   * @param length The number of 32-bit values that will be sent.
-   */
   u32 buildCommand(u8 type, u8 length = 0) {
     return Link::buildU32(COMMAND_HEADER, Link::buildU16(length, type));
   }
 
-  /**
-   * @brief Transfers `data` via SPI and performs the adapter's ACK procedure.
-   * Returns the received value.
-   * @param data The value to be sent.
-   * @param customAck Whether the adapter's ACK procedure should be used or not.
-   */
   u32 transfer(u32 data, bool customAck = true) {
     if (!customAck)
       Link::wait(TRANSFER_WAIT);
@@ -1165,11 +1133,6 @@ class LinkRawWireless {
     return receivedData;
   }
 
-  /**
-   * @brief Transfers `data` via SPI and performs the inverted adapter's ACK
-   * procedure. Returns the received value.
-   * @param data The value to be sent.
-   */
   u32 transferAndStartClockInversionACK(u32 data) {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
@@ -1183,9 +1146,6 @@ class LinkRawWireless {
     return receivedData;
   }
 
-  /**
-   * @brief Performs the adapter's ACK procedure.
-   */
   bool acknowledge() {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
@@ -1211,9 +1171,6 @@ class LinkRawWireless {
     return true;
   }
 
-  /**
-   * @brief Starts performing the inverted adapter's ACK procedure.
-   */
   bool reverseAcknowledgeStart() {
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
@@ -1233,13 +1190,9 @@ class LinkRawWireless {
     return true;
   }
 
-  /**
-   * @brief Performs the inverted adapter's ACK procedure.
-   * @param isLastPart Whether it's the last part of the procedure or not.
-   * \warning `isLastPart` is required when there's no subsequent
-   * `linkSPI.transfer(...)` call.
-   */
   bool reverseAcknowledge(bool isLastPart = false) {
+    // `isLastPart` is required when there's no subsequent
+    // `linkSPI.transfer(...)` call.
     u32 lines = 0;
     u32 vCount = Link::_REG_VCOUNT;
 
@@ -1275,21 +1228,10 @@ class LinkRawWireless {
     return true;
   }
 
-  /**
-   * @brief Evaluates a timeout defined by `CMD_TIMEOUT`.
-   * @param lines A line counter that will be updated.
-   * @param vCount Starting `VCOUNT`.
-   */
   bool cmdTimeout(u32& lines, u32& vCount) {
     return timeout(CMD_TIMEOUT, lines, vCount);
   }
 
-  /**
-   * @brief Evaluates a timeout defined by `limit`.
-   * @param limit Maximum number of lines to wait.
-   * @param lines A line counter that will be updated.
-   * @param vCount Starting `VCOUNT`.
-   */
   bool timeout(u32 limit, u32& lines, u32& vCount) {
     if (Link::_REG_VCOUNT != vCount) {
       lines += Link::_max((int)Link::_REG_VCOUNT - (int)vCount, 0);
@@ -1299,29 +1241,10 @@ class LinkRawWireless {
     return lines > limit;
   }
 
-  /**
-   * @brief Logs an error message (expected vs received).
-   * @param expected The expected number.
-   * @param received The received number.
-   */
   void logExpectedButReceived(u32 expected, u32 received) {
     LRWLOG("! expected 0x" + toHex(expected));
     LRWLOG("! but received 0x" + toHex(received));
   }
-
-#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
-  /**
-   * @brief Converts `w` to an hexadecimal string.
-   */
-  template <typename I>
-  [[nodiscard]] std::string toHex(I w, size_t hex_len = sizeof(I) << 1) {
-    static const char* digits = "0123456789ABCDEF";
-    std::string rc(hex_len, '0');
-    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-      rc[i] = digits[(w >> j) & 0x0f];
-    return rc;
-  }
-#endif
 };
 
 extern LinkRawWireless* linkRawWireless;
