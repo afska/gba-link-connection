@@ -779,7 +779,7 @@ class LinkMobile {
     }
 
     u16 reportedChecksum() {
-      return buildU16(fields.checksumHigh, fields.checksumLow);
+      return Link::buildU16(fields.checksumHigh, fields.checksumLow);
     }
   };
 
@@ -1419,8 +1419,8 @@ class LinkMobile {
   void cmdOpenTCPConnection(const u8* ip, u16 port) {
     for (u32 i = 0; i < 4; i++)
       addData(ip[i], i == 0);
-    addData(msB16(port));
-    addData(lsB16(port));
+    addData(Link::msB16(port));
+    addData(Link::lsB16(port));
     sendCommandAsync(buildCommand(COMMAND_OPEN_TCP_CONNECTION, true));
   }
 
@@ -1432,8 +1432,8 @@ class LinkMobile {
   void cmdOpenUDPConnection(const u8* ip, u16 port) {
     for (u32 i = 0; i < 4; i++)
       addData(ip[i], i == 0);
-    addData(msB16(port));
-    addData(lsB16(port));
+    addData(Link::msB16(port));
+    addData(Link::lsB16(port));
     sendCommandAsync(buildCommand(COMMAND_OPEN_UDP_CONNECTION, true));
   }
 
@@ -1603,7 +1603,8 @@ class LinkMobile {
     asyncCommand.isActive = true;
 
     if (isSIO32Mode())  // Magic+Header
-      advance32(buildU32(command.magicBytes.magic1, command.magicBytes.magic2,
+      advance32(
+          Link::buildU32(command.magicBytes.magic1, command.magicBytes.magic2,
                          command.header.commandId, command.header._unused_));
     else  // Magic Bytes (1)
       advance8(command.magicBytes.magic1);
@@ -1657,37 +1658,39 @@ class LinkMobile {
     if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
       advance32(dataSize > 0
-                    ? buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
-                               asyncCommand.cmd.header.size,
-                               asyncCommand.cmd.data.bytes[0],
-                               asyncCommand.cmd.data.bytes[1])
-                    : buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
-                               asyncCommand.cmd.header.size,
-                               asyncCommand.cmd.checksum.high,
-                               asyncCommand.cmd.checksum.low));
+                    ? Link::buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
+                                     asyncCommand.cmd.header.size,
+                                     asyncCommand.cmd.data.bytes[0],
+                                     asyncCommand.cmd.data.bytes[1])
+                    : Link::buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
+                                     asyncCommand.cmd.header.size,
+                                     asyncCommand.cmd.checksum.high,
+                                     asyncCommand.cmd.checksum.low));
     } else if (asyncCommand.transferred < mainSize) {
       // Data || Data+Checksum
       u32 transferredDataCount = asyncCommand.transferred - PREAMBLE_SIZE;
       u32 pendingDataCount = (dataSize + padding) - transferredDataCount;
-      advance32(
-          pendingDataCount > 2
-              ? buildU32(asyncCommand.cmd.data.bytes[transferredDataCount],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 1],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 2],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 3])
-              : buildU32(asyncCommand.cmd.data.bytes[transferredDataCount],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 1],
-                         asyncCommand.cmd.checksum.high,
-                         asyncCommand.cmd.checksum.low));
+      advance32(pendingDataCount > 2
+                    ? Link::buildU32(
+                          asyncCommand.cmd.data.bytes[transferredDataCount],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 1],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 2],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 3])
+                    : Link::buildU32(
+                          asyncCommand.cmd.data.bytes[transferredDataCount],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 1],
+                          asyncCommand.cmd.checksum.high,
+                          asyncCommand.cmd.checksum.low));
     } else if (asyncCommand.transferred < mainSize + 4) {
       // Acknowledgement Signal (1)
-      advance32(buildU32(DEVICE_GBA | OR_VALUE, ACK_SENDER, 0, 0));
+      advance32(Link::buildU32(DEVICE_GBA | OR_VALUE, ACK_SENDER, 0, 0));
     } else {
       // Acknowledgement Signal (2)
-      u16 ackData = msB32(newData);
-      if (!isSupportedAdapter(msB16(ackData)))
+      u16 ackData = Link::msB32(newData);
+      if (!isSupportedAdapter(Link::msB16(ackData)))
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
-      if (lsB16(ackData) != (asyncCommand.cmd.header.commandId ^ OR_VALUE))
+      if (Link::lsB16(ackData) !=
+          (asyncCommand.cmd.header.commandId ^ OR_VALUE))
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
       asyncCommand.finish();
     }
@@ -1726,12 +1729,12 @@ class LinkMobile {
       advance8(GBA_WAITING);
     } else if (asyncCommand.transferred == mainSize) {
       // Packet Checksum (1)
-      if (newData != msB16(asyncCommand.expectedChecksum))
+      if (newData != Link::msB16(asyncCommand.expectedChecksum))
         return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
       advance8(GBA_WAITING);
     } else if (asyncCommand.transferred == mainSize + 1) {
       // Packet Checksum (2)
-      if (newData != lsB16(asyncCommand.expectedChecksum))
+      if (newData != Link::lsB16(asyncCommand.expectedChecksum))
         return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
       advance8(DEVICE_GBA | OR_VALUE);
     } else if (asyncCommand.transferred == mainSize + CHECKSUM_SIZE) {
@@ -1757,36 +1760,36 @@ class LinkMobile {
       // Magic+Header
       if (newData == ADAPTER_WAITING || newData == ADAPTER_WAITING_32BIT)
         return transferAsync(GBA_WAITING_32BIT);
-      u16 magic = msB32(newData);
-      u16 firstHalfHeader = lsB32(newData);
-      if (msB16(magic) != COMMAND_MAGIC_VALUE1 ||
-          lsB16(magic) != COMMAND_MAGIC_VALUE2)
+      u16 magic = Link::msB32(newData);
+      u16 firstHalfHeader = Link::lsB32(newData);
+      if (Link::msB16(magic) != COMMAND_MAGIC_VALUE1 ||
+          Link::lsB16(magic) != COMMAND_MAGIC_VALUE2)
         return asyncCommand.fail(CommandResult::INVALID_MAGIC_BYTES);
-      asyncCommand.cmd.header.commandId = msB16(firstHalfHeader);
-      asyncCommand.cmd.header._unused_ = lsB16(firstHalfHeader);
+      asyncCommand.cmd.header.commandId = Link::msB16(firstHalfHeader);
+      asyncCommand.cmd.header._unused_ = Link::lsB16(firstHalfHeader);
       advance32(GBA_WAITING_32BIT);
     } else if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
-      u16 secondHalfHeader = msB32(newData);
-      asyncCommand.cmd.header._unusedSizeHigh_ = msB16(secondHalfHeader);
-      asyncCommand.cmd.header.size = lsB16(secondHalfHeader);
+      u16 secondHalfHeader = Link::msB32(newData);
+      asyncCommand.cmd.header._unusedSizeHigh_ = Link::msB16(secondHalfHeader);
+      asyncCommand.cmd.header.size = Link::lsB16(secondHalfHeader);
       if (asyncCommand.cmd.header._unusedSizeHigh_ != 0 ||
           asyncCommand.cmd.header.size >
               LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH)
         return asyncCommand.fail(CommandResult::WEIRD_DATA_SIZE);
       asyncCommand.expectedChecksum = asyncCommand.cmd.header.sum();
       if (asyncCommand.cmd.header.size > 0) {
-        u16 firstData = lsB32(newData);
-        u8 b0 = msB16(firstData), b1 = lsB16(firstData);
+        u16 firstData = Link::lsB32(newData);
+        u8 b0 = Link::msB16(firstData), b1 = Link::lsB16(firstData);
         asyncCommand.cmd.data.bytes[0] = b0;
         asyncCommand.cmd.data.bytes[1] = b1;
         asyncCommand.expectedChecksum += b0 + b1;
       } else {
-        u16 checksum = lsB32(newData);
+        u16 checksum = Link::lsB32(newData);
         if (checksum != asyncCommand.expectedChecksum)
           return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
-        asyncCommand.cmd.checksum.high = msB16(checksum);
-        asyncCommand.cmd.checksum.low = lsB16(checksum);
+        asyncCommand.cmd.checksum.high = Link::msB16(checksum);
+        asyncCommand.cmd.checksum.low = Link::lsB16(checksum);
       }
       advance32(GBA_WAITING_32BIT);
     } else if (asyncCommand.transferred < mainSize) {
@@ -1794,10 +1797,10 @@ class LinkMobile {
       u32 transferredDataCount = asyncCommand.transferred - PREAMBLE_SIZE;
       u32 pendingDataCount = (dataSize + padding) - transferredDataCount;
       if (pendingDataCount > 2) {
-        u16 dataHigh = msB32(newData);
-        u16 dataLow = lsB32(newData);
-        u8 b0 = msB16(dataHigh), b1 = lsB16(dataHigh), b2 = msB16(dataLow),
-           b3 = lsB16(dataLow);
+        u16 dataHigh = Link::msB32(newData);
+        u16 dataLow = Link::lsB32(newData);
+        u8 b0 = Link::msB16(dataHigh), b1 = Link::lsB16(dataHigh),
+           b2 = Link::msB16(dataLow), b3 = Link::lsB16(dataLow);
         asyncCommand.cmd.data.bytes[transferredDataCount] = b0;
         asyncCommand.cmd.data.bytes[transferredDataCount + 1] = b1;
         asyncCommand.cmd.data.bytes[transferredDataCount + 2] = b2;
@@ -1805,23 +1808,25 @@ class LinkMobile {
         asyncCommand.expectedChecksum += b0 + b1 + b2 + b3;
         advance32(GBA_WAITING_32BIT);
       } else {
-        u16 lastData = msB32(newData);
-        u8 b0 = msB16(lastData), b1 = lsB16(lastData);
+        u16 lastData = Link::msB32(newData);
+        u8 b0 = Link::msB16(lastData), b1 = Link::lsB16(lastData);
         asyncCommand.cmd.data.bytes[transferredDataCount] = b0;
         asyncCommand.cmd.data.bytes[transferredDataCount + 1] = b1;
         asyncCommand.expectedChecksum += b0 + b1;
-        u16 checksum = lsB32(newData);
+        u16 checksum = Link::lsB32(newData);
         if (checksum != asyncCommand.expectedChecksum)
           return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
-        asyncCommand.cmd.checksum.high = msB16(checksum);
-        asyncCommand.cmd.checksum.low = lsB16(checksum);
-        advance32(buildU32(DEVICE_GBA | OR_VALUE,
-                           asyncCommand.cmd.header.commandId ^ OR_VALUE, 0, 0));
+        asyncCommand.cmd.checksum.high = Link::msB16(checksum);
+        asyncCommand.cmd.checksum.low = Link::lsB16(checksum);
+        advance32(Link::buildU32(DEVICE_GBA | OR_VALUE,
+                                 asyncCommand.cmd.header.commandId ^ OR_VALUE,
+                                 0, 0));
       }
     } else {
       // Acknowledgement Signal
-      u32 ackData = msB32(newData);
-      if (!isSupportedAdapter(msB16(ackData)) || lsB16(ackData) != ACK_SENDER)
+      u32 ackData = Link::msB32(newData);
+      if (!isSupportedAdapter(Link::msB16(ackData)) ||
+          Link::lsB16(ackData) != ACK_SENDER)
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
       asyncCommand.finish();
     }
@@ -1851,8 +1856,8 @@ class LinkMobile {
     u16 checksum = command.header.sum();
     for (u32 i = 0; i < command.header.size; i++)
       checksum += command.data.bytes[i];
-    command.checksum.high = msB16(checksum);
-    command.checksum.low = lsB16(checksum);
+    command.checksum.high = Link::msB16(checksum);
+    command.checksum.low = Link::lsB16(checksum);
 
     return command;
   }
@@ -1877,15 +1882,6 @@ class LinkMobile {
     return linkSPI.getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
   }
 
-  static u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
-    return ((msB & 0xFF) << 24) | ((byte2 & 0xFF) << 16) |
-           ((byte3 & 0xFF) << 8) | (lsB & 0xFF);
-  }
-  static u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  static u16 msB32(u32 value) { return value >> 16; }
-  static u16 lsB32(u32 value) { return value & 0xffff; }
-  static u8 msB16(u16 value) { return value >> 8; }
-  static u8 lsB16(u16 value) { return value & 0xff; }
   bool isBitHigh(u8 byte, u8 bit) { return (byte >> bit) & 1; }
 };
 

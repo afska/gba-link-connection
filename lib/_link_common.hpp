@@ -160,6 +160,35 @@ static inline __attribute__((always_inline)) auto _MultiBoot(
 
 // Helpers
 
+static inline u32 buildU32(u16 msB, u16 lsB) {
+  return (msB << 16) | lsB;
+}
+
+static inline u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
+  return ((msB & 0xFF) << 24) | ((byte2 & 0xFF) << 16) | ((byte3 & 0xFF) << 8) |
+         (lsB & 0xFF);
+}
+
+static inline u16 buildU16(u8 msB, u8 lsB) {
+  return (msB << 8) | lsB;
+}
+
+static inline u16 msB32(u32 value) {
+  return value >> 16;
+}
+
+static inline u16 lsB32(u32 value) {
+  return value & 0xffff;
+}
+
+static inline u8 msB16(u16 value) {
+  return value >> 8;
+}
+
+static inline u8 lsB16(u16 value) {
+  return value & 0xff;
+}
+
 static inline int _max(int a, int b) {
   return (a > b) ? (a) : (b);
 }

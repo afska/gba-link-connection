@@ -299,17 +299,20 @@ class LinkRawWireless {
     bool success =
         sendCommand(
             COMMAND_BROADCAST,
-            {buildU32(buildU16(finalGameName[1], finalGameName[0]), gameId),
-             buildU32(buildU16(finalGameName[5], finalGameName[4]),
-                      buildU16(finalGameName[3], finalGameName[2])),
-             buildU32(buildU16(finalGameName[9], finalGameName[8]),
-                      buildU16(finalGameName[7], finalGameName[6])),
-             buildU32(buildU16(finalGameName[13], finalGameName[12]),
-                      buildU16(finalGameName[11], finalGameName[10])),
-             buildU32(buildU16(finalUserName[3], finalUserName[2]),
-                      buildU16(finalUserName[1], finalUserName[0])),
-             buildU32(buildU16(finalUserName[7], finalUserName[6]),
-                      buildU16(finalUserName[5], finalUserName[4]))},
+            {Link::buildU32(Link::buildU16(finalGameName[1], finalGameName[0]),
+                            gameId),
+             Link::buildU32(Link::buildU16(finalGameName[5], finalGameName[4]),
+                            Link::buildU16(finalGameName[3], finalGameName[2])),
+             Link::buildU32(Link::buildU16(finalGameName[9], finalGameName[8]),
+                            Link::buildU16(finalGameName[7], finalGameName[6])),
+             Link::buildU32(
+                 Link::buildU16(finalGameName[13], finalGameName[12]),
+                 Link::buildU16(finalGameName[11], finalGameName[10])),
+             Link::buildU32(Link::buildU16(finalUserName[3], finalUserName[2]),
+                            Link::buildU16(finalUserName[1], finalUserName[0])),
+             Link::buildU32(
+                 Link::buildU16(finalUserName[7], finalUserName[6]),
+                 Link::buildU16(finalUserName[5], finalUserName[4]))},
             BROADCAST_LENGTH)
             .success;
 
@@ -356,16 +359,16 @@ class LinkRawWireless {
 
     u32 status = result.responses[0];
 
-    response.deviceId = lsB32(status);
+    response.deviceId = Link::lsB32(status);
 
-    u8 slot = lsB16(msB32(status)) & 0b1111;
+    u8 slot = Link::lsB16(Link::msB32(status)) & 0b1111;
     response.currentPlayerId = slot == 0b0001   ? 1
                                : slot == 0b0010 ? 2
                                : slot == 0b0100 ? 3
                                : slot == 0b1000 ? 4
                                                 : 0;
 
-    u8 adapterState = msB16(msB32(status));
+    u8 adapterState = Link::msB16(Link::msB32(status));
     response.isServerClosed = false;
     switch (adapterState) {
       case 1: {
@@ -413,11 +416,12 @@ class LinkRawWireless {
     response.connectedClientsSize = 0;
     for (u32 i = 0; i < result.responsesSize; i++) {
       if (i == 0) {
-        response.nextClientNumber = (u8)lsB32(result.responses[i]);
+        response.nextClientNumber = (u8)Link::lsB32(result.responses[i]);
       } else {
         response.connectedClients[response.connectedClientsSize++] =
-            ConnectedClient{.deviceId = lsB32(result.responses[i]),
-                            .clientNumber = (u8)msB32(result.responses[i])};
+            ConnectedClient{
+                .deviceId = Link::lsB32(result.responses[i]),
+                .clientNumber = (u8)Link::msB32(result.responses[i])};
       }
     }
 
@@ -444,8 +448,8 @@ class LinkRawWireless {
     response.connectedClientsSize = 0;
     for (u32 i = 0; i < result.responsesSize; i++) {
       response.connectedClients[response.connectedClientsSize++] =
-          ConnectedClient{.deviceId = lsB32(result.responses[i]),
-                          .clientNumber = (u8)msB32(result.responses[i])};
+          ConnectedClient{.deviceId = Link::lsB32(result.responses[i]),
+                          .clientNumber = (u8)Link::msB32(result.responses[i])};
     }
 
     u8 oldPlayerCount = sessionState.playerCount;
@@ -471,8 +475,8 @@ class LinkRawWireless {
     response.connectedClientsSize = 0;
     for (u32 i = 0; i < result.responsesSize; i++) {
       response.connectedClients[response.connectedClientsSize++] =
-          ConnectedClient{.deviceId = lsB32(result.responses[i]),
-                          .clientNumber = (u8)msB32(result.responses[i])};
+          ConnectedClient{.deviceId = Link::lsB32(result.responses[i]),
+                          .clientNumber = (u8)Link::msB32(result.responses[i])};
     }
 
     u8 oldPlayerCount = sessionState.playerCount;
@@ -597,7 +601,7 @@ class LinkRawWireless {
       return true;
     }
 
-    u8 assignedPlayerId = 1 + (u8)msB32(result.responses[0]);
+    u8 assignedPlayerId = 1 + (u8)Link::msB32(result.responses[0]);
     if (assignedPlayerId >= LINK_RAW_WIRELESS_MAX_PLAYERS) {
       LRWLOG("! connection failed (1)");
       reset();
@@ -606,7 +610,7 @@ class LinkRawWireless {
     }
 
     response.phase = SUCCESS;
-    response.assignedClientNumber = (u8)msB32(result.responses[0]);
+    response.assignedClientNumber = (u8)Link::msB32(result.responses[0]);
 
     return true;
   }
@@ -623,8 +627,8 @@ class LinkRawWireless {
       return false;
     }
 
-    u16 status = msB32(result.responses[0]);
-    if ((msB16(status) & 1) == 1) {
+    u16 status = Link::msB32(result.responses[0]);
+    if ((Link::msB16(status) & 1) == 1) {
       LRWLOG("! connection failed (2)");
       reset();
       return false;
@@ -797,10 +801,10 @@ class LinkRawWireless {
     u32 response = invertsClock
                        ? transferAndStartClockInversionACK(DATA_REQUEST)
                        : transfer(DATA_REQUEST);
-    u16 header = msB32(response);
-    u16 data = lsB32(response);
-    u8 responses = msB16(data);
-    u8 ack = lsB16(data);
+    u16 header = Link::msB32(response);
+    u16 data = Link::lsB32(response);
+    u8 responses = Link::msB16(data);
+    u8 ack = Link::lsB16(data);
 
     if (header != COMMAND_HEADER) {
       LRWLOG("! expected HEADER 0x9966");
@@ -853,10 +857,10 @@ class LinkRawWireless {
       return remoteCommand;
     }
 
-    u16 header = msB32(command);
-    u16 data = lsB32(command);
-    u8 params = msB16(data);
-    u8 commandId = lsB16(data);
+    u16 header = Link::msB32(command);
+    u16 data = Link::lsB32(command);
+    u8 params = Link::msB16(data);
+    u8 commandId = Link::lsB16(data);
     if (header != COMMAND_HEADER) {
       LRWLOG("! expected HEADER 0x9966");
       LRWLOG("! but received 0x" + toHex(header));
@@ -1001,17 +1005,17 @@ class LinkRawWireless {
                    bool includeFirstTwoBytes = true) {
     u32 character = 0;
     if (includeFirstTwoBytes) {
-      character = lsB16(lsB32(word));
+      character = Link::lsB16(Link::lsB32(word));
       if (character > 0)
         name[nameCursor++] = character;
-      character = msB16(lsB32(word));
+      character = Link::msB16(Link::lsB32(word));
       if (character > 0)
         name[nameCursor++] = character;
     }
-    character = lsB16(msB32(word));
+    character = Link::lsB16(Link::msB32(word));
     if (character > 0)
       name[nameCursor++] = character;
-    character = msB16(msB32(word));
+    character = Link::msB16(Link::msB32(word));
     if (character > 0)
       name[nameCursor++] = character;
   }
@@ -1113,13 +1117,14 @@ class LinkRawWireless {
   bool exchangeLoginPacket(u16 data,
                            u16 expectedResponse,
                            LoginMemory& memory) {
-    u32 packet = buildU32(~memory.previousAdapterData, data);
+    u32 packet = Link::buildU32(~memory.previousAdapterData, data);
     u32 response = transfer(packet, false);
 
-    if (msB32(response) != expectedResponse ||
-        lsB32(response) != (u16)~memory.previousGBAData) {
+    if (Link::msB32(response) != expectedResponse ||
+        Link::lsB32(response) != (u16)~memory.previousGBAData) {
       logExpectedButReceived(
-          buildU32(expectedResponse, (u16)~memory.previousGBAData), response);
+          Link::buildU32(expectedResponse, (u16)~memory.previousGBAData),
+          response);
       return false;
     }
 
@@ -1135,7 +1140,7 @@ class LinkRawWireless {
    * @param length The number of 32-bit values that will be sent.
    */
   u32 buildCommand(u8 type, u8 length = 0) {
-    return buildU32(COMMAND_HEADER, buildU16(length, type));
+    return Link::buildU32(COMMAND_HEADER, Link::buildU16(length, type));
   }
 
   /**
@@ -1317,36 +1322,6 @@ class LinkRawWireless {
     return rc;
   }
 #endif
-
-  /**
-   * @brief Builds a u32 number from `msB` and `lsB`
-   */
-  [[nodiscard]] u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-
-  /**
-   * @brief Builds a u16 number from `msB` and `lsB`
-   */
-  [[nodiscard]] u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-
-  /**
-   * @brief Returns the higher 16 bits of `value`.
-   */
-  [[nodiscard]] u16 msB32(u32 value) { return value >> 16; }
-
-  /**
-   * @brief Returns the lower 16 bits of `value`.
-   */
-  [[nodiscard]] u16 lsB32(u32 value) { return value & 0xffff; }
-
-  /**
-   * @brief Returns the higher 8 bits of `value`.
-   */
-  [[nodiscard]] u8 msB16(u16 value) { return value >> 8; }
-
-  /**
-   * @brief Returns the lower 8 bits of `value`.
-   */
-  [[nodiscard]] u8 lsB16(u16 value) { return value & 0xff; }
 };
 
 extern LinkRawWireless* linkRawWireless;

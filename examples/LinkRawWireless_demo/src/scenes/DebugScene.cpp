@@ -433,9 +433,9 @@ again2:
   if (byte3 == -1)
     goto again2;
 
-  u16 numberLow = linkRawWireless->buildU16((u8)byte1, (u8)byte0);
-  u16 numberHigh = linkRawWireless->buildU16((u8)byte3, (u8)byte2);
-  u32 number = linkRawWireless->buildU32(numberHigh, numberLow);
+  u16 numberLow = Link::buildU16((u8)byte1, (u8)byte0);
+  u16 numberHigh = Link::buildU16((u8)byte3, (u8)byte2);
+  u32 number = Link::buildU32(numberHigh, numberLow);
   if (selectOption(">> 0x" + linkRawWireless->toHex(number, 8) + "?",
                    std::vector<std::string>{"yes", "no"}) == 1)
     goto again0;
@@ -452,7 +452,7 @@ again:
   if (msB == -1)
     goto again;
 
-  u16 number = linkRawWireless->buildU16((u8)msB, (u8)lsB);
+  u16 number = Link::buildU16((u8)msB, (u8)lsB);
   if (selectOption(">> 0x" + linkRawWireless->toHex(number, 4) + "?",
                    std::vector<std::string>{"yes", "no"}) == 1)
     goto again;
@@ -837,7 +837,7 @@ int DebugScene::selectGameId() {
       return 0x1234;
     }
     case 2: {
-      return linkRawWireless->buildU16(qran_range(0, 256), qran_range(0, 256));
+      return Link::buildU16(qran_range(0, 256), qran_range(0, 256));
     }
     default: {
       return selectU16();

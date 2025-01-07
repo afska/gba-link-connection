@@ -230,12 +230,12 @@ class LinkCube {
   }
 
   void setData(u32 data) {
-    Link::_REG_JOY_TRANS_H = msB32(data);
-    Link::_REG_JOY_TRANS_L = lsB32(data);
+    Link::_REG_JOY_TRANS_H = Link::msB32(data);
+    Link::_REG_JOY_TRANS_L = Link::lsB32(data);
   }
 
   u32 getData() {
-    return buildU32(Link::_REG_JOY_RECV_H, Link::_REG_JOY_RECV_L);
+    return Link::buildU32(Link::_REG_JOY_RECV_H, Link::_REG_JOY_RECV_L);
   }
 
   void stop() {
@@ -261,9 +261,6 @@ class LinkCube {
   void setInterruptsOn() { setBitHigh(BIT_IRQ); }
   void setInterruptsOff() { setBitLow(BIT_IRQ); }
 
-  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
   bool isBitHigh(u8 bit) { return (Link::_REG_JOYCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { Link::_REG_JOYCNT |= 1 << bit; }
   void setBitLow(u8 bit) { Link::_REG_JOYCNT &= ~(1 << bit); }

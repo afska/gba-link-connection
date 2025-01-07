@@ -1122,7 +1122,7 @@ class LinkWireless {
                                            &lastPacketId](Message message) {
       u16 header = buildMessageHeader(message.playerId, message.packetId,
                                       buildChecksum(message.data));
-      u32 rawMessage = buildU32(header, message.data);
+      u32 rawMessage = Link::buildU32(header, message.data);
 
       if (nextAsyncCommandDataSize /* -1 (wireless header) + 1 (rawMessage) */ >
           maxTransferLength)
@@ -1147,8 +1147,8 @@ class LinkWireless {
   void addIncomingMessagesFromData(CommandResult& result) {  // (irq only)
     for (u32 i = 1; i < result.responsesSize; i++) {
       u32 rawMessage = result.responses[i];
-      u16 headerInt = msB32(rawMessage);
-      u16 data = lsB32(rawMessage);
+      u16 headerInt = Link::msB32(rawMessage);
+      u16 data = Link::lsB32(rawMessage);
 
       MessageHeaderSerializer serializer;
       serializer.asInt = headerInt;
@@ -1256,7 +1256,7 @@ class LinkWireless {
            sessionState.lastPacketIdFromClients[4] == 0)) {
         u32 lastPacketId = sessionState.lastPacketId;
         u16 header = buildConfirmationHeader(0, lastPacketId);
-        u32 rawMessage = buildU32(header, lastPacketId & 0xffff);
+        u32 rawMessage = Link::buildU32(header, lastPacketId & 0xffff);
         addAsyncData(rawMessage);
       }
 #endif
@@ -1264,14 +1264,14 @@ class LinkWireless {
       for (int i = 0; i < config.maxPlayers - 1; i++) {
         u32 confirmationData = sessionState.lastPacketIdFromClients[1 + i];
         u16 header = buildConfirmationHeader(1 + i, confirmationData);
-        u32 rawMessage = buildU32(header, confirmationData & 0xffff);
+        u32 rawMessage = Link::buildU32(header, confirmationData & 0xffff);
         addAsyncData(rawMessage);
       }
     } else {
       u32 confirmationData = sessionState.lastPacketIdFromServer;
       u16 header = buildConfirmationHeader(
           linkRawWireless.sessionState.currentPlayerId, confirmationData);
-      u32 rawMessage = buildU32(header, confirmationData & 0xffff);
+      u32 rawMessage = Link::buildU32(header, confirmationData & 0xffff);
       addAsyncData(rawMessage);
     }
   }
@@ -1568,10 +1568,10 @@ class LinkWireless {
         break;
       }
       case AsyncCommand::Step::RESPONSE_REQUEST: {
-        u16 header = msB32(newData);
-        u16 data = lsB32(newData);
-        u8 responses = msB16(data);
-        u8 ack = lsB16(data);
+        u16 header = Link::msB32(newData);
+        u16 data = Link::lsB32(newData);
+        u8 responses = Link::msB16(data);
+        u8 ack = Link::lsB16(data);
 
         if (header != LinkRawWireless::COMMAND_HEADER ||
             ack != asyncCommand.type + LinkRawWireless::RESPONSE_ACK ||
@@ -1645,13 +1645,6 @@ class LinkWireless {
       }
     };
   }
-
-  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-  u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
-  u8 msB16(u16 value) { return value >> 8; }
-  u8 lsB16(u16 value) { return value & 0xff; }
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
   void profileStart() {
