@@ -440,11 +440,21 @@ class LinkWirelessMultiboot {
 
     _LWMLOG_("confirming (2/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {
-      LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY_SUB(
-          sendAndExpectData(linkWirelessOpenSDK.createServerBuffer(
-                                {}, 0, {1, 0, CommState::OFF}, 1 << i),
-                            response))
+      LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
+          i,
+          [this, i](LinkRawWireless::ReceiveDataResponse& response) {
+            return sendAndExpectData(linkWirelessOpenSDK.createServerBuffer(
+                                         {}, 0, {1, 0, CommState::OFF}, 1 << i),
+                                     response);
+          },
+          [this](ClientPacket packet) {
+            auto header = packet.header;
+            auto sequence = header.sequence();
+            return header.isACK == 1 && sequence.n == 0 &&
+                   sequence.phase == 0 &&
+                   sequence.commState == LinkWirelessOpenSDK::CommState::ENDING;
+          },
+          listener))
     }
 
     return SUCCESS;
