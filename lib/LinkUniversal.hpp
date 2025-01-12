@@ -157,6 +157,7 @@ class LinkUniversal {
 
     this->config.protocol = protocol;
     this->config.gameName = gameName;
+    this->randomSeed = randomSeed;
   }
 
   /**
