@@ -20,7 +20,8 @@
 #define LINK_BARRIER asm volatile("" ::: "memory")
 #define LINK_CODE_IWRAM \
   __attribute__((section(".iwram"), target("arm"), noinline))
-#define LINK_ALWAYS_INLINE inline __attribute__((always_inline))
+#define LINK_INLINE inline __attribute__((always_inline))
+#define LINK_NOINLINE __attribute__((noinline))
 
 /**
  * @brief This namespace contains shared code between all libraries.
@@ -125,18 +126,15 @@ static constexpr u16 _TIMER_IRQ_IDS[] = {_IRQ_TIMER0, _IRQ_TIMER1, _IRQ_TIMER2,
 
 // SWI
 
-static inline __attribute__((always_inline)) void _IntrWait(
-    bool clearCurrent,
-    u32 flags) noexcept {
+static LINK_INLINE void _IntrWait(bool clearCurrent, u32 flags) noexcept {
   register auto r0 asm("r0") = clearCurrent;
   register auto r1 asm("r1") = flags;
   asm volatile inline("swi 0x4 << ((1f - . == 4) * -16); 1:"
                       : "+r"(r0), "+r"(r1)::"r3");
 }
 
-static inline __attribute__((always_inline)) auto _MultiBoot(
-    const _MultiBootParam* param,
-    u32 mbmode) noexcept {
+static LINK_INLINE auto _MultiBoot(const _MultiBootParam* param,
+                                   u32 mbmode) noexcept {
   register union {
     const _MultiBootParam* ptr;
     int res;

@@ -817,7 +817,7 @@ class LinkWireless {
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
-  LINK_ALWAYS_INLINE void __onSerial() {
+  LINK_INLINE void __onSerial() {
     if (!isEnabled)
       return;
 
@@ -849,7 +849,7 @@ class LinkWireless {
    * @brief This method is called by the TIMER interrupt handler.
    * \warning This is internal API!
    */
-  LINK_ALWAYS_INLINE void __onTimer() {
+  LINK_INLINE void __onTimer() {
     if (!isEnabled)
       return;
 
