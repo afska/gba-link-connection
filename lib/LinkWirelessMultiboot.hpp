@@ -88,9 +88,7 @@ class LinkWirelessMultiboot {
       LinkWirelessOpenSDK::SendBuffer<LinkWirelessOpenSDK::ServerSDKHeader>;
 
   static constexpr int HEADER_SIZE = 0xC0;
-  static constexpr int SETUP_MAGIC = 0x003c0000;
   static constexpr int SETUP_TX = 1;
-  static constexpr int SETUP_WAIT_TIMEOUT = 32;
   static constexpr int GAME_ID_MULTIBOOT_FLAG = (1 << 15);
   static constexpr int FRAME_LINES = 228;
   static constexpr int MAX_INFLIGHT_PACKETS = 4;
@@ -241,8 +239,7 @@ class LinkWirelessMultiboot {
                     const char* userName,
                     const u16 gameId,
                     u8 players) {
-    if (!linkRawWireless.setup(players, SETUP_TX, SETUP_WAIT_TIMEOUT,
-                               SETUP_MAGIC)) {
+    if (!linkRawWireless.setup(players, SETUP_TX)) {
       _LWMLOG_("! setup failed");
       return FAILURE;
     }
