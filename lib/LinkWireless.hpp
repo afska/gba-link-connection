@@ -1111,10 +1111,7 @@ class LinkWireless {
 
     // (add wireless header)
     u32 bytes = (nextAsyncCommandDataSize - 1) * 4;
-    nextAsyncCommandData[0] =
-        linkRawWireless.sessionState.currentPlayerId == 0
-            ? bytes
-            : bytes << (3 + linkRawWireless.sessionState.currentPlayerId * 5);
+    nextAsyncCommandData[0] = linkRawWireless.getSendDataHeaderFor(bytes);
 
     return lastPacketId;
   }
