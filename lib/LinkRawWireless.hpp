@@ -1077,7 +1077,7 @@ class LinkRawWireless {
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
-  int _onSerial() {
+  int _onSerial(bool _withClockInversion = false) {
     if (!isEnabled)
       return -1;
 
@@ -1096,7 +1096,7 @@ class LinkRawWireless {
         if (!acknowledge())
           return -4;
         sendAsyncCommand(newData);
-      } else {
+      } else if (_withClockInversion) {
         if (!reverseAcknowledge(asyncCommand.step ==
                                 AsyncCommand::Step::DATA_REQUEST))
           return -5;

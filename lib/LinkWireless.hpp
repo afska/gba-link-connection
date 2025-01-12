@@ -829,7 +829,7 @@ class LinkWireless {
     profileStart();
 #endif
 
-    int status = linkRawWireless._onSerial();
+    int status = linkRawWireless._onSerial(false);
     if (status <= -4)
       return (void)abort(ACKNOWLEDGE_FAILED);
     else if (status <= 0) {
