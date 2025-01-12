@@ -33,6 +33,8 @@ inline void setUpInterrupts() {
 
   interrupt_set_handler(INTR_VBLANK, [] {});
   interrupt_enable(INTR_VBLANK);
+  interrupt_set_handler(INTR_SERIAL, LINK_RAW_WIRELESS_ISR_SERIAL);
+  interrupt_enable(INTR_SERIAL);
 
   // A+B+START+SELECT = SoftReset
 #if MULTIBOOT_BUILD == 0

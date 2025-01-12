@@ -34,9 +34,9 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 // considerations:
+// - advanced usage only; if you're building a game, use `LinkCable`!
 // - don't send 0xFFFF, it's a reserved value that means <disconnected client>
 // - only transfer(...) if isReady()
-// - if you're building a game, use `LinkCable`.
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT

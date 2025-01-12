@@ -180,11 +180,11 @@ You can change these compile-time constants:
 | `isMaster()`                       | **bool**                     | Returns whether the console is connected as master or not. Returns garbage when the cable is not properly connected.                                                                      |
 | `isReady()`                        | **bool**                     | Returns whether all connected consoles have entered the multiplayer mode. Returns garbage when the cable is not properly connected.                                                       |
 
+⚠️ advanced usage only; if you're building a game, use `LinkCable`!
+
 ⚠️ don't send `0xFFFF`, it's a reserved value that means _disconnected client_
 
 ⚠️ only `transfer(...)` if `isReady()`
-
-⚠️ if you're building a game, use `LinkCable`
 
 # 📻 LinkWireless
 
@@ -291,8 +291,30 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 
 ## Methods
 
-- There's one method for every supported Wireless Adapter command.
+- There's one method for every supported Wireless Adapter command:
+  - `setup` = `0x17`
+  - `broadcast` = `0x16`
+  - `startHost` = `0x19`
+  - `systemStatus` = `0x13`
+  - `slotStatus` = `0x14`
+  - `acceptConnections` = `0x1a`
+  - `endHost` = `0x1b`
+  - `broadcastReadStart` = `0x1c`
+  - `broadcastReadPoll` = `0x1d`
+  - `broadcastReadEnd` = `0x1e`
+  - `connect` = `0x1f`
+  - `isFinishedConnect` = `0x20`
+  - `finishConnection` = `0x21`
+  - `sendData` = `0x24`
+  - `sendDataAndWait` = `0x25`
+  - `receiveData` = `0x26`
+  - `wait` = `0x27`
+  - `bye` = `0x3d`
 - Use `sendCommand(...)` to send arbitrary commands.
+- Use `sendCommandAsync(...)` to send arbitrary commands asynchronously.
+  - This requires setting `LINK_RAW_WIRELESS_ISR_SERIAL` as the `SERIAL` interrupt handler.
+  - After calling this method, call `getAsyncState()` and `getAsyncCommandResult()`.
+  - Note that until you retrieve the async command result, next command requests will fail!
 
 # 🔧🏛 LinkWirelessOpenSDK
 

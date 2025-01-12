@@ -29,18 +29,18 @@ typedef enum {
   C_LINK_RAW_WIRELESS_STATE_CONNECTED
 } C_LinkRawWireless_State;
 
-typedef struct {
-  bool success;
-  u32 responses[C_LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
-  u32 responsesSize;
-} C_LinkRawWireless_CommandResult;
+typedef enum {
+  C_LINK_RAW_WIRELESS_ASYNC_STATE_IDLE,
+  C_LINK_RAW_WIRELESS_ASYNC_STATE_WORKING,
+  C_LINK_RAW_WIRELESS_ASYNC_STATE_READY
+} C_LinkRawWireless_AsyncState;
 
 typedef struct {
   bool success;
   u8 commandId;
-  u32 params[C_LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
-  u32 paramsSize;
-} C_LinkRawWireless_RemoteCommand;
+  u32 data[C_LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH];
+  u32 dataSize;
+} C_LinkRawWireless_CommandResult;
 
 typedef struct {
   u16 id;
@@ -146,25 +146,58 @@ bool C_LinkRawWireless_sendDataAndWait(
     C_LinkRawWirelessHandle handle,
     u32* data,
     u32 dataSize,
-    C_LinkRawWireless_RemoteCommand* remoteCommand,
+    C_LinkRawWireless_CommandResult* remoteCommand,
     u32 _bytes);
 bool C_LinkRawWireless_receiveData(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_ReceiveDataResponse* response);
 bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
-                            C_LinkRawWireless_RemoteCommand* remoteCommand);
+                            C_LinkRawWireless_CommandResult* remoteCommand);
 
 bool C_LinkRawWireless_bye(C_LinkRawWirelessHandle handle);
+
+u32 C_LinkRawWireless_getSendDataHeaderFor(C_LinkRawWirelessHandle handle,
+                                           u32 bytes);
+bool C_LinkRawWireless_getReceiveDataResponse(
+    C_LinkRawWirelessHandle handle,
+    C_LinkRawWireless_CommandResult result,
+    C_LinkRawWireless_ReceiveDataResponse* response);
+
+C_LinkRawWireless_CommandResult C_LinkRawWireless_sendCommand(
+    C_LinkRawWirelessHandle handle,
+    u8 type,
+    u32* params,
+    u32 length,
+    bool invertsClock);
+C_LinkRawWireless_CommandResult C_LinkRawWireless_receiveCommandFromAdapter(
+    C_LinkRawWirelessHandle handle);
+bool C_LinkRawWireless_sendCommandAsync(C_LinkRawWirelessHandle handle,
+                                        u8 type,
+                                        u32* params,
+                                        u32 length,
+                                        bool invertsClock);
+
+C_LinkRawWireless_AsyncState C_LinkRawWireless_getAsyncState(
+    C_LinkRawWirelessHandle handle);
+C_LinkRawWireless_CommandResult C_LinkRawWireless_getAsyncCommandResult(
+    C_LinkRawWirelessHandle handle);
 
 u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle);
 C_LinkRawWireless_State C_LinkRawWireless_getState(
     C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_isConnected(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_isSessionActive(C_LinkRawWirelessHandle handle);
+bool C_LinkRawWireless_isServerClosed(C_LinkRawWirelessHandle handle);
 u8 C_LinkRawWireless_playerCount(C_LinkRawWirelessHandle handle);
 u8 C_LinkRawWireless_currentPlayerId(C_LinkRawWirelessHandle handle);
 
-extern C_LinkRawWirelessHandle cRawWireless;
+void C_LinkRawWireless_onSerial(C_LinkRawWirelessHandle handle);
+
+extern C_LinkRawWirelessHandle cLinkRawWireless;
+
+inline void C_LINK_LINK_RAW_WIRELESS_ISR_SERIAL() {
+  C_LinkRawWireless_onSerial(cLinkRawWireless);
+}
 
 #ifdef __cplusplus
 }

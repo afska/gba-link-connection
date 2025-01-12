@@ -531,7 +531,7 @@ class LinkWirelessMultiboot {
       u32 dataSize,
       u32 _bytes,
       LinkRawWireless::ReceiveDataResponse& response) {
-    LinkRawWireless::RemoteCommand remoteCommand;
+    LinkRawWireless::CommandResult remoteCommand;
     volatile bool success = false;
 
     success =
@@ -548,12 +548,11 @@ class LinkWirelessMultiboot {
       return FAILURE;
     }
 
-    if (remoteCommand.paramsSize > 0) {
+    if (remoteCommand.dataSize > 0) {
       u8 expectedActiveChildren = 0;
       for (u32 i = 0; i < progress.connectedClients; i++)
         expectedActiveChildren |= 1 << i;
-      u8 activeChildren =
-          (remoteCommand.params[0] >> 8) & expectedActiveChildren;
+      u8 activeChildren = (remoteCommand.data[0] >> 8) & expectedActiveChildren;
 
       if (activeChildren != expectedActiveChildren) {
         _LWMLOG_("! client timeout [" + std::to_string(activeChildren) + "]");

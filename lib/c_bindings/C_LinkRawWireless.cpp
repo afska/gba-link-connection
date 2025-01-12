@@ -2,6 +2,11 @@
 #include "../LinkRawWireless.hpp"
 
 extern "C" {
+C_LinkRawWireless_CommandResult fromCppResult(
+    LinkRawWireless::CommandResult cppResult);
+LinkRawWireless::CommandResult toCppResult(
+    C_LinkRawWireless_CommandResult result);
+
 C_LinkRawWirelessHandle C_LinkRawWireless_create() {
   return new LinkRawWireless();
 }
@@ -51,14 +56,14 @@ bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle) {
 bool C_LinkRawWireless_getSystemStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SystemStatusResponse* response) {
-  LinkRawWireless::SystemStatusResponse nativeResponse;
+  LinkRawWireless::SystemStatusResponse cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->getSystemStatus(nativeResponse);
-  response->deviceId = nativeResponse.deviceId;
-  response->currentPlayerId = nativeResponse.currentPlayerId;
+      static_cast<LinkRawWireless*>(handle)->getSystemStatus(cppResponse);
+  response->deviceId = cppResponse.deviceId;
+  response->currentPlayerId = cppResponse.currentPlayerId;
   response->adapterState =
-      static_cast<C_LinkRawWireless_State>(nativeResponse.adapterState);
-  response->isServerClosed = nativeResponse.isServerClosed;
+      static_cast<C_LinkRawWireless_State>(cppResponse.adapterState);
+  response->isServerClosed = cppResponse.isServerClosed;
 
   return success;
 }
@@ -66,16 +71,16 @@ bool C_LinkRawWireless_getSystemStatus(
 bool C_LinkRawWireless_getSlotStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SlotStatusResponse* response) {
-  LinkRawWireless::SlotStatusResponse nativeResponse;
+  LinkRawWireless::SlotStatusResponse cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->getSlotStatus(nativeResponse);
-  response->nextClientNumber = nativeResponse.nextClientNumber;
-  response->connectedClientsSize = nativeResponse.connectedClientsSize;
+      static_cast<LinkRawWireless*>(handle)->getSlotStatus(cppResponse);
+  response->nextClientNumber = cppResponse.nextClientNumber;
+  response->connectedClientsSize = cppResponse.connectedClientsSize;
   for (u32 i = 0; i < response->connectedClientsSize; i++) {
     response->connectedClients[i].deviceId =
-        nativeResponse.connectedClients[i].deviceId;
+        cppResponse.connectedClients[i].deviceId;
     response->connectedClients[i].clientNumber =
-        nativeResponse.connectedClients[i].clientNumber;
+        cppResponse.connectedClients[i].clientNumber;
   }
   return success;
 }
@@ -83,15 +88,15 @@ bool C_LinkRawWireless_getSlotStatus(
 bool C_LinkRawWireless_acceptConnections(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_AcceptConnectionsResponse* response) {
-  LinkRawWireless::AcceptConnectionsResponse nativeResponse;
+  LinkRawWireless::AcceptConnectionsResponse cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->acceptConnections(nativeResponse);
-  response->connectedClientsSize = nativeResponse.connectedClientsSize;
+      static_cast<LinkRawWireless*>(handle)->acceptConnections(cppResponse);
+  response->connectedClientsSize = cppResponse.connectedClientsSize;
   for (u32 i = 0; i < response->connectedClientsSize; i++) {
     response->connectedClients[i].deviceId =
-        nativeResponse.connectedClients[i].deviceId;
+        cppResponse.connectedClients[i].deviceId;
     response->connectedClients[i].clientNumber =
-        nativeResponse.connectedClients[i].clientNumber;
+        cppResponse.connectedClients[i].clientNumber;
   }
   return success;
 }
@@ -99,14 +104,14 @@ bool C_LinkRawWireless_acceptConnections(
 bool C_LinkRawWireless_endHost(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_AcceptConnectionsResponse* response) {
-  LinkRawWireless::AcceptConnectionsResponse nativeResponse;
-  bool success = static_cast<LinkRawWireless*>(handle)->endHost(nativeResponse);
-  response->connectedClientsSize = nativeResponse.connectedClientsSize;
+  LinkRawWireless::AcceptConnectionsResponse cppResponse;
+  bool success = static_cast<LinkRawWireless*>(handle)->endHost(cppResponse);
+  response->connectedClientsSize = cppResponse.connectedClientsSize;
   for (u32 i = 0; i < response->connectedClientsSize; i++) {
     response->connectedClients[i].deviceId =
-        nativeResponse.connectedClients[i].deviceId;
+        cppResponse.connectedClients[i].deviceId;
     response->connectedClients[i].clientNumber =
-        nativeResponse.connectedClients[i].clientNumber;
+        cppResponse.connectedClients[i].clientNumber;
   }
   return success;
 }
@@ -118,21 +123,19 @@ bool C_LinkRawWireless_broadcastReadStart(C_LinkRawWirelessHandle handle) {
 bool C_LinkRawWireless_broadcastReadPoll(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_BroadcastReadPollResponse* response) {
-  LinkRawWireless::BroadcastReadPollResponse nativeResponse;
+  LinkRawWireless::BroadcastReadPollResponse cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->broadcastReadPoll(nativeResponse);
-  response->serversSize = nativeResponse.serversSize;
+      static_cast<LinkRawWireless*>(handle)->broadcastReadPoll(cppResponse);
+  response->serversSize = cppResponse.serversSize;
   for (u32 i = 0; i < response->serversSize; i++) {
-    response->servers[i].id = nativeResponse.servers[i].id;
-    response->servers[i].gameId = nativeResponse.servers[i].gameId;
-    LINK_MEMCPY(response->servers[i].gameName,
-                nativeResponse.servers[i].gameName,
+    response->servers[i].id = cppResponse.servers[i].id;
+    response->servers[i].gameId = cppResponse.servers[i].gameId;
+    LINK_MEMCPY(response->servers[i].gameName, cppResponse.servers[i].gameName,
                 LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1);
-    LINK_MEMCPY(response->servers[i].userName,
-                nativeResponse.servers[i].userName,
+    LINK_MEMCPY(response->servers[i].userName, cppResponse.servers[i].userName,
                 LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1);
     response->servers[i].nextClientNumber =
-        nativeResponse.servers[i].nextClientNumber;
+        cppResponse.servers[i].nextClientNumber;
   }
   return success;
 }
@@ -148,12 +151,12 @@ bool C_LinkRawWireless_connect(C_LinkRawWirelessHandle handle, u16 serverId) {
 bool C_LinkRawWireless_keepConnecting(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_ConnectionStatus* response) {
-  LinkRawWireless::ConnectionStatus nativeResponse;
+  LinkRawWireless::ConnectionStatus cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->keepConnecting(nativeResponse);
+      static_cast<LinkRawWireless*>(handle)->keepConnecting(cppResponse);
   response->phase =
-      static_cast<C_LinkRawWireless_ConnectionPhase>(nativeResponse.phase);
-  response->assignedClientNumber = nativeResponse.assignedClientNumber;
+      static_cast<C_LinkRawWireless_ConnectionPhase>(cppResponse.phase);
+  response->assignedClientNumber = cppResponse.assignedClientNumber;
   return success;
 }
 
@@ -175,17 +178,17 @@ bool C_LinkRawWireless_sendDataAndWait(
     C_LinkRawWirelessHandle handle,
     u32* data,
     u32 dataSize,
-    C_LinkRawWireless_RemoteCommand* remoteCommand,
+    C_LinkRawWireless_CommandResult* remoteCommand,
     u32 _bytes) {
   std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
-  LinkRawWireless::RemoteCommand nativeRemoteCommand;
+  LinkRawWireless::CommandResult cppRemoteCommand;
   LINK_MEMCPY(dataArray.data(), data, dataSize * sizeof(u32));
   bool success = static_cast<LinkRawWireless*>(handle)->sendDataAndWait(
-      dataArray, dataSize, nativeRemoteCommand, _bytes);
-  remoteCommand->success = nativeRemoteCommand.success;
-  remoteCommand->commandId = nativeRemoteCommand.commandId;
-  remoteCommand->paramsSize = nativeRemoteCommand.paramsSize;
-  LINK_MEMCPY(remoteCommand->params, nativeRemoteCommand.params,
+      dataArray, dataSize, cppRemoteCommand, _bytes);
+  remoteCommand->success = cppRemoteCommand.success;
+  remoteCommand->commandId = cppRemoteCommand.commandId;
+  remoteCommand->dataSize = cppRemoteCommand.dataSize;
+  LINK_MEMCPY(remoteCommand->data, cppRemoteCommand.data,
               LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
   return success;
 }
@@ -193,34 +196,99 @@ bool C_LinkRawWireless_sendDataAndWait(
 bool C_LinkRawWireless_receiveData(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_ReceiveDataResponse* response) {
-  LinkRawWireless::ReceiveDataResponse nativeResponse;
+  LinkRawWireless::ReceiveDataResponse cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->receiveData(nativeResponse);
-  for (u32 i = 0; i < nativeResponse.dataSize; i++) {
-    response->data[i] = nativeResponse.data[i];
+      static_cast<LinkRawWireless*>(handle)->receiveData(cppResponse);
+  for (u32 i = 0; i < cppResponse.dataSize; i++) {
+    response->data[i] = cppResponse.data[i];
   }
-  response->dataSize = nativeResponse.dataSize;
+  response->dataSize = cppResponse.dataSize;
   for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++) {
-    response->sentBytes[i] = nativeResponse.sentBytes[i];
+    response->sentBytes[i] = cppResponse.sentBytes[i];
   }
   return success;
 }
 
 bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
-                            C_LinkRawWireless_RemoteCommand* remoteCommand) {
-  LinkRawWireless::RemoteCommand nativeRemoteCommand;
-  bool success =
-      static_cast<LinkRawWireless*>(handle)->wait(nativeRemoteCommand);
-  remoteCommand->success = nativeRemoteCommand.success;
-  remoteCommand->commandId = nativeRemoteCommand.commandId;
-  remoteCommand->paramsSize = nativeRemoteCommand.paramsSize;
-  LINK_MEMCPY(remoteCommand->params, nativeRemoteCommand.params,
+                            C_LinkRawWireless_CommandResult* remoteCommand) {
+  LinkRawWireless::CommandResult cppRemoteCommand;
+  bool success = static_cast<LinkRawWireless*>(handle)->wait(cppRemoteCommand);
+  remoteCommand->success = cppRemoteCommand.success;
+  remoteCommand->commandId = cppRemoteCommand.commandId;
+  remoteCommand->dataSize = cppRemoteCommand.dataSize;
+  LINK_MEMCPY(remoteCommand->data, cppRemoteCommand.data,
               LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
   return success;
 }
 
 bool C_LinkRawWireless_bye(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->bye();
+}
+
+u32 C_LinkRawWireless_getSendDataHeaderFor(C_LinkRawWirelessHandle handle,
+                                           u32 bytes) {
+  return static_cast<LinkRawWireless*>(handle)->getSendDataHeaderFor(bytes);
+}
+
+bool C_LinkRawWireless_getReceiveDataResponse(
+    C_LinkRawWirelessHandle handle,
+    C_LinkRawWireless_CommandResult result,
+    C_LinkRawWireless_ReceiveDataResponse* response) {
+  LinkRawWireless::ReceiveDataResponse cppResponse;
+  bool success = static_cast<LinkRawWireless*>(handle)->getReceiveDataResponse(
+      toCppResult(result), cppResponse);
+  for (u32 i = 0; i < cppResponse.dataSize; i++) {
+    response->data[i] = cppResponse.data[i];
+  }
+  response->dataSize = cppResponse.dataSize;
+  for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++) {
+    response->sentBytes[i] = cppResponse.sentBytes[i];
+  }
+
+  return success;
+}
+
+C_LinkRawWireless_CommandResult C_LinkRawWireless_sendCommand(
+    C_LinkRawWirelessHandle handle,
+    u8 type,
+    u32* params,
+    u32 length,
+    bool invertsClock) {
+  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
+  LINK_MEMCPY(dataArray.data(), params, length * sizeof(u32));
+
+  return fromCppResult(static_cast<LinkRawWireless*>(handle)->sendCommand(
+      type, dataArray, length, invertsClock));
+}
+
+C_LinkRawWireless_CommandResult C_LinkRawWireless_receiveCommandFromAdapter(
+    C_LinkRawWirelessHandle handle) {
+  return fromCppResult(
+      static_cast<LinkRawWireless*>(handle)->receiveCommandFromAdapter());
+}
+
+bool C_LinkRawWireless_sendCommandAsync(C_LinkRawWirelessHandle handle,
+                                        u8 type,
+                                        u32* params,
+                                        u32 length,
+                                        bool invertsClock) {
+  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
+  LINK_MEMCPY(dataArray.data(), params, length * sizeof(u32));
+
+  return static_cast<LinkRawWireless*>(handle)->sendCommandAsync(
+      type, dataArray, length, invertsClock);
+}
+
+C_LinkRawWireless_AsyncState C_LinkRawWireless_getAsyncState(
+    C_LinkRawWirelessHandle handle) {
+  return static_cast<C_LinkRawWireless_AsyncState>(
+      static_cast<LinkRawWireless*>(handle)->getAsyncState());
+}
+
+C_LinkRawWireless_CommandResult C_LinkRawWireless_getAsyncCommandResult(
+    C_LinkRawWirelessHandle handle) {
+  return fromCppResult(
+      static_cast<LinkRawWireless*>(handle)->getAsyncCommandResult());
 }
 
 u32 C_LinkRawWireless_getDeviceTransferLength(C_LinkRawWirelessHandle handle) {
@@ -241,11 +309,42 @@ bool C_LinkRawWireless_isSessionActive(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->isSessionActive();
 }
 
+bool C_LinkRawWireless_isServerClosed(C_LinkRawWirelessHandle handle) {
+  return static_cast<LinkRawWireless*>(handle)->isServerClosed();
+}
+
 u8 C_LinkRawWireless_playerCount(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->playerCount();
 }
 
 u8 C_LinkRawWireless_currentPlayerId(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->currentPlayerId();
+}
+
+void C_LinkRawWireless_onSerial(C_LinkRawWirelessHandle handle) {
+  static_cast<LinkRawWireless*>(handle)->_onSerial();
+}
+
+C_LinkRawWireless_CommandResult fromCppResult(
+    LinkRawWireless::CommandResult cppResult) {
+  C_LinkRawWireless_CommandResult result;
+  result.success = cppResult.success;
+  result.commandId = cppResult.commandId;
+  for (u32 i = 0; i < cppResult.dataSize; i++) {
+    result.data[i] = cppResult.data[i];
+  }
+  result.dataSize = cppResult.dataSize;
+  return result;
+}
+LinkRawWireless::CommandResult toCppResult(
+    C_LinkRawWireless_CommandResult result) {
+  LinkRawWireless::CommandResult cppResult;
+  cppResult.success = cppResult.success;
+  cppResult.commandId = result.commandId;
+  for (u32 i = 0; i < result.dataSize; i++) {
+    cppResult.data[i] = result.data[i];
+  }
+  cppResult.dataSize = result.dataSize;
+  return cppResult;
 }
 }
