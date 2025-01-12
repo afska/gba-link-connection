@@ -35,7 +35,9 @@ inline void setUpInterrupts() {
   interrupt_enable(INTR_VBLANK);
 
   // A+B+START+SELECT = SoftReset
+#if MULTIBOOT_BUILD == 0
   REG_KEYCNT = 0b1100000000001111;
   interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
   interrupt_enable(INTR_KEYPAD);
+#endif
 }
