@@ -6,13 +6,6 @@
 #endif
 
 /**
- * @brief Enable mGBA debug logging.
- */
-#ifndef LINK_ENABLE_DEBUG_LOGS
-#define LINK_ENABLE_DEBUG_LOGS 0
-#endif
-
-/**
  * @brief strlen(...) implementation (by default, std::strlen)
  */
 #ifndef LINK_STRLEN
@@ -21,11 +14,34 @@
 #endif
 
 /**
+ * @brief strcmp(...) implementation (by default, std::strcmp)
+ */
+#ifndef LINK_STRCMP
+#include <cstdio>
+#define LINK_STRCMP std::strcmp
+#endif
+
+/**
+ * @brief snprintf(...) implementation (by default, std::snprintf)
+ */
+#ifndef LINK_SNPRINTF
+#include <cstdio>
+#define LINK_SNPRINTF std::snprintf
+#endif
+
+/**
  * @brief memcpy(...) implementation (by default, std::memcpy)
  */
 #ifndef LINK_MEMCPY
 #include <cstring>
 #define LINK_MEMCPY std::memcpy
+#endif
+
+/**
+ * @brief Enable mGBA debug logging.
+ */
+#ifndef LINK_ENABLE_DEBUG_LOGS
+#define LINK_ENABLE_DEBUG_LOGS 0
 #endif
 
 #if LINK_ENABLE_DEBUG_LOGS != 0

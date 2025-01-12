@@ -102,7 +102,7 @@
  * For example, in a Makefile-based project, verify that the file is in your
  * `SRCDIRS` list.
  */
-// #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#define LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #endif
 
 #ifndef LINK_WIRELESS_ENABLE_NESTED_IRQ
