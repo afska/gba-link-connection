@@ -43,7 +43,6 @@
 
 #include "_link_common.hpp"
 
-#include <array>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
@@ -171,19 +170,17 @@ class LinkRawWireless {
 
   struct SlotStatusResponse {
     u8 nextClientNumber = 0;
-    std::array<ConnectedClient, LINK_RAW_WIRELESS_MAX_PLAYERS>
-        connectedClients = {};
+    ConnectedClient connectedClients[LINK_RAW_WIRELESS_MAX_PLAYERS] = {};
     u32 connectedClientsSize = 0;
   };
 
   struct AcceptConnectionsResponse {
-    std::array<ConnectedClient, LINK_RAW_WIRELESS_MAX_PLAYERS>
-        connectedClients = {};
+    ConnectedClient connectedClients[LINK_RAW_WIRELESS_MAX_PLAYERS] = {};
     u32 connectedClientsSize = 0;
   };
 
   struct BroadcastReadPollResponse {
-    std::array<Server, MAX_SERVERS> servers;
+    Server servers[MAX_SERVERS] = {};
     u32 serversSize = 0;
   };
 
@@ -296,7 +293,8 @@ class LinkRawWireless {
         (u32)(magic |
               (((LINK_RAW_WIRELESS_MAX_PLAYERS - maxPlayers) & 0b11) << 16) |
               (maxTransmissions << 8) | waitTimeout);
-    return sendCommand(COMMAND_SETUP, {config}, 1).success;
+    u32 params[1] = {config};
+    return sendCommand(COMMAND_SETUP, params, 1).success;
   }
 
   /**
@@ -325,25 +323,21 @@ class LinkRawWireless {
     copyName(finalGameName, gameName, LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH);
     copyName(finalUserName, userName, LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH);
 
+    u32 params[BROADCAST_LENGTH] = {
+        Link::buildU32(Link::buildU16(finalGameName[1], finalGameName[0]),
+                       gameId),
+        Link::buildU32(Link::buildU16(finalGameName[5], finalGameName[4]),
+                       Link::buildU16(finalGameName[3], finalGameName[2])),
+        Link::buildU32(Link::buildU16(finalGameName[9], finalGameName[8]),
+                       Link::buildU16(finalGameName[7], finalGameName[6])),
+        Link::buildU32(Link::buildU16(finalGameName[13], finalGameName[12]),
+                       Link::buildU16(finalGameName[11], finalGameName[10])),
+        Link::buildU32(Link::buildU16(finalUserName[3], finalUserName[2]),
+                       Link::buildU16(finalUserName[1], finalUserName[0])),
+        Link::buildU32(Link::buildU16(finalUserName[7], finalUserName[6]),
+                       Link::buildU16(finalUserName[5], finalUserName[4]))};
     bool success =
-        sendCommand(
-            COMMAND_BROADCAST,
-            {Link::buildU32(Link::buildU16(finalGameName[1], finalGameName[0]),
-                            gameId),
-             Link::buildU32(Link::buildU16(finalGameName[5], finalGameName[4]),
-                            Link::buildU16(finalGameName[3], finalGameName[2])),
-             Link::buildU32(Link::buildU16(finalGameName[9], finalGameName[8]),
-                            Link::buildU16(finalGameName[7], finalGameName[6])),
-             Link::buildU32(
-                 Link::buildU16(finalGameName[13], finalGameName[12]),
-                 Link::buildU16(finalGameName[11], finalGameName[10])),
-             Link::buildU32(Link::buildU16(finalUserName[3], finalUserName[2]),
-                            Link::buildU16(finalUserName[1], finalUserName[0])),
-             Link::buildU32(
-                 Link::buildU16(finalUserName[7], finalUserName[6]),
-                 Link::buildU16(finalUserName[5], finalUserName[4]))},
-            BROADCAST_LENGTH)
-            .success;
+        sendCommand(COMMAND_BROADCAST, params, BROADCAST_LENGTH).success;
 
     if (!success) {
       _resetState();
@@ -597,7 +591,8 @@ class LinkRawWireless {
    * @param serverId Device ID of the server.
    */
   bool connect(u16 serverId) {
-    bool success = sendCommand(COMMAND_CONNECT, {serverId}, 1).success;
+    u32 params[1] = {serverId};
+    bool success = sendCommand(COMMAND_CONNECT, params, 1).success;
 
     if (!success) {
       _resetState();
@@ -676,19 +671,18 @@ class LinkRawWireless {
    * @param _bytes The number of BYTES to send. If `0`, the method will use
    * `dataSize * 4` instead.
    */
-  bool sendData(
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
-      u32 dataSize,
-      u32 _bytes = 0) {
+  bool sendData(const u32* data, u32 dataSize, u32 _bytes = 0) {
     u32 bytes = _bytes == 0 ? dataSize * 4 : _bytes;
     u32 header = getSendDataHeaderFor(bytes);
-    for (u32 i = dataSize; i > 0; i--)
-      data[i] = data[i - 1];
-    data[0] = header;
-    dataSize++;
     _LRWLOG_("using header " + toHex(header));
 
-    bool success = sendCommand(COMMAND_SEND_DATA, data, dataSize).success;
+    u32 rawData[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+    rawData[0] = header;
+    for (u32 i = 0; i < dataSize; i++)
+      rawData[i + 1] = data[i];
+    dataSize++;
+
+    bool success = sendCommand(COMMAND_SEND_DATA, rawData, dataSize).success;
 
     if (!success) {
       _resetState();
@@ -707,20 +701,21 @@ class LinkRawWireless {
    * @param _bytes The number of BYTES to send. If `0`, the method will use
    * `dataSize * 4` instead.
    */
-  bool sendDataAndWait(
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
-      u32 dataSize,
-      CommandResult& remoteCommand,
-      u32 _bytes = 0) {
+  bool sendDataAndWait(const u32* data,
+                       u32 dataSize,
+                       CommandResult& remoteCommand,
+                       u32 _bytes = 0) {
     u32 bytes = _bytes == 0 ? dataSize * 4 : _bytes;
     u32 header = getSendDataHeaderFor(bytes);
-    for (u32 i = dataSize; i > 0; i--)
-      data[i] = data[i - 1];
-    data[0] = header;
-    dataSize++;
     _LRWLOG_("using header " + toHex(header));
 
-    if (!sendCommand(COMMAND_SEND_DATA_AND_WAIT, data, dataSize, true)
+    u32 rawData[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+    rawData[0] = header;
+    for (u32 i = 0; i < dataSize; i++)
+      rawData[i + 1] = data[i];
+    dataSize++;
+
+    if (!sendCommand(COMMAND_SEND_DATA_AND_WAIT, rawData, dataSize, true)
              .success) {
       _resetState();
       return false;
@@ -814,12 +809,10 @@ class LinkRawWireless {
    * \warning If it `invertsClock`, call `receiveCommandFromAdapter()` on
    * finish.
    */
-  CommandResult sendCommand(
-      u8 type,
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params =
-          {},
-      u16 length = 0,
-      bool invertsClock = false) {
+  CommandResult sendCommand(u8 type,
+                            const u32* params = {},
+                            u16 length = 0,
+                            bool invertsClock = false) {
     CommandResult result;
     u32 command = buildCommand(type, length);
     u32 r;
@@ -967,13 +960,11 @@ class LinkRawWireless {
    * \warning If it `invertsClock`, the command result will be the one sent by
    * the adapter.
    */
-  bool sendCommandAsync(
-      u8 type,
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> params =
-          {},
-      u16 length = 0,
-      bool invertsClock = false,
-      bool _fromIRQ = false) {
+  bool sendCommandAsync(u8 type,
+                        const u32* params = {},
+                        u16 length = 0,
+                        bool invertsClock = false,
+                        bool _fromIRQ = false) {
     if (asyncState != IDLE)
       return false;
 

@@ -139,12 +139,12 @@ bool C_LinkRawWireless_keepConnecting(
     C_LinkRawWireless_ConnectionStatus* response);
 bool C_LinkRawWireless_finishConnection(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_sendData(C_LinkRawWirelessHandle handle,
-                                u32* data,
+                                const u32* data,
                                 u32 dataSize,
                                 u32 _bytes);
 bool C_LinkRawWireless_sendDataAndWait(
     C_LinkRawWirelessHandle handle,
-    u32* data,
+    const u32* data,
     u32 dataSize,
     C_LinkRawWireless_CommandResult* remoteCommand,
     u32 _bytes);
@@ -166,14 +166,14 @@ bool C_LinkRawWireless_getReceiveDataResponse(
 C_LinkRawWireless_CommandResult C_LinkRawWireless_sendCommand(
     C_LinkRawWirelessHandle handle,
     u8 type,
-    u32* params,
+    const u32* params,
     u32 length,
     bool invertsClock);
 C_LinkRawWireless_CommandResult C_LinkRawWireless_receiveCommandFromAdapter(
     C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_sendCommandAsync(C_LinkRawWirelessHandle handle,
                                         u8 type,
-                                        u32* params,
+                                        const u32* params,
                                         u32 length,
                                         bool invertsClock);
 

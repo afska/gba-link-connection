@@ -51,7 +51,7 @@ class LinkWirelessOpenSDK {
   template <class T>
   struct SendBuffer {
     T header;
-    std::array<u32, MAX_TRANSFER_WORDS> data;
+    u32 data[MAX_TRANSFER_WORDS];
     u32 dataSize = 0;
     u32 totalByteCount = 0;
   };
@@ -431,7 +431,7 @@ class LinkWirelessOpenSDK {
     };
 
     struct PendingTransferList {
-      std::array<PendingTransfer, MaxInflightPackets> transfers = {};
+      PendingTransfer transfers[MaxInflightPackets] = {};
 
       [[nodiscard]]
       PendingTransfer* max(bool ack = false) {
@@ -591,7 +591,6 @@ class LinkWirelessOpenSDK {
       this->linkWirelessOpenSDK = linkWirelessOpenSDK;
       this->fileSize = fileSize;
       this->connectedClients = connectedClients;
-      this->transfers = {};
     }
 
     /**
@@ -654,8 +653,8 @@ class LinkWirelessOpenSDK {
     }
 
    private:
-    std::array<Transfer<MaxInflightPackets>, LINK_RAW_WIRELESS_MAX_PLAYERS - 1>
-        transfers;
+    Transfer<MaxInflightPackets> transfers[LINK_RAW_WIRELESS_MAX_PLAYERS - 1] =
+        {};
 
     LinkWirelessOpenSDK* linkWirelessOpenSDK;
     u32 fileSize;

@@ -102,7 +102,7 @@
  * For example, in a Makefile-based project, verify that the file is in your
  * `SRCDIRS` list.
  */
-#define LINK_WIRELESS_PUT_ISR_IN_IWRAM
+// #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #endif
 
 #ifndef LINK_WIRELESS_ENABLE_NESTED_IRQ
@@ -1386,14 +1386,9 @@ class LinkWireless {
     if (isSendingSyncCommand)
       return false;
 
-    std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
-    if (withData) {
-      for (u32 i = 0; i < nextAsyncCommandDataSize; i++)
-        dataArray[i] = nextAsyncCommandData[i];
-    }
-
-    return linkRawWireless.sendCommandAsync(
-        type, dataArray, nextAsyncCommandDataSize, false, true);
+    u32 size = withData ? nextAsyncCommandDataSize : 0;
+    return linkRawWireless.sendCommandAsync(type, nextAsyncCommandData, size,
+                                            false, true);
   }
 
   void addAsyncData(u32 value, bool start = false) {  // (irq only)

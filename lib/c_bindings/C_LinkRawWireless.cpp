@@ -165,12 +165,10 @@ bool C_LinkRawWireless_finishConnection(C_LinkRawWirelessHandle handle) {
 }
 
 bool C_LinkRawWireless_sendData(C_LinkRawWirelessHandle handle,
-                                u32* data,
+                                const u32* data,
                                 u32 dataSize,
                                 u32 _bytes) {
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
-  LINK_MEMCPY(dataArray.data(), data, dataSize * sizeof(u32));
-  return static_cast<LinkRawWireless*>(handle)->sendData(dataArray, dataSize,
+  return static_cast<LinkRawWireless*>(handle)->sendData(data, dataSize,
                                                          _bytes);
 }
 
@@ -180,11 +178,9 @@ bool C_LinkRawWireless_sendDataAndWait(
     u32 dataSize,
     C_LinkRawWireless_CommandResult* remoteCommand,
     u32 _bytes) {
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
   LinkRawWireless::CommandResult cppRemoteCommand;
-  LINK_MEMCPY(dataArray.data(), data, dataSize * sizeof(u32));
   bool success = static_cast<LinkRawWireless*>(handle)->sendDataAndWait(
-      dataArray, dataSize, cppRemoteCommand, _bytes);
+      data, dataSize, cppRemoteCommand, _bytes);
   remoteCommand->success = cppRemoteCommand.success;
   remoteCommand->commandId = cppRemoteCommand.commandId;
   remoteCommand->dataSize = cppRemoteCommand.dataSize;
@@ -254,11 +250,8 @@ C_LinkRawWireless_CommandResult C_LinkRawWireless_sendCommand(
     u32* params,
     u32 length,
     bool invertsClock) {
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
-  LINK_MEMCPY(dataArray.data(), params, length * sizeof(u32));
-
   return fromCppResult(static_cast<LinkRawWireless*>(handle)->sendCommand(
-      type, dataArray, length, invertsClock));
+      type, params, length, invertsClock));
 }
 
 C_LinkRawWireless_CommandResult C_LinkRawWireless_receiveCommandFromAdapter(
@@ -272,11 +265,8 @@ bool C_LinkRawWireless_sendCommandAsync(C_LinkRawWirelessHandle handle,
                                         u32* params,
                                         u32 length,
                                         bool invertsClock) {
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> dataArray;
-  LINK_MEMCPY(dataArray.data(), params, length * sizeof(u32));
-
   return static_cast<LinkRawWireless*>(handle)->sendCommandAsync(
-      type, dataArray, length, invertsClock);
+      type, params, length, invertsClock);
 }
 
 C_LinkRawWireless_AsyncState C_LinkRawWireless_getAsyncState(

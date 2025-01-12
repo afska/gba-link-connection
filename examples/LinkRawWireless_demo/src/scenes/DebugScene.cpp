@@ -114,12 +114,8 @@ void log(std::string string) {
   scrollPageDown();
 }
 
-std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(
-    std::vector<u32> vector) {
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> array;
-  for (u32 i = 0; i < vector.size(); i++)
-    array[i] = vector[i];
-  return array;
+const u32* toArray(std::vector<u32> vector) {
+  return vector.data();
 }
 
 std::vector<Background*> DebugScene::backgrounds() {

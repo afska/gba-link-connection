@@ -307,7 +307,7 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData(toArray(), 0, 1, response);
+          return sendAndExpectData({}, 0, 1, response);
         },
         [](ClientPacket packet) { return true; }, listener))
     // (initial client packet received)
@@ -372,8 +372,7 @@ class LinkWirelessMultiboot {
         return CANCELED;
 
       LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY_SUB(
-          sendAndExpectData(toArray(), 0, 1, response))
+      LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData({}, 0, 1, response))
       auto childrenData = linkWirelessOpenSDK.getChildrenData(response);
       hasFinished = childrenData.responses[clientNumber].packetsSize == 0;
     }
@@ -535,11 +534,10 @@ class LinkWirelessMultiboot {
                              sendBuffer.totalByteCount, response);
   }
 
-  Result sendAndExpectData(
-      std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> data,
-      u32 dataSize,
-      u32 _bytes,
-      LinkRawWireless::ReceiveDataResponse& response) {
+  Result sendAndExpectData(const u32* data,
+                           u32 dataSize,
+                           u32 _bytes,
+                           LinkRawWireless::ReceiveDataResponse& response) {
     LinkRawWireless::CommandResult remoteCommand;
     volatile bool success = false;
 
@@ -619,12 +617,6 @@ class LinkWirelessMultiboot {
     return rc;
   }
 #endif
-
-  template <typename... Args>
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(
-      Args... args) {
-    return {static_cast<u32>(args)...};
-  }
 };
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
