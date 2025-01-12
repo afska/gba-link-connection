@@ -186,10 +186,7 @@ void MultibootScene::load() {
 #endif
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
-  // TODO: FIX!
-  linkWirelessMultiboot->linkRawWireless.logger = [](std::string string) {
-    log(string);
-  };
+  linkWirelessMultiboot->_setLogger([](std::string string) { log(string); });
 #endif
 
   log("---");

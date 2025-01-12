@@ -210,6 +210,16 @@ class LinkWirelessMultiboot {
     return success;
   }
 
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+  /**
+   * @brief Sets a logger function.
+   * \warning This is internal API!
+   */
+  void _setLogger(LinkRawWireless::Logger logger) {
+    linkRawWireless.logger = logger;
+  }
+#endif
+
  private:
   LinkRawWireless linkRawWireless;
   LinkWirelessOpenSDK linkWirelessOpenSDK;

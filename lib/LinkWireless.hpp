@@ -754,6 +754,15 @@ class LinkWireless {
                ? 0
                : sessionState.outgoingMessages.peek().packetId;
   }
+#ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
+  /**
+   * @brief Sets a logger function.
+   * \warning This is internal API!
+   */
+  void _setLogger(LinkRawWireless::Logger logger) {
+    linkRawWireless.logger = logger;
+  }
+#endif
 
   /**
    * @brief This method is called by the VBLANK interrupt handler.
