@@ -36,8 +36,8 @@ class LinkWirelessOpenSDK {
   static constexpr int MAX_TRANSFER_BYTES_CLIENT = 16;
   static constexpr int HEADER_SIZE_SERVER = 3;
   static constexpr int HEADER_SIZE_CLIENT = 2;
-  static constexpr int HEADER_MASK_SERVER = (1 << (HEADER_SIZE_SERVER * 8)) - 1;
-  static constexpr int HEADER_MASK_CLIENT = (1 << (HEADER_SIZE_CLIENT * 8)) - 1;
+  static constexpr int HEADER_MASK_SERVER = 0b1111111111111111111111;
+  static constexpr int HEADER_MASK_CLIENT = 0b11111111111111;
   static constexpr int MAX_PAYLOAD_SERVER =
       MAX_TRANSFER_BYTES_SERVER - HEADER_SIZE_SERVER;
   static constexpr int MAX_PAYLOAD_CLIENT =
@@ -161,7 +161,7 @@ class LinkWirelessOpenSDK {
         ClientPacket* packet =
             &clientResponse->packets[clientResponse->packetsSize];
 
-        u32 headerInt = *((u16*)(buffer + cursor));
+        u32 headerInt = (buffer[cursor + 1] << 8) | buffer[cursor];
         packet->header = parseClientHeader(headerInt);
         cursor += HEADER_SIZE_CLIENT;
         remainingBytes -= HEADER_SIZE_CLIENT;
@@ -202,8 +202,8 @@ class LinkWirelessOpenSDK {
       ServerPacket* packet =
           &serverResponse->packets[serverResponse->packetsSize];
 
-      u32 headerInt = (*((u16*)(buffer + cursor))) |
-                      (((*((u8*)(buffer + cursor + 2)))) << 16);
+      u32 headerInt = (buffer[cursor + 2] << 16) | (buffer[cursor + 1] << 8) |
+                      buffer[cursor];
       packet->header = parseServerHeader(headerInt);
       cursor += HEADER_SIZE_SERVER;
       remainingBytes -= HEADER_SIZE_SERVER;
@@ -253,6 +253,7 @@ class LinkWirelessOpenSDK {
     buffer.header.n = sequence.n;
     buffer.header.phase = sequence.phase;
     buffer.header.commState = sequence.commState;
+    buffer.header._unused_ = 0;
     u32 headerInt = serializeServerHeader(buffer.header);
 
     buffer.data[buffer.dataSize++] = headerInt;
@@ -375,6 +376,7 @@ class LinkWirelessOpenSDK {
     serverHeader.n = clientHeader.n;
     serverHeader.phase = clientHeader.phase;
     serverHeader.commState = clientHeader.commState;
+    serverHeader._unused_ = 0;
 
     return serverHeader;
   }
