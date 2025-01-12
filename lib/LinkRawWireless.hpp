@@ -1213,6 +1213,10 @@ class LinkRawWireless {
         return false;
       }
     }
+
+    Link::wait(2);  // this wait is VERY important to avoid desyncs!
+    // wait at least 40us; monitoring VCOUNT to avoid requiring a timer
+
     // (normally, this occurs on the next linkSPI.transfer(...) call)
     if (isLastPart) {
       linkSPI._setSOLow();

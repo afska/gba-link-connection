@@ -516,7 +516,7 @@ If we analyze whether a command ID throws an 'invalid command' error (`0x996601e
 
 - The extra parameter has two bitarrays:
   - Bits `0-4`: The clients that _received_ data.
-  - Bits `8-11`: The clients marked as _inactive_. This depends on the # of maximum transmissions configured with the [Setup](#setup---0x17) command.
+  - Bits `8-11`: The clients marked as _inactive_. In theory, this depends on the # of maximum transmissions configured with the [Setup](#setup---0x17) command, but it seems to just mark them as inactive after 4 seconds.
 
 🔗 When the adapter is disconnected from the host, it sends a `0x99660029`.
 
@@ -528,12 +528,16 @@ If we analyze whether a command ID throws an 'invalid command' error (`0x996601e
 
 While the clock is inverted, the acknowledge procedure is 'standard' but with the inverted roles
 
-    1.  The adapter goes low as soon as it can.
-    2.  The GBA goes high.
-    3.  The adapter goes high.
-    4.  The GBA goes low _when it’s ready_.
-    5.  The adapter goes low when it's ready.
-    6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+[![during clock inversion](img/wireless/ack-inverted.png)](img/wireless/ack-inverted.png)
+
+1.  The adapter goes low as soon as it can.
+2.  The GBA goes high.
+3.  The adapter goes high.
+4.  The GBA goes low _when it’s ready_, but **wait at least 50us**! (\*)
+5.  The adapter goes low when it's ready.
+6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+
+> (\*) Clock inversion is _finicky_. If you don't wait enough time between transfers, the adapter will desync _forever_ (well, until you reset it with _SD=HIGH_). `LinkWireless` doesn't use wait commands and calls the regular `SendData` instead, it's less efficient but way more reliable.
 
 ## Wireless Multiboot
 
