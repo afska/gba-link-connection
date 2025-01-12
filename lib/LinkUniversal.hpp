@@ -179,6 +179,8 @@ class LinkUniversal {
   /**
    * @brief Deactivates the library, disabling both cable and wireless modes.
    * Returns whether the deactivation of the Wireless Adapter was successful.
+   * \param turnOffWireless If `true`, the Wireless Adapter will be reset
+   * (default behavior).
    */
   bool deactivate(bool turnOffWireless = true) {
     isEnabled = false;
