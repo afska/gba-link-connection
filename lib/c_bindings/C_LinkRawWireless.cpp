@@ -1,6 +1,8 @@
 #include "C_LinkRawWireless.h"
 #include "../LinkRawWireless.hpp"
 
+#include <cstring>
+
 extern "C" {
 C_LinkRawWireless_CommandResult fromCppResult(
     LinkRawWireless::CommandResult cppResult);
@@ -130,10 +132,10 @@ bool C_LinkRawWireless_broadcastReadPoll(
   for (u32 i = 0; i < response->serversSize; i++) {
     response->servers[i].id = cppResponse.servers[i].id;
     response->servers[i].gameId = cppResponse.servers[i].gameId;
-    LINK_MEMCPY(response->servers[i].gameName, cppResponse.servers[i].gameName,
-                LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1);
-    LINK_MEMCPY(response->servers[i].userName, cppResponse.servers[i].userName,
-                LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1);
+    for (u32 j = 0; j < LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH + 1; j++)
+      response->servers[i].gameName[j] = cppResponse.servers[i].gameName[j];
+    for (u32 j = 0; j < LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1; j++)
+      response->servers[i].userName[j] = cppResponse.servers[i].userName[j];
     response->servers[i].nextClientNumber =
         cppResponse.servers[i].nextClientNumber;
   }
@@ -184,8 +186,8 @@ bool C_LinkRawWireless_sendDataAndWait(
   remoteCommand->success = cppRemoteCommand.success;
   remoteCommand->commandId = cppRemoteCommand.commandId;
   remoteCommand->dataSize = cppRemoteCommand.dataSize;
-  LINK_MEMCPY(remoteCommand->data, cppRemoteCommand.data,
-              LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
+  for (u32 j = 0; j < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; j++)
+    remoteCommand->data[j] = cppRemoteCommand.data[j];
   return success;
 }
 
@@ -212,8 +214,8 @@ bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
   remoteCommand->success = cppRemoteCommand.success;
   remoteCommand->commandId = cppRemoteCommand.commandId;
   remoteCommand->dataSize = cppRemoteCommand.dataSize;
-  LINK_MEMCPY(remoteCommand->data, cppRemoteCommand.data,
-              LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH * sizeof(u32));
+  for (u32 j = 0; j < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; j++)
+    remoteCommand->data[j] = cppRemoteCommand.data[j];
   return success;
 }
 

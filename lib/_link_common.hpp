@@ -6,38 +6,6 @@
 #endif
 
 /**
- * @brief strlen(...) implementation (by default, std::strlen)
- */
-#ifndef LINK_STRLEN
-#include <cstring>
-#define LINK_STRLEN std::strlen
-#endif
-
-/**
- * @brief strcmp(...) implementation (by default, std::strcmp)
- */
-#ifndef LINK_STRCMP
-#include <cstdio>
-#define LINK_STRCMP std::strcmp
-#endif
-
-/**
- * @brief snprintf(...) implementation (by default, std::snprintf)
- */
-#ifndef LINK_SNPRINTF
-#include <cstdio>
-#define LINK_SNPRINTF std::snprintf
-#endif
-
-/**
- * @brief memcpy(...) implementation (by default, std::memcpy)
- */
-#ifndef LINK_MEMCPY
-#include <cstring>
-#define LINK_MEMCPY std::memcpy
-#endif
-
-/**
  * @brief Enable mGBA debug logging.
  */
 #ifndef LINK_ENABLE_DEBUG_LOGS
@@ -228,6 +196,34 @@ static inline void wait(u32 verticalLines) {
       vCount = Link::_REG_VCOUNT;
     }
   };
+}
+
+static inline u32 strlen(const char* s) {
+  u32 len = 0;
+  while (s[len] != '\0')
+    ++len;
+  return len;
+}
+
+static inline bool areStrEqual(const char* s1, const char* s2) {
+  while (*s1 && (*s1 == *s2)) {
+    ++s1;
+    ++s2;
+  }
+  return *s1 == *s2;
+}
+
+static inline void intToStr5(char* buf, int num) {
+  char temp[6];
+  int pos = 0;
+  do {
+    temp[pos++] = '0' + (num % 10);
+    num /= 10;
+  } while (num && pos < 5);
+  int j = 0;
+  while (pos)
+    buf[j++] = temp[--pos];
+  buf[j] = '\0';
 }
 
 // Queue

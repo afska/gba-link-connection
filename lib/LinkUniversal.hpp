@@ -566,7 +566,7 @@ class LinkUniversal {
         break;
 
       if (!server.isFull() &&
-          LINK_STRCMP(server.gameName, config.gameName) == 0 &&
+          Link::areStrEqual(server.gameName, config.gameName) &&
           (LINK_UNIVERSAL_GAME_ID_FILTER == 0 ||
            server.gameId == LINK_UNIVERSAL_GAME_ID_FILTER)) {
         u32 randomNumber = safeStoi(server.userName);
@@ -588,8 +588,7 @@ class LinkUniversal {
       serveWait = SERVE_WAIT_FRAMES + _qran_range(1, SERVE_WAIT_FRAMES_RANDOM);
       u32 randomNumber = _qran_range(1, MAX_ROOM_NUMBER);
       char randomNumberStr[6];
-      LINK_SNPRINTF(randomNumberStr, sizeof(randomNumberStr), "%d",
-                    randomNumber);
+      Link::intToStr5(randomNumberStr, randomNumber);
       if (!linkWireless.serve(config.gameName, randomNumberStr,
                               LINK_UNIVERSAL_GAME_ID_FILTER > 0
                                   ? LINK_UNIVERSAL_GAME_ID_FILTER

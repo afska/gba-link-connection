@@ -60,9 +60,6 @@
 
 #include "LinkRawWireless.hpp"
 
-// #include <string>
-// #include <functional>
-
 #ifndef LINK_WIRELESS_QUEUE_SIZE
 /**
  * @brief Buffer size (how many incoming and outgoing messages the queues can
@@ -194,7 +191,6 @@ class LinkWireless {
   u32 QUICK_RECEIVE = 0;
 #endif
 
-// std::function<void(std::string str)> debug;
 // #define LINK_WIRELESS_PROFILING_ENABLED
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
   u32 vblankTime = 0;
@@ -365,9 +361,9 @@ class LinkWireless {
     if (linkRawWireless.getState() != LinkWireless::State::AUTHENTICATED &&
         linkRawWireless.getState() != LinkWireless::State::SERVING)
       return badRequest(WRONG_STATE);
-    if (LINK_STRLEN(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
+    if (Link::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
       return badRequest(GAME_NAME_TOO_LONG);
-    if (LINK_STRLEN(userName) > LINK_WIRELESS_MAX_USER_NAME_LENGTH)
+    if (Link::strlen(userName) > LINK_WIRELESS_MAX_USER_NAME_LENGTH)
       return badRequest(USER_NAME_TOO_LONG);
 
     isSendingSyncCommand = true;
@@ -498,10 +494,10 @@ class LinkWireless {
       Server server;
       server.id = foundServers[i].id;
       server.gameId = foundServers[i].gameId;
-      LINK_MEMCPY(server.gameName, foundServers[i].gameName,
-                  LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1);
-      LINK_MEMCPY(server.userName, foundServers[i].userName,
-                  LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1);
+      for (u32 j = 0; j < LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1; j++)
+        server.gameName[j] = foundServers[i].gameName[j];
+      for (u32 j = 0; j < LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1; j++)
+        server.userName[j] = foundServers[i].userName[j];
       u8 nextClientNumber = foundServers[i].nextClientNumber;
       server.currentPlayerCount =
           nextClientNumber == 0xff ? 0 : 1 + nextClientNumber;

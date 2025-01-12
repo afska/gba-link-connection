@@ -74,7 +74,6 @@ start:
       forwarding, retransmission, maxPlayers,
       isRestoringFromMultiboot ? 1000 : LINK_WIRELESS_DEFAULT_TIMEOUT,
       LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
-  // linkWireless->debug = [](std::string str) { Common::log(str); };
 
   // (2) Add the required interrupt service routines
   interrupt_init();
