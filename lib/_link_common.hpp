@@ -33,6 +33,11 @@
 #include <stdio.h>
 #endif
 
+#define LINK_BARRIER asm volatile("" ::: "memory")
+#define LINK_CODE_IWRAM \
+  __attribute__((section(".iwram"), target("arm"), noinline))
+#define LINK_ALWAYS_INLINE inline __attribute__((always_inline))
+
 /**
  * @brief This namespace contains shared code between all libraries.
  * \warning Most of these things are borrowed from libtonc and gba-hpp.

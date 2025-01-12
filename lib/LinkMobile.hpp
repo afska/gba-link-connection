@@ -87,7 +87,6 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.1.0";
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
 #define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 10)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
-#define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
 
 #if LINK_ENABLE_DEBUG_LOGS != 0
 #define _LMLOG_(...) Link::log(__VA_ARGS__)
@@ -285,16 +284,16 @@ class LinkMobile {
   void activate() {
     error = {};
 
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
 
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
 
     start();
   }

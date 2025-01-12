@@ -157,10 +157,6 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.1.0";
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 10
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
-#define LINK_WIRELESS_BARRIER asm volatile("" ::: "memory")
-#define LINK_WIRELESS_CODE_IWRAM \
-  __attribute__((section(".iwram"), target("arm"), noinline))
-#define LINK_WIRELESS_ALWAYS_INLINE inline __attribute__((always_inline))
 
 #define LINK_WIRELESS_RESET_IF_NEEDED                                 \
   if (!isEnabled)                                                     \
@@ -297,9 +293,9 @@ class LinkWireless {
     lastError = NONE;
     isEnabled = false;
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     bool success = reset();
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     isEnabled = true;
     return success;
@@ -391,9 +387,9 @@ class LinkWireless {
     if (!success)
       return abort(COMMAND_FAILED);
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     isSendingSyncCommand = false;
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     return true;
   }
@@ -420,9 +416,9 @@ class LinkWireless {
     if (!success)
       return abort(COMMAND_FAILED);
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     isSendingSyncCommand = false;
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     return true;
   }
@@ -596,9 +592,9 @@ class LinkWireless {
     if (!isSessionActive())
       return false;
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     sessionState.incomingMessages.startReading();
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     u32 i = 0;
     while (!sessionState.incomingMessages.isEmpty()) {
@@ -610,9 +606,9 @@ class LinkWireless {
       i++;
     }
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     sessionState.incomingMessages.stopReading();
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     return true;
   }
@@ -825,7 +821,7 @@ class LinkWireless {
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
-  LINK_WIRELESS_ALWAYS_INLINE void __onSerial() {
+  LINK_ALWAYS_INLINE void __onSerial() {
     if (!isEnabled)
       return;
 
@@ -857,7 +853,7 @@ class LinkWireless {
    * @brief This method is called by the TIMER interrupt handler.
    * \warning This is internal API!
    */
-  LINK_WIRELESS_ALWAYS_INLINE void __onTimer() {
+  LINK_ALWAYS_INLINE void __onTimer() {
     if (!isEnabled)
       return;
 
@@ -968,7 +964,7 @@ class LinkWireless {
   void irqEnd() {
     Link::_REG_IME = 0;
     interrupt = false;
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     if (pendingVBlank) {
       _onVBlank();
       pendingVBlank = false;
@@ -1427,9 +1423,9 @@ class LinkWireless {
   bool reset() {
     bool wasEnabled = isEnabled;
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
@@ -1438,9 +1434,9 @@ class LinkWireless {
     if (!success)
       stop();
 
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
     isEnabled = wasEnabled;
-    LINK_WIRELESS_BARRIER;
+    LINK_BARRIER;
 
     return success;
   }

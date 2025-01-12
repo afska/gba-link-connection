@@ -71,7 +71,6 @@ static volatile char LINK_CABLE_VERSION[] = "LinkCable/v7.1.0";
 #define LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
 #define LINK_CABLE_DISCONNECTED 0xffff
 #define LINK_CABLE_NO_DATA 0x0
-#define LINK_CABLE_BARRIER asm volatile("" ::: "memory")
 
 /**
  * @brief A Link Cable connection for Multi-Play mode.
@@ -123,25 +122,25 @@ class LinkCable {
    * @brief Activates the library.
    */
   void activate() {
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
 
     reset();
     clearIncomingMessages();
 
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
   }
 
   /**
    * @brief Deactivates the library.
    */
   void deactivate() {
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
@@ -173,16 +172,16 @@ class LinkCable {
     if (!isEnabled)
       return;
 
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
     isReadingMessages = true;
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
       move(_state.readyToSyncMessages[i], state.syncedIncomingMessages[i]);
 
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
     isReadingMessages = false;
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
 
     if (!isConnected())
       clearIncomingMessages();
@@ -398,7 +397,7 @@ class LinkCable {
     if (_state.outgoingMessages.isWriting())
       return;
 
-    LINK_CABLE_BARRIER;
+    LINK_BARRIER;
 
     transfer(_state.outgoingMessages.pop());
   }

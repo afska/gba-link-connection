@@ -39,8 +39,6 @@
 
 static volatile char LINK_UART_VERSION[] = "LinkUART/v7.1.0";
 
-#define LINK_UART_BARRIER asm volatile("" ::: "memory")
-
 /**
  * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
  */
@@ -111,24 +109,24 @@ class LinkUART {
     this->config.parity = parity;
     this->config.useCTS = false;
 
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
 
     reset();
 
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
   }
 
   /**
    * @brief Deactivates the library.
    */
   void deactivate() {
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();

@@ -51,14 +51,13 @@ static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
 #define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
-#define LINK_WIRELESS_MULTIBOOT_BARRIER asm volatile("" ::: "memory")
 #define LINK_WIRELESS_MULTIBOOT_TRY(CALL) \
-  LINK_WIRELESS_MULTIBOOT_BARRIER;        \
+  LINK_BARRIER;                           \
   if ((lastResult = CALL) != SUCCESS) {   \
     return finish(lastResult);            \
   }
 #define LINK_WIRELESS_MULTIBOOT_TRY_SUB(CALL) \
-  LINK_WIRELESS_MULTIBOOT_BARRIER;            \
+  LINK_BARRIER;                               \
   if ((lastResult = CALL) != SUCCESS) {       \
     return lastResult;                        \
   }
@@ -446,7 +445,7 @@ class LinkWirelessMultiboot {
                           listener))
     }
 
-    LINK_WIRELESS_MULTIBOOT_BARRIER;
+    LINK_BARRIER;
 
     _LWMLOG_("confirming (2/2)...");
     for (u32 i = 0; i < progress.connectedClients; i++) {

@@ -46,8 +46,6 @@
 
 static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.1.0";
 
-#define LINK_CUBE_BARRIER asm volatile("" ::: "memory")
-
 /**
  * @brief A JOYBUS handler for the Link Port.
  */
@@ -76,16 +74,16 @@ class LinkCube {
    * @brief Activates the library.
    */
   void activate() {
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
 
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
 
     start();
   }
