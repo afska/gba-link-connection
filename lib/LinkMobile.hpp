@@ -75,7 +75,7 @@
 #define LINK_MOBILE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.1.0";
+static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v8.0.0";
 
 #define LINK_MOBILE_MAX_USER_TRANSFER_LENGTH 254
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255

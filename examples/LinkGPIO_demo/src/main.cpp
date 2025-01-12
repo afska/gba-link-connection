@@ -25,7 +25,7 @@ int main() {
 
   while (true) {
     // (3) Use the pins
-    std::string output = "LinkGPIO_demo (v7.1.0)\n\n";
+    std::string output = "LinkGPIO_demo (v8.0.0)\n\n";
 
     // Commands
     u16 keys = ~REG_KEYS & KEY_ANY;

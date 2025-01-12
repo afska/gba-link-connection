@@ -37,7 +37,7 @@
 #define LINK_UART_QUEUE_SIZE 256
 #endif
 
-static volatile char LINK_UART_VERSION[] = "LinkUART/v7.1.0";
+static volatile char LINK_UART_VERSION[] = "LinkUART/v8.0.0";
 
 /**
  * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).

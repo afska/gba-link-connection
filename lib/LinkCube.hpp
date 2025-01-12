@@ -44,7 +44,7 @@
 #define LINK_CUBE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.1.0";
+static volatile char LINK_CUBE_VERSION[] = "LinkCube/v8.0.0";
 
 /**
  * @brief A JOYBUS handler for the Link Port.

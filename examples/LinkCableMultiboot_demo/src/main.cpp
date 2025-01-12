@@ -76,7 +76,7 @@ int main() {
 
     // Menu
     Common::log(
-        "LinkCableMultiboot_demo\n  (v7.1.0)\n\n"
+        "LinkCableMultiboot_demo\n  (v8.0.0)\n\n"
         "Press A to send the ROM...\n"
         "Press B to launch the ROM...\nLEFT/RIGHT: select ROM\nL: toggle "
         "mode\n\nSelected ROM:\n  " +

@@ -46,7 +46,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_SPI_VERSION[] = "LinkSPI/v7.1.0";
+static volatile char LINK_SPI_VERSION[] = "LinkSPI/v8.0.0";
 
 #define LINK_SPI_NO_DATA_32 0xffffffff
 #define LINK_SPI_NO_DATA_8 0xff
