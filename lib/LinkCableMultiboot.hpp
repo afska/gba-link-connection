@@ -40,7 +40,7 @@
 #endif
 
 static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v7.0.1";
+    "LinkCableMultiboot/v7.0.2";
 
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)   \
   partialResult = CALL;                  \

@@ -64,7 +64,7 @@ int main() {
 
 start:
   // Options
-  log("LinkWireless_demo (v7.0.1)\n" + buildSettings +
+  log("LinkWireless_demo (v7.0.2)\n" + buildSettings +
       "\n"
       "Press A to start\n\n"
       "hold LEFT on start:\n -> disable forwarding\n\n"

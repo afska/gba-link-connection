@@ -140,7 +140,7 @@
 // #define LINK_WIRELESS_TWO_PLAYERS_ONLY
 #endif
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.1";
+static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v7.0.2";
 
 #define LINK_WIRELESS_MAX_PLAYERS 5
 #define LINK_WIRELESS_MIN_PLAYERS 2
