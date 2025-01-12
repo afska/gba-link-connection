@@ -56,12 +56,10 @@ bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_SERVERS; i++) {
     servers[i].id = cppServers[i].id;
     servers[i].gameId = cppServers[i].gameId;
-    strncpy(servers[i].gameName, cppServers[i].gameName,
-            C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH);
-    servers[i].gameName[C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH] = '\0';
-    strncpy(servers[i].userName, cppServers[i].userName,
-            C_LINK_WIRELESS_MAX_USER_NAME_LENGTH);
-    servers[i].userName[C_LINK_WIRELESS_MAX_USER_NAME_LENGTH] = '\0';
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1; j++)
+      servers[i].gameName[j] = cppServers[i].gameName[j];
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1; j++)
+      servers[i].userName[j] = cppServers[i].userName[j];
     servers[i].currentPlayerCount = cppServers[i].currentPlayerCount;
   }
 
@@ -81,12 +79,10 @@ bool C_LinkWireless_getServersAsyncEnd(C_LinkWirelessHandle handle,
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_SERVERS; i++) {
     servers[i].id = cppServers[i].id;
     servers[i].gameId = cppServers[i].gameId;
-    strncpy(servers[i].gameName, cppServers[i].gameName,
-            C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH);
-    servers[i].gameName[C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH] = '\0';
-    strncpy(servers[i].userName, cppServers[i].userName,
-            C_LINK_WIRELESS_MAX_USER_NAME_LENGTH);
-    servers[i].userName[C_LINK_WIRELESS_MAX_USER_NAME_LENGTH] = '\0';
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1; j++)
+      servers[i].gameName[j] = cppServers[i].gameName[j];
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1; j++)
+      servers[i].userName[j] = cppServers[i].userName[j];
     servers[i].currentPlayerCount = cppServers[i].currentPlayerCount;
   }
 
