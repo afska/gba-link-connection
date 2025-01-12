@@ -4,8 +4,8 @@
 // --------------------------------------------------------------------------
 // An open-source implementation of the "official" Wireless Adapter protocol.
 // --------------------------------------------------------------------------
-// - Advanced usage only!
-// - You only need this if you want to interact with N software.
+// - advanced usage only; you only need this if you want to interact with N
+// software.
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT

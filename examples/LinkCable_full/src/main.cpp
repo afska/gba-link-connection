@@ -66,27 +66,20 @@ inline void setUpInterrupts() {
 
 #ifndef USE_LINK_UNIVERSAL
   // LinkCable
-  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
 #else
   // LinkUniversal
-  interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
 #endif
 
 // A+B+START+SELECT = SoftReset
 #if MULTIBOOT_BUILD == 0
   REG_KEYCNT = 0b1100000000001111;
-  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
-  interrupt_enable(INTR_KEYPAD);
+  interrupt_add(INTR_KEYPAD, Common::ISR_reset);
 #endif
 }
 

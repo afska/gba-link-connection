@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include "../../_lib/common.h"
+#include "../../_lib/interrupt.h"
 
 extern "C" {
 #include "../../_lib/libgbfs/gbfs.h"
@@ -30,8 +31,8 @@ void selectRight() {
 void init() {
   Common::initTTE();
 
-  irq_init(NULL);
-  irq_add(II_VBLANK, NULL);
+  interrupt_init();
+  interrupt_add(INTR_VBLANK, []() {});
 }
 
 int main() {

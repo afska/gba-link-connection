@@ -8,8 +8,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkSPI* linkSPI = new LinkSPI();
 // - 2) (Optional) Add the interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_SERIAL, LINK_SPI_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_SERIAL, LINK_SPI_ISR_SERIAL);
 //       // (this is only required for `transferAsync`)
 // - 3) Initialize the library with:
 //       linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS);

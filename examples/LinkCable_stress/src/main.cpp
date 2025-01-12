@@ -75,20 +75,14 @@ void init() {
 
 #ifndef USE_LINK_UNIVERSAL
   // LinkCable
-  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
 #else
   // LinkUniversal
-  interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
 #endif
 }
 

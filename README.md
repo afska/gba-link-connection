@@ -316,6 +316,8 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
   - After calling this method, call `getAsyncState()` and `getAsyncCommandResult()`.
   - Note that until you retrieve the async command result, next command requests will fail!
 
+⚠️ advanced usage only; if you're building a game, use `LinkWireless`!
+
 # 🔧🏛 LinkWirelessOpenSDK
 
 [⬆️](#gba-link-connection) All first-party games, including the Multiboot 'bootloader' sent by the adapter, use an official software-level protocol. This class provides methods for creating and reading packets that adhere to this protocol. It's supposed to be used in conjunction with [🔧📻 LinkRawWireless](#-LinkRawWireless).
@@ -332,6 +334,8 @@ Additionally, there's a `LinkWirelessOpenSDK::MultiTransfer` class for file tran
 | `createServerACKBuffer(clientHeader, clientNumber)`                                   | **LinkWirelessOpenSDK::SendBuffer<ServerSDKHeader>** | Creates a buffer for the host to acknowledge a header received from a certain `clientNumber`.                                                                                                                                                                                                                                                                                                                                                                              |
 | `createClientBuffer(fullPayload, fullPayloadSize, sequence, [offset])`                | **LinkWirelessOpenSDK::SendBuffer<ClientSDKHeader>** | Creates a buffer for the client to send a `fullPayload` with a valid header. If `fullPayloadSize` is higher than `14` (the maximum payload size), the buffer will only contain the **first** `14` bytes (unless an `offset` > 0 is used). A `sequence` number must be created by using `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.                                                                                                                           |
 | `createClientACKBuffer(serverHeader)`                                                 | **LinkWirelessOpenSDK::SendBuffer<ServerSDKHeader>** | Creates a buffer for the client to acknowledge a header received from the host.                                                                                                                                                                                                                                                                                                                                                                                            |
+
+⚠️ advanced usage only; you only need this if you want to interact with N software.
 
 # 🌎 LinkUniversal
 

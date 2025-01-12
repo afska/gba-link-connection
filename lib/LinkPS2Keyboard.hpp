@@ -10,9 +10,9 @@
 //         // handle event (check example scan codes below)
 //       });
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_PS2_KEYBOARD_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_PS2_KEYBOARD_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_PS2_KEYBOARD_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_PS2_KEYBOARD_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkPS2Keyboard->activate();
 // - 4) Handle events in the callback sent to LinkPS2Keyboard's constructor!

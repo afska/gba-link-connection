@@ -4,8 +4,6 @@
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-inline void VBLANK() {}
-
 // (1) Create a LinkRawCable instance
 LinkRawCable* linkRawCable = new LinkRawCable();
 
@@ -14,10 +12,8 @@ void init() {
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
 }
 
 int main() {

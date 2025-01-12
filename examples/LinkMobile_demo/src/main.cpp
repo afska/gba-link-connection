@@ -49,12 +49,9 @@ start:
 
   // (2) Add the required interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, LINK_MOBILE_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_MOBILE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_MOBILE_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_MOBILE_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_MOBILE_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_MOBILE_ISR_TIMER);
 
   // (3) Initialize the library
   linkMobile->activate();

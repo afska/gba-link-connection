@@ -8,8 +8,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkUART* linkUART = new LinkUART();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_SERIAL, LINK_UART_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_SERIAL, LINK_UART_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkUART->activate();
 // - 4) Send/read data by using:

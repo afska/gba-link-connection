@@ -8,8 +8,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkRawCable* linkRawCable = new LinkRawCable();
 // - 2) (Optional) Add the interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
 //       // (this is only required for `transferAsync`)
 // - 3) Initialize the library with:
 //       linkRawCable->activate();
@@ -52,6 +52,7 @@ static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v7.1.0";
 
 /**
  * @brief A low level handler for the Link Port (Multi-Play Mode).
+ * \warning Advanced usage only!
  * \warning If you're building a game, use `LinkCable`.
  */
 class LinkRawCable {

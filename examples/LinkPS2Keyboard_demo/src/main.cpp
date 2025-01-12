@@ -7,7 +7,6 @@
 static std::string scanCodes = "";
 static std::string output = "";
 static u32 irqs = 0;
-inline void VBLANK() {}
 void SERIAL() {
   LINK_PS2_KEYBOARD_ISR_SERIAL();
   irqs++;
@@ -24,10 +23,8 @@ void init() {
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, SERIAL);
-  interrupt_enable(INTR_SERIAL);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, SERIAL);
 }
 
 int main() {

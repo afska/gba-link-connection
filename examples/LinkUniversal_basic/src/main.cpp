@@ -61,17 +61,13 @@ int main() {
 
   // (2) Add the required interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
 
   // B+START+SELECT = SoftReset
   REG_KEYCNT = 0b1100000000001110;
-  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
-  interrupt_enable(INTR_KEYPAD);
+  interrupt_add(INTR_KEYPAD, Common::ISR_reset);
 
   // (3) Initialize the library
   linkUniversal->activate();

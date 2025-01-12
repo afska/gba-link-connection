@@ -2,6 +2,7 @@
 #include "../../../lib/LinkGPIO.hpp"
 
 #include "../../_lib/common.h"
+#include "../../_lib/interrupt.h"
 
 std::string mode(std::string name, LinkGPIO::Pin pin);
 std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh);
@@ -12,8 +13,8 @@ LinkGPIO* linkGPIO = new LinkGPIO();
 void init() {
   Common::initTTE();
 
-  irq_init(NULL);
-  irq_add(II_VBLANK, NULL);
+  interrupt_init();
+  interrupt_add(INTR_VBLANK, []() {});
 
   // (2) Initialize the library
   linkGPIO->reset();

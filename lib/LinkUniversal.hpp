@@ -8,10 +8,10 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkUniversal* linkUniversal = new LinkUniversal();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
-//       irq_add(II_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
+//       interrupt_add(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
 // - 3) Initialize the library with:
 //       linkUniversal->activate();
 // - 4) Sync:

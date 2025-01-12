@@ -5,6 +5,11 @@ void interrupt_init(void) {
   IRQ_Init();
 }
 
+void interrupt_add(interrupt_index index, interrupt_vector function) {
+  interrupt_set_handler(index, function);
+  interrupt_enable(index);
+}
+
 void interrupt_set_handler(interrupt_index index, interrupt_vector function) {
   IRQ_SetHandler((irq_index)index, function);
 }

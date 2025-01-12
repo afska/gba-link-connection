@@ -31,13 +31,11 @@ int main() {
 inline void setUpInterrupts() {
   interrupt_init();
 
-  interrupt_set_handler(INTR_VBLANK, [] {});
-  interrupt_enable(INTR_VBLANK);
+  interrupt_add(INTR_VBLANK, [] {});
 
   // A+B+START+SELECT = SoftReset
 #if MULTIBOOT_BUILD == 0
   REG_KEYCNT = 0b1100000000001111;
-  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
-  interrupt_enable(INTR_KEYPAD);
+  interrupt_add(INTR_KEYPAD, Common::ISR_reset);
 #endif
 }

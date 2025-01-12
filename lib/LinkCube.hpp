@@ -8,8 +8,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkCube* linkCube = new LinkCube();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_SERIAL, LINK_CUBE_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_SERIAL, LINK_CUBE_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkCube->activate();
 // - 4) Send 32-bit values:

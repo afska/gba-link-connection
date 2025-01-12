@@ -9,8 +9,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse();
 // - 2) Add the required interrupt service routines:
-//       irq_init(NULL);
-//       irq_add(II_TIMER2, NULL);
+//       interrupt_init();
+//       interrupt_add(INTR_TIMER2, []() {});
 // - 3) Initialize the library with:
 //       linkPS2Mouse->activate();
 // - 4) Get a report:

@@ -4,8 +4,6 @@
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-inline void VBLANK() {}
-
 std::string received = "";
 u32 lines = 0;
 
@@ -17,10 +15,8 @@ void init() {
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_UART_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, LINK_UART_ISR_SERIAL);
 }
 
 int main() {

@@ -9,10 +9,10 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkMobile* linkMobile = new LinkMobile();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_MOBILE_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_MOBILE_ISR_SERIAL);
-//       irq_add(II_TIMER3, LINK_MOBILE_ISR_TIMER);
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_MOBILE_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_MOBILE_ISR_SERIAL);
+//       interrupt_add(INTR_TIMER3, LINK_MOBILE_ISR_TIMER);
 // - 3) Initialize the library with:
 //       linkMobile->activate();
 //       // (do something until `linkMobile->isSessionActive()` returns `true`)

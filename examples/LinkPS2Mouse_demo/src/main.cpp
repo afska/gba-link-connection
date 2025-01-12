@@ -4,9 +4,6 @@
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-inline void VBLANK() {}
-inline void TIMER() {}
-
 // (1) Create a LinkPS2Mouse instance
 LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse(2);
 
@@ -15,15 +12,12 @@ void init() {
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_TIMER2, TIMER);
-  interrupt_enable(INTR_TIMER2);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_TIMER2, []() {});
 
   // B = SoftReset
   REG_KEYCNT = 0b10 | (1 << 14);
-  interrupt_set_handler(INTR_KEYPAD, Common::ISR_reset);
-  interrupt_enable(INTR_KEYPAD);
+  interrupt_add(INTR_KEYPAD, Common::ISR_reset);
 }
 
 int main() {
