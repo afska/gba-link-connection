@@ -202,6 +202,7 @@ class LinkWireless {
 #endif
 
   using State = LinkRawWireless::State;
+  using SignalLevelResponse = LinkRawWireless::SignalLevelResponse;
 
   enum Error {
     // User errors
@@ -393,7 +394,7 @@ class LinkWireless {
   /**
    * @brief Closes the server while keeping the session active, to prevent new
    * users from joining the room.
-   * \warning Closing the server can fail if the adapter is busy. In that case,
+   * \warning This action can fail if the adapter is busy. In that case,
    * this will return `false` and `getLastError()` will be `BUSY_TRY_AGAIN`.
    */
   bool closeServer() {
@@ -408,6 +409,36 @@ class LinkWireless {
 
     LinkRawWireless::AcceptConnectionsResponse response;
     bool success = linkRawWireless.endHost(response);
+
+    if (!success)
+      return abort(COMMAND_FAILED);
+
+    LINK_BARRIER;
+    isSendingSyncCommand = false;
+    LINK_BARRIER;
+
+    return true;
+  }
+
+  /**
+   * @brief Retrieves the signal level of each player (0-255). For hosts, the
+   * array will contain the signal level of each client in indexes 1-4. For
+   * clients, it will only include the index corresponding to the
+   * `currentPlayerId()`.
+   * @param response A structure that will be filled with the signal levels.
+   * \warning This action can fail if the adapter is busy. In that case, this
+   * will return `false` and `getLastError()` will be `BUSY_TRY_AGAIN`.
+   */
+  bool getSignalLevel(SignalLevelResponse& response) {
+    LINK_WIRELESS_RESET_IF_NEEDED
+    if (!isSessionActive())
+      return badRequest(WRONG_STATE);
+
+    isSendingSyncCommand = true;
+    if (isAsyncCommandActive())
+      return badRequest(BUSY_TRY_AGAIN);
+
+    bool success = linkRawWireless.getSignalLevel(response);
 
     if (!success)
       return abort(COMMAND_FAILED);
