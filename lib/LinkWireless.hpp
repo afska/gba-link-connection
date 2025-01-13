@@ -857,18 +857,12 @@ class LinkWireless {
 #endif
 
     int status = linkRawWireless._onSerial(false);
-    if (status <= -4)
+    if (status <= -4) {
       return (void)abort(ACKNOWLEDGE_FAILED);
-    else if (status <= 0) {
-#ifdef LINK_WIRELESS_PROFILING_ENABLED
-      serialTime += profileStop();
-      serialIRQs++;
-#endif
-      return;
+    } else if (status > 0) {
+      auto result = linkRawWireless.getAsyncCommandResult();
+      processAsyncCommand(result);
     }
-
-    auto result = linkRawWireless.getAsyncCommandResult();
-    processAsyncCommand(result);
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
     serialTime += profileStop();
