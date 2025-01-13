@@ -265,9 +265,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 [![Image without alt text or caption](img/wireless/0x1d.png)](img/wireless/0x1d.png)
 
-- Send length: 0, response length: 7 \* number of broadcasts (maximum: 4)
+Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEnd`.
+
+- Send length: 0
+- Response length:
+  - `0x1c`: 0
+  - `0x1d` and `0x1e`: and 7 \* number of broadcasts (maximum: 4)
 - All currently broadcasting devices are returned here along with a word of **metadata** (the metadata word first, then 6 words with broadcast data).
-- The metadata contains:
+- The metadata word contains:
   - First 2 bytes: Server ID. IDs have 16 bits.
   - 3rd byte: Next available slot. This can be used to check whether a player can join a room or not.
     - `0b00`: If you join this room, your `clientNumber` will be 0.
@@ -281,9 +286,11 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new ID.
 
-✅ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
+✅ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly and no data) to put the adapter in 'broadcast reading' mode, and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here) and exit broadcast reading mode. If you don't send that last `0x1e`, the next command will fail.
 
 ⌚ Although games wait 1 full second, small waits (like ~160ms) also work.
+
+⚙️ Calling `0x1d` repeatedly will provide an updated list of up to 4 hosts, always in the same order within each call cycle. If more than 4 hosts are available, the game must track the IDs found and loop through the `0x1c`, `0x1d`, and `0x1e` sequence to discover additional hosts. Each iteration of this sequence provides up to 4 hosts in the order they are discovered by the wireless adapter.
 
 ⏳ If a client sends a `0x1c` and then starts a `0x1d` loop (1 command per frame), and a console that was broadcasting is turned off, it disappears after 3 seconds.
 
@@ -294,6 +301,8 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsConnectionComplete](#isfinishedconnect---0x20)) and the least significant byte is the ID.
 
 🔗 If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
+
+❗ `0x19`, `0x1a` and `0x1b` behave like the 3 broadcast reading commands (`0x1c`, `0x1d` and `0x1e`), in the sense that `StartHost` puts the adapter in 'open host' mode, `AcceptConnections` polls new connections and `EndHost` exits the open host mode.
 
 #### Connect - `0x1f`
 
