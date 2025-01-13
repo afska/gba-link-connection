@@ -98,6 +98,9 @@ void printTutorial() {
   DEBULOG("A: send counter++ (cont)");
   DEBULOG("L: send counter++ twice (once)");
   DEBULOG("R: send counter++ twice (cont)");
+#ifdef USE_LINK_UNIVERSAL
+  DEBULOG("RIGHT: get signal level");
+#endif
   DEBULOG("SELECT: force lag (9k lines)");
   DEBULOG("DOWN: turn off connection");
   DEBULOG("");
