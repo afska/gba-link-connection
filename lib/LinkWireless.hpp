@@ -860,7 +860,7 @@ class LinkWireless {
     if (status <= -4) {
       return (void)abort(ACKNOWLEDGE_FAILED);
     } else if (status > 0) {
-      auto result = linkRawWireless.getAsyncCommandResult();
+      auto result = linkRawWireless._getAsyncCommandResultRef();
       processAsyncCommand(result);
     }
 
@@ -995,21 +995,21 @@ class LinkWireless {
 #endif
 
   void processAsyncCommand(
-      LinkRawWireless::CommandResult commandResult) {  // (irq only)
-    u8 commandId = commandResult.commandId;
-    if (!commandResult.success) {
-      return (void)abort(commandId == LinkRawWireless::COMMAND_SEND_DATA
-                             ? SEND_DATA_FAILED
-                         : commandId == LinkRawWireless::COMMAND_RECEIVE_DATA
-                             ? RECEIVE_DATA_FAILED
-                             : COMMAND_FAILED);
+      const LinkRawWireless::CommandResult* commandResult) {  // (irq only)
+    if (!commandResult->success) {
+      return (void)abort(
+          commandResult->commandId == LinkRawWireless::COMMAND_SEND_DATA
+              ? SEND_DATA_FAILED
+          : commandResult->commandId == LinkRawWireless::COMMAND_RECEIVE_DATA
+              ? RECEIVE_DATA_FAILED
+              : COMMAND_FAILED);
     }
 
-    switch (commandId) {
+    switch (commandResult->commandId) {
       case LinkRawWireless::COMMAND_ACCEPT_CONNECTIONS: {
         // AcceptConnections (end)
         linkRawWireless.sessionState.playerCount =
-            Link::_min(1 + commandResult.dataSize, config.maxPlayers);
+            Link::_min(1 + commandResult->dataSize, config.maxPlayers);
 
         break;
       }
@@ -1037,7 +1037,7 @@ class LinkWireless {
             sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
 #endif
 
-        if (commandResult.dataSize == 0)
+        if (commandResult->dataSize == 0)
           break;
 
         sessionState.recvFlag = true;
@@ -1133,9 +1133,9 @@ class LinkWireless {
     return lastPacketId;
   }
 
-  void addIncomingMessagesFromData(CommandResult& result) {  // (irq only)
-    for (u32 i = 1; i < result.dataSize; i++) {
-      u32 rawMessage = result.data[i];
+  void addIncomingMessagesFromData(const CommandResult* result) {  // (irq only)
+    for (u32 i = 1; i < result->dataSize; i++) {
+      u32 rawMessage = result->data[i];
       u16 headerInt = Link::msB32(rawMessage);
       u16 data = Link::lsB32(rawMessage);
 

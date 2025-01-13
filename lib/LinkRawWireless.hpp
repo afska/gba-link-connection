@@ -1095,6 +1095,16 @@ class LinkRawWireless {
   }
 
   /**
+   * @brief Returns a pointer to the internal result of the last async command
+   * and switches the state back to `IDLE`.
+   * \warning This is internal API!
+   */
+  [[nodiscard]] CommandResult* _getAsyncCommandResultRef() {
+    asyncState = IDLE;
+    return &asyncCommand.result;
+  }
+
+  /**
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
