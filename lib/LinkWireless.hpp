@@ -229,13 +229,12 @@ class LinkWireless {
 // std::function<void(std::string str)> debug;
 // #define PROFILING_ENABLED
 #ifdef PROFILING_ENABLED
-  u32 lastVBlankTime = 0;
-  u32 lastSerialTime = 0;
-  u32 lastTimerTime = 0;
-  u32 lastFrameSerialIRQs = 0;
-  u32 lastFrameTimerIRQs = 0;
-  u32 serialIRQCount = 0;
-  u32 timerIRQCount = 0;
+  u32 vblankTime = 0;
+  u32 serialTime = 0;
+  u32 timerTime = 0;
+  u32 vblankIRQs = 0;
+  u32 serialIRQs = 0;
+  u32 timerIRQs = 0;
 #endif
 
   enum State {
@@ -854,11 +853,8 @@ class LinkWireless {
     sessionState.pingSent = false;
 
 #ifdef PROFILING_ENABLED
-    lastVBlankTime = profileStop();
-    lastFrameSerialIRQs = serialIRQCount;
-    lastFrameTimerIRQs = timerIRQCount;
-    serialIRQCount = 0;
-    timerIRQCount = 0;
+    vblankTime += profileStop();
+    vblankIRQs++;
 #endif
   }
 
@@ -908,8 +904,8 @@ class LinkWireless {
     }
 
 #ifdef PROFILING_ENABLED
-    lastSerialTime = profileStop();
-    serialIRQCount++;
+    serialTime += profileStop();
+    serialIRQs++;
 #endif
   }
 
@@ -932,8 +928,8 @@ class LinkWireless {
       acceptConnectionsOrTransferData();
 
 #ifdef PROFILING_ENABLED
-    lastTimerTime = profileStop();
-    timerIRQCount++;
+    timerTime += profileStop();
+    timerIRQs++;
 #endif
   }
 
