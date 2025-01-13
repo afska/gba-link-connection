@@ -7,17 +7,17 @@
 // Usage:
 // - There's one method for every supported Wireless Adapter command:
 //   - `setup` = `0x17`
+//   - `getSystemStatus` = `0x13`
 //   - `broadcast` = `0x16`
 //   - `startHost` = `0x19`
-//   - `systemStatus` = `0x13`
-//   - `slotStatus` = `0x14`
+//   - `getSlotStatus` = `0x14`
 //   - `acceptConnections` = `0x1a`
 //   - `endHost` = `0x1b`
 //   - `broadcastReadStart` = `0x1c`
 //   - `broadcastReadPoll` = `0x1d`
 //   - `broadcastReadEnd` = `0x1e`
 //   - `connect` = `0x1f`
-//   - `isFinishedConnect` = `0x20`
+//   - `keepConnecting` = `0x20`
 //   - `finishConnection` = `0x21`
 //   - `sendData` = `0x24`
 //   - `sendDataAndWait` = `0x25`
@@ -298,6 +298,62 @@ class LinkRawWireless {
   }
 
   /**
+   * @brief Calls the SystemStatus (`0x13`) command.
+   * @param response A structure that will be filled with the response data.
+   */
+  bool getSystemStatus(SystemStatusResponse& response) {
+    auto result = sendCommand(COMMAND_SYSTEM_STATUS);
+
+    if (!result.success || result.dataSize != 1) {
+      _resetState();
+      return false;
+    }
+
+    u32 status = result.data[0];
+
+    response.deviceId = Link::lsB32(status);
+
+    u8 slot = Link::lsB16(Link::msB32(status)) & 0b1111;
+    response.currentPlayerId = slot == 0b0001   ? 1
+                               : slot == 0b0010 ? 2
+                               : slot == 0b0100 ? 3
+                               : slot == 0b1000 ? 4
+                                                : 0;
+
+    u8 adapterState = Link::msB16(Link::msB32(status));
+    response.isServerClosed = false;
+    switch (adapterState) {
+      case 1: {
+        response.adapterState = State::SERVING;
+        response.isServerClosed = true;
+        break;
+      }
+      case 2: {
+        response.adapterState = State::SERVING;
+        break;
+      }
+      case 3: {
+        response.adapterState = State::SEARCHING;
+        break;
+      }
+      case 4: {
+        response.adapterState = State::CONNECTING;
+        break;
+      }
+      case 5: {
+        response.adapterState = State::CONNECTED;
+        break;
+      }
+      default: {
+        response.adapterState = State::AUTHENTICATED;
+        break;
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * @brief Calls the Broadcast (`0x16`) command.
    * @param gameName Game name. Maximum `14` characters + null terminator.
    * @param userName User name. Maximum `8` characters + null terminator.
@@ -364,62 +420,6 @@ class LinkRawWireless {
 
     _LRWLOG_("server OPEN");
     sessionState.isServerClosed = false;
-
-    return true;
-  }
-
-  /**
-   * @brief Calls the SystemStatus (`0x13`) command.
-   * @param response A structure that will be filled with the response data.
-   */
-  bool getSystemStatus(SystemStatusResponse& response) {
-    auto result = sendCommand(COMMAND_SYSTEM_STATUS);
-
-    if (!result.success || result.dataSize != 1) {
-      _resetState();
-      return false;
-    }
-
-    u32 status = result.data[0];
-
-    response.deviceId = Link::lsB32(status);
-
-    u8 slot = Link::lsB16(Link::msB32(status)) & 0b1111;
-    response.currentPlayerId = slot == 0b0001   ? 1
-                               : slot == 0b0010 ? 2
-                               : slot == 0b0100 ? 3
-                               : slot == 0b1000 ? 4
-                                                : 0;
-
-    u8 adapterState = Link::msB16(Link::msB32(status));
-    response.isServerClosed = false;
-    switch (adapterState) {
-      case 1: {
-        response.adapterState = State::SERVING;
-        response.isServerClosed = true;
-        break;
-      }
-      case 2: {
-        response.adapterState = State::SERVING;
-        break;
-      }
-      case 3: {
-        response.adapterState = State::SEARCHING;
-        break;
-      }
-      case 4: {
-        response.adapterState = State::CONNECTING;
-        break;
-      }
-      case 5: {
-        response.adapterState = State::CONNECTED;
-        break;
-      }
-      default: {
-        response.adapterState = State::AUTHENTICATED;
-        break;
-      }
-    }
 
     return true;
   }

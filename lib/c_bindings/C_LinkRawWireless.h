@@ -111,14 +111,14 @@ bool C_LinkRawWireless_setup(C_LinkRawWirelessHandle handle,
                              u8 maxTransmissions,
                              u8 waitTimeout,
                              u32 magic);
+bool C_LinkRawWireless_getSystemStatus(
+    C_LinkRawWirelessHandle handle,
+    C_LinkRawWireless_SystemStatusResponse* response);
 bool C_LinkRawWireless_broadcast(C_LinkRawWirelessHandle handle,
                                  const char* gameName,
                                  const char* userName,
                                  u16 gameId);
 bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle);
-bool C_LinkRawWireless_getSystemStatus(
-    C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_SystemStatusResponse* response);
 bool C_LinkRawWireless_getSlotStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SlotStatusResponse* response);

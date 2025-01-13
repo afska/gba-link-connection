@@ -43,18 +43,6 @@ bool C_LinkRawWireless_setup(C_LinkRawWirelessHandle handle,
       maxPlayers, maxTransmissions, waitTimeout, magic);
 }
 
-bool C_LinkRawWireless_broadcast(C_LinkRawWirelessHandle handle,
-                                 const char* gameName,
-                                 const char* userName,
-                                 u16 gameId) {
-  return static_cast<LinkRawWireless*>(handle)->broadcast(gameName, userName,
-                                                          gameId);
-}
-
-bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle) {
-  return static_cast<LinkRawWireless*>(handle)->startHost();
-}
-
 bool C_LinkRawWireless_getSystemStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SystemStatusResponse* response) {
@@ -68,6 +56,18 @@ bool C_LinkRawWireless_getSystemStatus(
   response->isServerClosed = cppResponse.isServerClosed;
 
   return success;
+}
+
+bool C_LinkRawWireless_broadcast(C_LinkRawWirelessHandle handle,
+                                 const char* gameName,
+                                 const char* userName,
+                                 u16 gameId) {
+  return static_cast<LinkRawWireless*>(handle)->broadcast(gameName, userName,
+                                                          gameId);
+}
+
+bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle) {
+  return static_cast<LinkRawWireless*>(handle)->startHost();
 }
 
 bool C_LinkRawWireless_getSlotStatus(
