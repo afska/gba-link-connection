@@ -413,8 +413,8 @@ void messageLoop() {
 
     if (linkWireless->vblankIRQs >= 60) {
       avgVBlankTime = linkWireless->vblankTime / 60;
-      avgSerialTime = linkWireless->serialTime / linkWireless->serialIRQs;
-      avgTimerTime = linkWireless->timerTime / linkWireless->timerIRQs;
+      avgSerialTime = linkWireless->serialTime / 60;
+      avgTimerTime = linkWireless->timerTime / 60;
       avgSerialIRQs = linkWireless->serialIRQs / 60;
       avgTimerIRQs = linkWireless->timerIRQs / 60;
       avgTime = (linkWireless->vblankTime + linkWireless->serialTime +
