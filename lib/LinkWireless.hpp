@@ -792,7 +792,7 @@ class LinkWireless {
    * \warning This is internal API!
    */
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  __attribute__((noinline)) void _onVBlank() {
+  LINK_NOINLINE void _onVBlank() {
 #else
   void _onVBlank() {
 #endif
