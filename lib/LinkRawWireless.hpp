@@ -1068,7 +1068,7 @@ class LinkRawWireless {
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
-  int _onSerial(bool _withClockInversion = false) {
+  int _onSerial(bool _clockInversionSupport = true) {
     if (!isEnabled)
       return -1;
 
@@ -1083,11 +1083,12 @@ class LinkRawWireless {
       return -3;
 
     if (asyncCommand.state == AsyncCommand::State::PENDING) {
-      if (asyncCommand.direction == AsyncCommand::Direction::SENDING) {
+      if (!_clockInversionSupport ||
+          asyncCommand.direction == AsyncCommand::Direction::SENDING) {
         if (!acknowledge())
           return -4;
-        sendAsyncCommand(newData);
-      } else if (_withClockInversion) {
+        sendAsyncCommand(newData, _clockInversionSupport);
+      } else if (_clockInversionSupport) {
         if (!reverseAcknowledge(asyncCommand.step ==
                                 AsyncCommand::Step::DATA_REQUEST))
           return -5;
@@ -1376,7 +1377,8 @@ class LinkRawWireless {
     return lines > limit;
   }
 
-  void sendAsyncCommand(u32 newData) {  // (irq only)
+  void sendAsyncCommand(u32 newData,
+                        bool _clockInversionSupport = true) {  // (irq only)
     switch (asyncCommand.step) {
       case AsyncCommand::Step::COMMAND_HEADER: {
         if (newData != DATA_REQUEST_VALUE) {
@@ -1428,7 +1430,7 @@ class LinkRawWireless {
         asyncCommand.totalResponses = responses;
         asyncCommand.result.dataSize = responses;
 
-        receiveResponseOrFinish();
+        receiveResponseOrFinish(_clockInversionSupport);
         break;
       }
       case AsyncCommand::Step::DATA_REQUEST: {
@@ -1440,7 +1442,7 @@ class LinkRawWireless {
         asyncCommand.result.data[asyncCommand.receivedResponses] = newData;
         asyncCommand.receivedResponses++;
 
-        receiveResponseOrFinish();
+        receiveResponseOrFinish(_clockInversionSupport);
         break;
       }
       default: {
@@ -1463,12 +1465,13 @@ class LinkRawWireless {
     }
   }
 
-  void receiveResponseOrFinish() {  // (irq only)
+  void receiveResponseOrFinish(
+      bool _clockInversionSupport = true) {  // (irq only)
     if (asyncCommand.receivedResponses < asyncCommand.totalResponses) {
       asyncCommand.step = AsyncCommand::Step::DATA_REQUEST;
       transferAsync(DATA_REQUEST_VALUE, true);
     } else {
-      if (asyncCommand.invertsClock) {
+      if (_clockInversionSupport && asyncCommand.invertsClock) {
         _LRWLOG_("setting SPI to SLAVE");
         linkSPI.activate(LinkSPI::Mode::SLAVE);
 
