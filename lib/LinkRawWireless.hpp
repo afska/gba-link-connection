@@ -33,6 +33,10 @@
 //   `getAsyncCommandResult()`.
 //   - Note that until you retrieve the async command result, next command
 //   requests will fail!
+// - When sending arbitrary commands, the responds are not parsed. The
+//   exceptions are SendData and ReceiveData, which have these helpers:
+//   - `getSendDataHeaderFor(...)`
+//   - `getReceiveDataResponse(...)`
 // --------------------------------------------------------------------------
 // considerations:
 // - advanced usage only; if you're building a game, use `LinkWireless`!

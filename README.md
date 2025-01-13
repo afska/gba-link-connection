@@ -317,6 +317,9 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
   - This requires setting `LINK_RAW_WIRELESS_ISR_SERIAL` as the `SERIAL` interrupt handler.
   - After calling this method, call `getAsyncState()` and `getAsyncCommandResult()`.
   - Note that until you retrieve the async command result, next command requests will fail!
+- When sending arbitrary commands, the responds are not parsed. The exceptions are SendData and ReceiveData, which have these helpers:
+  - `getSendDataHeaderFor(...)`
+  - `getReceiveDataResponse(...)`
 
 ⚠️ advanced usage only; if you're building a game, use `LinkWireless`!
 
