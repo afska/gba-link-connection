@@ -49,7 +49,7 @@
 //     (see examples)
 // --------------------------------------------------------------------------
 // `send(...)` restrictions:
-// - 0xFFFF is a reserved value, so don't use it!
+// - 0xFFFF is a reserved value, so don't send it!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -155,11 +155,11 @@ static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v8.0.0";
 #define LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
 
-#define LINK_WIRELESS_RESET_IF_NEEDED                                 \
-  if (!isEnabled)                                                     \
-    return false;                                                     \
-  if (linkRawWireless.getState() == LinkWireless::State::NEEDS_RESET) \
-    if (!reset())                                                     \
+#define LINK_WIRELESS_RESET_IF_NEEDED                   \
+  if (!isEnabled)                                       \
+    return false;                                       \
+  if (linkRawWireless.getState() == State::NEEDS_RESET) \
+    if (!reset())                                       \
       return false;
 
 /**
@@ -359,8 +359,8 @@ class LinkWireless {
              const char* userName = "",
              u16 gameId = LINK_WIRELESS_MAX_GAME_ID) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless.getState() != LinkWireless::State::AUTHENTICATED &&
-        linkRawWireless.getState() != LinkWireless::State::SERVING)
+    if (linkRawWireless.getState() != State::AUTHENTICATED &&
+        linkRawWireless.getState() != State::SERVING)
       return badRequest(WRONG_STATE);
     if (Link::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
       return badRequest(GAME_NAME_TOO_LONG);
@@ -371,14 +371,14 @@ class LinkWireless {
     if (isAsyncCommandActive())
       return badRequest(BUSY_TRY_AGAIN);
 
-    if (linkRawWireless.getState() != LinkWireless::State::SERVING) {
+    if (linkRawWireless.getState() != State::SERVING) {
       if (!setup(config.maxPlayers))
         return abort(COMMAND_FAILED);
     }
 
     bool success = linkRawWireless.broadcast(gameName, userName, gameId, false);
 
-    if (linkRawWireless.getState() != LinkWireless::State::SERVING)
+    if (linkRawWireless.getState() != State::SERVING)
       success = success && linkRawWireless.startHost();
 
     if (!success)
@@ -399,7 +399,7 @@ class LinkWireless {
    */
   bool closeServer() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless.getState() != LinkWireless::State::SERVING ||
+    if (linkRawWireless.getState() != State::SERVING ||
         linkRawWireless.sessionState.isServerClosed)
       return badRequest(WRONG_STATE);
 
@@ -488,7 +488,7 @@ class LinkWireless {
    */
   bool getServersAsyncStart() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless.getState() != LinkWireless::State::AUTHENTICATED)
+    if (linkRawWireless.getState() != State::AUTHENTICATED)
       return badRequest(WRONG_STATE);
 
     bool success = linkRawWireless.broadcastReadStart();
@@ -506,7 +506,7 @@ class LinkWireless {
    */
   bool getServersAsyncEnd(Server servers[]) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless.getState() != LinkWireless::State::SEARCHING)
+    if (linkRawWireless.getState() != State::SEARCHING)
       return badRequest(WRONG_STATE);
 
     LinkRawWireless::BroadcastReadPollResponse response;
@@ -545,7 +545,7 @@ class LinkWireless {
    */
   bool connect(u16 serverId) {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless.getState() != LinkWireless::State::AUTHENTICATED)
+    if (linkRawWireless.getState() != State::AUTHENTICATED)
       return badRequest(WRONG_STATE);
 
     bool success = linkRawWireless.connect(serverId);
@@ -564,7 +564,7 @@ class LinkWireless {
    */
   bool keepConnecting() {
     LINK_WIRELESS_RESET_IF_NEEDED
-    if (linkRawWireless.getState() != LinkWireless::State::CONNECTING)
+    if (linkRawWireless.getState() != State::CONNECTING)
       return badRequest(WRONG_STATE);
 
     LinkRawWireless::ConnectionStatus response;
@@ -642,7 +642,7 @@ class LinkWireless {
 
   /**
    * @brief Returns the current state.
-   * @return One of the enum values from `LinkWireless::State`.
+   * @return One of the enum values from `State`.
    */
   [[nodiscard]] State getState() { return linkRawWireless.getState(); }
 
@@ -657,8 +657,8 @@ class LinkWireless {
    * @brief Returns `true` if the state is `SERVING` or `CONNECTED`.
    */
   [[nodiscard]] bool isSessionActive() {
-    return linkRawWireless.getState() == LinkWireless::State::SERVING ||
-           linkRawWireless.getState() == LinkWireless::State::CONNECTED;
+    return linkRawWireless.getState() == State::SERVING ||
+           linkRawWireless.getState() == State::CONNECTED;
   }
 
   /**
@@ -697,6 +697,7 @@ class LinkWireless {
 
   /**
    * @brief Restarts the send timer without disconnecting.
+   * \warning Call this if you changed `config.interval`.
    */
   void resetTimer() {
     if (!isEnabled)
@@ -898,9 +899,9 @@ class LinkWireless {
     bool forwarding;
     bool retransmission;
     u8 maxPlayers;
-    u32 timeout;     // can be changed in realtime
-    u16 interval;    // can be changed in realtime, but call `resetTimer()`
-    u8 sendTimerId;  // can be changed in realtime, but call `resetTimer()`
+    u32 timeout;   // can be changed in realtime
+    u16 interval;  // can be changed in realtime, but call `resetTimer()`
+    u8 sendTimerId;
   };
 
   /**
@@ -974,8 +975,8 @@ class LinkWireless {
 
 #ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
   void forwardMessageIfNeeded(Message& message) {
-    if (linkRawWireless.getState() == LinkWireless::State::SERVING &&
-        config.forwarding && linkRawWireless.sessionState.playerCount > 2)
+    if (linkRawWireless.getState() == State::SERVING && config.forwarding &&
+        linkRawWireless.sessionState.playerCount > 2)
       send(message.data, message.playerId);
   }
 #endif
@@ -1017,11 +1018,11 @@ class LinkWireless {
         // SendData (end)
 
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-        if (linkRawWireless.getState() == LinkWireless::State::CONNECTED)
+        if (linkRawWireless.getState() == State::CONNECTED)
           sessionState.shouldWaitForServer = true;
         sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
 #else
-        if (linkRawWireless.getState() == LinkWireless::State::SERVING) {
+        if (linkRawWireless.getState() == State::SERVING) {
           // ReceiveData (start)
           sendCommandAsync(LinkRawWireless::COMMAND_RECEIVE_DATA);
         }
@@ -1050,7 +1051,7 @@ class LinkWireless {
         addIncomingMessagesFromData(commandResult);
 
 #ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-        if (linkRawWireless.getState() == LinkWireless::State::CONNECTED) {
+        if (linkRawWireless.getState() == State::CONNECTED) {
           // SendData (start)
           sendPendingData();
         }
@@ -1064,21 +1065,20 @@ class LinkWireless {
   }
 
   LINK_INLINE void acceptConnectionsOrTransferData() {  // (irq only)
-    if (linkRawWireless.getState() == LinkWireless::State::SERVING &&
+    if (linkRawWireless.getState() == State::SERVING &&
         !linkRawWireless.sessionState.isServerClosed &&
         !sessionState.acceptCalled &&
         linkRawWireless.sessionState.playerCount < config.maxPlayers) {
       // AcceptConnections (start)
       if (sendCommandAsync(LinkRawWireless::COMMAND_ACCEPT_CONNECTIONS))
         sessionState.acceptCalled = true;
-    } else if (linkRawWireless.getState() == LinkWireless::State::CONNECTED ||
+    } else if (linkRawWireless.getState() == State::CONNECTED ||
                isConnected()) {
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive =
           !sessionState.sendReceiveLatch || sessionState.shouldWaitForServer;
 #else
-      bool shouldReceive =
-          linkRawWireless.getState() == LinkWireless::State::CONNECTED;
+      bool shouldReceive = linkRawWireless.getState() == State::CONNECTED;
 #endif
 
       if (shouldReceive) {
@@ -1184,7 +1184,7 @@ class LinkWireless {
   bool acceptMessage(Message& message,
                      bool isConfirmation,
                      u32 remotePlayerCount) {  // (irq only)
-    if (linkRawWireless.getState() == LinkWireless::State::SERVING) {
+    if (linkRawWireless.getState() == State::SERVING) {
       u32 expectedPacketId =
           (sessionState.lastPacketIdFromClients[message.playerId] + 1) %
           MAX_PACKET_IDS;
@@ -1236,7 +1236,7 @@ class LinkWireless {
   }
 
   void addConfirmations() {  // (irq only)
-    if (linkRawWireless.getState() == LinkWireless::State::SERVING) {
+    if (linkRawWireless.getState() == State::SERVING) {
 #ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
       if (config.maxPlayers > 2 &&
           (sessionState.lastPacketIdFromClients[1] == 0 ||
@@ -1268,7 +1268,7 @@ class LinkWireless {
   bool handleConfirmation(Message confirmation) {  // (irq only)
     u32 confirmationData = (confirmation.packetId << 16) | confirmation.data;
 
-    if (linkRawWireless.getState() == LinkWireless::State::CONNECTED) {
+    if (linkRawWireless.getState() == State::CONNECTED) {
       if (confirmation.playerId == 0 &&
           !sessionState.didReceiveLastPacketIdFromServer) {
         sessionState.lastPacketIdFromServer = confirmationData;
@@ -1359,8 +1359,7 @@ class LinkWireless {
 
   bool checkRemoteTimeouts() {  // (irq only)
     for (u32 i = 0; i < linkRawWireless.sessionState.playerCount; i++) {
-      if ((i == 0 ||
-           linkRawWireless.getState() == LinkWireless::State::SERVING) &&
+      if ((i == 0 || linkRawWireless.getState() == State::SERVING) &&
           sessionState.msgTimeouts[i] > config.timeout)
         return false;
     }
@@ -1370,7 +1369,7 @@ class LinkWireless {
 #endif
 
   u32 getDeviceTransferLength() {  // (irq only)
-    return linkRawWireless.getState() == LinkWireless::State::SERVING
+    return linkRawWireless.getState() == State::SERVING
                ? LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
                : LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
   }

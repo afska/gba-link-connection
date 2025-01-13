@@ -5,7 +5,7 @@
 // An open-source implementation of the "official" Wireless Adapter protocol.
 // --------------------------------------------------------------------------
 // - advanced usage only; you only need this if you want to interact with N
-// software.
+// software!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -21,8 +21,6 @@ static volatile char VERSION[] = "LinkWirelessOpenSDK/v8.0.0";
 /**
  * @brief An open-source implementation of the "official" Wireless Adapter
  * protocol.
- * \warning Advanced usage only!
- * \warning You only need this if you want to interact with N software.
  */
 class LinkWirelessOpenSDK {
  private:

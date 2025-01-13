@@ -71,10 +71,14 @@ typedef struct {
   bool forwarding;
   bool retransmission;
   u8 maxPlayers;
-  u32 timeout;     // can be changed in realtime
-  u16 interval;    // can be changed in realtime, but call `resetTimer()`
-  u8 sendTimerId;  // can be changed in realtime, but call `resetTimer()`
+  u32 timeout;   // can be changed in realtime
+  u16 interval;  // can be changed in realtime, but call `resetTimer()`
+  u8 sendTimerId;
 } C_LinkWireless_Config;
+
+typedef struct {
+  u8 signalLevels[C_LINK_WIRELESS_MAX_PLAYERS];
+} C_LinkWireless_SignalLevelResponse;
 
 C_LinkWirelessHandle C_LinkWireless_createDefault();
 C_LinkWirelessHandle C_LinkWireless_create(bool forwarding,
@@ -95,6 +99,10 @@ bool C_LinkWireless_serve(C_LinkWirelessHandle handle,
                           const char* userName,
                           u16 gameId);
 bool C_LinkWireless_closeServer(C_LinkWirelessHandle handle);
+
+bool C_LinkWireless_getSignalLevel(
+    C_LinkWirelessHandle handle,
+    C_LinkWireless_SignalLevelResponse* response);
 
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
                                C_LinkWireless_Server servers[]);

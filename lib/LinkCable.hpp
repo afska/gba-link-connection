@@ -257,6 +257,7 @@ class LinkCable {
 
   /**
    * @brief Restarts the send timer without disconnecting.
+   * \warning Call this if you changed `config.interval`.
    */
   void resetTimer() {
     if (!isEnabled)
@@ -357,9 +358,9 @@ class LinkCable {
 
   struct Config {
     BaudRate baudRate;
-    u32 timeout;     // can be changed in realtime
-    u16 interval;    // can be changed in realtime, but call `resetTimer()`
-    u8 sendTimerId;  // can be changed in realtime, but call `resetTimer()`
+    u32 timeout;   // can be changed in realtime
+    u16 interval;  // can be changed in realtime, but call `resetTimer()`
+    u8 sendTimerId;
   };
 
   /**

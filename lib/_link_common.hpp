@@ -288,13 +288,13 @@ class Queue {
 
   void syncPush(T item) {
     _isWriting = true;
-    asm volatile("" ::: "memory");
+    LINK_BARRIER;
 
     push(item);
 
-    asm volatile("" ::: "memory");
+    LINK_BARRIER;
     _isWriting = false;
-    asm volatile("" ::: "memory");
+    LINK_BARRIER;
 
     if (_needsClear) {
       clear();
@@ -304,13 +304,13 @@ class Queue {
 
   T syncPop() {
     _isReading = true;
-    asm volatile("" ::: "memory");
+    LINK_BARRIER;
 
     auto value = pop();
 
-    asm volatile("" ::: "memory");
+    LINK_BARRIER;
     _isReading = false;
-    asm volatile("" ::: "memory");
+    LINK_BARRIER;
 
     return value;
   }

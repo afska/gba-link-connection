@@ -35,8 +35,8 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - advanced usage only; if you're building a game, use `LinkCable`!
-// - don't send 0xFFFF, it's a reserved value that means <disconnected client>
-// - only transfer(...) if isReady()
+// - don't send 0xFFFF, it's a reserved value that means <disconnected client>!
+// - only `transfer(...)` if `isReady()`!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -52,8 +52,6 @@ static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v8.0.0";
 
 /**
  * @brief A low level handler for the Link Port (Multi-Play Mode).
- * \warning Advanced usage only!
- * \warning If you're building a game, use `LinkCable`.
  */
 class LinkRawCable {
  private:

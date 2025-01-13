@@ -32,12 +32,12 @@ _(click on the emojis for documentation)_
   - **Compiled ROMs are available** in [Releases](https://github.com/afska/gba-link-connection/releases).
   - The example code uses [libtonc](https://github.com/gbadev-org/libtonc) (and [libugba](https://github.com/AntonioND/libugba) for interrupts), but any library can be used.
   - The examples can be tested on real GBAs or using emulators.
-  - For `LinkCable`/`LinkWireless`/`LinkUniversal`, stress tests are provided to help you tweak your configuration. The [LinkUniversal_real](https://github.com/afska/gba-link-universal-test) ROM tests a more real scenario using an audio player, a background video, text and sprites.
+  - The [LinkUniversal_real](https://github.com/afska/gba-link-universal-test) ROM tests a more real scenario using an audio player, a background video, text and sprites.
   - The `LinkCableMultiboot_demo` and `LinkWirelessMultiboot_demo` examples can bootstrap all other examples, allowing you to test with multiple units even if you only have one flashcart.
 
 > The files use some compiler extensions, so using **GCC** is required.
 
-> The example ROMs were compiled with [devkitPro](https://devkitpro.org), using GCC `14.1.0` with `-std=c++17` as the standard and `-Ofast` as the optimization level.
+> The example ROMs were compiled with [devkitARM](https://devkitpro.org), using GCC `14.1.0` with `-std=c++17` as the standard and `-Ofast` as the optimization level.
 
 > To learn implementation details, you might also want to check out the [docs/](docs/) folder, which contains important documentation.
 
@@ -45,7 +45,7 @@ _(click on the emojis for documentation)_
 
 Running `./compile.sh` builds all the examples with the right configuration.
 
-The project must be in a path without spaces; devkitARM and some \*nix commands are required.
+The project must be in a path without spaces; _devkitARM_ and some \*nix commands are required.
 
 All the projects understand these Makefile actions:
 
@@ -126,7 +126,7 @@ You can also change these compile-time constants:
 | `read(playerId)`            | **u16**        | Dequeues and returns the next message from player #`playerId`. If there's no data from that player, a `0` will be returned.                                                      |
 | `peek(playerId)`            | **u16**        | Returns the next message from player #`playerId` without dequeuing it. If there's no data from that player, a `0` will be returned.                                              |
 | `send(data)`                | -              | Sends `data` to all connected players.                                                                                                                                           |
-| `resetTimer()`              | -              | Restarts the send timer without disconnecting.                                                                                                                                   |
+| `resetTimer()`              | -              | Restarts the send timer without disconnecting. Call this if you changed `config.interval`                                                                                                                                   |
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
 
@@ -182,9 +182,9 @@ You can change these compile-time constants:
 
 ⚠️ advanced usage only; if you're building a game, use `LinkCable`!
 
-⚠️ don't send `0xFFFF`, it's a reserved value that means _disconnected client_
+⚠️ don't send `0xFFFF`, it's a reserved value that means _disconnected client_!
 
-⚠️ only `transfer(...)` if `isReady()`
+⚠️ only `transfer(...)` if `isReady()`!
 
 # 📻 LinkWireless
 
@@ -234,7 +234,10 @@ You can also change these compile-time constants:
 - Most of these methods return a boolean, indicating if the action was successful. If not, you can call `getLastError()` to know the reason. Usually, unless it's a trivial error (like buffers being full), the connection with the adapter is reset and the game needs to start again.
 - You can check the connection state at any time with `getState()`.
 - Until a session starts, all actions are synchronous.
-- During sessions (when the state is `SERVING` or `CONNECTED`), the message transfers are IRQ-driven, so `send(...)` and `receive(...)` won't waste extra cycles. The only synchronous method that can be called during a session is `serve(...)`, which can be used to update the broadcast data.
+- During sessions (when the state is `SERVING` or `CONNECTED`), the message transfers are IRQ-driven, so `send(...)` and `receive(...)` won't waste extra cycles. Though there are some synchronous methods that can be called during a session:
+  - `serve(...)`, to update the broadcast data.
+  - `closeServer()`, to make it the room unavailable for new players.
+  - `getSignalLevel(...)`, to retrieve signal levels.
 
 | Name                                      | Return type             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ----------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -259,7 +262,7 @@ You can also change these compile-time constants:
 | `playerCount()`                           | **u8** _(1~5)_          | Returns the number of connected players.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `currentPlayerId()`                       | **u8** _(0~4)_          | Returns the current player ID.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `getLastError([clear])`                   | **LinkWireless::Error** | If one of the other methods returns `false`, you can inspect this to know the cause. After this call, the last error is cleared if `clear` is `true` (default behavior).                                                                                                                                                                                                                                                                                                                                                               |
-| `resetTimer()`                            | -                       | Restarts the send timer without disconnecting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `resetTimer()`                            | -                       | Restarts the send timer without disconnecting. Call this if you changed `config.interval`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ⚠️ `0xFFFF` is a reserved value, so don't send it!
 
@@ -278,7 +281,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 | Name                                                                 | Return type                       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | -------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sendRom(rom, romSize, gameName, userName, gameId, players, listener, [keepConnectionAlive])` | **LinkWirelessMultiboot::Result** | Sends the `rom`. The `players` must be the exact number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. During the process, the library will continuously invoke `listener` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`. You can start the transfer before the player count is reached by running `*progress.ready = true;` in the`cancel` callback. If a `keepConnectionAlive` is `true`, the adapter won't be reset after a successful transfer, so users can continue the session using `LinkWireless::restoreExistingConnection()`. |
-| `reset` | - | Turns off the adapter. It returns a boolean indicating whether the transition to low consumption mode was successful. |
+| `reset()` | - | Turns off the adapter. It returns a boolean indicating whether the transition to low consumption mode was successful. |
 
 # 🔧📻 LinkRawWireless
 
@@ -316,8 +319,8 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 - Use `sendCommandAsync(...)` to send arbitrary commands asynchronously.
   - This requires setting `LINK_RAW_WIRELESS_ISR_SERIAL` as the `SERIAL` interrupt handler.
   - After calling this method, call `getAsyncState()` and `getAsyncCommandResult()`.
-  - Note that until you retrieve the async command result, next command requests will fail!
-- When sending arbitrary commands, the responds are not parsed. The exceptions are SendData and ReceiveData, which have these helpers:
+  - Do not call any other methods until the async state is `IDLE` again, or the adapter will desync!
+- When sending arbitrary commands, the responses are not parsed. The exceptions are SendData and ReceiveData, which have these helpers:
   - `getSendDataHeaderFor(...)`
   - `getReceiveDataResponse(...)`
 
@@ -340,7 +343,7 @@ Additionally, there's a `LinkWirelessOpenSDK::MultiTransfer` class for file tran
 | `createClientBuffer(fullPayload, fullPayloadSize, sequence, [offset])`                | **LinkWirelessOpenSDK::SendBuffer<ClientSDKHeader>** | Creates a buffer for the client to send a `fullPayload` with a valid header. If `fullPayloadSize` is higher than `14` (the maximum payload size), the buffer will only contain the **first** `14` bytes (unless an `offset` > 0 is used). A `sequence` number must be created by using `LinkWirelessOpenSDK::SequenceNumber::fromPacketId(...)`.                                                                                                                           |
 | `createClientACKBuffer(serverHeader)`                                                 | **LinkWirelessOpenSDK::SendBuffer<ServerSDKHeader>** | Creates a buffer for the client to acknowledge a header received from the host.                                                                                                                                                                                                                                                                                                                                                                                            |
 
-⚠️ advanced usage only; you only need this if you want to interact with N software.
+⚠️ advanced usage only; you only need this if you want to interact with N software!
 
 # 🌎 LinkUniversal
 
@@ -612,7 +615,7 @@ You can also change these compile-time constants:
 | `deactivate()`    | -           | Deactivates the library.                                                                                                                                                                                                                                                                   |
 | `report(data[3])` | -           | Fills the `data` int array with a report. The first int contains _clicks_ that you can check against the bitmasks `LINK_PS2_MOUSE_LEFT_CLICK`, `LINK_PS2_MOUSE_MIDDLE_CLICK`, and `LINK_PS2_MOUSE_RIGHT_CLICK`. The second int is the _X movement_, and the third int is the _Y movement_. |
 
-⚠️ calling `activate()` or `report(...)` could freeze the system if nothing is connected: detecting timeouts using interrupts is the user's responsibility.
+⚠️ calling `activate()` or `report(...)` could freeze the system if nothing is connected: detecting timeouts using interrupts is the user's responsibility!
 
 ## Pinout
 

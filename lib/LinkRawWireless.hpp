@@ -31,9 +31,9 @@
 //   interrupt handler.
 //   - After calling this method, call `getAsyncState()` and
 //   `getAsyncCommandResult()`.
-//   - Note that until you retrieve the async command result, next command
-//   requests will fail!
-// - When sending arbitrary commands, the responds are not parsed. The
+//   - Do not call any other methods until the async state is `IDLE` again, or
+//   the adapter will desync!
+// - When sending arbitrary commands, the responses are not parsed. The
 //   exceptions are SendData and ReceiveData, which have these helpers:
 //   - `getSendDataHeaderFor(...)`
 //   - `getReceiveDataResponse(...)`
@@ -76,8 +76,6 @@ static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v8.0.0";
 
 /**
  * @brief A low level driver for the GBA Wireless Adapter.
- * \warning Advanced usage only!
- * \warning If you're building a game, use `LinkWireless`.
  */
 class LinkRawWireless {
  private:
@@ -243,6 +241,7 @@ class LinkRawWireless {
     _LRWLOG_("setting SPI to 2Mbps");
     linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
 
+    _LRWLOG_("analyzing system status");
     SystemStatusResponse systemStatus;
     if (!getSystemStatus(systemStatus)) {
       deactivate();
@@ -270,6 +269,7 @@ class LinkRawWireless {
     }
 
     sessionState.currentPlayerId = systemStatus.currentPlayerId;
+    _LRWLOG_("restored ok!");
 
     isEnabled = true;
     return true;
@@ -547,7 +547,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the BroadcastRead1 (`0x1c`) command.
+   * @brief Calls the BroadcastReadStart (`0x1c`) command.
    */
   bool broadcastReadStart() {
     bool success = sendCommand(COMMAND_BROADCAST_READ_START).success;
@@ -564,7 +564,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the BroadcastRead2 (`0x1d`) command.
+   * @brief Calls the BroadcastReadPoll (`0x1d`) command.
    * @param response A structure that will be filled with the response data.
    */
   bool broadcastReadPoll(BroadcastReadPollResponse& response) {
@@ -604,7 +604,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the BroadcastRead3 (`0x1e`) command.
+   * @brief Calls the BroadcastReadEnd (`0x1e`) command.
    */
   bool broadcastReadEnd() {
     bool success = sendCommand(COMMAND_BROADCAST_READ_END).success;

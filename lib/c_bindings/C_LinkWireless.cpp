@@ -48,6 +48,17 @@ bool C_LinkWireless_closeServer(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->closeServer();
 }
 
+bool C_LinkWireless_getSignalLevel(
+    C_LinkWirelessHandle handle,
+    C_LinkWireless_SignalLevelResponse* response) {
+  LinkWireless::SignalLevelResponse cppResponse;
+  bool success =
+      static_cast<LinkWireless*>(handle)->getSignalLevel(cppResponse);
+  for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+    response->signalLevels[i] = cppResponse.signalLevels[i];
+  return success;
+}
+
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
                                C_LinkWireless_Server servers[]) {
   LinkWireless::Server cppServers[C_LINK_WIRELESS_MAX_SERVERS];

@@ -69,7 +69,6 @@ void setInterval(u16 interval) {
 
 void init() {
   Common::initTTE();
-  Common::initTTE();
 
   interrupt_init();
 

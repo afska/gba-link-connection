@@ -367,6 +367,7 @@ class LinkUniversal {
 
   /**
    * @brief Restarts the send timer without disconnecting.
+   * \warning Call this if you changed `config.interval`.
    */
   void resetTimer() {
     if (!isEnabled)

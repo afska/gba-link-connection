@@ -22,8 +22,8 @@
 //       data[2] // Y movement
 // --------------------------------------------------------------------------
 // considerations:
-// - `activate()` or `report(...)` could freeze the system if not connected!
-// - detecting timeouts using interrupts is the user's responsibility!
+// - `activate()` or `report(...)` could freeze the system if not connected:
+//   detecting timeouts using interrupts is the user's responsibility!
 // --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |

@@ -21,7 +21,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - always set the SI terminal to an input!
-// - call reset() when you finish doing GPIO stuff!
+// - call `reset()` when you finish doing GPIO stuff!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
