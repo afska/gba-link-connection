@@ -10,6 +10,7 @@
 //   - `getSystemStatus` = `0x13`
 //   - `broadcast` = `0x16`
 //   - `startHost` = `0x19`
+//   - `getSignalLevel` = `0x11`
 //   - `getSlotStatus` = `0x14`
 //   - `acceptConnections` = `0x1a`
 //   - `endHost` = `0x1b`
@@ -101,9 +102,10 @@ class LinkRawWireless {
       LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / BROADCAST_RESPONSE_LENGTH;
   static constexpr int COMMAND_HELLO = 0x10;
   static constexpr int COMMAND_SETUP = 0x17;
+  static constexpr int COMMAND_SYSTEM_STATUS = 0x13;
   static constexpr int COMMAND_BROADCAST = 0x16;
   static constexpr int COMMAND_START_HOST = 0x19;
-  static constexpr int COMMAND_SYSTEM_STATUS = 0x13;
+  static constexpr int COMMAND_SIGNAL_LEVEL = 0x11;
   static constexpr int COMMAND_SLOT_STATUS = 0x14;
   static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1a;
   static constexpr int COMMAND_END_HOST = 0x1b;
@@ -166,6 +168,10 @@ class LinkRawWireless {
     u8 currentPlayerId = 0;
     State adapterState = AUTHENTICATED;
     bool isServerClosed = false;
+  };
+
+  struct SignalLevelResponse {
+    u8 signalLevels[LINK_RAW_WIRELESS_MAX_PLAYERS] = {};
   };
 
   struct SlotStatusResponse {
@@ -304,7 +310,9 @@ class LinkRawWireless {
   bool getSystemStatus(SystemStatusResponse& response) {
     auto result = sendCommand(COMMAND_SYSTEM_STATUS);
 
-    if (!result.success || result.dataSize != 1) {
+    if (!result.success || result.dataSize == 0) {
+      if (result.dataSize == 0)
+        _LRWLOG_("! empty response");
       _resetState();
       return false;
     }
@@ -420,6 +428,28 @@ class LinkRawWireless {
 
     _LRWLOG_("server OPEN");
     sessionState.isServerClosed = false;
+
+    return true;
+  }
+
+  /**
+   * @brief Calls the SignalLevel (`0x11`) command.
+   * @param response A structure that will be filled with the response data.
+   */
+  bool getSignalLevel(SignalLevelResponse& response) {
+    auto result = sendCommand(COMMAND_SIGNAL_LEVEL);
+
+    if (!result.success || result.dataSize == 0) {
+      if (result.dataSize == 0)
+        _LRWLOG_("! empty response");
+      _resetState();
+      return false;
+    }
+
+    u32 levels = result.data[0];
+
+    for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
+      response.signalLevels[i] = (levels >> ((i - 1) * 8)) & 0xff;
 
     return true;
   }

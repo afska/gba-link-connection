@@ -70,6 +70,17 @@ bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->startHost();
 }
 
+bool C_LinkRawWireless_getSignalLevel(
+    C_LinkRawWirelessHandle handle,
+    C_LinkRawWireless_SignalLevelResponse* response) {
+  LinkRawWireless::SignalLevelResponse cppResponse;
+  bool success =
+      static_cast<LinkRawWireless*>(handle)->getSignalLevel(cppResponse);
+  for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
+    response->signalLevels[i] = cppResponse.signalLevels[i];
+  return success;
+}
+
 bool C_LinkRawWireless_getSlotStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SlotStatusResponse* response) {
@@ -235,13 +246,11 @@ bool C_LinkRawWireless_getReceiveDataResponse(
   LinkRawWireless::ReceiveDataResponse cppResponse;
   bool success = static_cast<LinkRawWireless*>(handle)->getReceiveDataResponse(
       toCppResult(result), cppResponse);
-  for (u32 i = 0; i < cppResponse.dataSize; i++) {
+  for (u32 i = 0; i < cppResponse.dataSize; i++)
     response->data[i] = cppResponse.data[i];
-  }
   response->dataSize = cppResponse.dataSize;
-  for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++) {
+  for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
     response->sentBytes[i] = cppResponse.sentBytes[i];
-  }
 
   return success;
 }
@@ -322,9 +331,8 @@ C_LinkRawWireless_CommandResult fromCppResult(
   C_LinkRawWireless_CommandResult result;
   result.success = cppResult.success;
   result.commandId = cppResult.commandId;
-  for (u32 i = 0; i < cppResult.dataSize; i++) {
+  for (u32 i = 0; i < cppResult.dataSize; i++)
     result.data[i] = cppResult.data[i];
-  }
   result.dataSize = cppResult.dataSize;
   return result;
 }
@@ -333,9 +341,8 @@ LinkRawWireless::CommandResult toCppResult(
   LinkRawWireless::CommandResult cppResult;
   cppResult.success = cppResult.success;
   cppResult.commandId = result.commandId;
-  for (u32 i = 0; i < result.dataSize; i++) {
+  for (u32 i = 0; i < result.dataSize; i++)
     cppResult.data[i] = result.data[i];
-  }
   cppResult.dataSize = result.dataSize;
   return cppResult;
 }

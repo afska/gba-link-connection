@@ -474,6 +474,20 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
   switch (command) {
     case 0x10:
     case 0x11:
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::SignalLevelResponse response;
+        bool success = linkRawWireless->getSignalLevel(response);
+
+        if (success) {
+          log("< [levelH] " + std::to_string(response.signalLevels[0]));
+          log("< [levelC0] " + std::to_string(response.signalLevels[1]));
+          log("< [levelC1] " + std::to_string(response.signalLevels[2]));
+          log("< [levelC2] " + std::to_string(response.signalLevels[3]));
+          log("< [levelC3] " + std::to_string(response.signalLevels[4]));
+        }
+
+        return success;
+      });
     case 0x12:
       goto simple;
     case 0x13: {

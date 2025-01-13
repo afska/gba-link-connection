@@ -296,6 +296,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
   - `getSystemStatus` = `0x13`
   - `broadcast` = `0x16`
   - `startHost` = `0x19`
+  - `getSignalLevel` = `0x11`
   - `getSlotStatus` = `0x14`
   - `acceptConnections` = `0x1a`
   - `endHost` = `0x1b`
