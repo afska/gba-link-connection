@@ -994,7 +994,7 @@ class LinkWireless {
 #endif
 #endif
 
-  void processAsyncCommand(
+  LINK_INLINE void processAsyncCommand(
       const LinkRawWireless::CommandResult* commandResult) {  // (irq only)
     if (!commandResult->success) {
       return (void)abort(
@@ -1063,7 +1063,7 @@ class LinkWireless {
     }
   }
 
-  void acceptConnectionsOrTransferData() {  // (irq only)
+  LINK_INLINE void acceptConnectionsOrTransferData() {  // (irq only)
     if (linkRawWireless.getState() == LinkWireless::State::SERVING &&
         !linkRawWireless.sessionState.isServerClosed &&
         !sessionState.acceptCalled &&

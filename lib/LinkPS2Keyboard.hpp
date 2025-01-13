@@ -145,7 +145,7 @@ class LinkPS2Keyboard {
       if (val == 1) {             // stop bit should be 1
         // calculate parity (including the stored parity bit from previous IRQ)
         u8 parity = 0;
-        for (u8 i = 0; i < 8; i++)
+        for (u32 i = 0; i < 8; i++)
           parity += (incoming >> i) & 1;
         parity += parityBit;
 

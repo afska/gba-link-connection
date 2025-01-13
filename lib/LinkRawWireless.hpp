@@ -1108,7 +1108,7 @@ class LinkRawWireless {
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
-  int _onSerial(bool _clockInversionSupport = true) {
+  LINK_INLINE int _onSerial(bool _clockInversionSupport = true) {
     if (!isEnabled)
       return -1;
 
@@ -1417,8 +1417,9 @@ class LinkRawWireless {
     return lines > limit;
   }
 
-  void sendAsyncCommand(u32 newData,
-                        bool _clockInversionSupport = true) {  // (irq only)
+  LINK_INLINE void sendAsyncCommand(
+      u32 newData,
+      bool _clockInversionSupport = true) {  // (irq only)
     switch (asyncCommand.step) {
       case AsyncCommand::Step::COMMAND_HEADER: {
         if (newData != DATA_REQUEST_VALUE) {
@@ -1535,7 +1536,7 @@ class LinkRawWireless {
     }
   }
 
-  void receiveAsyncCommand(u32 newData) {  // (irq only)
+  LINK_INLINE void receiveAsyncCommand(u32 newData) {  // (irq only)
     switch (asyncCommand.step) {
       case AsyncCommand::Step::COMMAND_HEADER: {
         u16 header = Link::msB32(newData);
