@@ -1,8 +1,6 @@
 #include "C_LinkRawWireless.h"
 #include "../LinkRawWireless.hpp"
 
-#include <cstring>
-
 extern "C" {
 C_LinkRawWireless_CommandResult fromCppResult(
     LinkRawWireless::CommandResult cppResult);

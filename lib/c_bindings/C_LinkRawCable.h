@@ -26,7 +26,7 @@ typedef enum {
 } C_LinkRawCable_AsyncState;
 
 typedef struct {
-  u16 data[4];
+  u16 data[C_LINK_RAW_CABLE_MAX_PLAYERS];
   int playerId;
 } C_LinkRawCable_Response;
 
