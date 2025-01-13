@@ -606,7 +606,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the IsFinishedConnect (`0x20`) command.
+   * @brief Calls the IsConnectionComplete (`0x20`) command.
    * @param response A structure that will be filled with the response data.
    */
   bool keepConnecting(ConnectionStatus& response) {

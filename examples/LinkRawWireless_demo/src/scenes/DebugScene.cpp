@@ -224,8 +224,8 @@ void DebugScene::addCommandMenuOptions() {
       CommandMenuOption{.name = "0x1e (BroadcastReadEnd)", .command = 0x1e});
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x1f (Connect)", .command = 0x1f});
-  commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x20 (IsFinishedConnect)", .command = 0x20});
+  commandMenuOptions.push_back(CommandMenuOption{
+      .name = "0x20 (IsConnectionComplete)", .command = 0x20});
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x21 (FinishConnection)", .command = 0x21});
   commandMenuOptions.push_back(

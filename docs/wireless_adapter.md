@@ -291,7 +291,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 - Send length: 0, response length: 0+
 - Accepts new connections and returns a list with the connected adapters. The length of the response is zero if there are no connected adapters.
-- It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsFinishedConnect](#isfinishedconnect---0x20)) and the least significant byte is the ID.
+- It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsConnectionComplete](#isfinishedconnect---0x20)) and the least significant byte is the ID.
 
 🔗 If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
 
@@ -302,7 +302,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Send length: 1, response length: 0
 - Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1c-0x1d-and-0x1e).
 
-#### IsFinishedConnect - `0x20`
+#### IsConnectionComplete - `0x20`
 
 [![Image without alt text or caption](img/wireless/0x20.png)](img/wireless/0x20.png)
 
@@ -318,7 +318,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 [![Image without alt text or caption](img/wireless/0x21.png)](img/wireless/0x21.png)
 
 - Send length: 0, response length: 1
-- Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the final device ID (which tends to be equal to the ID from the previous command), the `clientNumber` in bits 16 and 17, and if all went well, zeros in its remaining bits.
+- Called after [IsConnectionComplete](#isfinishedconnect---0x20), responds with the final device ID (which tends to be equal to the ID from the previous command), the `clientNumber` in bits 16 and 17, and if all went well, zeros in its remaining bits.
 
 #### SendData - `0x24`
 
@@ -329,7 +329,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 - For hosts: the number of `bytes` that come next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   - `0x00000008`, `0xaabbccdd`, `0x12345678`.
-- For clients: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsFinishedConnect](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
+- For clients: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsConnectionComplete](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
   - The first client should send: `0x400`, `0xaabbccdd`
   - The second client should send: `0x8000`, `0xaabbccdd`
   - The third client should send: `0x100000`, `0xaabbccdd`
