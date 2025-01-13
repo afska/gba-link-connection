@@ -683,7 +683,7 @@ After all ROM chunks are ACK'd, the last transfers are:
 
 - `size=0, n=0, ph=0, ack=0, commState=3` (`3 = ENDING`)
 - `size=0, n=1, ph=0, ack=0, commState=0` (`0 = OFF`)
-  - acknowledged with `size=0, n=0, ph=0, ack=1, commState=3` (again)
+  - this one is not acknowledged by the clients!
 
 ## SPI config
 
