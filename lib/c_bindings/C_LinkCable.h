@@ -55,7 +55,7 @@ bool C_LinkCable_canRead(C_LinkCableHandle handle, u8 playerId);
 u16 C_LinkCable_read(C_LinkCableHandle handle, u8 playerId);
 u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
 
-void C_LinkCable_send(C_LinkCableHandle handle, u16 data);
+bool C_LinkCable_send(C_LinkCableHandle handle, u16 data);
 
 void C_LinkCable_resetTimer(C_LinkCableHandle handle);
 

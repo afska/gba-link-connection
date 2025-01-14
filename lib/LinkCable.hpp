@@ -247,10 +247,13 @@ class LinkCable {
   /**
    * @brief Sends `data` to all connected players.
    * @param data The value to be sent.
+   * \warning If `data` is invalid or the send queue is full, a `false` will be
+   * returned.
    */
-  void send(u16 data) {
-    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
-      return;
+  bool send(u16 data) {
+    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA ||
+        _state.outgoingMessages.isFull())
+      return false;
 
     _state.outgoingMessages.syncPush(data);
   }

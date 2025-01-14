@@ -594,7 +594,7 @@ class LinkWireless {
     if (!isSessionActive())
       return badRequest(WRONG_STATE);
 
-    if (!_canAddNewMessage()) {
+    if (!canAddNewMessage()) {
       if (_author < 0)
         lastError = BUFFER_IS_FULL;
       return false;
@@ -683,6 +683,30 @@ class LinkWireless {
   }
 
   /**
+   * @brief Returns whether the internal queue lost messages at some point due
+   * to being full. This can happen if you send too much data with slow
+   * `interval` configuration.
+   * \warning The flag is cleared on each call.
+   */
+  [[nodiscard]] bool didInternalQueueOverflow() {
+    bool flag = sessionState.newIncomingMessages.overflow;
+    sessionState.newIncomingMessages.overflow = false;
+    return flag;
+  }
+
+  /**
+   * @brief Returns whether the external queue lost messages at some point due
+   * to the external queue being full. This can happen if you receive too much
+   * data without calling `receive(...)` enough times.
+   * \warning The flag is cleared on each call.
+   */
+  [[nodiscard]] bool didExternalQueueOverflow() {
+    bool flag = sessionState.incomingMessages.overflow;
+    sessionState.incomingMessages.overflow = false;
+    return flag;
+  }
+
+  /**
    * @brief If one of the other methods returns `false`, you can inspect this to
    * know the cause. After this call, the last error is cleared if `clear` is
    * `true` (default behavior).
@@ -705,22 +729,6 @@ class LinkWireless {
 
     stopTimer();
     startTimer();
-  }
-
-  /**
-   * @brief Returns whether there's room for sending messages or not.
-   * \warning This is internal API!
-   */
-  [[nodiscard]] bool _canSend() {
-    return !sessionState.outgoingMessages.isFull();
-  }
-
-  /**
-   * @brief Returns whether there's room for scheduling new messages or not.
-   * \warning This is internal API!
-   */
-  [[nodiscard]] bool _canAddNewMessage() {
-    return !sessionState.newOutgoingMessages.isFull();
   }
 
   /**
@@ -911,7 +919,7 @@ class LinkWireless {
   Config config;
 
  private:
-  using MessageQueue = Link::Queue<Message, LINK_WIRELESS_QUEUE_SIZE, false>;
+  using MessageQueue = Link::Queue<Message, LINK_WIRELESS_QUEUE_SIZE>;
 
   struct SessionState {
     MessageQueue incomingMessages;     // read by user, write by irq&user
@@ -994,6 +1002,9 @@ class LinkWireless {
   }
 #endif
 #endif
+
+  bool canSend() { return !sessionState.outgoingMessages.isFull(); }
+  bool canAddNewMessage() { return !sessionState.newOutgoingMessages.isFull(); }
 
   LINK_INLINE void processAsyncCommand(
       const LinkRawWireless::CommandResult* commandResult) {  // (irq only)
@@ -1379,7 +1390,7 @@ class LinkWireless {
       return;
 
     while (!sessionState.newOutgoingMessages.isEmpty()) {
-      if (!_canSend())
+      if (!canSend())
         break;
 
       auto message = sessionState.newOutgoingMessages.pop();
@@ -1389,7 +1400,8 @@ class LinkWireless {
   }
 
   void copyIncomingState() {  // (irq only)
-    if (sessionState.incomingMessages.isReading())
+    if (sessionState.incomingMessages.isReading() ||
+        sessionState.incomingMessages.isFull())
       return;
 
     while (!sessionState.newIncomingMessages.isEmpty()) {
@@ -1488,6 +1500,9 @@ class LinkWireless {
 
     this->sessionState.newIncomingMessages.clear();
     this->sessionState.newOutgoingMessages.syncClear();
+
+    this->sessionState.incomingMessages.overflow = false;
+    this->sessionState.newIncomingMessages.overflow = false;
 
     isSendingSyncCommand = false;
   }

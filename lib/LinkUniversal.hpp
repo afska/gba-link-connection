@@ -349,20 +349,15 @@ class LinkUniversal {
 
   /**
    * @brief Sends `data` to all connected players.
-   * If the buffers are full, it either drops the oldest message (on cable mode)
-   * or ignores it returning `false` (on wireless mode).
    * @param data The value to be sent.
+   * \warning If `data` is invalid or the send queue is full, a `false` will be
+   * returned.
    */
   bool send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
       return false;
 
-    if (mode == LINK_CABLE) {
-      linkCable.send(data);
-      return true;
-    } else {
-      return linkWireless.send(data);
-    }
+    return mode == LINK_CABLE ? linkCable.send(data) : linkWireless.send(data);
   }
 
   /**

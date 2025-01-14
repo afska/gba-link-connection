@@ -882,7 +882,7 @@ class LinkMobile {
       sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
-  using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE, false>;
+  using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE>;
 
   LinkSPI linkSPI;
   RequestQueue userRequests;

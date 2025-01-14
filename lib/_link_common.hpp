@@ -231,11 +231,8 @@ class Queue {
  public:
   void push(T item) {
     if (isFull()) {
-      if constexpr (Overwrite) {
-        pop();
-      } else {
-        return;
-      }
+      overflow = true;  // (flag that the queue overflowed)
+      pop();            // (discard the oldest item to prioritize the new one)
     }
 
     rear = (rear + 1) % Size;
@@ -331,6 +328,8 @@ class Queue {
   bool isReading() { return _isReading; }
   bool isWriting() { return _isWriting; }
   bool canMutate() { return !_isReading && !_isWriting; }
+
+  volatile bool overflow = false;
 
  private:
   T arr[Size];

@@ -69,8 +69,8 @@ u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId) {
   return static_cast<LinkCable*>(handle)->peek(playerId);
 }
 
-void C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
-  static_cast<LinkCable*>(handle)->send(data);
+bool C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
+  return static_cast<LinkCable*>(handle)->send(data);
 }
 
 void C_LinkCable_resetTimer(C_LinkCableHandle handle) {
