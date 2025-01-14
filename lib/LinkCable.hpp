@@ -256,6 +256,7 @@ class LinkCable {
       return false;
 
     _state.outgoingMessages.syncPush(data);
+    return true;
   }
 
   /**
@@ -266,16 +267,16 @@ class LinkCable {
    * \warning The flag is cleared on each call.
    */
   [[nodiscard]] bool didReceiveQueueOverflow() {
-    bool overflow = false;
+    bool flag = false;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      overflow = overflow || _state.newMessages[i].overflow ||
-                 _state.readyToSyncMessages[i].overflow;
+      flag = flag || _state.newMessages[i].overflow ||
+             _state.readyToSyncMessages[i].overflow;
       _state.newMessages[i].overflow = false;
       state.syncedIncomingMessages[i].overflow = false;
     }
 
-    return overflow;
+    return flag;
   }
 
   /**

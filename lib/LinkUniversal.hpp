@@ -368,15 +368,15 @@ class LinkUniversal {
    * \warning The flag is cleared on each call.
    */
   [[nodiscard]] bool didReceiveQueueOverflow() {
-    bool overflow = mode == LINK_CABLE ? linkCable.didReceiveQueueOverflow()
-                                       : linkWireless.didReceiveQueueOverflow();
+    bool flag = mode == LINK_CABLE ? linkCable.didReceiveQueueOverflow()
+                                   : linkWireless.didReceiveQueueOverflow();
 
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
-      overflow = overflow || incomingMessages[i].overflow;
+      flag = flag || incomingMessages[i].overflow;
       incomingMessages[i].overflow = false;
     }
 
-    return overflow;
+    return flag;
   }
 
   /**
