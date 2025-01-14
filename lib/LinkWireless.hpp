@@ -684,25 +684,14 @@ class LinkWireless {
 
   /**
    * @brief Returns whether the internal queue lost messages at some point due
-   * to being full. This can happen if you send too much data with slow
-   * `interval` configuration.
+   * to being full. This can happen if your queue size is too low, if you
+   * receive too much data without calling `receive(...)` enough times, or if
+   * excessive `receive(...)` calls prevent the ISR from copying data.
    * \warning The flag is cleared on each call.
    */
   [[nodiscard]] bool didInternalQueueOverflow() {
     bool flag = sessionState.newIncomingMessages.overflow;
     sessionState.newIncomingMessages.overflow = false;
-    return flag;
-  }
-
-  /**
-   * @brief Returns whether the external queue lost messages at some point due
-   * to the external queue being full. This can happen if you receive too much
-   * data without calling `receive(...)` enough times.
-   * \warning The flag is cleared on each call.
-   */
-  [[nodiscard]] bool didExternalQueueOverflow() {
-    bool flag = sessionState.incomingMessages.overflow;
-    sessionState.incomingMessages.overflow = false;
     return flag;
   }
 
@@ -1003,7 +992,6 @@ class LinkWireless {
 #endif
 #endif
 
-  bool canSend() { return !sessionState.outgoingMessages.isFull(); }
   bool canAddNewMessage() { return !sessionState.newOutgoingMessages.isFull(); }
 
   LINK_INLINE void processAsyncCommand(
@@ -1389,10 +1377,8 @@ class LinkWireless {
     if (sessionState.newOutgoingMessages.isWriting())
       return;
 
-    while (!sessionState.newOutgoingMessages.isEmpty()) {
-      if (!canSend())
-        break;
-
+    while (!sessionState.newOutgoingMessages.isEmpty() &&
+           !sessionState.outgoingMessages.isFull()) {
       auto message = sessionState.newOutgoingMessages.pop();
       message.packetId = newPacketId();
       sessionState.outgoingMessages.push(message);
@@ -1400,11 +1386,11 @@ class LinkWireless {
   }
 
   void copyIncomingState() {  // (irq only)
-    if (sessionState.incomingMessages.isReading() ||
-        sessionState.incomingMessages.isFull())
+    if (sessionState.incomingMessages.isReading())
       return;
 
-    while (!sessionState.newIncomingMessages.isEmpty()) {
+    while (!sessionState.newIncomingMessages.isEmpty() &&
+           !sessionState.incomingMessages.isFull()) {
       auto message = sessionState.newIncomingMessages.pop();
       sessionState.incomingMessages.push(message);
     }
@@ -1501,7 +1487,6 @@ class LinkWireless {
     this->sessionState.newIncomingMessages.clear();
     this->sessionState.newOutgoingMessages.syncClear();
 
-    this->sessionState.incomingMessages.overflow = false;
     this->sessionState.newIncomingMessages.overflow = false;
 
     isSendingSyncCommand = false;
