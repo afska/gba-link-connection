@@ -151,8 +151,8 @@ u8 C_LinkWireless_currentPlayerId(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->currentPlayerId();
 }
 
-bool C_LinkWireless_didInternalQueueOverflow(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->didInternalQueueOverflow();
+bool C_LinkWireless_didReceiveQueueOverflow(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->didReceiveQueueOverflow();
 }
 
 C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
