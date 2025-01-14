@@ -361,6 +361,25 @@ class LinkUniversal {
   }
 
   /**
+   * @brief Returns whether the internal receive queue lost messages at some
+   * point due to being full. This can happen if your queue size is too low, if
+   * you receive too much data without calling `sync(...)` enough times, or if
+   * you don't `read(...)` enough messages before the next `sync()` call.
+   * \warning The flag is cleared on each call.
+   */
+  [[nodiscard]] bool didReceiveQueueOverflow() {
+    bool overflow = mode == LINK_CABLE ? linkCable.didReceiveQueueOverflow()
+                                       : linkWireless.didReceiveQueueOverflow();
+
+    for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
+      overflow = overflow || incomingMessages[i].overflow;
+      incomingMessages[i].overflow = false;
+    }
+
+    return overflow;
+  }
+
+  /**
    * @brief Restarts the send timer without disconnecting.
    * \warning Call this if you changed `config.interval`.
    */
@@ -675,8 +694,10 @@ class LinkUniversal {
     switchWait = SWITCH_WAIT_FRAMES + _qran_range(1, SWITCH_WAIT_FRAMES_RANDOM);
     subWaitCount = 0;
     serveWait = 0;
-    for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++)
+    for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
       incomingMessages[i].clear();
+      incomingMessages[i].overflow = false;
+    }
   }
 
   u32 safeStoi(const char* str) {
