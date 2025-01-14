@@ -530,6 +530,7 @@ You can change these compile-time constants:
 | `peek()`            | **u32**     | Returns the next received value without dequeuing it. If there's no received data, a `0` will be returned.                                         |
 | `send(data)`        | -           | Sends 32-bit `data`. If the other end asks for data at the same time you call this method, a `0x00000000` will be sent.                            |
 | `pendingCount()`    | **u32**     | Returns the number of pending outgoing transfers.                                                                                                  |
+| `didReceiveQueueOverflow()`    | **bool**     | Returns whether the internal receive queue lost messages at some point due to being full. This can happen if your queue size is too low, if you receive too much data without calling `read(...)` enough times, or if excessive `read(...)` calls prevent the ISR from copying data. The flag is cleared on each call.                                                                                                 |
 | `didReset([clear])` | **bool**    | Returns whether a JOYBUS reset was requested or not. After this call, the reset flag is cleared if `clear` is `true` (default behavior).           |
 
 # 📱 LinkMobile

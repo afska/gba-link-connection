@@ -155,8 +155,8 @@ class LinkCube {
   /**
    * @brief Returns whether the internal receive queue lost messages at some
    * point due to being full. This can happen if your queue size is too low, if
-   * you receive too much data without calling `receive(...)` enough times, or
-   * if excessive `receive(...)` calls prevent the ISR from copying data.
+   * you receive too much data without calling `read(...)` enough times, or
+   * if excessive `read(...)` calls prevent the ISR from copying data.
    * \warning The flag is cleared on each call.
    */
   [[nodiscard]] bool didReceiveQueueOverflow() {
