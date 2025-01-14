@@ -51,6 +51,10 @@ u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle) {
   return static_cast<LinkCube*>(handle)->pendingCount();
 }
 
+bool C_LinkCube_didInternalQueueOverflow(C_LinkCubeHandle handle) {
+  return static_cast<LinkCube*>(handle)->didInternalQueueOverflow();
+}
+
 bool C_LinkCube_didReset(C_LinkCubeHandle handle, bool clear) {
   return static_cast<LinkCube*>(handle)->didReset(clear);
 }

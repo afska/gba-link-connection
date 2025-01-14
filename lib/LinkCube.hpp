@@ -153,6 +153,19 @@ class LinkCube {
   [[nodiscard]] u32 pendingCount() { return outgoingQueue.size(); }
 
   /**
+   * @brief Returns whether the internal receive queue lost messages at some
+   * point due to being full. This can happen if your queue size is too low, if
+   * you receive too much data without calling `receive(...)` enough times, or
+   * if excessive `receive(...)` calls prevent the ISR from copying data.
+   * \warning The flag is cleared on each call.
+   */
+  [[nodiscard]] bool didInternalQueueOverflow() {
+    bool flag = newIncomingQueue.overflow;
+    newIncomingQueue.overflow = false;
+    return flag;
+  }
+
+  /**
    * @brief Returns whether a JOYBUS reset was requested or not. After this
    * call, the reset flag is cleared if `clear` is `true` (default behavior).
    * @param clear Whether it should clear the reset flag or not.
@@ -208,7 +221,7 @@ class LinkCube {
       needsClear = false;
     }
 
-    while (!newIncomingQueue.isEmpty())
+    while (!newIncomingQueue.isEmpty() && !incomingQueue.isFull())
       incomingQueue.push(newIncomingQueue.pop());
   }
 
@@ -221,6 +234,8 @@ class LinkCube {
       incomingQueue.clear();
     outgoingQueue.syncClear();
     resetFlag = false;
+
+    newIncomingQueue.overflow = false;
   }
 
   void setPendingData() {
