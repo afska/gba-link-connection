@@ -263,20 +263,23 @@ class LinkCable {
    * @brief Returns whether the internal receive queue lost messages at some
    * point due to being full. This can happen if your queue size is too low, if
    * you receive too much data without calling `sync(...)` enough times, or if
-   * you don't `read(...)` enough messages before the next `sync()` call.
-   * \warning The flag is cleared on each call.
+   * you don't `read(...)` enough messages before the next `sync()` call. After
+   * this call, the overflow flag is cleared if `clear` is `true` (default
+   * behavior).
    */
-  [[nodiscard]] bool didQueueOverflow() {
-    bool flag = false;
+  [[nodiscard]] bool didQueueOverflow(bool clear = true) {
+    bool overflow = false;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
-      flag = flag || _state.newMessages[i].overflow ||
-             _state.readyToSyncMessages[i].overflow;
-      _state.newMessages[i].overflow = false;
-      state.syncedIncomingMessages[i].overflow = false;
+      overflow = overflow || _state.newMessages[i].overflow ||
+                 _state.readyToSyncMessages[i].overflow;
+      if (clear) {
+        _state.newMessages[i].overflow = false;
+        state.syncedIncomingMessages[i].overflow = false;
+      }
     }
 
-    return flag;
+    return overflow;
   }
 
   /**

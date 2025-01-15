@@ -25,8 +25,8 @@ u32 C_LinkCube_peek(C_LinkCubeHandle handle);
 
 void C_LinkCube_send(C_LinkCubeHandle handle, u32 data);
 u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle);
-bool C_LinkCube_didQueueOverflow(C_LinkCubeHandle handle);
 
+bool C_LinkCube_didQueueOverflow(C_LinkCubeHandle handle, bool clear);
 bool C_LinkCube_didReset(C_LinkCubeHandle handle, bool clear);
 
 void C_LinkCube_onSerial(C_LinkCubeHandle handle);

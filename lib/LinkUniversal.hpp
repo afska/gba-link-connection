@@ -364,19 +364,21 @@ class LinkUniversal {
    * @brief Returns whether the internal receive queue lost messages at some
    * point due to being full. This can happen if your queue size is too low, if
    * you receive too much data without calling `sync(...)` enough times, or if
-   * you don't `read(...)` enough messages before the next `sync()` call.
-   * \warning The flag is cleared on each call.
+   * you don't `read(...)` enough messages before the next `sync()` call. After
+   * this call, the overflow flag is cleared if `clear` is `true` (default
+   * behavior).
    */
-  [[nodiscard]] bool didQueueOverflow() {
-    bool flag = mode == LINK_CABLE ? linkCable.didQueueOverflow()
-                                   : linkWireless.didQueueOverflow();
+  [[nodiscard]] bool didQueueOverflow(bool clear = true) {
+    bool overflow = mode == LINK_CABLE ? linkCable.didQueueOverflow()
+                                       : linkWireless.didQueueOverflow();
 
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
-      flag = flag || incomingMessages[i].overflow;
-      incomingMessages[i].overflow = false;
+      overflow = overflow || incomingMessages[i].overflow;
+      if (clear)
+        incomingMessages[i].overflow = false;
     }
 
-    return flag;
+    return overflow;
   }
 
   /**

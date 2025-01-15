@@ -73,8 +73,8 @@ bool C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
   return static_cast<LinkCable*>(handle)->send(data);
 }
 
-bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle) {
-  static_cast<LinkCable*>(handle)->didQueueOverflow();
+bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear) {
+  static_cast<LinkCable*>(handle)->didQueueOverflow(clear);
 }
 
 void C_LinkCable_resetTimer(C_LinkCableHandle handle) {

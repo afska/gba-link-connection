@@ -88,6 +88,11 @@ bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data) {
   return static_cast<LinkUniversal*>(handle)->send(data);
 }
 
+bool C_LinkUniversal_didQueueOverflow(C_LinkUniversalHandle handle,
+                                      bool clear) {
+  return static_cast<LinkUniversal*>(handle)->didQueueOverflow(clear);
+}
+
 void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->resetTimer();
 }
