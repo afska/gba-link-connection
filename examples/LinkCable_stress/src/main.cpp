@@ -206,7 +206,8 @@ void test(bool withSync) {
         }
       }
       output += "(" + std::to_string(localCounter) + ", " +
-                std::to_string(expectedCounter) + ")\n";
+                std::to_string(expectedCounter) +
+                ")\n\ninterval = " + std::to_string(getInterval());
     } else {
       output += "Waiting...";
       localCounter = 0;
@@ -316,7 +317,8 @@ void measureLatency(bool withPong) {
                            std::to_string(elapsedCycles) + " cycles\n  " +
                            std::to_string(elapsedMilliseconds) + " ms\n  " +
                            std::to_string(average) + " ms avg" +
-                           "\nValue sent:\n  " + std::to_string(sentPacket);
+                           "\nValue sent:\n  " + std::to_string(sentPacket) +
+                           "\n\ninterval = " + std::to_string(getInterval());
       VBlankIntrWait();
       Common::log(output);
     } else {
