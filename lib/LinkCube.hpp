@@ -159,7 +159,7 @@ class LinkCube {
    * if excessive `read(...)` calls prevent the ISR from copying data.
    * \warning The flag is cleared on each call.
    */
-  [[nodiscard]] bool didReceiveQueueOverflow() {
+  [[nodiscard]] bool didQueueOverflow() {
     bool flag = newIncomingQueue.overflow;
     newIncomingQueue.overflow = false;
     return flag;

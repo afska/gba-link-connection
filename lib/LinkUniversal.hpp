@@ -367,9 +367,9 @@ class LinkUniversal {
    * you don't `read(...)` enough messages before the next `sync()` call.
    * \warning The flag is cleared on each call.
    */
-  [[nodiscard]] bool didReceiveQueueOverflow() {
-    bool flag = mode == LINK_CABLE ? linkCable.didReceiveQueueOverflow()
-                                   : linkWireless.didReceiveQueueOverflow();
+  [[nodiscard]] bool didQueueOverflow() {
+    bool flag = mode == LINK_CABLE ? linkCable.didQueueOverflow()
+                                   : linkWireless.didQueueOverflow();
 
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
       flag = flag || incomingMessages[i].overflow;

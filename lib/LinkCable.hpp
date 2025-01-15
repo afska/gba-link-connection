@@ -266,7 +266,7 @@ class LinkCable {
    * you don't `read(...)` enough messages before the next `sync()` call.
    * \warning The flag is cleared on each call.
    */
-  [[nodiscard]] bool didReceiveQueueOverflow() {
+  [[nodiscard]] bool didQueueOverflow() {
     bool flag = false;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {

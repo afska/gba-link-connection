@@ -689,7 +689,7 @@ class LinkWireless {
    * if excessive `receive(...)` calls prevent the ISR from copying data.
    * \warning The flag is cleared on each call.
    */
-  [[nodiscard]] bool didReceiveQueueOverflow() {
+  [[nodiscard]] bool didQueueOverflow() {
     bool flag = sessionState.newIncomingMessages.overflow;
     sessionState.newIncomingMessages.overflow = false;
     return flag;

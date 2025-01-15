@@ -57,7 +57,7 @@ u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
 
 bool C_LinkCable_send(C_LinkCableHandle handle, u16 data);
 
-bool C_LinkCable_didReceiveQueueOverflow(C_LinkCableHandle handle);
+bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle);
 void C_LinkCable_resetTimer(C_LinkCableHandle handle);
 
 C_LinkCable_Config C_LinkCable_getConfig(C_LinkCableHandle handle);

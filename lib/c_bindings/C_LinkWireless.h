@@ -123,7 +123,7 @@ bool C_LinkWireless_isSessionActive(C_LinkWirelessHandle handle);
 bool C_LinkWireless_isServerClosed(C_LinkWirelessHandle handle);
 u8 C_LinkWireless_playerCount(C_LinkWirelessHandle handle);
 u8 C_LinkWireless_currentPlayerId(C_LinkWirelessHandle handle);
-bool C_LinkWireless_didReceiveQueueOverflow(C_LinkWirelessHandle handle);
+bool C_LinkWireless_didQueueOverflow(C_LinkWirelessHandle handle);
 
 C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
                                                  bool clear);
