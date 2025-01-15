@@ -1446,9 +1446,6 @@ class LinkWireless {
     stop();
     bool success = start();
 
-    if (!success)
-      stop();
-
     LINK_BARRIER;
     isEnabled = wasEnabled;
     LINK_BARRIER;
