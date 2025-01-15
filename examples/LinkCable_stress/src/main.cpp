@@ -272,7 +272,7 @@ void test(bool withSync) {
       output += "(" + std::to_string(localCounter) + ", " +
                 std::to_string(expectedCounter) +
                 ")\n\ninterval = " + std::to_string(getInterval()) +
-                "\ntimeISR = " + std::to_string(avgTime);
+                "\ncyc/frm = " + std::to_string(avgTime);
     } else {
       output += "Waiting...";
       localCounter = 0;
