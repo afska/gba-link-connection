@@ -26,6 +26,14 @@ void measureLatency(bool withPong);
 void forceSync();
 bool needsReset();
 
+u32 vblankTime = 0;
+u32 serialTime = 0;
+u32 timerTime = 0;
+u32 vblankIRQs = 0;
+u32 serialIRQs = 0;
+u32 timerIRQs = 0;
+u32 avgTime = 0;
+
 #ifndef USE_LINK_UNIVERSAL
 LinkCable* linkCable = new LinkCable();
 LinkCable* linkConnection = linkCable;
@@ -67,22 +75,62 @@ void setInterval(u16 interval) {
 #endif
 }
 
+void setUpInterrupts(bool profiler) {
+  vblankIRQs = 0;
+  vblankTime = 0;
+  serialTime = 0;
+  timerTime = 0;
+  serialIRQs = 0;
+  timerIRQs = 0;
+
+#ifndef USE_LINK_UNIVERSAL
+  // LinkCable
+  interrupt_add(INTR_VBLANK, profiler ? []() {
+    Common::profileStart();
+    LINK_CABLE_ISR_VBLANK();
+    vblankTime += Common::profileStop();
+    vblankIRQs++;
+  } : LINK_CABLE_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, profiler ? []() {
+    Common::profileStart();
+    LINK_CABLE_ISR_SERIAL();
+    serialTime += Common::profileStop();
+    serialIRQs++;
+  } : LINK_CABLE_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, profiler ? []() {
+    Common::profileStart();
+    LINK_CABLE_ISR_TIMER();
+    timerTime += Common::profileStop();
+    timerIRQs++;
+  } : LINK_CABLE_ISR_TIMER);
+#else
+  // LinkUniversal
+  interrupt_add(INTR_VBLANK, profiler ? []() {
+    Common::profileStart();
+    LINK_UNIVERSAL_ISR_VBLANK();
+    vblankTime += Common::profileStop();
+    vblankIRQs++;
+  } : LINK_UNIVERSAL_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, profiler ? []() {
+    Common::profileStart();
+    LINK_UNIVERSAL_ISR_SERIAL();
+    serialTime += Common::profileStop();
+    serialIRQs++;
+  } : LINK_UNIVERSAL_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, profiler ? []() {
+    Common::profileStart();
+    LINK_UNIVERSAL_ISR_TIMER();
+    timerTime += Common::profileStop();
+    timerIRQs++;
+  } : LINK_UNIVERSAL_ISR_TIMER);
+#endif
+}
+
 void init() {
   Common::initTTE();
 
   interrupt_init();
-
-#ifndef USE_LINK_UNIVERSAL
-  // LinkCable
-  interrupt_add(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
-  interrupt_add(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
-  interrupt_add(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
-#else
-  // LinkUniversal
-  interrupt_add(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
-  interrupt_add(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
-  interrupt_add(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-#endif
+  setUpInterrupts(false);
 }
 
 int main() {
@@ -115,14 +163,19 @@ int main() {
 
     linkConnection->activate();
 
-    if (initialKeys & KEY_A)
+    if (initialKeys & KEY_A) {
+      setUpInterrupts(true);
       test(false);
-    else if (initialKeys & KEY_B)
+    } else if (initialKeys & KEY_B) {
+      setUpInterrupts(true);
       test(true);
-    else if (initialKeys & KEY_L)
+    } else if (initialKeys & KEY_L) {
+      setUpInterrupts(false);
       measureLatency(false);
-    else if (initialKeys & KEY_R)
+    } else if (initialKeys & KEY_R) {
+      setUpInterrupts(false);
       measureLatency(true);
+    }
   }
 
   return 0;
@@ -141,6 +194,17 @@ void test(bool withSync) {
   while (true) {
     if (needsReset())
       return;
+
+    if (vblankIRQs >= 60) {
+      avgTime = (vblankTime + serialTime + timerTime) / 60;
+
+      vblankIRQs = 0;
+      vblankTime = 0;
+      serialTime = 0;
+      timerTime = 0;
+      serialIRQs = 0;
+      timerIRQs = 0;
+    }
 
     u16 keys = ~REG_KEYS & KEY_ANY;
     if (keys & KEY_START) {
@@ -207,7 +271,8 @@ void test(bool withSync) {
       }
       output += "(" + std::to_string(localCounter) + ", " +
                 std::to_string(expectedCounter) +
-                ")\n\ninterval = " + std::to_string(getInterval());
+                ")\n\ninterval = " + std::to_string(getInterval()) +
+                "\ntimeISR = " + std::to_string(avgTime);
     } else {
       output += "Waiting...";
       localCounter = 0;
