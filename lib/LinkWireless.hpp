@@ -1474,7 +1474,7 @@ class LinkWireless {
     this->sessionState.lastConfirmationFromServer = 0;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
       this->sessionState.msgTimeouts[i] = 0;
-      this->sessionState.msgFlags[i] = 0;
+      this->sessionState.msgFlags[i] = false;
       this->sessionState.lastPacketIdFromClients[i] = 0;
       this->sessionState.lastConfirmationFromClients[i] = 0;
     }
