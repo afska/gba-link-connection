@@ -66,6 +66,12 @@ static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v8.0.0";
 #define LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
+#define LINK_RAW_WIRELESS_BROADCAST_LENGTH 6
+#define LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH \
+  (1 + LINK_RAW_WIRELESS_BROADCAST_LENGTH)
+#define LINK_RAW_WIRELESS_MAX_SERVERS              \
+  (LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
+   LINK_RAW_WIRELESS_BROADCAST_LENGTH)
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
 #include <string>
@@ -98,10 +104,6 @@ class LinkRawWireless {
   static constexpr u32 DATA_REQUEST_VALUE = 0x80000000;
   static constexpr int SETUP_MAGIC = 0x003c0000;
   static constexpr int WAIT_STILL_CONNECTING = 0x01000000;
-  static constexpr int BROADCAST_LENGTH = 6;
-  static constexpr int BROADCAST_RESPONSE_LENGTH = 1 + BROADCAST_LENGTH;
-  static constexpr int MAX_SERVERS =
-      LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / BROADCAST_RESPONSE_LENGTH;
   static constexpr int COMMAND_HELLO = 0x10;
   static constexpr int COMMAND_SETUP = 0x17;
   static constexpr int COMMAND_SYSTEM_STATUS = 0x13;
@@ -188,7 +190,7 @@ class LinkRawWireless {
   };
 
   struct BroadcastReadPollResponse {
-    Server servers[MAX_SERVERS] = {};
+    Server servers[LINK_RAW_WIRELESS_MAX_SERVERS] = {};
     u32 serversSize = 0;
   };
 
@@ -391,7 +393,7 @@ class LinkRawWireless {
     copyName(finalGameName, gameName, LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH);
     copyName(finalUserName, userName, LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH);
 
-    u32 params[BROADCAST_LENGTH] = {
+    u32 params[LINK_RAW_WIRELESS_BROADCAST_LENGTH] = {
         Link::buildU32(Link::buildU16(finalGameName[1], finalGameName[0]),
                        gameId),
         Link::buildU32(Link::buildU16(finalGameName[5], finalGameName[4]),
@@ -404,8 +406,9 @@ class LinkRawWireless {
                        Link::buildU16(finalUserName[1], finalUserName[0])),
         Link::buildU32(Link::buildU16(finalUserName[7], finalUserName[6]),
                        Link::buildU16(finalUserName[5], finalUserName[4]))};
-    bool success =
-        sendCommand(COMMAND_BROADCAST, params, BROADCAST_LENGTH).success;
+    bool success = sendCommand(COMMAND_BROADCAST, params,
+                               LINK_RAW_WIRELESS_BROADCAST_LENGTH)
+                       .success;
 
     if (!success) {
       _resetState();
@@ -570,18 +573,20 @@ class LinkRawWireless {
   bool broadcastReadPoll(BroadcastReadPollResponse& response) {
     auto result = sendCommand(COMMAND_BROADCAST_READ_POLL);
     bool success =
-        result.success && result.dataSize % BROADCAST_RESPONSE_LENGTH == 0;
+        result.success &&
+        result.dataSize % LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH == 0;
 
     if (!success) {
       _resetState();
       return false;
     }
 
-    u32 totalBroadcasts = result.dataSize / BROADCAST_RESPONSE_LENGTH;
+    u32 totalBroadcasts =
+        result.dataSize / LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH;
 
     response.serversSize = 0;
     for (u32 i = 0; i < totalBroadcasts; i++) {
-      u32 start = BROADCAST_RESPONSE_LENGTH * i;
+      u32 start = LINK_RAW_WIRELESS_BROADCAST_RESPONSE_LENGTH * i;
 
       Server server;
       server.id = (u16)result.data[start];

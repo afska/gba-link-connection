@@ -137,17 +137,10 @@
 
 static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v8.0.0";
 
-#define LINK_WIRELESS_MAX_PLAYERS 5
+#define LINK_WIRELESS_MAX_PLAYERS LINK_RAW_WIRELESS_MAX_PLAYERS
 #define LINK_WIRELESS_MIN_PLAYERS 2
 #define LINK_WIRELESS_END 0
-#define LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 22
-#define LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
-#define LINK_WIRELESS_BROADCAST_LENGTH 6
-#define LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH \
-  (1 + LINK_WIRELESS_BROADCAST_LENGTH)
-#define LINK_WIRELESS_MAX_SERVERS              \
-  (LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
-   LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH)
+#define LINK_WIRELESS_MAX_SERVERS LINK_RAW_WIRELESS_MAX_SERVERS
 #define LINK_WIRELESS_MAX_GAME_ID 0x7fff
 #define LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
@@ -170,9 +163,10 @@ class LinkWireless {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
+  using s8 = Link::s8;
   using vu32 = Link::vu32;
   using vs32 = Link::vs32;
-  using s8 = Link::s8;
+  using vu8 = Link::vu8;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
@@ -184,6 +178,7 @@ class LinkWireless {
   static constexpr int PACKET_ID_MASK = (MAX_PACKET_IDS - 1);
   static constexpr int MSG_PING = 0xffff;
   static constexpr int BROADCAST_SEARCH_WAIT_FRAMES = 60;
+  static constexpr int MAX_COMMAND_TRANSFER_LENGTH = 22;
 
  public:
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
@@ -237,6 +232,10 @@ class LinkWireless {
     u8 currentPlayerCount;
 
     bool isFull() { return currentPlayerCount == 0; }
+  };
+
+  struct SignalLevel {
+    vu8 level[LINK_WIRELESS_MAX_PLAYERS] = {};
   };
 
   /**
@@ -378,8 +377,11 @@ class LinkWireless {
 
     bool success = linkRawWireless.broadcast(gameName, userName, gameId, false);
 
-    if (linkRawWireless.getState() != State::SERVING)
-      success = success && linkRawWireless.startHost();
+    if (linkRawWireless.getState() != State::SERVING) {
+      LinkRawWireless::AcceptConnectionsResponse response;
+      success = success && linkRawWireless.startHost() &&
+                linkRawWireless.acceptConnections(response);
+    }
 
     if (!success)
       return abort(COMMAND_FAILED);
@@ -426,13 +428,20 @@ class LinkWireless {
    * clients, it will only include the index corresponding to the
    * `currentPlayerId()`.
    * @param response A structure that will be filled with the signal levels.
-   * \warning This action can fail if the adapter is busy. In that case, this
-   * will return `false` and `getLastError()` will be `BUSY_TRY_AGAIN`.
+   * \warning On clients, this action can fail if the adapter is busy. In that
+   * case, this will return `false` and `getLastError()` will be
+   * `BUSY_TRY_AGAIN`.
    */
   bool getSignalLevel(SignalLevelResponse& response) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (!isSessionActive())
       return badRequest(WRONG_STATE);
+
+    if (linkRawWireless.getState() == LinkRawWireless::State::SERVING) {
+      for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+        response.signalLevels[i] = sessionState.signalLevel.level[i];
+      return true;
+    }
 
     isSendingSyncCommand = true;
     if (isAsyncCommandActive())
@@ -827,7 +836,7 @@ class LinkWireless {
 #endif
 
     sessionState.recvFlag = false;
-    sessionState.acceptCalled = false;
+    sessionState.signalLevelCalled = false;
     sessionState.pingSent = false;
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
@@ -886,7 +895,7 @@ class LinkWireless {
       return;
 
     if (!isAsyncCommandActive())
-      acceptConnectionsOrTransferData();
+      checkConnectionsOrTransferData();
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
     timerTime += profileStop();
@@ -917,13 +926,14 @@ class LinkWireless {
     MessageQueue outgoingMessages;     // read and write by irq
     MessageQueue newIncomingMessages;  // read and write by irq
     MessageQueue newOutgoingMessages;  // read by irq, write by user&irq
+    SignalLevel signalLevel;           // write by irq, read by any
 
     u32 recvTimeout = 0;                         // (~= LinkCable::IRQTimeout)
     u32 msgTimeouts[LINK_WIRELESS_MAX_PLAYERS];  // (~= LinkCable::msgTimeouts)
     bool recvFlag = false;                       // (~= LinkCable::IRQFlag)
     bool msgFlags[LINK_WIRELESS_MAX_PLAYERS];    // (~= LinkCable::msgFlags)
 
-    bool acceptCalled = false;
+    bool signalLevelCalled = false;
     bool pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     bool sendReceiveLatch = false;  // true = send ; false = receive
@@ -960,7 +970,7 @@ class LinkWireless {
 
   LinkRawWireless linkRawWireless;
   SessionState sessionState;
-  u32 nextAsyncCommandData[LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+  u32 nextAsyncCommandData[MAX_COMMAND_TRANSFER_LENGTH];
   u32 nextAsyncCommandDataSize = 0;
   volatile bool isSendingSyncCommand = false;
   volatile Error lastError = NONE;
@@ -1008,10 +1018,21 @@ class LinkWireless {
     }
 
     switch (commandResult->commandId) {
-      case LinkRawWireless::COMMAND_ACCEPT_CONNECTIONS: {
-        // AcceptConnections (end)
-        linkRawWireless.sessionState.playerCount =
-            Link::_min(1 + commandResult->dataSize, config.maxPlayers);
+      case LinkRawWireless::COMMAND_SIGNAL_LEVEL: {
+        // SignalLevel (end)
+        u32 levels = commandResult->dataSize > 0 ? commandResult->data[0] : 0;
+        u32 players = 1;
+        for (u32 i = 1; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
+          u32 level = (levels >> ((i - 1) * 8)) & 0xff;
+          sessionState.signalLevel.level[i] = level;
+          if (level > 0)
+            players++;
+        }
+
+        if (players > linkRawWireless.sessionState.playerCount) {
+          linkRawWireless.sessionState.playerCount =
+              Link::_min(players, config.maxPlayers);
+        }
 
         break;
       }
@@ -1065,14 +1086,14 @@ class LinkWireless {
     }
   }
 
-  LINK_INLINE void acceptConnectionsOrTransferData() {  // (irq only)
+  LINK_INLINE void checkConnectionsOrTransferData() {  // (irq only)
     if (linkRawWireless.getState() == State::SERVING &&
         !linkRawWireless.sessionState.isServerClosed &&
-        !sessionState.acceptCalled &&
+        !sessionState.signalLevelCalled &&
         linkRawWireless.sessionState.playerCount < config.maxPlayers) {
-      // AcceptConnections (start)
-      if (sendCommandAsync(LinkRawWireless::COMMAND_ACCEPT_CONNECTIONS))
-        sessionState.acceptCalled = true;
+      // SignalLevel (start)
+      if (sendCommandAsync(LinkRawWireless::COMMAND_SIGNAL_LEVEL))
+        sessionState.signalLevelCalled = true;
     } else if (linkRawWireless.getState() == State::CONNECTED ||
                isConnected()) {
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
@@ -1458,33 +1479,34 @@ class LinkWireless {
     QUICK_SEND = 0;
     QUICK_RECEIVE = 0;
 #endif
-    this->sessionState.recvFlag = false;
-    this->sessionState.recvTimeout = 0;
-    this->sessionState.acceptCalled = false;
-    this->sessionState.pingSent = false;
+    sessionState.recvFlag = false;
+    sessionState.recvTimeout = 0;
+    sessionState.signalLevelCalled = false;
+    sessionState.pingSent = false;
 #ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-    this->sessionState.sendReceiveLatch = false;
-    this->sessionState.shouldWaitForServer = false;
+    sessionState.sendReceiveLatch = false;
+    sessionState.shouldWaitForServer = false;
 #endif
-    this->sessionState.didReceiveLastPacketIdFromServer = false;
-    this->sessionState.lastPacketId = 0;
-    this->sessionState.lastPacketIdFromServer = 0;
-    this->sessionState.lastConfirmationFromServer = 0;
+    sessionState.didReceiveLastPacketIdFromServer = false;
+    sessionState.lastPacketId = 0;
+    sessionState.lastPacketIdFromServer = 0;
+    sessionState.lastConfirmationFromServer = 0;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
-      this->sessionState.msgTimeouts[i] = 0;
-      this->sessionState.msgFlags[i] = false;
-      this->sessionState.lastPacketIdFromClients[i] = 0;
-      this->sessionState.lastConfirmationFromClients[i] = 0;
+      sessionState.msgTimeouts[i] = 0;
+      sessionState.msgFlags[i] = false;
+      sessionState.lastPacketIdFromClients[i] = 0;
+      sessionState.lastConfirmationFromClients[i] = 0;
     }
-    this->nextAsyncCommandDataSize = 0;
+    nextAsyncCommandDataSize = 0;
 
-    this->sessionState.incomingMessages.syncClear();
-    this->sessionState.outgoingMessages.clear();
+    sessionState.incomingMessages.syncClear();
+    sessionState.outgoingMessages.clear();
 
-    this->sessionState.newIncomingMessages.clear();
-    this->sessionState.newOutgoingMessages.syncClear();
+    sessionState.newIncomingMessages.clear();
+    sessionState.newOutgoingMessages.syncClear();
 
-    this->sessionState.newIncomingMessages.overflow = false;
+    sessionState.newIncomingMessages.overflow = false;
+    sessionState.signalLevel = SignalLevel{};
 
     isSendingSyncCommand = false;
   }

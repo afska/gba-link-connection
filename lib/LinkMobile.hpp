@@ -1557,16 +1557,16 @@ class LinkMobile {
   void resetState() {
     setState(NEEDS_RESET);
 
-    this->adapterConfiguration = AdapterConfiguration{};
-    this->userRequests.clear();
-    this->asyncCommand.reset();
-    this->waitFrames = 0;
-    this->timeoutStateFrames = 0;
-    this->role = Role::NO_P2P_CONNECTION;
-    this->nextCommandDataSize = 0;
-    this->hasPendingTransfer = false;
-    this->pendingTransfer = 0;
-    this->adapterType = AdapterType::UNKNOWN;
+    adapterConfiguration = AdapterConfiguration{};
+    userRequests.clear();
+    asyncCommand.reset();
+    waitFrames = 0;
+    timeoutStateFrames = 0;
+    role = Role::NO_P2P_CONNECTION;
+    nextCommandDataSize = 0;
+    hasPendingTransfer = false;
+    pendingTransfer = 0;
+    adapterType = AdapterType::UNKNOWN;
 
     userRequests.syncClear();
   }
