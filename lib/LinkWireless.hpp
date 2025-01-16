@@ -1156,11 +1156,6 @@ class LinkWireless {
       u32 checksum = header.dataChecksum;
       bool isPing = data == MSG_PING;
 
-      sessionState.msgTimeouts[0] = 0;
-      sessionState.msgTimeouts[remotePlayerId] = 0;
-      sessionState.msgFlags[0] = true;
-      sessionState.msgFlags[remotePlayerId] = true;
-
       if (checksum != buildChecksum(data))
         continue;
 
@@ -1168,16 +1163,19 @@ class LinkWireless {
       message.packetId = partialPacketId;
       message.data = data;
       message.playerId = remotePlayerId;
-
-      if (!acceptMessage(message, isConfirmation, remotePlayerCount) || isPing)
+      if (!acceptMessage(message, isConfirmation, remotePlayerCount))
+        continue;
+      if (config.retransmission && isConfirmation &&
+          !handleConfirmation(message))
         continue;
 
-      if (config.retransmission && isConfirmation) {
-        if (!handleConfirmation(message))
-          continue;
-      } else {
+      sessionState.msgTimeouts[0] = 0;
+      sessionState.msgTimeouts[remotePlayerId] = 0;
+      sessionState.msgFlags[0] = true;
+      sessionState.msgFlags[remotePlayerId] = true;
+
+      if (!isPing && !isConfirmation)
         sessionState.newIncomingMessages.push(message);
-      }
     }
     copyIncomingState();
   }

@@ -183,7 +183,8 @@ class LinkUniversal {
    */
   bool deactivate(bool turnOffWireless = true) {
     isEnabled = false;
-    linkCable.deactivate();
+    if (linkCable.isActive())
+      linkCable.deactivate();
     bool success = linkWireless.deactivate(turnOffWireless);
     resetState();
     return success;
