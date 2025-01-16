@@ -254,7 +254,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Send length: 0, response length: 0
 - This uses the broadcast data given by the broadcast command and actually does the broadcasting.
 
-⏲ After calling this command, wait some time before calling `AcceptConnections` (~15 scanlines) or it will fail!.
+⏲ After calling this command, wait some time (~15 scanlines) before calling `AcceptConnections` or it will fail!.
 
 #### EndHost - `0x1b`
 
