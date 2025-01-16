@@ -43,7 +43,7 @@ int main() {
   init();
 
 start:
-  log("LinkMobile_demo (v7.0.2)\n\nPress A to start");
+  log("LinkMobile_demo (v7.0.3)\n\nPress A to start");
   waitForA();
 
   // (1) Create a LinkMobile instance

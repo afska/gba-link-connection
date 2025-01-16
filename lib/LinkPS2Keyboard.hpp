@@ -43,7 +43,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.0.2";
+static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.0.3";
 
 /**
  * @brief A PS/2 Keyboard Adapter for the GBA.
