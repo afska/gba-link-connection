@@ -420,8 +420,9 @@ class LinkRawWireless {
 
   /**
    * @brief Calls the StartHost (`0x19`) command.
+   * @param wait Whether the function should wait the recommended time or not.
    */
-  bool startHost() {
+  bool startHost(bool wait = true) {
     bool success = sendCommand(COMMAND_START_HOST).success;
 
     if (!success) {
@@ -429,7 +430,9 @@ class LinkRawWireless {
       return false;
     }
 
-    Link::wait(TRANSFER_WAIT);
+    if (wait)
+      Link::wait(TRANSFER_WAIT);
+
     _LRWLOG_("state = SERVING");
     state = SERVING;
 

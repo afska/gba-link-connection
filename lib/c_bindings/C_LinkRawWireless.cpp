@@ -68,6 +68,10 @@ bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->startHost();
 }
 
+bool C_LinkRawWireless_startHostNoWait(C_LinkRawWirelessHandle handle) {
+  return static_cast<LinkRawWireless*>(handle)->startHost(false);
+}
+
 bool C_LinkRawWireless_getSignalLevel(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SignalLevelResponse* response) {

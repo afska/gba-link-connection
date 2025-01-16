@@ -123,6 +123,7 @@ bool C_LinkRawWireless_broadcast(C_LinkRawWirelessHandle handle,
                                  const char* userName,
                                  u16 gameId);
 bool C_LinkRawWireless_startHost(C_LinkRawWirelessHandle handle);
+bool C_LinkRawWireless_startHostNoWait(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_getSignalLevel(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SignalLevelResponse* response);

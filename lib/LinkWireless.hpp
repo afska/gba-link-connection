@@ -377,11 +377,8 @@ class LinkWireless {
 
     bool success = linkRawWireless.broadcast(gameName, userName, gameId, false);
 
-    if (linkRawWireless.getState() != State::SERVING) {
-      LinkRawWireless::AcceptConnectionsResponse response;
-      success = success && linkRawWireless.startHost() &&
-                linkRawWireless.acceptConnections(response);
-    }
+    if (linkRawWireless.getState() != State::SERVING)
+      success = success && linkRawWireless.startHost(false);
 
     if (!success)
       return abort(COMMAND_FAILED);
@@ -1088,9 +1085,7 @@ class LinkWireless {
 
   LINK_INLINE void checkConnectionsOrTransferData() {  // (irq only)
     if (linkRawWireless.getState() == State::SERVING &&
-        !linkRawWireless.sessionState.isServerClosed &&
-        !sessionState.signalLevelCalled &&
-        linkRawWireless.sessionState.playerCount < config.maxPlayers) {
+        !sessionState.signalLevelCalled) {
       // SignalLevel (start)
       if (sendCommandAsync(LinkRawWireless::COMMAND_SIGNAL_LEVEL))
         sessionState.signalLevelCalled = true;
@@ -1132,21 +1127,20 @@ class LinkWireless {
 
     int lastPacketId = -1;
 
-    sessionState.outgoingMessages.forEach([this, maxTransferLength,
-                                           &lastPacketId](Message message) {
-      u16 header = buildMessageHeader(message.playerId, message.packetId,
-                                      buildChecksum(message.data));
-      u32 rawMessage = Link::buildU32(header, message.data);
+    sessionState.outgoingMessages.forEach(
+        [this, maxTransferLength, &lastPacketId](Message message) {
+          u16 header = buildMessageHeader(message.playerId, message.packetId,
+                                          buildChecksum(message.data));
+          u32 rawMessage = Link::buildU32(header, message.data);
 
-      if (nextAsyncCommandDataSize /* -1 (wireless header) + 1 (rawMessage) */ >
-          maxTransferLength)
-        return false;
+          addAsyncData(rawMessage);
+          lastPacketId = message.packetId;
 
-      addAsyncData(rawMessage);
-      lastPacketId = message.packetId;
+          if (nextAsyncCommandDataSize > maxTransferLength)
+            return false;
 
-      return true;
-    });
+          return true;
+        });
 
     // (add wireless header)
     u32 bytes = (nextAsyncCommandDataSize - 1) * 4;
