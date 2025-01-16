@@ -89,7 +89,7 @@ class LinkWirelessMultiboot {
 
   static constexpr int HEADER_SIZE = 0xC0;
   static constexpr int SETUP_TX = 1;
-  static constexpr int GAME_ID_MULTIBOOT_FLAG = (1 << 15);
+  static constexpr int GAME_ID_MULTIBOOT_FLAG = 1 << 15;
   static constexpr int FRAME_LINES = 228;
   static constexpr int MAX_INFLIGHT_PACKETS = 4;
   static constexpr int FINAL_CONFIRMS = 3;

@@ -164,8 +164,8 @@ class LinkWireless {
 #else
   static constexpr int PACKET_ID_BITS = 6;
 #endif
-  static constexpr int MAX_PACKET_IDS = (1 << PACKET_ID_BITS);
-  static constexpr int PACKET_ID_MASK = (MAX_PACKET_IDS - 1);
+  static constexpr int MAX_PACKET_IDS = 1 << PACKET_ID_BITS;
+  static constexpr int PACKET_ID_MASK = MAX_PACKET_IDS - 1;
   static constexpr int MSG_PING = 0xffff;
   static constexpr int BROADCAST_SEARCH_WAIT_FRAMES = 60;
   static constexpr int MAX_COMMAND_TRANSFER_LENGTH = 22;

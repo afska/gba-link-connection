@@ -369,7 +369,7 @@ class LinkWirelessOpenSDK {
                                      u8 clientNumber) {
     ServerSDKHeader serverHeader;
     serverHeader.isACK = 1;
-    serverHeader.targetSlots = (1 << clientNumber);
+    serverHeader.targetSlots = 1 << clientNumber;
     serverHeader.payloadSize = 0;
     serverHeader.n = clientHeader.n;
     serverHeader.phase = clientHeader.phase;

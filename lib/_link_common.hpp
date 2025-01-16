@@ -343,7 +343,7 @@ class Queue {
 
 // Reset communication registers
 static inline void reset() {
-  _REG_RCNT = (1 << 15);
+  _REG_RCNT = 1 << 15;
   _REG_SIOCNT = 0;
 }
 

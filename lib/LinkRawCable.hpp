@@ -263,7 +263,7 @@ class LinkRawCable {
 
   void setMultiPlayMode() {
     Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
-    Link::_REG_SIOCNT = (1 << BIT_MULTIPLAYER);
+    Link::_REG_SIOCNT = 1 << BIT_MULTIPLAYER;
     Link::_REG_SIOCNT |= baudRate;
     Link::_REG_SIOMLT_SEND = 0;
   }
