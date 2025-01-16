@@ -1229,7 +1229,7 @@ class LinkWireless {
       }
 #endif
 
-      for (int i = 0; i < config.maxPlayers - 1; i++) {
+      for (int i = 0; i < linkRawWireless.sessionState.playerCount - 1; i++) {
         u32 confirmationData = sessionState.lastPacketIdFromClients[1 + i];
         u16 header = buildConfirmationHeader(1 + i, confirmationData);
         u32 rawMessage = Link::buildU32(header, confirmationData & 0xffff);
