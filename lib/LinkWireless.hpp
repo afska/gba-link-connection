@@ -234,10 +234,6 @@ class LinkWireless {
     bool isFull() { return currentPlayerCount == 0; }
   };
 
-  struct SignalLevel {
-    vu8 level[LINK_WIRELESS_MAX_PLAYERS] = {};
-  };
-
   /**
    * @brief Constructs a new LinkWireless object.
    * @param forwarding If `true`, the server forwards all messages to the
@@ -917,6 +913,10 @@ class LinkWireless {
 
  private:
   using MessageQueue = Link::Queue<Message, LINK_WIRELESS_QUEUE_SIZE>;
+
+  struct SignalLevel {
+    vu8 level[LINK_WIRELESS_MAX_PLAYERS] = {};
+  };
 
   struct SessionState {
     MessageQueue incomingMessages;     // read by user, write by irq&user

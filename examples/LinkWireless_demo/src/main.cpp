@@ -429,13 +429,22 @@ void messageLoop() {
       linkWireless->timerIRQs = 0;
     }
 #endif
+    LinkWireless::SignalLevelResponse levels;
+    std::string signalStr = "";
+    if (linkWireless->getState() == LinkWireless::State::SERVING) {
+      linkWireless->getSignalLevel(levels);
+      for (u32 i = 1; i < linkWireless->playerCount(); i++)
+        signalStr += "P" + std::to_string(i) + ": " +
+                     std::to_string(levels.signalLevels[i] * 100 / 255) + "%";
+    }
+
     std::string output =
         "Player #" + std::to_string(linkWireless->currentPlayerId()) + " (" +
         std::to_string(linkWireless->playerCount()) + " total)" +
         "\n\n(press A to increment counter)\n(hold B to do it "
         "continuously)\n(press RIGHT for more options)\n\n" +
-        altOptionName + ": " + (altView ? "ON" : "OFF") +
-        "\n(switch with UP)\n\n";
+        altOptionName + ": " + (altView ? "ON" : "OFF") + " (UP = switch)\n" +
+        signalStr + "\n\n";
 
     for (u32 i = 0; i < linkWireless->playerCount(); i++) {
       output +=
