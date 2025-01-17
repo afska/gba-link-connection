@@ -114,6 +114,16 @@
 // #define LINK_WIRELESS_ENABLE_NESTED_IRQ
 #endif
 
+#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+/**
+ * @brief Use send/receive latch (uncomment to enable).
+ * This makes it alternate between sends and receives on each timer tick
+ * (instead of doing both things). Enabling it will introduce some latency but
+ * also reduce overall CPU usage.
+ */
+// #define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+#endif
+
 #ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
 /**
  * @brief Optimize the library for two players (uncomment to enable).
@@ -922,8 +932,10 @@ class LinkWireless {
 
     bool signalLevelCalled = false;
     bool pingSent = false;
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     bool sendReceiveLatch = false;  // true = send ; false = receive
     bool shouldWaitForServer = false;
+#endif
 
     bool didReceiveLastPacketIdFromServer = false;
     u32 lastPacketId = 0;
@@ -1024,26 +1036,45 @@ class LinkWireless {
       case LinkRawWireless::COMMAND_SEND_DATA: {
         // SendData (end)
 
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         if (linkRawWireless.getState() == State::CONNECTED)
           sessionState.shouldWaitForServer = true;
         sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
+#else
+        if (linkRawWireless.getState() == State::SERVING) {
+          // ReceiveData (start)
+          sendCommandAsync(LinkRawWireless::COMMAND_RECEIVE_DATA);
+        }
+#endif
 
         break;
       }
       case LinkRawWireless::COMMAND_RECEIVE_DATA: {
         // ReceiveData (end)
 
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.sendReceiveLatch =
             sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
+#endif
 
         if (commandResult->dataSize == 0)
           break;
 
         sessionState.recvFlag = true;
         sessionState.recvTimeout = 0;
+
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.shouldWaitForServer = false;
+#endif
 
         addIncomingMessagesFromData(commandResult);
+
+#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+        if (linkRawWireless.getState() == State::CONNECTED) {
+          // SendData (start)
+          sendPendingData();
+        }
+#endif
 
         break;
       }
@@ -1060,8 +1091,12 @@ class LinkWireless {
         sessionState.signalLevelCalled = true;
     } else if (linkRawWireless.getState() == State::CONNECTED ||
                isConnected()) {
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive =
           !sessionState.sendReceiveLatch || sessionState.shouldWaitForServer;
+#else
+      bool shouldReceive = linkRawWireless.getState() == State::CONNECTED;
+#endif
 
       if (shouldReceive) {
         // ReceiveData (start)
@@ -1442,8 +1477,10 @@ class LinkWireless {
     sessionState.recvTimeout = 0;
     sessionState.signalLevelCalled = false;
     sessionState.pingSent = false;
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     sessionState.sendReceiveLatch = false;
     sessionState.shouldWaitForServer = false;
+#endif
     sessionState.didReceiveLastPacketIdFromServer = false;
     sessionState.lastPacketId = 0;
     sessionState.lastPacketIdFromServer = 0;

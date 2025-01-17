@@ -42,6 +42,9 @@ int main() {
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   buildSettings += " + irq_nested\n";
 #endif
+#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
+  buildSettings += " + s/r_latch\n";
+#endif
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
   buildSettings += " + 2players\n";
 #endif
@@ -403,22 +406,6 @@ void messageLoop() {
 #endif
     }
 
-    // Get signal levels
-    LinkWireless::SignalLevelResponse levels;
-    std::string signalStr = "";
-    if (linkWireless->getState() == LinkWireless::State::SERVING) {
-      linkWireless->getSignalLevel(levels);
-      u32 count = linkWireless->playerCount();
-      for (u32 i = 1; i < count; i++) {
-        u32 percentage = levels.signalLevels[i] * 100 / 255;
-        signalStr +=
-            "P" + std::to_string(i) + ":" +
-            (percentage == 100 ? "!!%" : std::to_string(percentage) + "%");
-        if (i < count - 1)
-          signalStr += " ";
-      }
-    }  // (retrieving signal levels on the server side is free)
-
     // Normal output
     std::string altOptionName = "Packet check";
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
@@ -442,6 +429,21 @@ void messageLoop() {
       linkWireless->timerIRQs = 0;
     }
 #endif
+    LinkWireless::SignalLevelResponse levels;
+    std::string signalStr = "";
+    if (linkWireless->getState() == LinkWireless::State::SERVING) {
+      linkWireless->getSignalLevel(levels);
+      u32 count = linkWireless->playerCount();
+      for (u32 i = 1; i < count; i++) {
+        u32 percentage = levels.signalLevels[i] * 100 / 255;
+        signalStr +=
+            "P" + std::to_string(i) + ":" +
+            (percentage == 100 ? "!!%" : std::to_string(percentage) + "%");
+        if (i < count - 1)
+          signalStr += " ";
+      }
+    }
+
     std::string output =
         "Player #" + std::to_string(linkWireless->currentPlayerId()) + " (" +
         std::to_string(linkWireless->playerCount()) + " total)" +
