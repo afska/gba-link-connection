@@ -44,8 +44,8 @@
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #endif
 
-static volatile char LINK_WIRELESS_MULTIBOOT_VERSION[] =
-    "LinkWirelessMultiboot/v8.0.0";
+LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
+    "vLinkWirelessMultiboot/v8.0.0";
 
 #define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
@@ -161,6 +161,8 @@ class LinkWirelessMultiboot {
                  u8 players,
                  C listener,
                  bool keepConnectionAlive = false) {
+    LINK_READ_TAG(LINK_WIRELESS_MULTIBOOT_VERSION);
+
     if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
       return INVALID_SIZE;
     if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)

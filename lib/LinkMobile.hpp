@@ -75,7 +75,7 @@
 #define LINK_MOBILE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v8.0.0";
+LINK_VERSION_TAG LINK_MOBILE_VERSION = "vLinkMobile/v8.0.0";
 
 #define LINK_MOBILE_MAX_USER_TRANSFER_LENGTH 254
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
@@ -282,6 +282,8 @@ class LinkMobile {
    * `NEEDS_RESET`, and you can retrieve the error with `getError()`.
    */
   void activate() {
+    LINK_READ_TAG(LINK_MOBILE_VERSION);
+
     error = {};
 
     LINK_BARRIER;

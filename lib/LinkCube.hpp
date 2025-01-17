@@ -44,7 +44,7 @@
 #define LINK_CUBE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_CUBE_VERSION[] = "LinkCube/v8.0.0";
+LINK_VERSION_TAG LINK_CUBE_VERSION = "vLinkCube/v8.0.0";
 
 /**
  * @brief A JOYBUS handler for the Link Port.
@@ -74,6 +74,8 @@ class LinkCube {
    * @brief Activates the library.
    */
   void activate() {
+    LINK_READ_TAG(LINK_CUBE_VERSION);
+
     LINK_BARRIER;
     isEnabled = false;
     LINK_BARRIER;

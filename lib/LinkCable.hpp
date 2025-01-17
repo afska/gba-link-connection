@@ -63,7 +63,7 @@
 #define LINK_CABLE_QUEUE_SIZE 15
 #endif
 
-static volatile char LINK_CABLE_VERSION[] = "LinkCable/v8.0.0";
+LINK_VERSION_TAG LINK_CABLE_VERSION = "vLinkCable/v8.0.0";
 
 #define LINK_CABLE_MAX_PLAYERS LINK_RAW_CABLE_MAX_PLAYERS
 #define LINK_CABLE_DEFAULT_TIMEOUT 3
@@ -122,6 +122,8 @@ class LinkCable {
    * @brief Activates the library.
    */
   void activate() {
+    LINK_READ_TAG(LINK_CABLE_VERSION);
+
     LINK_BARRIER;
     isEnabled = false;
     LINK_BARRIER;

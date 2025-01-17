@@ -22,6 +22,8 @@
   __attribute__((section(".iwram"), target("arm"), noinline))
 #define LINK_INLINE inline __attribute__((always_inline))
 #define LINK_NOINLINE __attribute__((noinline))
+#define LINK_VERSION_TAG inline const char*
+#define LINK_READ_TAG(TAG) (void)*((volatile const char*)TAG)
 
 /**
  * @brief This namespace contains shared code between all libraries.

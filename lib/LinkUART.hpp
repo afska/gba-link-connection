@@ -37,7 +37,7 @@
 #define LINK_UART_QUEUE_SIZE 256
 #endif
 
-static volatile char LINK_UART_VERSION[] = "LinkUART/v8.0.0";
+LINK_VERSION_TAG LINK_UART_VERSION = "vLinkUART/v8.0.0";
 
 /**
  * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
@@ -104,6 +104,8 @@ class LinkUART {
                 DataSize dataSize = SIZE_8_BITS,
                 Parity parity = NO,
                 bool useCTS = false) {
+    LINK_READ_TAG(LINK_UART_VERSION);
+
     this->config.baudRate = baudRate;
     this->config.dataSize = dataSize;
     this->config.parity = parity;

@@ -30,6 +30,8 @@
 
 #include "_link_common.hpp"
 
+LINK_VERSION_TAG LINK_GPIO_VERSION = "vLinkGPIO/v8.0.0";
+
 /**
  * @brief A General Purpose Input-Output handler for the Link Port.
  */
@@ -55,6 +57,8 @@ class LinkGPIO {
    * \warning Required to initialize the library!
    */
   void reset() {
+    LINK_READ_TAG(LINK_GPIO_VERSION);
+
     Link::_REG_RCNT = RCNT_GENERAL_PURPOSE;
     Link::_REG_SIOCNT = SIOCNT_GENERAL_PURPOSE;
   }

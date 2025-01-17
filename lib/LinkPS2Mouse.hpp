@@ -41,7 +41,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v8.0.0";
+LINK_VERSION_TAG LINK_PS2_MOUSE_VERSION = "vLinkPS2Mouse/v8.0.0";
 
 #define LINK_PS2_MOUSE_LEFT_CLICK 0b001
 #define LINK_PS2_MOUSE_RIGHT_CLICK 0b010
@@ -84,6 +84,8 @@ class LinkPS2Mouse {
    * \warning Detect timeouts using timer interrupts!
    */
   void activate() {
+    LINK_READ_TAG(LINK_PS2_MOUSE_VERSION);
+
     deactivate();
 
     setClockHigh();

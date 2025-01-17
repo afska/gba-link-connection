@@ -57,7 +57,7 @@
  */
 // #define LINK_RAW_WIRELESS_ENABLE_LOGGING
 
-static volatile char LINK_RAW_WIRELESS_VERSION[] = "LinkRawWireless/v8.0.0";
+LINK_VERSION_TAG LINK_RAW_WIRELESS_VERSION = "vLinkRawWireless/v8.0.0";
 
 #define LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
@@ -219,6 +219,8 @@ class LinkRawWireless {
    * Returns whether initialization was successful or not.
    */
   bool activate(bool _stopFirst = true) {
+    LINK_READ_TAG(LINK_RAW_WIRELESS_VERSION);
+
     isEnabled = false;
 
     bool success = reset(_stopFirst);

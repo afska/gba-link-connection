@@ -45,7 +45,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_RAW_CABLE_VERSION[] = "LinkRawCable/v8.0.0";
+LINK_VERSION_TAG LINK_RAW_CABLE_VERSION = "vLinkRawCable/v8.0.0";
 
 #define LINK_RAW_CABLE_MAX_PLAYERS 4
 #define LINK_RAW_CABLE_DISCONNECTED 0xffff
@@ -100,6 +100,8 @@ class LinkRawCable {
    * Defaults to `LinkRawCable::BaudRate::BAUD_RATE_1` (38400 bps).
    */
   void activate(BaudRate baudRate = BaudRate::BAUD_RATE_1) {
+    LINK_READ_TAG(LINK_RAW_CABLE_VERSION);
+
     this->baudRate = baudRate;
     this->asyncState = IDLE;
     this->asyncData = EMPTY_RESPONSE;

@@ -39,8 +39,7 @@
 #define LINK_CABLE_MULTIBOOT_PALETTE_DATA 0b10010011
 #endif
 
-static volatile char LINK_CABLE_MULTIBOOT_VERSION[] =
-    "LinkCableMultiboot/v8.0.0";
+LINK_VERSION_TAG LINK_CABLE_MULTIBOOT_VERSION = "vLinkCableMultiboot/v8.0.0";
 
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)   \
   partialResult = CALL;                  \
@@ -107,6 +106,8 @@ class LinkCableMultiboot {
                  u32 romSize,
                  F cancel,
                  TransferMode mode = TransferMode::MULTI_PLAY) {
+    LINK_READ_TAG(LINK_CABLE_MULTIBOOT_VERSION);
+
     this->_mode = mode;
     if (romSize < MIN_ROM_SIZE)
       return INVALID_SIZE;

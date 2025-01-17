@@ -135,7 +135,7 @@
 // #define LINK_WIRELESS_TWO_PLAYERS_ONLY
 #endif
 
-static volatile char LINK_WIRELESS_VERSION[] = "LinkWireless/v8.0.0";
+LINK_VERSION_TAG LINK_WIRELESS_VERSION = "vLinkWireless/v8.0.0";
 
 #define LINK_WIRELESS_MAX_PLAYERS LINK_RAW_WIRELESS_MAX_PLAYERS
 #define LINK_WIRELESS_MIN_PLAYERS 2
@@ -282,6 +282,8 @@ class LinkWireless {
    * adapter.
    */
   bool activate() {
+    LINK_READ_TAG(LINK_WIRELESS_VERSION);
+
     lastError = NONE;
     isEnabled = false;
 
