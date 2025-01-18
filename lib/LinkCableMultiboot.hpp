@@ -293,7 +293,7 @@ class LinkCableMultiboot {
     if (mb_data->init != MULTIBOOT_INIT_VALID_VALUE)
       multiboot_init(data, end, mb_data);
 
-    activate();
+    start();
     // if (mb_dyn_data.is_normal)
     //   init_sio_normal(SIO_MASTER, SIO_32);
     // else
@@ -467,7 +467,7 @@ class LinkCableMultiboot {
                : Result::FAILURE_DURING_TRANSFER;
 
   retry:
-    deactivate();
+    stop();
 
     // (*) instead of 1/16s, waiting a random number of frames works better
     Link::wait(WAIT_BEFORE_RETRY + FRAME_LINES * _qran_range(1, 30));
@@ -493,7 +493,7 @@ class LinkCableMultiboot {
     // MultiPlay).
     int result = Link::_MultiBoot(&multiBootParameters, (int)_mode);
 
-    deactivate();
+    stop();
 
     // 10. Upon return, r0 will be either 0 for success, or 1 for failure. If
     // successful, all clients have received the multiboot program successfully
@@ -519,7 +519,7 @@ class LinkCableMultiboot {
                               F cancel) {
     // 2. Initiate a multiplayer communication session, using either Normal mode
     // for a single client or MultiPlay mode for multiple clients.
-    activate();
+    start();
 
     // 3. Send the word 0x6200 repeatedly until all detected clients respond
     // with 0x720X, where X is their client number (1-3). If they fail to do
@@ -689,15 +689,14 @@ class LinkCableMultiboot {
     }
   }
 
- public:
-  void activate() {
+  void start() {
     if (_mode == TransferMode::MULTI_PLAY)
       linkRawCable.activate(MAX_BAUD_RATE);
     else
       linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
   }
 
-  void deactivate() {
+  void stop() {
     if (_mode == TransferMode::MULTI_PLAY)
       linkRawCable.deactivate();
     else
@@ -705,7 +704,7 @@ class LinkCableMultiboot {
   }
 
   Result error(Result error) {
-    deactivate();
+    stop();
     return error;
   }
 
