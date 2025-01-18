@@ -432,7 +432,7 @@ class LinkCableMultiboot {
   /**
    * @brief Sends the `rom`. Once completed, the return value should be
    * `LinkCableMultiboot::Result::SUCCESS`.
-   * @param rom A pointer to ROM data.
+   * @param rom A pointer to ROM data. Must be 4-byte aligned.
    * @param romSize Size of the ROM in bytes. It must be a number between `448`
    * and `262144`, and a multiple of `16`.
    * @param cancel A function that will be continuously invoked. If it returns
