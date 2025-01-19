@@ -74,7 +74,8 @@ class LinkCableMultiboot {
   static constexpr int SEND_PALETTE = 0x6300;
   static constexpr int HANDSHAKE_DATA = 0x11;
   static constexpr int CONFIRM_HANDSHAKE_DATA = 0x6400;
-  static constexpr int ACK_RESPONSE = 0x73;
+  static constexpr int ACK_RESPONSE = 0x7300;
+  static constexpr int ACK_RESPONSE_MASK = 0xff00;
   static constexpr int HEADER_SIZE = 0xC0;
   static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
 
@@ -273,7 +274,7 @@ class LinkCableMultiboot {
           response, [&multiBootParameters, &sendMask](u32 i, u16 value) {
             u8 clientBit = 1 << (i + 1);
             if ((multiBootParameters.client_bit & clientBit) &&
-                (value >> 8) == ACK_RESPONSE) {
+                ((value & ACK_RESPONSE_MASK) == ACK_RESPONSE)) {
               multiBootParameters.client_data[i] = value & 0xff;
               sendMask &= ~clientBit;
               return true;
@@ -297,6 +298,7 @@ class LinkCableMultiboot {
     // 8. Calculate the handshake_data byte and store it in the parameter
     // structure. This should be calculated as 0x11 + the sum of the three
     // client_data bytes. Send 0x64HH, where HH is the handshake_data.
+    // The clients should respond 0x77GG, where GG is something unimportant.
     multiBootParameters.handshake_data =
         (HANDSHAKE_DATA + multiBootParameters.client_data[0] +
          multiBootParameters.client_data[1] +
@@ -307,17 +309,22 @@ class LinkCableMultiboot {
     auto response = transfer(data, cancel);
     if (cancel())
       return ABORTED;
+    if (!isResponseSameAsValue(response, multiBootParameters.client_bit,
+                               ACK_RESPONSE, ACK_RESPONSE_MASK))
+      return NEEDS_RETRY;
 
-    return (response.data[1] >> 8) == ACK_RESPONSE ? FINISHED : NEEDS_RETRY;
+    return FINISHED;
   }
 
   static bool isResponseSameAsValue(Response response,
                                     u8 clientMask,
-                                    u32 wantedValue) {
+                                    u16 wantedValue,
+                                    u16 mask) {
     return validateResponse(
-        response, [&clientMask, &wantedValue](u32 i, u32 value) {
+        response, [&clientMask, &wantedValue, &mask](u32 i, u32 value) {
           u8 clientBit = 1 << (i + 1);
-          bool isInvalid = (clientMask & clientBit) && (value != wantedValue);
+          bool isInvalid =
+              (clientMask & clientBit) && ((value & mask) != wantedValue);
           return !isInvalid;
         });
   }

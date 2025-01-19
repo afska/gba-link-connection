@@ -153,12 +153,12 @@ static LINK_INLINE auto _MultiBoot(const _MultiBootParam* param,
 
 // Random
 
-int _qran() {
+static inline int _qran() {
   randomSeed = 1664525 * randomSeed + 1013904223;
   return (randomSeed >> 16) & 0x7FFF;
 }
 
-int _qran_range(int min, int max) {
+static inline int _qran_range(int min, int max) {
   return (_qran() * (max - min) >> 15) + min;
 }
 
