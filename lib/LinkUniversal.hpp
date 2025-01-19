@@ -129,8 +129,6 @@ class LinkUniversal {
    * @param cableOptions All the LinkCable constructor parameters in one struct.
    * @param wirelessOptions All the LinkWireless constructor parameters in one
    * struct.
-   * @param randomSeed Random seed used for waits to prevent livelocks. If you
-   * use _libtonc_, pass `__qran_seed`.
    */
   explicit LinkUniversal(Protocol protocol = AUTODETECT,
                          const char* gameName = "",
@@ -144,8 +142,7 @@ class LinkUniversal {
                                  true, LINK_UNIVERSAL_MAX_PLAYERS,
                                  LINK_WIRELESS_DEFAULT_TIMEOUT,
                                  LINK_WIRELESS_DEFAULT_INTERVAL,
-                                 LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
-                         int randomSeed = 123)
+                                 LINK_WIRELESS_DEFAULT_SEND_TIMER_ID})
       : linkCable(cableOptions.baudRate,
                   cableOptions.timeout,
                   cableOptions.interval,
@@ -159,7 +156,6 @@ class LinkUniversal {
             wirelessOptions.sendTimerId) {
     this->config.protocol = protocol;
     this->config.gameName = gameName;
-    this->randomSeed = randomSeed;
   }
 
   /**
@@ -224,9 +220,9 @@ class LinkUniversal {
       return;
 
     u16 keys = ~Link::_REG_KEYS & Link::_KEY_ANY;
-    randomSeed += keys;
-    randomSeed += Link::_REG_RCNT;
-    randomSeed += Link::_REG_SIOCNT;
+    Link::randomSeed += keys;
+    Link::randomSeed += Link::_REG_RCNT;
+    Link::randomSeed += Link::_REG_SIOCNT;
 
     if (mode == LINK_CABLE)
       linkCable.sync();
@@ -500,7 +496,6 @@ class LinkUniversal {
   u32 switchWait = 0;
   u32 subWaitCount = 0;
   u32 serveWait = 0;
-  int randomSeed = 0;
   volatile bool isEnabled = false;
 
   void receiveCableMessages() {
@@ -605,8 +600,9 @@ class LinkUniversal {
         return false;
 
       subWaitCount = 0;
-      serveWait = SERVE_WAIT_FRAMES + _qran_range(1, SERVE_WAIT_FRAMES_RANDOM);
-      u32 randomNumber = _qran_range(1, MAX_ROOM_NUMBER);
+      serveWait =
+          SERVE_WAIT_FRAMES + Link::_qran_range(1, SERVE_WAIT_FRAMES_RANDOM);
+      u32 randomNumber = Link::_qran_range(1, MAX_ROOM_NUMBER);
       char randomNumberStr[6];
       Link::intToStr5(randomNumberStr, randomNumber);
       if (!linkWireless.serve(config.gameName, randomNumberStr,
@@ -696,7 +692,8 @@ class LinkUniversal {
 
   void resetState() {
     waitCount = 0;
-    switchWait = SWITCH_WAIT_FRAMES + _qran_range(1, SWITCH_WAIT_FRAMES_RANDOM);
+    switchWait =
+        SWITCH_WAIT_FRAMES + Link::_qran_range(1, SWITCH_WAIT_FRAMES_RANDOM);
     subWaitCount = 0;
     serveWait = 0;
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
@@ -717,15 +714,6 @@ class LinkUniversal {
     }
 
     return num;
-  }
-
-  int _qran() {
-    randomSeed = 1664525 * randomSeed + 1013904223;
-    return (randomSeed >> 16) & 0x7FFF;
-  }
-
-  int _qran_range(int min, int max) {
-    return (_qran() * (max - min) >> 15) + min;
   }
 };
 

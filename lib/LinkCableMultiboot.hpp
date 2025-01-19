@@ -120,7 +120,8 @@ class LinkCableMultiboot {
 
     // (*) instead of 1/16s, waiting a random number of frames works better
     Link::wait(INITIAL_WAIT_MIN_LINES +
-               FRAME_LINES * _qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES));
+               FRAME_LINES *
+                   Link::_qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES));
 
     // 1. Prepare a "Multiboot Parameter Structure" in RAM.
     PartialResult partialResult = NEEDS_RETRY;
@@ -389,15 +390,6 @@ class LinkCableMultiboot {
     return error;
   }
 
-  int _qran() {
-    randomSeed = 1664525 * randomSeed + 1013904223;
-    return (randomSeed >> 16) & 0x7FFF;
-  }
-
-  int _qran_range(int min, int max) {
-    return (_qran() * (max - min) >> 15) + min;
-  }
-
  public:
   /*
   class Async {
@@ -561,7 +553,8 @@ class LinkCableMultiboot {
 
       dynamicData = MultibootDynamicData{};
       dynamicData.waitFrames = INITIAL_WAIT_MIN_FRAMES +
-                               _qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES);
+                               Link::_qran_range(1,
+  INITIAL_WAIT_MAX_RANDOM_FRAMES);
     }
 
     void resetState() {

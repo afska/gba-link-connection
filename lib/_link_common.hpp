@@ -47,6 +47,10 @@ using vs16 = volatile signed short;
 using vu8 = volatile unsigned char;
 using vs8 = volatile signed char;
 
+// Globals
+
+inline u32 randomSeed = 123;
+
 // Structs
 
 struct _TMR_REC {
@@ -145,6 +149,17 @@ static LINK_INLINE auto _MultiBoot(const _MultiBootParam* param,
   asm volatile inline("swi 0x25 << ((1f - . == 4) * -16); 1:"
                       : "+r"(r0), "+r"(r1)::"r3");
   return r0.res;
+}
+
+// Random
+
+int _qran() {
+  randomSeed = 1664525 * randomSeed + 1013904223;
+  return (randomSeed >> 16) & 0x7FFF;
+}
+
+int _qran_range(int min, int max) {
+  return (_qran() * (max - min) >> 15) + min;
 }
 
 // Helpers
