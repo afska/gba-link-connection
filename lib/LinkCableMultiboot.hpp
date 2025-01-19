@@ -48,29 +48,6 @@ LINK_VERSION_TAG LINK_CABLE_MULTIBOOT_VERSION = "vLinkCableMultiboot/v8.0.0";
   else if (partialResult == NEEDS_RETRY) \
     goto retry;
 
-// --- Borrowed from Lorenzoone's gba_mem_viewer. ---
-#define MULTIBOOT_INIT_VALID_VALUE 0x91
-
-#define FPS 60
-#define MAX_FINAL_HANDSHAKE_ATTEMPTS (FPS * 5)
-#define MAX_PALETTE_ATTEMPTS 128
-#define MULTIBOOT_CHOSEN_PALETTE_VALUE 0x81
-
-// In the end, it's not needed...?!
-#define MULTIBOOT_WAIT_TIME_MUS (36 - 36)
-
-#define CRCC_NORMAL_START 0xC387
-#define CRCC_MULTI_START 0xFFF8
-
-#define CRCC_NORMAL_XOR 0xC37B
-#define CRCC_MULTI_XOR 0xA517
-
-#define DATA_NORMAL_XOR 0x43202F2F
-#define DATA_MULTI_XOR 0x6465646F
-
-#define MULTIBOOT_MAX_SIZE 0x3FF40  // sin 0xC0
-#define MAX_NUM_SLAVES 3
-
 /**
  * @brief A Multiboot tool to send small programs from one GBA to up to 3
  * slaves.
@@ -84,7 +61,10 @@ class LinkCableMultiboot {
   static constexpr int MIN_ROM_SIZE = 0x100 + 0xc0;
   static constexpr int MAX_ROM_SIZE = 256 * 1024;
   static constexpr int FRAME_LINES = 228;
-  static constexpr int WAIT_BEFORE_RETRY = FRAME_LINES * 4;
+  static constexpr int INITIAL_WAIT_MIN_FRAMES = 4;
+  static constexpr int INITIAL_WAIT_MAX_RANDOM_FRAMES = 30;
+  static constexpr int INITIAL_WAIT_MIN_LINES =
+      FRAME_LINES * INITIAL_WAIT_MIN_FRAMES;
   static constexpr int DETECTION_TRIES = 16;
   static constexpr int CLIENTS = 3;
   static constexpr int CLIENT_NO_DATA = 0xff;
@@ -97,329 +77,11 @@ class LinkCableMultiboot {
   static constexpr int ACK_RESPONSE = 0x73;
   static constexpr int HEADER_SIZE = 0xC0;
   static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
-  static constexpr u8 CLIENT_IDS[] = {0b0010, 0b0100, 0b1000};
 
   struct Response {
     u32 data[LINK_RAW_CABLE_MAX_PLAYERS];
     int playerId = -1;  // (-1 = unknown)
   };
-
-  // lol
-  static inline void VBlankIntrWait() {
-    while (Link::_REG_VCOUNT >= 160)
-      ;  // wait till VDraw
-    while (Link::_REG_VCOUNT < 160)
-      ;  // wait till VBlank
-  };
-
-  static inline void calc_crc_data_u32(u32 read_data,
-                                       u32* crcC_ptr,
-                                       u8 is_normal) {
-    u32 tmp_crcC = *crcC_ptr;
-    u32 xor_val = CRCC_NORMAL_XOR;
-    if (!is_normal)
-      xor_val = CRCC_MULTI_XOR;
-    for (int j = 0; j < 32; j++) {
-      u8 bit = (tmp_crcC ^ read_data) & 1;
-      read_data >>= 1;
-      tmp_crcC >>= 1;
-      if (bit)
-        tmp_crcC ^= xor_val;
-    }
-    *crcC_ptr = tmp_crcC;
-  }
-
-  struct multiboot_fixed_data {
-    u16* data;
-    u32 size;
-    u32 crcC_normal;
-    u32 crcC_multi;
-    u8 crcC_normal_init;
-    u8 crcC_multi_init;
-    u8 init;
-  };
-
-  struct multiboot_dynamic_data {
-    u8 is_normal;
-    u32 crcB;
-    u32 seed;
-    u8* token_data;
-    u8 client_mask;
-  };
-
-  enum MULTIBOOT_RESULTS {
-    MB_SUCCESS,
-    MB_NO_INIT_SYNC,
-    MB_WRONG_ANSWER,
-    MB_HEADER_ISSUE,
-    MB_PALETTE_FAILURE,
-    MB_SWI_FAILURE,
-    MB_NOT_INIT,
-    MB_TOO_BIG,
-    MB_FINAL_HANDSHAKE_FAILURE,
-    MB_CRC_FAILURE,
-    MB_SEND_FAILURE
-  };
-
-  static MULTIBOOT_RESULTS multiboot_init(u16* data,
-                                          u16* end,
-                                          multiboot_fixed_data* mb_data) {
-    mb_data->init = 0;
-    mb_data->data = data;
-    mb_data->size = (((((u32)end) + 15) >> 4) << 4) - ((u32)data);
-    if (mb_data->size > MULTIBOOT_MAX_SIZE)
-      return MB_TOO_BIG;
-
-    mb_data->crcC_normal_init = 0;
-    mb_data->crcC_multi_init = 0;
-    mb_data->init = MULTIBOOT_INIT_VALID_VALUE;
-    return MB_SUCCESS;
-  }
-
-  // esto ya lo tengo creo
-  static inline u8 received_data_same_as_value(u8 client_mask,
-                                               u16 wanted_value,
-                                               u16 mask,
-                                               u16* response) {
-    for (int i = 0; i < MAX_NUM_SLAVES; i++) {
-      u8 client_bit = 1 << (i + 1);
-
-      if ((client_mask & client_bit) && ((response[i] & mask) != wanted_value))
-        return 0;  // bad
-    }
-    return 1;  // good
-  }
-
-  static inline u8 received_data_same_as_value_client_bit(u8 client_mask,
-                                                          u16 wanted_value,
-                                                          u16* response) {
-    for (int i = 0; i < MAX_NUM_SLAVES; i++) {
-      u8 client_bit = 1 << (i + 1);
-
-      if ((client_mask & client_bit) &&
-          (response[i] != (wanted_value | client_bit)))
-        return 0;
-    }
-    return 1;
-  }
-
-  void multiboot_send(u32 data, bool isNormal, u16* recvData) {
-    Response response = transfer(data, []() { return false; });
-    for (u32 i = 0; i < MAX_NUM_SLAVES; i++)
-      recvData[i] = response.data[i + 1];
-  }
-
-  MULTIBOOT_RESULTS multiboot_main_transfer(
-      multiboot_fixed_data* mb_data,
-      multiboot_dynamic_data* mb_dyn_data) {
-    u16 recv_data[MAX_NUM_SLAVES];
-    u32* u32_data = (u32*)mb_data->data;
-    Link::wait(228 * 4);
-    // delay_cycles(CLOCK_CYCLES_PER_MS((1000 + 15) / 16));
-
-    multiboot_send((mb_data->size - 0x190) >> 2, mb_dyn_data->is_normal,
-                   recv_data);
-    for (int i = 0; i < MAX_NUM_SLAVES; i++) {
-      u8 contribute = 0xFF;
-      u8 client_bit = 1 << (i + 1);
-
-      if (mb_dyn_data->client_mask & client_bit)
-        contribute = recv_data[i] & 0xFF;
-      mb_dyn_data->crcB |= contribute << (8 * (i + 1));
-    }
-
-    if (mb_dyn_data->is_normal) {
-      if (!mb_data->crcC_normal_init)
-        mb_data->crcC_normal = CRCC_NORMAL_START;
-      for (u32 i = 0xC0 >> 2; i < (mb_data->size >> 2); i++) {
-        mb_dyn_data->seed = (mb_dyn_data->seed * 0x6F646573) + 1;
-        multiboot_send(u32_data[i] ^ (0xFE000000 - (i << 2)) ^
-                           mb_dyn_data->seed ^ DATA_NORMAL_XOR,
-                       mb_dyn_data->is_normal, recv_data);
-        if (!received_data_same_as_value(mb_dyn_data->client_mask, i << 2,
-                                         0xFFFF, recv_data))
-          return MB_SEND_FAILURE;
-        if (!mb_data->crcC_normal_init)
-          calc_crc_data_u32(u32_data[i], &mb_data->crcC_normal,
-                            mb_dyn_data->is_normal);
-      }
-      mb_data->crcC_normal_init = 1;
-    } else {
-      if (!mb_data->crcC_multi_init)
-        mb_data->crcC_multi = CRCC_MULTI_START;
-      for (u32 i = 0xC0 >> 2; i < (mb_data->size >> 2); i++) {
-        mb_dyn_data->seed = (mb_dyn_data->seed * 0x6F646573) + 1;
-        multiboot_send((u32_data[i] ^ (0xFE000000 - (i << 2)) ^
-                        mb_dyn_data->seed ^ DATA_MULTI_XOR) &
-                           0xFFFF,
-                       mb_dyn_data->is_normal, recv_data);
-        if (!received_data_same_as_value(mb_dyn_data->client_mask, i << 2,
-                                         0xFFFF, recv_data))
-          return MB_SEND_FAILURE;
-        multiboot_send((u32_data[i] ^ (0xFE000000 - (i << 2)) ^
-                        mb_dyn_data->seed ^ DATA_MULTI_XOR) >>
-                           16,
-                       mb_dyn_data->is_normal, recv_data);
-        if (!received_data_same_as_value(mb_dyn_data->client_mask, (i << 2) + 2,
-                                         0xFFFF, recv_data))
-          return MB_SEND_FAILURE;
-        if (!mb_data->crcC_multi_init)
-          calc_crc_data_u32(u32_data[i], &mb_data->crcC_multi,
-                            mb_dyn_data->is_normal);
-      }
-      mb_data->crcC_multi_init = 1;
-    }
-
-    multiboot_send(0x0065, mb_dyn_data->is_normal, recv_data);
-
-    return MB_SUCCESS;
-  }
-
-  enum MULTIBOOT_RESULTS multiboot_normal(u16* data,
-                                          u16* end,
-                                          multiboot_fixed_data* mb_data,
-                                          int is_normal) {
-    u16 response[MAX_NUM_SLAVES];
-    int attempts, sends, halves;
-    u8 answers[MAX_NUM_SLAVES] = {0xFF, 0xFF, 0xFF};
-    u8 handshake;
-    u8 sendMask;
-    u32 attempt_counter;
-    const u8 palette = MULTIBOOT_CHOSEN_PALETTE_VALUE;
-    struct multiboot_dynamic_data mb_dyn_data;
-    mb_dyn_data.is_normal = is_normal;
-    mb_dyn_data.client_mask = 0;
-
-    if (mb_data->init != MULTIBOOT_INIT_VALID_VALUE)
-      multiboot_init(data, end, mb_data);
-
-    start();
-    // if (mb_dyn_data.is_normal)
-    //   init_sio_normal(SIO_MASTER, SIO_32);
-    // else
-    //   init_sio_multi(SIO_MASTER);
-
-    for (attempts = 0; attempts < 128; attempts++) {
-      for (sends = 0; sends < 16; sends++) {
-        multiboot_send(0x6200, mb_dyn_data.is_normal, response);
-
-        for (int i = 0; i < MAX_NUM_SLAVES; i++)
-          if ((response[i] & 0xFFF0) == 0x7200) {
-            mb_dyn_data.client_mask |= response[i] & 0xF;
-          }
-      }
-
-      if (mb_dyn_data.client_mask)
-        break;
-      else
-        VBlankIntrWait();
-    }
-
-    if (!mb_dyn_data.client_mask) {
-      return MB_NO_INIT_SYNC;
-    }
-
-    multiboot_send(0x6100 | mb_dyn_data.client_mask, mb_dyn_data.is_normal,
-                   response);
-    if (!received_data_same_as_value_client_bit(mb_dyn_data.client_mask, 0x7200,
-                                                response))
-      return MB_WRONG_ANSWER;
-
-    for (halves = 0; halves < 0x60; ++halves) {
-      multiboot_send(mb_data->data[halves], mb_dyn_data.is_normal, response);
-      if (!received_data_same_as_value_client_bit(
-              mb_dyn_data.client_mask, (0x60 - halves) << 8, response))
-        return MB_HEADER_ISSUE;
-    }
-
-    multiboot_send(0x6200, mb_dyn_data.is_normal, response);
-    if (!received_data_same_as_value_client_bit(mb_dyn_data.client_mask, 0,
-                                                response))
-      return MB_WRONG_ANSWER;
-
-    multiboot_send(0x6200 | mb_dyn_data.client_mask, mb_dyn_data.is_normal,
-                   response);
-    if (!received_data_same_as_value_client_bit(mb_dyn_data.client_mask, 0x7200,
-                                                response))
-      return MB_WRONG_ANSWER;
-
-    sendMask = mb_dyn_data.client_mask;
-    attempt_counter = 0;
-
-    while (sendMask) {
-      multiboot_send(0x6300 | palette, mb_dyn_data.is_normal, response);
-
-      for (int i = 0; i < MAX_NUM_SLAVES; i++) {
-        u8 client_bit = 1 << (i + 1);
-
-        if ((mb_dyn_data.client_mask & client_bit) &&
-            ((response[i] & 0xFF00) == 0x7300)) {
-          answers[i] = response[i] & 0xFF;
-          sendMask &= ~client_bit;
-        }
-      }
-      attempt_counter++;
-
-      if ((attempt_counter == MAX_PALETTE_ATTEMPTS) && sendMask)
-        return MB_PALETTE_FAILURE;
-    }
-
-    mb_dyn_data.seed = palette;
-    handshake = 0x11;
-    for (int i = 0; i < MAX_NUM_SLAVES; i++) {
-      handshake += answers[i];
-      mb_dyn_data.seed |= answers[i] << (8 * (i + 1));
-    }
-
-    handshake &= 0xFF;
-    multiboot_send(0x6400 | handshake, mb_dyn_data.is_normal, response);
-    if (!received_data_same_as_value(mb_dyn_data.client_mask, 0x7300, 0xFF00,
-                                     response))
-      return MB_WRONG_ANSWER;
-    mb_dyn_data.crcB = handshake;
-
-    // print_multiboot_mid_process(1);
-    // prepare_flush();
-    VBlankIntrWait();
-
-    // This is slower before caching the fixed crcC, but it works even in
-    // vram/ovram...
-    enum MULTIBOOT_RESULTS result =
-        multiboot_main_transfer(mb_data, &mb_dyn_data);
-    if (result != MB_SUCCESS)
-      return result;
-
-    u32 crcC_final = mb_data->crcC_normal & 0xFFFF;
-    if (!mb_dyn_data.is_normal)
-      crcC_final = mb_data->crcC_multi & 0xFFFF;
-    calc_crc_data_u32(mb_dyn_data.crcB, &crcC_final, mb_dyn_data.is_normal);
-
-    attempt_counter = 0;
-    u8 done = 0;
-
-    while (!done) {
-      multiboot_send(0x0065, mb_dyn_data.is_normal, response);
-      done = 1;
-      if (!received_data_same_as_value(mb_dyn_data.client_mask, 0x0075, 0xFFFF,
-                                       response))
-        done = 0;
-      VBlankIntrWait();
-      attempt_counter += 1;
-
-      if (attempt_counter == MAX_FINAL_HANDSHAKE_ATTEMPTS)
-        return MB_FINAL_HANDSHAKE_FAILURE;
-    }
-    multiboot_send(0x0066, mb_dyn_data.is_normal, response);
-    multiboot_send(crcC_final & 0xFFFF, mb_dyn_data.is_normal, response);
-
-    if (!received_data_same_as_value(mb_dyn_data.client_mask, crcC_final,
-                                     0xFFFF, response))
-      return MB_CRC_FAILURE;
-
-    return MB_SUCCESS;
-  }
-
-  // --- Lorenzoone ---
 
  public:
   enum Result { SUCCESS, INVALID_SIZE, CANCELED, FAILURE_DURING_TRANSFER };
@@ -449,28 +111,16 @@ class LinkCableMultiboot {
     LINK_READ_TAG(LINK_CABLE_MULTIBOOT_VERSION);
 
     this->_mode = mode;
-    if (romSize < MIN_ROM_SIZE)
+    if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
+        (romSize % 0x10) != 0)
       return INVALID_SIZE;
-    if (romSize > MAX_ROM_SIZE)
-      return INVALID_SIZE;
-    if ((romSize % 0x10) != 0)
-      return INVALID_SIZE;
-
-    // sio_stop_irq_slave();
-    // irqDisable(IRQ_SERIAL);
-    multiboot_fixed_data mb_data;
-    u8* romEnd = (u8*)rom + romSize;
-    auto res = multiboot_normal((u16*)rom, (u16*)romEnd, &mb_data,
-                                mode == TransferMode::SPI);
-    return res == MULTIBOOT_RESULTS::MB_SUCCESS
-               ? Result::SUCCESS
-               : Result::FAILURE_DURING_TRANSFER;
 
   retry:
     stop();
 
     // (*) instead of 1/16s, waiting a random number of frames works better
-    Link::wait(WAIT_BEFORE_RETRY + FRAME_LINES * _qran_range(1, 30));
+    Link::wait(INITIAL_WAIT_MIN_LINES +
+               FRAME_LINES * _qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES));
 
     // 1. Prepare a "Multiboot Parameter Structure" in RAM.
     PartialResult partialResult = NEEDS_RETRY;
@@ -535,8 +185,9 @@ class LinkCableMultiboot {
       success =
           validateResponse(response, [&multiBootParameters](u32 i, u16 value) {
             if ((value & 0xfff0) == HANDSHAKE_RESPONSE) {
-              auto clientId = value & 0xf;
-              if (clientId == CLIENT_IDS[i]) {
+              u8 clientId = value & 0xf;
+              u8 expectedClientId = 1 << (i + 1);
+              if (clientId == expectedClientId) {
                 multiBootParameters.client_bit |= clientId;
                 return true;
               }
@@ -554,7 +205,13 @@ class LinkCableMultiboot {
     // 4. Fill in client_bit in the multiboot parameter structure (with
     // bits 1-3 set according to which clients responded). Send the word
     // 0x610Y, where Y is that same set of set bits.
-    transfer(CONFIRM_CLIENTS | multiBootParameters.client_bit, cancel);
+    auto response =
+        transfer(CONFIRM_CLIENTS | multiBootParameters.client_bit, cancel);
+
+    // The client should respond 0x7200.
+    if (!isResponseSameAsValueWithClientBit(
+            response, multiBootParameters.client_bit, HANDSHAKE_RESPONSE))
+      return NEEDS_RETRY;
 
     return FINISHED;
   }
@@ -575,11 +232,8 @@ class LinkCableMultiboot {
       if (cancel())
         return ABORTED;
 
-      bool success = validateResponse(response, [&remaining](u32 i, u16 value) {
-        u8 clientId = CLIENT_IDS[i];
-        u16 expectedValue = (remaining << 8) | clientId;
-        return value == expectedValue;
-      });
+      bool success = isResponseSameAsValueWithClientBit(
+          response, multiBootParameters.client_bit, remaining << 8);
 
       if (!success)
         return NEEDS_RETRY;
@@ -606,16 +260,20 @@ class LinkCableMultiboot {
     // random byte. Store these bytes in client_data in the parameter structure.
     auto data = SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
 
+    u8 sendMask = multiBootParameters.client_bit;
     bool success = false;
     for (u32 i = 0; i < DETECTION_TRIES; i++) {
       auto response = transfer(data, cancel);
       if (cancel())
         return ABORTED;
 
-      success =
-          validateResponse(response, [&multiBootParameters](u32 i, u16 value) {
-            if ((value >> 8) == ACK_RESPONSE) {
+      success = validateResponse(
+          response, [&multiBootParameters, &sendMask](u32 i, u16 value) {
+            u8 clientBit = 1 << (i + 1);
+            if ((multiBootParameters.client_bit & clientBit) &&
+                (value >> 8) == ACK_RESPONSE) {
               multiBootParameters.client_data[i] = value & 0xff;
+              sendMask &= ~clientBit;
               return true;
             }
             return false;
@@ -625,7 +283,7 @@ class LinkCableMultiboot {
         break;
     }
 
-    if (!success)
+    if (!success || sendMask > 0)
       return NEEDS_RETRY;
 
     return FINISHED;
@@ -651,8 +309,31 @@ class LinkCableMultiboot {
     return (response.data[1] >> 8) == ACK_RESPONSE ? FINISHED : NEEDS_RETRY;
   }
 
+  static bool isResponseSameAsValue(Response response,
+                                    u8 clientMask,
+                                    u32 wantedValue) {
+    return validateResponse(
+        response, [&clientMask, &wantedValue](u32 i, u32 value) {
+          u8 clientBit = 1 << (i + 1);
+          bool isInvalid = (clientMask & clientBit) && (value != wantedValue);
+          return !isInvalid;
+        });
+  }
+
+  static bool isResponseSameAsValueWithClientBit(Response response,
+                                                 u8 clientMask,
+                                                 u32 wantedValue) {
+    return validateResponse(
+        response, [&clientMask, &wantedValue](u32 i, u32 value) {
+          u8 clientBit = 1 << (i + 1);
+          bool isInvalid =
+              (clientMask & clientBit) && (value != (wantedValue | clientBit));
+          return !isInvalid;
+        });
+  }
+
   template <typename F>
-  bool validateResponse(Response response, F check) {
+  static bool validateResponse(Response response, F check) {
     u32 count = 0;
     for (u32 i = 0; i < CLIENTS; i++) {
       auto value = response.data[1 + i];
@@ -716,6 +397,222 @@ class LinkCableMultiboot {
   int _qran_range(int min, int max) {
     return (_qran() * (max - min) >> 15) + min;
   }
+
+ public:
+  /*
+  class Async {
+   public:
+    enum State {
+      STOPPED,
+      WAITING,
+      DETECTING_CLIENTS,
+      DETECTING_CLIENTS_END,
+      SENDING_HEADER
+    };
+
+    enum Result {
+      NONE,
+      SUCCESS,
+      INVALID_SIZE,
+      CANCELED,
+      NO_INIT_SYNC,
+      WRONG_ANSWER,
+      HEADER_ISSUE,
+      PALETTE_FAILURE,
+      NOT_INIT,
+      FINAL_HANDSHAKE_FAILURE,
+      CRC_FAILURE,
+      SEND_FAILURE
+    };
+
+    bool sendRom(const u8* rom,
+                 u32 romSize,
+                 TransferMode mode = TransferMode::MULTI_PLAY) {
+      if (state != STOPPED)
+        return false;
+
+      if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
+          (romSize % 0x10) != 0)
+        return INVALID_SIZE;
+
+      resetState();
+      initFixedData(rom, romSize);
+      dynamicData.transferMode = mode;
+
+      startMultibootSend();
+
+      return true;
+    }
+
+    void _onVBlank() {
+      if (state == STOPPED)
+        return;
+
+      processNewFrame();
+    }
+
+    void _onSerial() {
+      if (state == STOPPED)
+        return;
+
+      Response response = getAsyncResponse();
+      processResponse(response);
+    }
+
+   private:
+    struct MultibootFixedData {
+      const u16* data = nullptr;
+      u32 size = 0;
+      u32 crcCNormal = 0;
+      u32 crcCMulti = 0;
+      u8 crcCNormalInit = 0;
+      u8 crcCMultiInit = 0;
+    };
+
+    struct MultibootDynamicData {
+      TransferMode transferMode = TransferMode::MULTI_PLAY;
+      u32 crcB = 0;
+      u32 seed = 0;
+      u8* tokenData = nullptr;
+      u8 clientMask = 0;
+
+      u32 waitFrames = 0;
+      u32 wait = 0;
+      u32 retry = 0;
+    };
+
+    LinkRawCable linkRawCable;
+    LinkSPI linkSPI;
+    MultibootFixedData fixedData;
+    MultibootDynamicData dynamicData;
+    volatile State state = STOPPED;
+    volatile Result result = NONE;
+
+    void processNewFrame() {
+      switch (state) {
+        case WAITING: {
+          dynamicData.wait++;
+          if (dynamicData.wait >= dynamicData.waitFrames) {
+            state = DETECTING_CLIENTS;
+            start();
+            transferAsync(HANDSHAKE);
+          }
+          break;
+        }
+      }
+    }
+
+    void processResponse(Response response) {
+      switch (state) {
+        case DETECTING_CLIENTS: {
+          dynamicData.clientMask = 0;
+
+          bool success = validateResponse(response, [this](u32 i, u16 value) {
+            if ((value & 0xfff0) == HANDSHAKE_RESPONSE) {
+              auto clientId = value & 0xf;
+              auto expectedClientId = 1 << (i + 1);
+              if (clientId == expectedClientId) {
+                dynamicData.clientMask |= clientId;
+                return true;
+              }
+            }
+            return false;
+          });
+
+          if (success) {
+            state = DETECTING_CLIENTS_END;
+            transferAsync(CONFIRM_CLIENTS | dynamicData.clientMask);
+          } else {
+            dynamicData.retry++;
+            if (dynamicData.retry >= DETECTION_TRIES) {
+              startMultibootSend();
+              return;
+            }
+
+            transferAsync(HANDSHAKE);
+          }
+
+          break;
+        }
+        case DETECTING_CLIENTS_END: {
+          if (!isResponseSameAsValueWithClientBit(
+                  response, dynamicData.clientMask, HANDSHAKE_RESPONSE)) {
+            startMultibootSend();
+            return;
+          }
+
+          state = SENDING_HEADER;
+          break;
+        }
+      }
+    }
+
+    void initFixedData(const u8* rom, u32 romSize) {
+      const u16* start = (u16*)rom;
+      const u16* end = (u16*)(rom + romSize);
+
+      fixedData.data = start;
+      fixedData.size = (u32)end - (u32)start;
+    }
+
+    void startMultibootSend() {
+      state = WAITING;
+      stop();
+
+      dynamicData = MultibootDynamicData{};
+      dynamicData.waitFrames = INITIAL_WAIT_MIN_FRAMES +
+                               _qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES);
+    }
+
+    void resetState() {
+      state = STOPPED;
+      result = NONE;
+      fixedData = MultibootFixedData{};
+      dynamicData = MultibootDynamicData{};
+    }
+
+    Response getAsyncResponse() {
+      Response response = {
+          .data = {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
+                   LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED}};
+
+      if (dynamicData.transferMode == TransferMode::MULTI_PLAY) {
+        linkRawCable._onSerial();
+        auto response16bit = linkRawCable.getAsyncData();
+        for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
+          response.data[i] = response16bit.data[i];
+        response.playerId = response16bit.playerId;
+      } else {
+        linkSPI._onSerial();
+        response.data[1] = linkSPI.getAsyncData() >> 16;
+        response.playerId = 0;
+      }
+
+      return response;
+    }
+
+    void transferAsync(u32 data) {
+      if (dynamicData.transferMode == TransferMode::MULTI_PLAY)
+        linkRawCable.transferAsync(data);
+      else
+        linkSPI.transferAsync(data);
+    }
+
+    void start() {
+      if (dynamicData.transferMode == TransferMode::MULTI_PLAY)
+        linkRawCable.activate(MAX_BAUD_RATE);
+      else
+        linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
+    }
+
+    void stop() {
+      if (dynamicData.transferMode == TransferMode::MULTI_PLAY)
+        linkRawCable.deactivate();
+      else
+        linkSPI.deactivate();
+    }
+  };
+  */
 };
 
 extern LinkCableMultiboot* linkCableMultiboot;
