@@ -209,7 +209,7 @@ class LinkCableMultiboot {
     auto response =
         transfer(CONFIRM_CLIENTS | multiBootParameters.client_bit, cancel);
 
-    // The client should respond 0x7200.
+    // The clients should respond 0x7200.
     if (!isResponseSameAsValueWithClientBit(
             response, multiBootParameters.client_bit, HANDSHAKE_RESPONSE))
       return NEEDS_RETRY;
@@ -233,22 +233,28 @@ class LinkCableMultiboot {
       if (cancel())
         return ABORTED;
 
-      bool success = isResponseSameAsValueWithClientBit(
-          response, multiBootParameters.client_bit, remaining << 8);
-
-      if (!success)
+      if (!isResponseSameAsValueWithClientBit(
+              response, multiBootParameters.client_bit, remaining << 8))
         return NEEDS_RETRY;
 
       remaining--;
     }
 
     // 6. Send 0x6200, followed by 0x620Y again.
-    transfer(HANDSHAKE, cancel);
+    // The clients should respond 0x000Y and 0x720Y.
+    Response response;
+    response = transfer(HANDSHAKE, cancel);
     if (cancel())
       return ABORTED;
-    transfer(HANDSHAKE | multiBootParameters.client_bit, cancel);
+    if (!isResponseSameAsValueWithClientBit(response,
+                                            multiBootParameters.client_bit, 0))
+      return NEEDS_RETRY;
+    response = transfer(HANDSHAKE | multiBootParameters.client_bit, cancel);
     if (cancel())
       return ABORTED;
+    if (!isResponseSameAsValueWithClientBit(
+            response, multiBootParameters.client_bit, HANDSHAKE_RESPONSE))
+      return NEEDS_RETRY;
 
     return FINISHED;
   }
