@@ -263,30 +263,32 @@ class LinkCableMultiboot {
     // random byte. Store these bytes in client_data in the parameter structure.
     auto data = SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
 
-    u8 sendMask = multiBootParameters.client_bit;
     bool success = false;
     for (u32 i = 0; i < DETECTION_TRIES; i++) {
       auto response = transfer(data, cancel);
       if (cancel())
         return ABORTED;
 
+      u8 sendMask = multiBootParameters.client_bit;
       success = validateResponse(
-          response, [&multiBootParameters, &sendMask](u32 i, u16 value) {
-            u8 clientBit = 1 << (i + 1);
-            if ((multiBootParameters.client_bit & clientBit) &&
-                ((value & ACK_RESPONSE_MASK) == ACK_RESPONSE)) {
-              multiBootParameters.client_data[i] = value & 0xff;
-              sendMask &= ~clientBit;
-              return true;
-            }
-            return false;
-          });
+                    response,
+                    [&multiBootParameters, &sendMask](u32 i, u16 value) {
+                      u8 clientBit = 1 << (i + 1);
+                      if ((multiBootParameters.client_bit & clientBit) &&
+                          ((value & ACK_RESPONSE_MASK) == ACK_RESPONSE)) {
+                        multiBootParameters.client_data[i] = value & 0xff;
+                        sendMask &= ~clientBit;
+                        return true;
+                      }
+                      return false;
+                    }) &&
+                sendMask == 0;
 
       if (success)
         break;
     }
 
-    if (!success || sendMask > 0)
+    if (!success)
       return NEEDS_RETRY;
 
     return FINISHED;
