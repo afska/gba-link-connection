@@ -66,17 +66,18 @@ class LinkCableMultiboot {
   static constexpr int INITIAL_WAIT_MIN_LINES =
       FRAME_LINES * INITIAL_WAIT_MIN_FRAMES;
   static constexpr int DETECTION_TRIES = 16;
-  static constexpr int CLIENTS = 3;
+  static constexpr int MAX_CLIENTS = 3;
   static constexpr int CLIENT_NO_DATA = 0xff;
-  static constexpr int HANDSHAKE = 0x6200;
-  static constexpr int HANDSHAKE_RESPONSE = 0x7200;
-  static constexpr int CONFIRM_CLIENTS = 0x6100;
-  static constexpr int SEND_PALETTE = 0x6300;
+  static constexpr int CMD_HANDSHAKE = 0x6200;
+  static constexpr int ACK_HANDSHAKE = 0x7200;
+  static constexpr int CMD_CONFIRM_CLIENTS = 0x6100;
+  static constexpr int CMD_SEND_PALETTE = 0x6300;
   static constexpr int HANDSHAKE_DATA = 0x11;
-  static constexpr int CONFIRM_HANDSHAKE_DATA = 0x6400;
+  static constexpr int CMD_CONFIRM_HANDSHAKE_DATA = 0x6400;
   static constexpr int ACK_RESPONSE = 0x7300;
   static constexpr int ACK_RESPONSE_MASK = 0xff00;
-  static constexpr int HEADER_SIZE = 0xC0;
+  static constexpr int HEADER_SIZE = 0xc0;
+  static constexpr int HEADER_PARTS = HEADER_SIZE / 2;
   static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
 
   struct Response {
@@ -173,7 +174,7 @@ class LinkCableMultiboot {
     // this after 16 tries, delay 1/16s and go back to step 2. (*)
     bool success = false;
     for (u32 t = 0; t < DETECTION_TRIES; t++) {
-      auto response = transfer(HANDSHAKE, cancel);
+      auto response = transfer(CMD_HANDSHAKE, cancel);
       if (cancel())
         return ABORTED;
 
@@ -181,7 +182,7 @@ class LinkCableMultiboot {
 
       success =
           validateResponse(response, [&multiBootParameters](u32 i, u16 value) {
-            if ((value & 0xfff0) == HANDSHAKE_RESPONSE) {
+            if ((value & 0xfff0) == ACK_HANDSHAKE) {
               u8 clientId = value & 0xf;
               u8 expectedClientId = 1 << (i + 1);
               if (clientId == expectedClientId) {
@@ -203,11 +204,11 @@ class LinkCableMultiboot {
     // bits 1-3 set according to which clients responded). Send the word
     // 0x610Y, where Y is that same set of set bits.
     auto response =
-        transfer(CONFIRM_CLIENTS | multiBootParameters.client_bit, cancel);
+        transfer(CMD_CONFIRM_CLIENTS | multiBootParameters.client_bit, cancel);
 
     // The clients should respond 0x7200.
     if (!isResponseSameAsValueWithClientBit(
-            response, multiBootParameters.client_bit, HANDSHAKE_RESPONSE))
+            response, multiBootParameters.client_bit, ACK_HANDSHAKE))
       return NEEDS_RETRY;
 
     return FINISHED;
@@ -223,7 +224,7 @@ class LinkCableMultiboot {
     // transferring in the single-client 32-bit mode, you still need to send
     // only 16 bits at a time).
     u16* headerOut = (u16*)rom;
-    u32 remaining = HEADER_SIZE / 2;
+    u32 remaining = HEADER_PARTS;
     while (remaining > 0) {
       auto response = transfer(*(headerOut++), cancel);
       if (cancel())
@@ -239,17 +240,17 @@ class LinkCableMultiboot {
     // 6. Send 0x6200, followed by 0x620Y again.
     // The clients should respond 0x000Y and 0x720Y.
     Response response;
-    response = transfer(HANDSHAKE, cancel);
+    response = transfer(CMD_HANDSHAKE, cancel);
     if (cancel())
       return ABORTED;
     if (!isResponseSameAsValueWithClientBit(response,
                                             multiBootParameters.client_bit, 0))
       return NEEDS_RETRY;
-    response = transfer(HANDSHAKE | multiBootParameters.client_bit, cancel);
+    response = transfer(CMD_HANDSHAKE | multiBootParameters.client_bit, cancel);
     if (cancel())
       return ABORTED;
     if (!isResponseSameAsValueWithClientBit(
-            response, multiBootParameters.client_bit, HANDSHAKE_RESPONSE))
+            response, multiBootParameters.client_bit, ACK_HANDSHAKE))
       return NEEDS_RETRY;
 
     return FINISHED;
@@ -261,7 +262,7 @@ class LinkCableMultiboot {
     // 7. Send 0x63PP repeatedly, where PP is the palette_data you have picked
     // earlier. Do this until the clients respond with 0x73CC, where CC is a
     // random byte. Store these bytes in client_data in the parameter structure.
-    auto data = SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
+    u16 data = CMD_SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA;
 
     bool success = false;
     for (u32 i = 0; i < DETECTION_TRIES; i++) {
@@ -307,7 +308,7 @@ class LinkCableMultiboot {
          multiBootParameters.client_data[2]) %
         256;
 
-    u16 data = CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
+    u16 data = CMD_CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
     auto response = transfer(data, cancel);
     if (cancel())
       return ABORTED;
@@ -346,8 +347,8 @@ class LinkCableMultiboot {
   template <typename F>
   static bool validateResponse(Response response, F check) {
     u32 count = 0;
-    for (u32 i = 0; i < CLIENTS; i++) {
-      auto value = response.data[1 + i];
+    for (u32 i = 0; i < MAX_CLIENTS; i++) {
+      u32 value = response.data[1 + i];
       if (value == LINK_RAW_CABLE_DISCONNECTED) {
         // Note that throughout this process, any clients that are not
         // connected will always respond with 0xFFFF - be sure to ignore them.
@@ -401,7 +402,6 @@ class LinkCableMultiboot {
   }
 
  public:
-  /*
   class Async {
    public:
     enum State {
@@ -409,7 +409,11 @@ class LinkCableMultiboot {
       WAITING,
       DETECTING_CLIENTS,
       DETECTING_CLIENTS_END,
-      SENDING_HEADER
+      SENDING_HEADER,
+      SENDING_PALETTE,
+      CONFIRM_HANDSHAKE_DATA,
+      // TODO: WAIT_BEFORE_MAIN_TRANSFER
+      MAIN_TRANSFER
     };
 
     enum Result {
@@ -434,8 +438,10 @@ class LinkCableMultiboot {
         return false;
 
       if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
-          (romSize % 0x10) != 0)
-        return INVALID_SIZE;
+          (romSize % 0x10) != 0) {
+        result = INVALID_SIZE;
+        return false;
+      }
 
       resetState();
       initFixedData(rom, romSize);
@@ -480,7 +486,8 @@ class LinkCableMultiboot {
 
       u32 waitFrames = 0;
       u32 wait = 0;
-      u32 retry = 0;
+      u32 detectRetry = 0;
+      u32 headerRemaining = 0;
     };
 
     LinkRawCable linkRawCable;
@@ -497,9 +504,11 @@ class LinkCableMultiboot {
           if (dynamicData.wait >= dynamicData.waitFrames) {
             state = DETECTING_CLIENTS;
             start();
-            transferAsync(HANDSHAKE);
+            transferAsync(CMD_HANDSHAKE);
           }
           break;
+        }
+        default: {
         }
       }
     }
@@ -510,9 +519,9 @@ class LinkCableMultiboot {
           dynamicData.clientMask = 0;
 
           bool success = validateResponse(response, [this](u32 i, u16 value) {
-            if ((value & 0xfff0) == HANDSHAKE_RESPONSE) {
-              auto clientId = value & 0xf;
-              auto expectedClientId = 1 << (i + 1);
+            if ((value & 0xfff0) == ACK_HANDSHAKE) {
+              u8 clientId = value & 0xf;
+              u8 expectedClientId = 1 << (i + 1);
               if (clientId == expectedClientId) {
                 dynamicData.clientMask |= clientId;
                 return true;
@@ -523,28 +532,102 @@ class LinkCableMultiboot {
 
           if (success) {
             state = DETECTING_CLIENTS_END;
-            transferAsync(CONFIRM_CLIENTS | dynamicData.clientMask);
+            transferAsync(CMD_CONFIRM_CLIENTS | dynamicData.clientMask);
           } else {
-            dynamicData.retry++;
-            if (dynamicData.retry >= DETECTION_TRIES) {
+            dynamicData.detectRetry++;
+            if (dynamicData.detectRetry >= DETECTION_TRIES) {
               startMultibootSend();
               return;
             }
 
-            transferAsync(HANDSHAKE);
+            transferAsync(CMD_HANDSHAKE);
           }
 
           break;
         }
         case DETECTING_CLIENTS_END: {
           if (!isResponseSameAsValueWithClientBit(
-                  response, dynamicData.clientMask, HANDSHAKE_RESPONSE)) {
+                  response, dynamicData.clientMask, ACK_HANDSHAKE)) {
             startMultibootSend();
             return;
           }
 
           state = SENDING_HEADER;
+          dynamicData.headerRemaining = HEADER_PARTS;
+          sendHeaderPart();
           break;
+        }
+        case SENDING_HEADER: {
+          if (!isResponseSameAsValueWithClientBit(
+                  response, dynamicData.clientMask,
+                  dynamicData.headerRemaining << 8)) {
+            startMultibootSend();
+            return;
+          }
+          dynamicData.headerRemaining--;
+
+          if (dynamicData.headerRemaining > 0) {
+            sendHeaderPart();
+          } else {
+            state = SENDING_PALETTE;
+            dynamicData.detectRetry = 0;
+            sendPaletteData();
+          }
+          break;
+        }
+        case SENDING_PALETTE: {
+          u8 sendMask = dynamicData.clientMask;
+          u8 clientData[3] = {};
+
+          bool success =
+              validateResponse(
+                  response,
+                  [this, &sendMask, &clientData](u32 i, u16 value) {
+                    u8 clientBit = 1 << (i + 1);
+                    if ((dynamicData.clientMask & clientBit) &&
+                        ((value & ACK_RESPONSE_MASK) == ACK_RESPONSE)) {
+                      clientData[i] = value & 0xff;
+                      sendMask &= ~clientBit;
+                      return true;
+                    }
+                    return false;
+                  }) &&
+              sendMask == 0;
+
+          if (success) {
+            state = CONFIRM_HANDSHAKE_DATA;
+            u8 handshakeData = HANDSHAKE_DATA;
+            dynamicData.seed = LINK_CABLE_MULTIBOOT_PALETTE_DATA;
+            for (u32 i = 0; i < MAX_CLIENTS; i++) {
+              handshakeData += clientData[i];
+              dynamicData.seed |= clientData[i] << (8 * (i + 1));
+            }
+            handshakeData &= 0xFF;
+            dynamicData.crcB = handshakeData;
+            transferAsync(CMD_CONFIRM_HANDSHAKE_DATA | handshakeData);
+          } else {
+            dynamicData.detectRetry++;
+            if (dynamicData.detectRetry >= DETECTION_TRIES) {
+              startMultibootSend();
+              return;
+            }
+
+            sendPaletteData();
+          }
+          break;
+        }
+        case CONFIRM_HANDSHAKE_DATA: {
+          if (!isResponseSameAsValue(response, dynamicData.clientMask,
+                                     ACK_RESPONSE, ACK_RESPONSE_MASK)) {
+            startMultibootSend();
+            return;
+          }
+
+          // TODO: TRANSFER SOMETHING
+          state = MAIN_TRANSFER;
+          break;
+        }
+        default: {
         }
       }
     }
@@ -562,9 +645,17 @@ class LinkCableMultiboot {
       stop();
 
       dynamicData = MultibootDynamicData{};
-      dynamicData.waitFrames = INITIAL_WAIT_MIN_FRAMES +
-                               Link::_qran_range(1,
-  INITIAL_WAIT_MAX_RANDOM_FRAMES);
+      dynamicData.waitFrames =
+          INITIAL_WAIT_MIN_FRAMES +
+          Link::_qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES);
+    }
+
+    void sendHeaderPart() {
+      transferAsync(fixedData.data[HEADER_PARTS - dynamicData.headerRemaining]);
+    }
+
+    void sendPaletteData() {
+      transferAsync(CMD_SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA);
     }
 
     void resetState() {
@@ -615,7 +706,6 @@ class LinkCableMultiboot {
         linkSPI.deactivate();
     }
   };
-  */
 };
 
 extern LinkCableMultiboot* linkCableMultiboot;

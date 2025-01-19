@@ -1444,7 +1444,7 @@ class LinkMobile {
   }
 
   void cmdDNSQuery(const u8* data, u8 size) {
-    for (int i = 0; i < size; i++)
+    for (u32 i = 0; i < size; i++)
       addData(data[i], i == 0);
     sendCommandAsync(buildCommand(COMMAND_DNS_QUERY, true));
   }

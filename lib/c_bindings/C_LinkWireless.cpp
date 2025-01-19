@@ -117,7 +117,7 @@ bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
   LinkWireless::Message cppMessages[C_LINK_WIRELESS_MAX_PLAYERS];
   bool result = static_cast<LinkWireless*>(handle)->receive(cppMessages);
 
-  for (int i = 0; i < C_LINK_WIRELESS_MAX_PLAYERS; i++) {
+  for (u32 i = 0; i < C_LINK_WIRELESS_MAX_PLAYERS; i++) {
     messages[i].packetId = cppMessages[i].packetId;
     messages[i].data = cppMessages[i].data;
     messages[i].playerId = cppMessages[i].playerId;
