@@ -157,13 +157,8 @@ class LinkCableMultiboot {
   LinkRawCable linkRawCable;
   LinkSPI linkSPI;
   TransferMode _mode;
-  int randomSeed = 123;
 
   enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED };
-
-  struct Responses {
-    u16 d[CLIENTS];
-  };
 
   template <typename F>
   PartialResult detectClients(Link::_MultiBootParam& multiBootParameters,
