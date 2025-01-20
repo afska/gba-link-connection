@@ -417,7 +417,7 @@ class LinkCableMultiboot {
     static constexpr int ACK_ROM_END = 0x0075;
     static constexpr int CMD_FINAL_CRC = 0x0066;
     static constexpr int MAX_FINAL_HANDSHAKE_ATTEMPS = FPS * 5;
-    static constexpr int MAX_STATE_TIMEOUT_FRAMES = FPS * 6;
+    static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 1;
 
    public:
     enum State {
@@ -437,12 +437,12 @@ class LinkCableMultiboot {
     };
 
     enum Result {
-      NONE,
-      SUCCESS,
-      INVALID_SIZE,
-      SEND_FAILURE,
-      CRC_FAILURE,
-      FINAL_HANDSHAKE_FAILURE
+      NONE = -1,
+      SUCCESS = 0,
+      INVALID_SIZE = 1,
+      SEND_FAILURE = 2,
+      FINAL_HANDSHAKE_FAILURE = 3,
+      CRC_FAILURE = 4,
     };
 
     bool sendRom(const u8* rom,
@@ -465,6 +465,9 @@ class LinkCableMultiboot {
     }
 
     void reset() { stop(); }
+
+    State getState() { return state; }
+    Result getResult() { return result; }
 
     void _onVBlank() {
       if (state == STOPPED)
@@ -494,7 +497,7 @@ class LinkCableMultiboot {
       u32 seed = 0;
       u32 crcC = 0;
 
-      u32 stateTimeout = 0;
+      u32 irqTimeout = 0;
       u32 waitFrames = 0;
       u32 wait = 0;
       u32 tryCount = 0;
@@ -511,12 +514,10 @@ class LinkCableMultiboot {
     volatile Result result = NONE;
 
     void processNewFrame() {
-      if (state != STOPPED) {
-        dynamicData.stateTimeout++;
-        if (dynamicData.stateTimeout >= MAX_STATE_TIMEOUT_FRAMES) {
-          startMultibootSend();
-          return;
-        }
+      dynamicData.irqTimeout++;
+      if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
+        startMultibootSend();
+        return;
       }
 
       switch (state) {
@@ -543,6 +544,8 @@ class LinkCableMultiboot {
     }
 
     void processResponse(Response response) {
+      dynamicData.irqTimeout = 0;
+
       switch (state) {
         case DETECTING_CLIENTS: {
           dynamicData.clientMask = 0;
@@ -563,6 +566,8 @@ class LinkCableMultiboot {
             state = DETECTING_CLIENTS_END;
             transferAsync(CMD_CONFIRM_CLIENTS | dynamicData.clientMask);
           } else {
+            // TODO: FIX! Switch to other state and retry from vblank irq
+            Link::wait(228);
             dynamicData.tryCount++;
             if (dynamicData.tryCount >= DETECTION_TRIES) {
               startMultibootSend();
@@ -694,6 +699,7 @@ class LinkCableMultiboot {
           calculateCRCData(dataOut[dynamicData.currentRomPart]);
 
           dynamicData.currentRomPart++;
+          dynamicData.currentRomPartSecondHalf = false;
           sendRomPart();
           break;
         }
@@ -743,8 +749,8 @@ class LinkCableMultiboot {
 
     void startMultibootSend() {
       auto tmpFixedData = fixedData;
-      state = WAITING;
       stop();
+      state = WAITING;
       fixedData = tmpFixedData;
 
       dynamicData = MultibootDynamicData{};
@@ -781,7 +787,8 @@ class LinkCableMultiboot {
         return;
       }
 
-      dynamicData.seed = (dynamicData.seed * SEED_MULTIPLIER) + 1;
+      if (!dynamicData.currentRomPartSecondHalf)
+        dynamicData.seed = (dynamicData.seed * SEED_MULTIPLIER) + 1;
 
       u32 baseData = dataOut[i] ^ (0xFE000000 - (i << 2)) ^ dynamicData.seed;
       if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
@@ -852,7 +859,7 @@ class LinkCableMultiboot {
     }
 
     void stop(Result newResult = NONE) {
-      resetState();
+      resetState(newResult);
       if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.deactivate();
       else
