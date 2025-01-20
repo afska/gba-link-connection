@@ -78,7 +78,6 @@ class LinkCableMultiboot {
   static constexpr int ACK_RESPONSE_MASK = 0xFF00;
   static constexpr int HEADER_SIZE = 0xC0;
   static constexpr int HEADER_PARTS = HEADER_SIZE / 2;
-  static constexpr int WAIT_BEFORE_MAIN_TRANSFER_FRAMES = 4;
   static constexpr auto MAX_BAUD_RATE = LinkRawCable::BaudRate::BAUD_RATE_3;
 
   struct Response {
@@ -323,7 +322,7 @@ class LinkCableMultiboot {
   static bool isResponseSameAsValue(Response response,
                                     u8 clientMask,
                                     u16 wantedValue,
-                                    u16 mask) {
+                                    u16 mask = 0xFFFF) {
     return validateResponse(
         response, [&clientMask, &wantedValue, &mask](u32 i, u32 value) {
           u8 clientBit = 1 << (i + 1);
@@ -404,17 +403,36 @@ class LinkCableMultiboot {
 
  public:
   class Async {
+   private:
+    static constexpr int FPS = 60;
+    static constexpr int WAIT_BEFORE_MAIN_TRANSFER_FRAMES = 4;
+    static constexpr int CRCC_MULTI_START = 0xFFF8;
+    static constexpr int CRCC_NORMAL_START = 0xC387;
+    static constexpr int CRCC_MULTI_XOR = 0xA517;
+    static constexpr int CRCC_NORMAL_XOR = 0xC37B;
+    static constexpr u32 DATA_MULTI_XOR = 0x6465646F;
+    static constexpr u32 DATA_NORMAL_XOR = 0x43202F2F;
+    static constexpr u32 SEED_MULTIPLIER = 0x6F646573;
+    static constexpr int CMD_ROM_END = 0x0065;
+    static constexpr int ACK_ROM_END = 0x0075;
+    static constexpr int CMD_FINAL_CRC = 0x0066;
+    static constexpr int MAX_FINAL_HANDSHAKE_ATTEMPS = FPS * 5;
+
    public:
     enum State {
-      STOPPED,
-      WAITING,
-      DETECTING_CLIENTS,
-      DETECTING_CLIENTS_END,
-      SENDING_HEADER,
-      SENDING_PALETTE,
-      CONFIRM_HANDSHAKE_DATA,
-      WAIT_BEFORE_MAIN_TRANSFER,
-      CALCULATE_CRCB
+      STOPPED = 0,
+      WAITING = 1,
+      DETECTING_CLIENTS = 2,
+      DETECTING_CLIENTS_END = 3,
+      SENDING_HEADER = 4,
+      SENDING_PALETTE = 5,
+      CONFIRMING_HANDSHAKE_DATA = 6,
+      WAITING_BEFORE_MAIN_TRANSFER = 7,
+      CALCULATING_CRCB = 8,
+      SENDING_ROM = 9,
+      SENDING_ROM_END = 10,
+      SENDING_FINAL_CRC = 11,
+      CHECKING_FINAL_CRC = 12
     };
 
     enum Result {
@@ -445,8 +463,7 @@ class LinkCableMultiboot {
       }
 
       resetState();
-      initFixedData(rom, romSize);
-      dynamicData.transferMode = mode;
+      initFixedData(rom, romSize, mode);
 
       startMultibootSend();
 
@@ -470,25 +487,23 @@ class LinkCableMultiboot {
 
    private:
     struct MultibootFixedData {
+      TransferMode transferMode = TransferMode::MULTI_PLAY;
       const u16* data = nullptr;
       u32 size = 0;
-      u32 crcCNormal = 0;
-      u32 crcCMulti = 0;
-      u8 crcCNormalInit = 0;
-      u8 crcCMultiInit = 0;
     };
 
     struct MultibootDynamicData {
-      TransferMode transferMode = TransferMode::MULTI_PLAY;
+      u8 clientMask = 0;
       u32 crcB = 0;
       u32 seed = 0;
-      u8* tokenData = nullptr;
-      u8 clientMask = 0;
+      u32 crcC = 0;
 
       u32 waitFrames = 0;
       u32 wait = 0;
-      u32 detectRetry = 0;
+      u32 tryCount = 0;
       u32 headerRemaining = 0;
+      u32 currentRomPart = 0;
+      bool currentRomPartSecondHalf = false;
     };
 
     LinkRawCable linkRawCable;
@@ -511,10 +526,10 @@ class LinkCableMultiboot {
           }
           break;
         }
-        case WAIT_BEFORE_MAIN_TRANSFER: {
+        case WAITING_BEFORE_MAIN_TRANSFER: {
           dynamicData.wait++;
           if (dynamicData.wait >= dynamicData.waitFrames) {
-            state = CALCULATE_CRCB;
+            state = CALCULATING_CRCB;
             transferAsync((fixedData.size - 0x190) >> 2);
           }
           break;
@@ -545,8 +560,8 @@ class LinkCableMultiboot {
             state = DETECTING_CLIENTS_END;
             transferAsync(CMD_CONFIRM_CLIENTS | dynamicData.clientMask);
           } else {
-            dynamicData.detectRetry++;
-            if (dynamicData.detectRetry >= DETECTION_TRIES) {
+            dynamicData.tryCount++;
+            if (dynamicData.tryCount >= DETECTION_TRIES) {
               startMultibootSend();
               return;
             }
@@ -575,15 +590,9 @@ class LinkCableMultiboot {
             startMultibootSend();
             return;
           }
-          dynamicData.headerRemaining--;
 
-          if (dynamicData.headerRemaining > 0) {
-            sendHeaderPart();
-          } else {
-            state = SENDING_PALETTE;
-            dynamicData.detectRetry = 0;
-            sendPaletteData();
-          }
+          dynamicData.headerRemaining--;
+          sendHeaderPart();
           break;
         }
         case SENDING_PALETTE: {
@@ -606,7 +615,7 @@ class LinkCableMultiboot {
               sendMask == 0;
 
           if (success) {
-            state = CONFIRM_HANDSHAKE_DATA;
+            state = CONFIRMING_HANDSHAKE_DATA;
             u8 handshakeData = HANDSHAKE_DATA;
             dynamicData.seed = LINK_CABLE_MULTIBOOT_PALETTE_DATA;
             for (u32 i = 0; i < MAX_CLIENTS; i++) {
@@ -617,8 +626,8 @@ class LinkCableMultiboot {
             dynamicData.crcB = handshakeData;
             transferAsync(CMD_CONFIRM_HANDSHAKE_DATA | handshakeData);
           } else {
-            dynamicData.detectRetry++;
-            if (dynamicData.detectRetry >= DETECTION_TRIES) {
+            dynamicData.tryCount++;
+            if (dynamicData.tryCount >= DETECTION_TRIES) {
               startMultibootSend();
               return;
             }
@@ -627,38 +636,115 @@ class LinkCableMultiboot {
           }
           break;
         }
-        case CONFIRM_HANDSHAKE_DATA: {
+        case CONFIRMING_HANDSHAKE_DATA: {
           if (!isResponseSameAsValue(response, dynamicData.clientMask,
                                      ACK_RESPONSE, ACK_RESPONSE_MASK)) {
             startMultibootSend();
             return;
           }
 
-          state = WAIT_BEFORE_MAIN_TRANSFER;
+          state = WAITING_BEFORE_MAIN_TRANSFER;
           dynamicData.waitFrames = WAIT_BEFORE_MAIN_TRANSFER_FRAMES;
           break;
         }
-        case CALCULATE_CRCB: {
-          // for (int i = 0; i < MAX_CLIENTS; i++) {
-          //   u8 contribute = 0xFF;
-          //   u8 client_bit = 1 << (i + 1);
+        case CALCULATING_CRCB: {
+          for (int i = 0; i < MAX_CLIENTS; i++) {
+            u8 clientBit = 1 << (i + 1);
+            u8 contribute = 0xFF;
 
-          //   if (mb_dyn_data->client_mask & client_bit)
-          //     contribute = recv_data[i] & 0xFF;
-          //   mb_dyn_data->crcB |= contribute << (8 * (i + 1));
-          // }
-          // TODO
+            if (dynamicData.clientMask & clientBit)
+              contribute = response.data[1 + i] & 0xFF;
+            dynamicData.crcB |= contribute << (8 * (i + 1));
+          }
+
+          state = SENDING_ROM;
+          dynamicData.crcC = fixedData.transferMode == TransferMode::MULTI_PLAY
+                                 ? CRCC_MULTI_START
+                                 : CRCC_NORMAL_START;
+          dynamicData.currentRomPart = HEADER_SIZE >> 2;
+          sendRomPart();
           break;
+        }
+        case SENDING_ROM: {
+          u32* dataOut = (u32*)fixedData.data;
+
+          if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
+            if (!dynamicData.currentRomPartSecondHalf) {
+              if (!isResponseSameAsValue(response, dynamicData.clientMask,
+                                         dynamicData.currentRomPart << 2)) {
+                result = SEND_FAILURE;
+                return;
+              }
+
+              dynamicData.currentRomPartSecondHalf = true;
+              sendRomPart();
+              return;
+            } else {
+              if (!isResponseSameAsValue(
+                      response, dynamicData.clientMask,
+                      (dynamicData.currentRomPart << 2) + 2)) {
+                result = SEND_FAILURE;
+                return;
+              }
+            }
+          } else {
+            if (!isResponseSameAsValue(response, dynamicData.clientMask,
+                                       dynamicData.currentRomPart << 2)) {
+              result = SEND_FAILURE;
+              return;
+            }
+          }
+
+          calculateCRCData(dataOut[dynamicData.currentRomPart]);
+
+          dynamicData.currentRomPart++;
+          sendRomPart();
+          break;
+        }
+        case SENDING_ROM_END: {
+          bool success = isResponseSameAsValue(response, dynamicData.clientMask,
+                                               ACK_ROM_END);
+
+          if (success) {
+            state = SENDING_FINAL_CRC;
+            transferAsync(CMD_FINAL_CRC);
+          } else {
+            dynamicData.tryCount++;
+            if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS) {
+              result = FINAL_HANDSHAKE_FAILURE;
+              return;
+            }
+
+            transferAsync(CMD_ROM_END);
+          }
+
+          break;
+        }
+        case SENDING_FINAL_CRC: {
+          state = CHECKING_FINAL_CRC;
+          transferAsync(dynamicData.crcC);
+          break;
+        }
+        case CHECKING_FINAL_CRC: {
+          if (!isResponseSameAsValue(response, dynamicData.clientMask,
+                                     dynamicData.crcC)) {
+            result = CRC_FAILURE;
+            return;
+          }
+
+          result = SUCCESS;
+          // TODO: END?
         }
         default: {
         }
       }
     }
 
-    void initFixedData(const u8* rom, u32 romSize) {
+    void initFixedData(const u8* rom, u32 romSize, TransferMode mode) {
       const u16* start = (u16*)rom;
       const u16* end = (u16*)(rom + romSize);
 
+      fixedData.transferMode = mode;
       fixedData.data = start;
       fixedData.size = (u32)end - (u32)start;
     }
@@ -674,11 +760,60 @@ class LinkCableMultiboot {
     }
 
     void sendHeaderPart() {
+      if (dynamicData.headerRemaining <= 0) {
+        state = SENDING_PALETTE;
+        dynamicData.tryCount = 0;
+        sendPaletteData();
+        return;
+      }
+
       transferAsync(fixedData.data[HEADER_PARTS - dynamicData.headerRemaining]);
     }
 
     void sendPaletteData() {
       transferAsync(CMD_SEND_PALETTE | LINK_CABLE_MULTIBOOT_PALETTE_DATA);
+    }
+
+    void sendRomPart() {
+      u32* dataOut = (u32*)fixedData.data;
+      u32 i = dynamicData.currentRomPart;
+      if (i >= fixedData.size >> 2) {
+        dynamicData.crcC &= 0xFFFF;
+        calculateCRCData(dynamicData.crcB);
+
+        state = SENDING_ROM_END;
+        dynamicData.tryCount = 0;
+        transferAsync(CMD_ROM_END);
+        return;
+      }
+
+      dynamicData.seed = (dynamicData.seed * SEED_MULTIPLIER) + 1;
+
+      u32 baseData = dataOut[i] ^ (0xFE000000 - (i << 2)) ^ dynamicData.seed;
+      if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
+        u32 data = baseData ^ DATA_MULTI_XOR;
+        if (!dynamicData.currentRomPartSecondHalf)
+          transferAsync(data & 0xFFFF);
+        else
+          transferAsync(data >> 16);
+      } else {
+        transferAsync(baseData ^ DATA_NORMAL_XOR);
+      }
+    }
+
+    void calculateCRCData(u32 readData) {
+      u32 tmpCrcC = dynamicData.crcC;
+      u32 xorVal = fixedData.transferMode == TransferMode::MULTI_PLAY
+                       ? CRCC_MULTI_XOR
+                       : CRCC_NORMAL_XOR;
+      for (u32 i = 0; i < 32; i++) {
+        u8 bit = (tmpCrcC ^ readData) & 1;
+        readData >>= 1;
+        tmpCrcC >>= 1;
+        if (bit)
+          tmpCrcC ^= xorVal;
+      }
+      dynamicData.crcC = tmpCrcC;
     }
 
     void resetState() {
@@ -693,7 +828,7 @@ class LinkCableMultiboot {
           .data = {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
                    LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED}};
 
-      if (dynamicData.transferMode == TransferMode::MULTI_PLAY) {
+      if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
         linkRawCable._onSerial();
         auto response16bit = linkRawCable.getAsyncData();
         for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
@@ -709,21 +844,21 @@ class LinkCableMultiboot {
     }
 
     void transferAsync(u32 data) {
-      if (dynamicData.transferMode == TransferMode::MULTI_PLAY)
+      if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.transferAsync(data);
       else
         linkSPI.transferAsync(data);
     }
 
     void start() {
-      if (dynamicData.transferMode == TransferMode::MULTI_PLAY)
+      if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.activate(MAX_BAUD_RATE);
       else
         linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
     }
 
     void stop() {
-      if (dynamicData.transferMode == TransferMode::MULTI_PLAY)
+      if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.deactivate();
       else
         linkSPI.deactivate();
