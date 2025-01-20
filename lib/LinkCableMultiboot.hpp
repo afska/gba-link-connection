@@ -440,14 +440,9 @@ class LinkCableMultiboot {
       SUCCESS,
       INVALID_SIZE,
       CANCELED,
-      NO_INIT_SYNC,
-      WRONG_ANSWER,
-      HEADER_ISSUE,
-      PALETTE_FAILURE,
-      NOT_INIT,
-      FINAL_HANDSHAKE_FAILURE,
+      SEND_FAILURE,
       CRC_FAILURE,
-      SEND_FAILURE
+      FINAL_HANDSHAKE_FAILURE,
     };
 
     bool sendRom(const u8* rom,
@@ -464,7 +459,6 @@ class LinkCableMultiboot {
 
       resetState();
       initFixedData(rom, romSize, mode);
-
       startMultibootSend();
 
       return true;
@@ -671,28 +665,21 @@ class LinkCableMultiboot {
           if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
             if (!dynamicData.currentRomPartSecondHalf) {
               if (!isResponseSameAsValue(response, dynamicData.clientMask,
-                                         dynamicData.currentRomPart << 2)) {
-                result = SEND_FAILURE;
-                return;
-              }
+                                         dynamicData.currentRomPart << 2))
+                return (void)stop(SEND_FAILURE);
 
               dynamicData.currentRomPartSecondHalf = true;
               sendRomPart();
               return;
             } else {
-              if (!isResponseSameAsValue(
-                      response, dynamicData.clientMask,
-                      (dynamicData.currentRomPart << 2) + 2)) {
-                result = SEND_FAILURE;
-                return;
-              }
+              if (!isResponseSameAsValue(response, dynamicData.clientMask,
+                                         (dynamicData.currentRomPart << 2) + 2))
+                return (void)stop(SEND_FAILURE);
             }
           } else {
             if (!isResponseSameAsValue(response, dynamicData.clientMask,
-                                       dynamicData.currentRomPart << 2)) {
-              result = SEND_FAILURE;
-              return;
-            }
+                                       dynamicData.currentRomPart << 2))
+              return (void)stop(SEND_FAILURE);
           }
 
           calculateCRCData(dataOut[dynamicData.currentRomPart]);
@@ -710,10 +697,8 @@ class LinkCableMultiboot {
             transferAsync(CMD_FINAL_CRC);
           } else {
             dynamicData.tryCount++;
-            if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS) {
-              result = FINAL_HANDSHAKE_FAILURE;
-              return;
-            }
+            if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS)
+              return (void)stop(FINAL_HANDSHAKE_FAILURE);
 
             transferAsync(CMD_ROM_END);
           }
@@ -727,13 +712,11 @@ class LinkCableMultiboot {
         }
         case CHECKING_FINAL_CRC: {
           if (!isResponseSameAsValue(response, dynamicData.clientMask,
-                                     dynamicData.crcC)) {
-            result = CRC_FAILURE;
-            return;
-          }
+                                     dynamicData.crcC))
+            return (void)stop(CRC_FAILURE);
 
-          result = SUCCESS;
-          // TODO: END?
+          stop(SUCCESS);
+          state = STOPPED;
         }
         default: {
         }
@@ -750,8 +733,10 @@ class LinkCableMultiboot {
     }
 
     void startMultibootSend() {
+      auto tmpFixedData = fixedData;
       state = WAITING;
       stop();
+      fixedData = tmpFixedData;
 
       dynamicData = MultibootDynamicData{};
       dynamicData.waitFrames =
@@ -816,9 +801,9 @@ class LinkCableMultiboot {
       dynamicData.crcC = tmpCrcC;
     }
 
-    void resetState() {
+    void resetState(Result newResult = NONE) {
       state = STOPPED;
-      result = NONE;
+      result = newResult;
       fixedData = MultibootFixedData{};
       dynamicData = MultibootDynamicData{};
     }
@@ -857,7 +842,8 @@ class LinkCableMultiboot {
         linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
     }
 
-    void stop() {
+    void stop(Result newResult = NONE) {
+      resetState();
       if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.deactivate();
       else
