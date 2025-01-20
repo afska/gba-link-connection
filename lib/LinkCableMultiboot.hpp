@@ -417,6 +417,7 @@ class LinkCableMultiboot {
     static constexpr int ACK_ROM_END = 0x0075;
     static constexpr int CMD_FINAL_CRC = 0x0066;
     static constexpr int MAX_FINAL_HANDSHAKE_ATTEMPS = FPS * 5;
+    static constexpr int MAX_STATE_TIMEOUT_FRAMES = FPS * 6;
 
    public:
     enum State {
@@ -439,10 +440,9 @@ class LinkCableMultiboot {
       NONE,
       SUCCESS,
       INVALID_SIZE,
-      CANCELED,
       SEND_FAILURE,
       CRC_FAILURE,
-      FINAL_HANDSHAKE_FAILURE,
+      FINAL_HANDSHAKE_FAILURE
     };
 
     bool sendRom(const u8* rom,
@@ -463,6 +463,8 @@ class LinkCableMultiboot {
 
       return true;
     }
+
+    void reset() { stop(); }
 
     void _onVBlank() {
       if (state == STOPPED)
@@ -492,6 +494,7 @@ class LinkCableMultiboot {
       u32 seed = 0;
       u32 crcC = 0;
 
+      u32 stateTimeout = 0;
       u32 waitFrames = 0;
       u32 wait = 0;
       u32 tryCount = 0;
@@ -508,7 +511,13 @@ class LinkCableMultiboot {
     volatile Result result = NONE;
 
     void processNewFrame() {
-      // TODO: Add global state timeout
+      if (state != STOPPED) {
+        dynamicData.stateTimeout++;
+        if (dynamicData.stateTimeout >= MAX_STATE_TIMEOUT_FRAMES) {
+          startMultibootSend();
+          return;
+        }
+      }
 
       switch (state) {
         case WAITING: {
@@ -853,5 +862,20 @@ class LinkCableMultiboot {
 };
 
 extern LinkCableMultiboot* linkCableMultiboot;
+extern LinkCableMultiboot::Async* linkCableMultibootAsync;
+
+/**
+ * @brief VBLANK interrupt handler.
+ */
+inline void LINK_CABLE_MULTIBOOT_ASYNC_ISR_VBLANK() {
+  linkCableMultibootAsync->_onVBlank();
+}
+
+/**
+ * @brief SERIAL interrupt handler.
+ */
+inline void LINK_CABLE_MULTIBOOT_ASYNC_ISR_SERIAL() {
+  linkCableMultibootAsync->_onSerial();
+}
 
 #endif  // LINK_CABLE_MULTIBOOT_H
