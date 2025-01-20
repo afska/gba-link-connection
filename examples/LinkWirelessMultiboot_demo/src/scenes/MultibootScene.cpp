@@ -257,7 +257,7 @@ void MultibootScene::processButtons() {
 
     // (2) Send the ROM
     auto result = linkWirelessMultiboot->sendRom(
-        romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
+        romToSend, fileLength, "Multiboot", "Test", 0xFFFF, players,
         [](LinkWirelessMultiboot::MultibootProgress progress) {
           u16 keys = ~REG_KEYS & KEY_ANY;
           if (keys & KEY_SELECT) {

@@ -21,10 +21,10 @@ uint8_t transferByte(uint8_t value) {
 }
 
 uint32_t transfer(uint32_t value) {
-  uint8_t a = (value >> 24) & 0xff;
-  uint8_t b = (value >> 16) & 0xff;
-  uint8_t c = (value >> 8) & 0xff;
-  uint8_t d = (value >> 0) & 0xff;
+  uint8_t a = (value >> 24) & 0xFF;
+  uint8_t b = (value >> 16) & 0xFF;
+  uint8_t c = (value >> 8) & 0xFF;
+  uint8_t d = (value >> 0) & 0xFF;
 
   a = transferByte(a);
   b = transferByte(b);
@@ -36,7 +36,7 @@ uint32_t transfer(uint32_t value) {
 }
 
 void loop() {
-  uint32_t received = transfer(0xaabbccdd);  // (2864434397)
+  uint32_t received = transfer(0xAABBCCDD);  // (2864434397)
 
   Serial.println(received);
 }

@@ -48,8 +48,8 @@
 
 LINK_VERSION_TAG LINK_SPI_VERSION = "vLinkSPI/v8.0.0";
 
-#define LINK_SPI_NO_DATA_32 0xffffffff
-#define LINK_SPI_NO_DATA_8 0xff
+#define LINK_SPI_NO_DATA_32 0xFFFFFFFF
+#define LINK_SPI_NO_DATA_8 0xFF
 #define LINK_SPI_NO_DATA LINK_SPI_NO_DATA_32
 
 /**
@@ -319,12 +319,12 @@ class LinkSPI {
     if (dataSize == SIZE_32BIT)
       Link::_REG_SIODATA32 = data;
     else
-      Link::_REG_SIODATA8 = data & 0xff;
+      Link::_REG_SIODATA8 = data & 0xFF;
   }
 
   u32 getData() {
     return dataSize == SIZE_32BIT ? Link::_REG_SIODATA32
-                                  : Link::_REG_SIODATA8 & 0xff;
+                                  : Link::_REG_SIODATA8 & 0xFF;
   }
 
   u32 noData() {

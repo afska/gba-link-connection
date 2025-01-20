@@ -48,7 +48,7 @@
 LINK_VERSION_TAG LINK_RAW_CABLE_VERSION = "vLinkRawCable/v8.0.0";
 
 #define LINK_RAW_CABLE_MAX_PLAYERS 4
-#define LINK_RAW_CABLE_DISCONNECTED 0xffff
+#define LINK_RAW_CABLE_DISCONNECTED 0xFFFF
 
 /**
  * @brief A low level handler for the Link Port (Multi-Play Mode).

@@ -107,18 +107,18 @@ class LinkMobile {
   static constexpr int INIT_WAIT_FRAMES = 7;
   static constexpr int INIT_TIMEOUT_FRAMES = 60 * 3;
   static constexpr int PING_FREQUENCY_FRAMES = 60;
-  static constexpr int ADAPTER_WAITING = 0xd2;
-  static constexpr u32 ADAPTER_WAITING_32BIT = 0xd2d2d2d2;
-  static constexpr int GBA_WAITING = 0x4b;
-  static constexpr u32 GBA_WAITING_32BIT = 0x4b4b4b4b;
+  static constexpr int ADAPTER_WAITING = 0xD2;
+  static constexpr u32 ADAPTER_WAITING_32BIT = 0xD2D2D2D2;
+  static constexpr int GBA_WAITING = 0x4B;
+  static constexpr u32 GBA_WAITING_32BIT = 0x4B4B4B4B;
   static constexpr int OR_VALUE = 0x80;
   static constexpr int COMMAND_MAGIC_VALUE1 = 0x99;
   static constexpr int COMMAND_MAGIC_VALUE2 = 0x66;
   static constexpr int DEVICE_GBA = 0x1;
   static constexpr int DEVICE_ADAPTER_BLUE = 0x8;
   static constexpr int DEVICE_ADAPTER_YELLOW = 0x9;
-  static constexpr int DEVICE_ADAPTER_GREEN = 0xa;
-  static constexpr int DEVICE_ADAPTER_RED = 0xb;
+  static constexpr int DEVICE_ADAPTER_GREEN = 0xA;
+  static constexpr int DEVICE_ADAPTER_RED = 0xB;
   static constexpr int ACK_SENDER = 0;
   static constexpr int CONFIGURATION_DATA_SIZE = 192;
   static constexpr int CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
@@ -140,12 +140,12 @@ class LinkMobile {
   static constexpr int COMMAND_OPEN_UDP_CONNECTION = 0x25;
   static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
   static constexpr int COMMAND_DNS_QUERY = 0x28;
-  static constexpr int COMMAND_CONNECTION_CLOSED = 0x1f;
-  static constexpr int COMMAND_ERROR_STATUS = 0x6e | OR_VALUE;
+  static constexpr int COMMAND_CONNECTION_CLOSED = 0x1F;
+  static constexpr int COMMAND_ERROR_STATUS = 0x6E | OR_VALUE;
   static constexpr u8 WAIT_TICKS[] = {4, 8};
   static constexpr int LOGIN_PARTS_SIZE = 8;
-  static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
-                                       0x45, 0x4e, 0x44, 0x4f};
+  static constexpr u8 LOGIN_PARTS[] = {0x4E, 0x49, 0x4E, 0x54,
+                                       0x45, 0x4E, 0x44, 0x4F};
   static constexpr int SUPPORTED_DEVICES_SIZE = 4;
   static constexpr u8 SUPPORTED_DEVICES[] = {
       DEVICE_ADAPTER_BLUE, DEVICE_ADAPTER_YELLOW, DEVICE_ADAPTER_GREEN,
@@ -494,13 +494,13 @@ class LinkMobile {
    * reuse the struct. When the transfer is completed, the `completed` field
    * will be `true`. If the transfer was successful, the `success` field will be
    * `true`.
-   * @param connectionId The ID of the connection (or `0xff` for P2P).
+   * @param connectionId The ID of the connection (or `0xFF` for P2P).
    * \warning Non-blocking. Returns `true` immediately, or `false` if
    * there's no active call or available request slots.
    */
   bool transfer(DataTransfer dataToSend,
                 DataTransfer* result,
-                u8 connectionId = 0xff) {
+                u8 connectionId = 0xFF) {
     if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
         userRequests.isFull())
       return result->fail();

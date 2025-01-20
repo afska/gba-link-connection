@@ -304,19 +304,19 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
   - `startHost` = `0x19`
   - `getSignalLevel` = `0x11`
   - `getSlotStatus` = `0x14`
-  - `acceptConnections` = `0x1a`
-  - `endHost` = `0x1b`
-  - `broadcastReadStart` = `0x1c`
-  - `broadcastReadPoll` = `0x1d`
-  - `broadcastReadEnd` = `0x1e`
-  - `connect` = `0x1f`
+  - `acceptConnections` = `0x1A`
+  - `endHost` = `0x1B`
+  - `broadcastReadStart` = `0x1C`
+  - `broadcastReadPoll` = `0x1D`
+  - `broadcastReadEnd` = `0x1E`
+  - `connect` = `0x1F`
   - `keepConnecting` = `0x20`
   - `finishConnection` = `0x21`
   - `sendData` = `0x24`
   - `sendDataAndWait` = `0x25`
   - `receiveData` = `0x26`
   - `wait` = `0x27`
-  - `bye` = `0x3d`
+  - `bye` = `0x3D`
 - Use `sendCommand(...)` to send arbitrary commands.
 - Use `sendCommandAsync(...)` to send arbitrary commands asynchronously.
   - This requires setting `LINK_RAW_WIRELESS_ISR_SERIAL` as the `SERIAL` interrupt handler.
@@ -368,7 +368,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/d1f49a48-6b17-4954-9
 You can also change these compile-time constants:
 
 - `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `5`, but since LinkCable's limit is `4`, you might want to decrease it.
-- `LINK_UNIVERSAL_GAME_ID_FILTER`: to restrict wireless connections to rooms with a specific game ID (`0x0000` ~ `0x7fff`). The default value (`0`) connects to any game ID and uses `0x7fff` when serving.
+- `LINK_UNIVERSAL_GAME_ID_FILTER`: to restrict wireless connections to rooms with a specific game ID (`0x0000` ~ `0x7FFF`). The default value (`0`) connects to any game ID and uses `0x7FFF` when serving.
 
 ## Methods
 

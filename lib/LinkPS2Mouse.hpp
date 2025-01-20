@@ -91,7 +91,7 @@ class LinkPS2Mouse {
     setClockHigh();
     setDataHigh();
     waitMilliseconds(20);
-    write(0xff);            // send reset to the mouse
+    write(0xFF);            // send reset to the mouse
     readByte();             // read ack byte
     waitMilliseconds(20);   // not sure why this needs the delay
     readByte();             // blank
@@ -122,7 +122,7 @@ class LinkPS2Mouse {
    * @param data The array to be filled with data.
    */
   void report(int (&data)[3]) {
-    write(0xeb);                       // send read data
+    write(0xEB);                       // send read data
     readByte();                        // read ack byte
     data[0] = readByte();              // status bit
     data[1] = readMovementX(data[0]);  // X movement packet
@@ -134,7 +134,7 @@ class LinkPS2Mouse {
   volatile bool isEnabled = false;
 
   void enableDataReporting() {
-    write(0xf4);  // send enable data reporting
+    write(0xF4);  // send enable data reporting
     readByte();   // read ack byte
   }
 

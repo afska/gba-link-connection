@@ -62,9 +62,9 @@
 
 #ifndef LINK_UNIVERSAL_GAME_ID_FILTER
 /**
- * @brief Game ID Filter (`0x0000` ~ `0x7fff`). Default = 0 (no filter)
+ * @brief Game ID Filter (`0x0000` ~ `0x7FFF`). Default = 0 (no filter)
  * This restricts wireless connections to rooms with a specific game ID.
- * When disabled, it connects to any game ID and uses `0x7fff` when serving.
+ * When disabled, it connects to any game ID and uses `0x7FFF` when serving.
  */
 #define LINK_UNIVERSAL_GAME_ID_FILTER 0
 #endif

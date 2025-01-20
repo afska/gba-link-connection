@@ -14,7 +14,7 @@
 //         romLength, // in bytes
 //         "Multiboot", // game name
 //         "Test", // user name
-//         0xffff, // game ID
+//         0xFFFF, // game ID
 //         2, // number of players
 //         [](LinkWirelessMultiboot::MultibootProgress progress) {
 //           // check progress.[state,connectedClients,percentage]
@@ -47,7 +47,7 @@
 LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
     "vLinkWirelessMultiboot/v8.0.0";
 
-#define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xc0)
+#define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xC0)
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
 #define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
@@ -96,11 +96,11 @@ class LinkWirelessMultiboot {
   static constexpr u8 CMD_START[] = {0x00, 0x54, 0x00, 0x00, 0x00, 0x02, 0x00};
   static constexpr u8 CMD_START_SIZE = 7;
   static constexpr u8 BOOTLOADER_HANDSHAKE[][6] = {
-      {0x00, 0x00, 0x52, 0x46, 0x55, 0x2d},
-      {0x4d, 0x42, 0x2d, 0x44, 0x4c, 0x00}};
+      {0x00, 0x00, 0x52, 0x46, 0x55, 0x2D},
+      {0x4D, 0x42, 0x2D, 0x44, 0x4C, 0x00}};
   static constexpr u8 BOOTLOADER_HANDSHAKE_SIZE = 6;
-  static constexpr u8 ROM_HEADER_PATCH[] = {0x52, 0x46, 0x55, 0x2d, 0x4d, 0x42,
-                                            0x4f, 0x4f, 0x54, 0x00, 0x00, 0x00};
+  static constexpr u8 ROM_HEADER_PATCH[] = {0x52, 0x46, 0x55, 0x2D, 0x4D, 0x42,
+                                            0x4F, 0x4F, 0x54, 0x00, 0x00, 0x00};
   static constexpr u8 ROM_HEADER_PATCH_OFFSET = 4;
   static constexpr u8 ROM_HEADER_PATCH_SIZE = 12;
 
@@ -601,7 +601,7 @@ class LinkWirelessMultiboot {
     static const char* digits = "0123456789ABCDEF";
     std::string rc(hex_len, '0');
     for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-      rc[i] = digits[(w >> j) & 0x0f];
+      rc[i] = digits[(w >> j) & 0x0F];
     return rc;
   }
 #endif

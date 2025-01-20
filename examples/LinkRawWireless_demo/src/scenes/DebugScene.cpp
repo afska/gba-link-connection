@@ -213,17 +213,17 @@ void DebugScene::addCommandMenuOptions() {
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x19 (StartHost)", .command = 0x19});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1a (AcceptConnections)", .command = 0x1a});
+      CommandMenuOption{.name = "0x1A (AcceptConnections)", .command = 0x1A});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1b (EndHost)", .command = 0x1b});
+      CommandMenuOption{.name = "0x1B (EndHost)", .command = 0x1B});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1c (BroadcastReadStart)", .command = 0x1c});
+      CommandMenuOption{.name = "0x1C (BroadcastReadStart)", .command = 0x1C});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1d (BroadcastReadPoll)", .command = 0x1d});
+      CommandMenuOption{.name = "0x1D (BroadcastReadPoll)", .command = 0x1D});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1e (BroadcastReadEnd)", .command = 0x1e});
+      CommandMenuOption{.name = "0x1E (BroadcastReadEnd)", .command = 0x1E});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1f (Connect)", .command = 0x1f});
+      CommandMenuOption{.name = "0x1F (Connect)", .command = 0x1F});
   commandMenuOptions.push_back(CommandMenuOption{
       .name = "0x20 (IsConnectionComplete)", .command = 0x20});
   commandMenuOptions.push_back(
@@ -253,7 +253,7 @@ void DebugScene::addCommandMenuOptions() {
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x39 (?)", .command = 0x39});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x3d (Bye)", .command = 0x3d});
+      CommandMenuOption{.name = "0x3D (Bye)", .command = 0x3D});
 }
 
 void DebugScene::processKeys(u16 keys) {
@@ -582,7 +582,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       return logOperation("sending " + name,
                           []() { return linkRawWireless->startHost(); });
     }
-    case 0x1a: {
+    case 0x1A: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::AcceptConnectionsResponse response;
         bool success = linkRawWireless->acceptConnections(response);
@@ -600,7 +600,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
-    case 0x1b: {
+    case 0x1B: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::AcceptConnectionsResponse response;
         bool success = linkRawWireless->endHost(response);
@@ -618,17 +618,17 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
-    case 0x1c: {
+    case 0x1C: {
       return logOperation("sending " + name, []() {
         bool success = linkRawWireless->broadcastReadStart();
 
         if (success)
-          log("NOW CALL 0x1d!");
+          log("NOW CALL 0x1D!");
 
         return success;
       });
     }
-    case 0x1d: {
+    case 0x1D: {
       return logOperation("sending " + name, [this]() {
         LinkRawWireless::BroadcastReadPollResponse response;
         bool success = linkRawWireless->broadcastReadPoll(response);
@@ -651,25 +651,25 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
           }
 
           if (response.serversSize > 0)
-            log("NOW CALL 0x1e!");
+            log("NOW CALL 0x1E!");
           else
-            log("No rooms? NOW CALL 0x1e!");
+            log("No rooms? NOW CALL 0x1E!");
         }
 
         return success;
       });
     }
-    case 0x1e: {
+    case 0x1E: {
       return logOperation("sending " + name, []() {
         bool success = linkRawWireless->broadcastReadEnd();
 
         if (success)
-          log("NOW CALL 0x1f!");
+          log("NOW CALL 0x1F!");
 
         return success;
       });
     }
-    case 0x1f: {
+    case 0x1F: {
       u16 serverId = selectServerId();
       if (serverId == -1)
         return;
@@ -820,7 +820,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     case 0x38:
     case 0x39:
       goto generic;
-    case 0x3d:
+    case 0x3D:
       goto simple;
     default:
       return;
@@ -873,7 +873,7 @@ int DebugScene::selectGameId() {
       "GameID?",
       std::vector<std::string>{"0x7FFF", "0x1234", "<random>", "<pick>"})) {
     case 0: {
-      return 0x7fff;
+      return 0x7FFF;
     }
     case 1: {
       return 0x1234;

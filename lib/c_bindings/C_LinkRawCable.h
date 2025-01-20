@@ -10,7 +10,7 @@ extern "C" {
 typedef void* C_LinkRawCableHandle;
 
 #define C_LINK_RAW_CABLE_MAX_PLAYERS 4
-#define C_LINK_RAW_CABLE_DISCONNECTED 0xffff
+#define C_LINK_RAW_CABLE_DISCONNECTED 0xFFFF
 
 typedef enum {
   C_LINK_RAW_CABLE_BAUD_RATE_0,  // 9600 bps

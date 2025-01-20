@@ -11,7 +11,7 @@ extern "C" {
 
 typedef void* C_LinkUniversalHandle;
 
-#define C_LINK_UNIVERSAL_DISCONNECTED 0xffff
+#define C_LINK_UNIVERSAL_DISCONNECTED 0xFFFF
 #define C_LINK_UNIVERSAL_NO_DATA 0x0
 
 typedef enum {

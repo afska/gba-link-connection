@@ -447,7 +447,7 @@ class LinkWirelessOpenSDK {
 
       [[nodiscard]]
       PendingTransfer* minWithoutAck() {
-        u32 minCursor = 0xffffffff;
+        u32 minCursor = 0xFFFFFFFF;
         int minI = -1;
         for (u32 i = 0; i < MaxInflightPackets; i++) {
           if (transfers[i].isActive && transfers[i].cursor < minCursor &&
@@ -682,7 +682,7 @@ class LinkWirelessOpenSDK {
 
     [[nodiscard]]
     u32 findMinClient() {
-      u32 minTransferredBytes = 0xffffffff;
+      u32 minTransferredBytes = 0xFFFFFFFF;
       u32 minClient = 0;
 
       for (u32 i = 0; i < connectedClients; i++) {
@@ -698,7 +698,7 @@ class LinkWirelessOpenSDK {
 
     [[nodiscard]]
     u32 findMinCursor() {
-      u32 minNextCursor = 0xffffffff;
+      u32 minNextCursor = 0xFFFFFFFF;
 
       bool canSendInflightPackets = true;
       for (u32 i = 0; i < connectedClients; i++) {

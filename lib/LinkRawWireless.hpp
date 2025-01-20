@@ -12,19 +12,19 @@
 //   - `startHost` = `0x19`
 //   - `getSignalLevel` = `0x11`
 //   - `getSlotStatus` = `0x14`
-//   - `acceptConnections` = `0x1a`
-//   - `endHost` = `0x1b`
-//   - `broadcastReadStart` = `0x1c`
-//   - `broadcastReadPoll` = `0x1d`
-//   - `broadcastReadEnd` = `0x1e`
-//   - `connect` = `0x1f`
+//   - `acceptConnections` = `0x1A`
+//   - `endHost` = `0x1B`
+//   - `broadcastReadStart` = `0x1C`
+//   - `broadcastReadPoll` = `0x1D`
+//   - `broadcastReadEnd` = `0x1E`
+//   - `connect` = `0x1F`
 //   - `keepConnecting` = `0x20`
 //   - `finishConnection` = `0x21`
 //   - `sendData` = `0x24`
 //   - `sendDataAndWait` = `0x25`
 //   - `receiveData` = `0x26`
 //   - `wait` = `0x27`
-//   - `bye` = `0x3d`
+//   - `bye` = `0x3D`
 // - Use `sendCommand(...)` to send arbitrary commands.
 // - Use `sendCommandAsync(...)` to send arbitrary commands asynchronously.
 //   - This requires setting `LINK_RAW_WIRELESS_ISR_SERIAL` as the `SERIAL`
@@ -62,7 +62,7 @@ LINK_VERSION_TAG LINK_RAW_WIRELESS_VERSION = "vLinkRawWireless/v8.0.0";
 #define LINK_RAW_WIRELESS_MAX_PLAYERS 5
 #define LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
 #define LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
-#define LINK_RAW_WIRELESS_MAX_GAME_ID 0x7fff
+#define LINK_RAW_WIRELESS_MAX_GAME_ID 0x7FFF
 #define LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
@@ -111,12 +111,12 @@ class LinkRawWireless {
   static constexpr int COMMAND_START_HOST = 0x19;
   static constexpr int COMMAND_SIGNAL_LEVEL = 0x11;
   static constexpr int COMMAND_SLOT_STATUS = 0x14;
-  static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1a;
-  static constexpr int COMMAND_END_HOST = 0x1b;
-  static constexpr int COMMAND_BROADCAST_READ_START = 0x1c;
-  static constexpr int COMMAND_BROADCAST_READ_POLL = 0x1d;
-  static constexpr int COMMAND_BROADCAST_READ_END = 0x1e;
-  static constexpr int COMMAND_CONNECT = 0x1f;
+  static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1A;
+  static constexpr int COMMAND_END_HOST = 0x1B;
+  static constexpr int COMMAND_BROADCAST_READ_START = 0x1C;
+  static constexpr int COMMAND_BROADCAST_READ_POLL = 0x1D;
+  static constexpr int COMMAND_BROADCAST_READ_END = 0x1E;
+  static constexpr int COMMAND_CONNECT = 0x1F;
   static constexpr int COMMAND_IS_FINISHED_CONNECT = 0x20;
   static constexpr int COMMAND_FINISH_CONNECTION = 0x21;
   static constexpr int COMMAND_SEND_DATA = 0x24;
@@ -128,8 +128,8 @@ class LinkRawWireless {
   static constexpr int EVENT_DATA_AVAILABLE = 0x28;
   static constexpr int EVENT_DISCONNECTED = 0x29;
 
-  static constexpr u16 LOGIN_PARTS[] = {0x494e, 0x494e, 0x544e, 0x544e, 0x4e45,
-                                        0x4e45, 0x4f44, 0x4f44, 0x8001};
+  static constexpr u16 LOGIN_PARTS[] = {0x494E, 0x494E, 0x544E, 0x544E, 0x4E45,
+                                        0x4E45, 0x4F44, 0x4F44, 0x8001};
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   typedef void (*Logger)(std::string);
@@ -159,7 +159,7 @@ class LinkRawWireless {
     char userName[LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH + 1];
     u8 nextClientNumber;
 
-    bool isFull() { return nextClientNumber == 0xff; }
+    bool isFull() { return nextClientNumber == 0xFF; }
   };
 
   struct ConnectedClient {
@@ -297,7 +297,7 @@ class LinkRawWireless {
    * @param waitTimeout Timeout of the *waiting commands*, in frames (16.6ms).
    * `0` means no timeout.
    * @param magic A part of the protocol that hasn't been reverse-engineered
-   * yet. For now, it's magic (`0x003c0000`).
+   * yet. For now, it's magic (`0x003C0000`).
    */
   bool setup(u8 maxPlayers = LINK_RAW_WIRELESS_MAX_PLAYERS,
              u8 maxTransmissions = 4,
@@ -461,7 +461,7 @@ class LinkRawWireless {
     u32 levels = result.data[0];
 
     for (u32 i = 1; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
-      response.signalLevels[i] = (levels >> ((i - 1) * 8)) & 0xff;
+      response.signalLevels[i] = (levels >> ((i - 1) * 8)) & 0xFF;
 
     return true;
   }
@@ -498,7 +498,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the AcceptConnections (`0x1a`) command.
+   * @brief Calls the AcceptConnections (`0x1A`) command.
    * @param response A structure that will be filled with the response data.
    */
   bool acceptConnections(AcceptConnectionsResponse& response) {
@@ -525,7 +525,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the EndHost (`0x1b`) command.
+   * @brief Calls the EndHost (`0x1B`) command.
    * @param response A structure that will be filled with the response data.
    */
   bool endHost(AcceptConnectionsResponse& response) {
@@ -555,7 +555,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the BroadcastReadStart (`0x1c`) command.
+   * @brief Calls the BroadcastReadStart (`0x1C`) command.
    */
   bool broadcastReadStart() {
     bool success = sendCommand(COMMAND_BROADCAST_READ_START).success;
@@ -572,7 +572,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the BroadcastReadPoll (`0x1d`) command.
+   * @brief Calls the BroadcastReadPoll (`0x1D`) command.
    * @param response A structure that will be filled with the response data.
    */
   bool broadcastReadPoll(BroadcastReadPollResponse& response) {
@@ -605,7 +605,7 @@ class LinkRawWireless {
       recoverName(server.userName, userI, result.data[start + 6]);
       server.gameName[gameI] = '\0';
       server.userName[userI] = '\0';
-      server.nextClientNumber = (result.data[start] >> 16) & 0xff;
+      server.nextClientNumber = (result.data[start] >> 16) & 0xFF;
 
       response.servers[response.serversSize++] = server;
     }
@@ -614,7 +614,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the BroadcastReadEnd (`0x1e`) command.
+   * @brief Calls the BroadcastReadEnd (`0x1E`) command.
    */
   bool broadcastReadEnd() {
     bool success = sendCommand(COMMAND_BROADCAST_READ_END).success;
@@ -631,7 +631,7 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the Connect (`0x1f`) command.
+   * @brief Calls the Connect (`0x1F`) command.
    * @param serverId Device ID of the server.
    */
   bool connect(u16 serverId) {
@@ -892,7 +892,7 @@ class LinkRawWireless {
       return result;
     }
     if (ack != type + RESPONSE_ACK) {
-      if (ack == 0xee && responses == 1 && !invertsClock) {
+      if (ack == 0xEE && responses == 1 && !invertsClock) {
         u8 __attribute__((unused)) code = (u8)transfer(DATA_REQUEST_VALUE);
         _LRWLOG_("! error received");
         _LRWLOG_(code == 1 ? "! invalid state" : "! unknown cmd");
@@ -969,7 +969,7 @@ class LinkRawWireless {
 
     _LRWLOG_("sending ack");
     command = linkSPI.transfer(
-        (COMMAND_HEADER_VALUE << 16) | ((commandId + RESPONSE_ACK) & 0xff),
+        (COMMAND_HEADER_VALUE << 16) | ((commandId + RESPONSE_ACK) & 0xFF),
         [this, &lines, &vCount]() { return cmdTimeout(lines, vCount); }, false,
         true);
     if (!reverseAcknowledge(true)) {
@@ -1167,7 +1167,7 @@ class LinkRawWireless {
     static const char* digits = "0123456789ABCDEF";
     std::string rc(hex_len, '0');
     for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-      rc[i] = digits[(w >> j) & 0x0f];
+      rc[i] = digits[(w >> j) & 0x0F];
     return rc;
   }
 #endif
@@ -1185,8 +1185,8 @@ class LinkRawWireless {
 
  private:
   struct LoginMemory {
-    u16 previousGBAData = 0xffff;
-    u16 previousAdapterData = 0xffff;
+    u16 previousGBAData = 0xFFFF;
+    u16 previousAdapterData = 0xFFFF;
   };
 
   struct AsyncCommand {
@@ -1467,7 +1467,7 @@ class LinkRawWireless {
             _LRWLOG_("! but received 0x" + toHex(header));
           }
           if (ack != asyncCommand.type + RESPONSE_ACK) {
-            if (ack == 0xee) {
+            if (ack == 0xEE) {
               _LRWLOG_("! error received");
             } else {
               _LRWLOG_("! expected ACK 0x" +
@@ -1619,7 +1619,7 @@ class LinkRawWireless {
     _LRWLOG_("sending ack");
     asyncCommand.step = AsyncCommand::Step::DATA_REQUEST;
     u32 ack = (COMMAND_HEADER_VALUE << 16) |
-              ((asyncCommand.type + RESPONSE_ACK) & 0xff);
+              ((asyncCommand.type + RESPONSE_ACK) & 0xFF);
     transferAsync(ack, true);
   }
 

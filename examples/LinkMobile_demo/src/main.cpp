@@ -165,7 +165,7 @@ void handleP2P() {
     outgoingData = linkMobile->getRole() == LinkMobile::Role::CALLER
                        ? "caller!!!"
                        : "receiver!!!";
-    transfer(dataTransfer, outgoingData, 0xff, true);
+    transfer(dataTransfer, outgoingData, 0xFF, true);
   }
 
   if (dataTransfer.completed) {
@@ -194,7 +194,7 @@ void handleP2P() {
   if (frameCounter >= TRANSFER_FREQUENCY) {
     // Transfer every N frames
     frameCounter = 0;
-    transfer(dataTransfer, outgoingData, 0xff, true);
+    transfer(dataTransfer, outgoingData, 0xFF, true);
   }
 
   if (lastCompletedTransfer.completed) {
@@ -605,6 +605,6 @@ template <typename I>
   static const char* digits = "0123456789ABCDEF";
   std::string rc(hex_len, '0');
   for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-    rc[i] = digits[(w >> j) & 0x0f];
+    rc[i] = digits[(w >> j) & 0x0F];
   return rc;
 }
