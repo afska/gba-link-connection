@@ -40,7 +40,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - stop DMA before sending the ROM! (you might need to stop your audio player)
-// - ^^^ this restriction only applies to the sync version
+// - this restriction only applies to the sync version!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -485,12 +485,13 @@ class LinkCableMultiboot {
     /**
      * @brief Sends the `rom`. Once completed, `getState()` should return
      * `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should
-     * return `LinkCableMultiboot::Async::Result::SUCCESS`.
+     * return `LinkCableMultiboot::Async::Result::SUCCESS`. Returns `false` if
+     * there's a pending transfer or the size is invalid.
      * @param rom A pointer to ROM data. Must be 4-byte aligned.
      * @param romSize Size of the ROM in bytes. It must be a number between
      * `448` and `262144`, and a multiple of `16`.
-     * @param waitForReadySignal Whether the code should wait for a `ready()`
-     * call to start the actual transfer.
+     * @param waitForReadySignal Whether the code should wait for a
+     * `markReady()` call to start the actual transfer.
      * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default
      * value) or `TransferMode::SPI` for GBC cable.
      */
@@ -523,7 +524,7 @@ class LinkCableMultiboot {
     /**
      * @brief Returns the current state.
      */
-    State getState() { return state; }
+    [[nodiscard]] State getState() { return state; }
 
     /**
      * @brief Returns the result of the last operation. After this
@@ -540,12 +541,14 @@ class LinkCableMultiboot {
     /**
      * @brief Returns the number of connected players (`1~4`).
      */
-    u32 playerCount() { return dynamicData.confirmedObservedPlayers; }
+    [[nodiscard]] u8 playerCount() {
+      return dynamicData.confirmedObservedPlayers;
+    }
 
     /**
      * @brief Returns the completion percentage.
      */
-    u32 getPercentage() {
+    [[nodiscard]] u32 getPercentage() {
       if (state == STOPPED || fixedData.size == 0)
         return 0;
 
