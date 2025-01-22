@@ -213,7 +213,8 @@ class LinkUniversal {
    * @brief Collects available messages from interrupts for later processing
    * with `read(...)`. Call this method whenever you need to fetch new data, and
    * at least once per frame, as it also manages connection state, auto-pairing,
-   * and protocol switching.
+   * and protocol switching. Always process all messages before calling it
+   * again.
    */
   void sync() {
     if (!isEnabled)

@@ -54,8 +54,7 @@ C_LinkUniversalHandle C_LinkUniversal_create(
     C_LinkUniversal_Protocol protocol,
     const char* gameName,
     C_LinkUniversal_CableOptions cableOptions,
-    C_LinkUniversal_WirelessOptions wirelessOptions,
-    int randomSeed);
+    C_LinkUniversal_WirelessOptions wirelessOptions);
 void C_LinkUniversal_destroy(C_LinkUniversalHandle handle);
 
 bool C_LinkUniversal_isActive(C_LinkUniversalHandle handle);

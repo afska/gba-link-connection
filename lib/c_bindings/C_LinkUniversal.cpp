@@ -11,8 +11,7 @@ C_LinkUniversalHandle C_LinkUniversal_create(
     C_LinkUniversal_Protocol protocol,
     const char* gameName,
     C_LinkUniversal_CableOptions cableOptions,
-    C_LinkUniversal_WirelessOptions wirelessOptions,
-    int randomSeed) {
+    C_LinkUniversal_WirelessOptions wirelessOptions) {
   return new LinkUniversal(
       static_cast<LinkUniversal::Protocol>(protocol), gameName,
       LinkUniversal::CableOptions{
@@ -22,8 +21,7 @@ C_LinkUniversalHandle C_LinkUniversal_create(
       LinkUniversal::WirelessOptions{
           wirelessOptions.retransmission, wirelessOptions.maxPlayers,
           wirelessOptions.timeout, wirelessOptions.interval,
-          wirelessOptions.sendTimerId},
-      randomSeed);
+          wirelessOptions.sendTimerId});
 }
 
 void C_LinkUniversal_destroy(C_LinkUniversalHandle handle) {

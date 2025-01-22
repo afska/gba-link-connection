@@ -166,7 +166,8 @@ class LinkCable {
 
   /**
    * @brief Collects available messages from interrupts for later processing
-   * with `read(...)`. Call this method whenever you need to fetch new data.
+   * with `read(...)`. Call this method whenever you need to fetch new data, and
+   * always process all messages before calling it again.
    */
   void sync() {
     if (!isEnabled)
