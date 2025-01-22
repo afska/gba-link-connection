@@ -200,8 +200,9 @@ class LinkWirelessMultiboot {
   }
 
   /**
-   * @brief Turns off the adapter. It returns a boolean indicating whether the
-   * transition to low consumption mode was successful.
+   * @brief Turns off the adapter and deactivates the library. It returns a
+   * boolean indicating whether the transition to low consumption mode was
+   * successful.
    */
   bool reset() {
     bool success = linkRawWireless.bye();

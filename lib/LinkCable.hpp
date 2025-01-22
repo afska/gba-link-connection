@@ -155,7 +155,7 @@ class LinkCable {
   }
 
   /**
-   * @brief Returns the number of connected players (`0~4`).
+   * @brief Returns the number of connected players (`1~4`).
    */
   [[nodiscard]] u8 playerCount() { return state.playerCount; }
 
