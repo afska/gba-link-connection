@@ -521,8 +521,9 @@ class LinkCableMultiboot {
      */
     Result getResult(bool clear = true) {
       Result _result = result;
-      result = NONE;
-      return result;
+      if (clear)
+        result = NONE;
+      return _result;
     }
 
     /**
@@ -664,7 +665,7 @@ class LinkCableMultiboot {
 
       switch (state) {
         case DETECTING_CLIENTS: {
-          u32 players = 0;
+          u32 players = 1;
           dynamicData.clientMask = 0;
 
           bool success =
@@ -700,7 +701,8 @@ class LinkCableMultiboot {
         }
         case DETECTING_CLIENTS_END: {
           if (!isResponseSameAsValueWithClientBit(
-                  response, dynamicData.clientMask, ACK_HANDSHAKE)) {
+                  response, dynamicData.clientMask, ACK_HANDSHAKE) ||
+              (fixedData.waitForReadySignal && !dynamicData.ready)) {
             startMultibootSend();
             return;
           }
@@ -765,8 +767,7 @@ class LinkCableMultiboot {
         }
         case CONFIRMING_HANDSHAKE_DATA: {
           if (!isResponseSameAsValue(response, dynamicData.clientMask,
-                                     ACK_RESPONSE, ACK_RESPONSE_MASK) ||
-              (fixedData.waitForReadySignal && !dynamicData.ready)) {
+                                     ACK_RESPONSE, ACK_RESPONSE_MASK)) {
             startMultibootSend();
             return;
           }
@@ -868,13 +869,15 @@ class LinkCableMultiboot {
     }
 
     void startMultibootSend() {
-      bool tmpReady = dynamicData.ready;
       auto tmpFixedData = fixedData;
+      bool tmpReady = dynamicData.ready;
+      u32 tmpObservedPlayers = dynamicData.observedPlayers;
       stop();
 
       state = WAITING;
       fixedData = tmpFixedData;
       dynamicData.ready = tmpReady;
+      dynamicData.observedPlayers = tmpObservedPlayers;
       dynamicData.waitFrames =
           INITIAL_WAIT_MIN_FRAMES +
           Link::_qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES);
