@@ -446,7 +446,7 @@ class LinkCable {
   }
 
   void resetState() {
-    state.playerCount = 0;
+    state.playerCount = 1;
     state.currentPlayerId = 0;
 
     _state.outgoingMessages.syncClear();
