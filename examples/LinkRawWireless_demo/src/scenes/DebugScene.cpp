@@ -213,7 +213,7 @@ void DebugScene::addCommandMenuOptions() {
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x19 (StartHost)", .command = 0x19});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1A (AcceptConnections)", .command = 0x1A});
+      CommandMenuOption{.name = "0x1A (PollConnections)", .command = 0x1A});
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x1B (EndHost)", .command = 0x1B});
   commandMenuOptions.push_back(
@@ -584,8 +584,8 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     }
     case 0x1A: {
       return logOperation("sending " + name, []() {
-        LinkRawWireless::AcceptConnectionsResponse response;
-        bool success = linkRawWireless->acceptConnections(response);
+        LinkRawWireless::PollConnectionsResponse response;
+        bool success = linkRawWireless->pollConnections(response);
 
         if (success) {
           for (u32 i = 0; i < response.connectedClientsSize; i++) {
@@ -602,7 +602,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     }
     case 0x1B: {
       return logOperation("sending " + name, []() {
-        LinkRawWireless::AcceptConnectionsResponse response;
+        LinkRawWireless::PollConnectionsResponse response;
         bool success = linkRawWireless->endHost(response);
 
         if (success) {

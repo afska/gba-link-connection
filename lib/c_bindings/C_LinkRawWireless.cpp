@@ -100,12 +100,12 @@ bool C_LinkRawWireless_getSlotStatus(
   return success;
 }
 
-bool C_LinkRawWireless_acceptConnections(
+bool C_LinkRawWireless_pollConnections(
     C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_AcceptConnectionsResponse* response) {
-  LinkRawWireless::AcceptConnectionsResponse cppResponse;
+    C_LinkRawWireless_PollConnectionsResponse* response) {
+  LinkRawWireless::PollConnectionsResponse cppResponse;
   bool success =
-      static_cast<LinkRawWireless*>(handle)->acceptConnections(cppResponse);
+      static_cast<LinkRawWireless*>(handle)->pollConnections(cppResponse);
   response->connectedClientsSize = cppResponse.connectedClientsSize;
   for (u32 i = 0; i < response->connectedClientsSize; i++) {
     response->connectedClients[i].deviceId =
@@ -118,8 +118,8 @@ bool C_LinkRawWireless_acceptConnections(
 
 bool C_LinkRawWireless_endHost(
     C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_AcceptConnectionsResponse* response) {
-  LinkRawWireless::AcceptConnectionsResponse cppResponse;
+    C_LinkRawWireless_PollConnectionsResponse* response) {
+  LinkRawWireless::PollConnectionsResponse cppResponse;
   bool success = static_cast<LinkRawWireless*>(handle)->endHost(cppResponse);
   response->connectedClientsSize = cppResponse.connectedClientsSize;
   for (u32 i = 0; i < response->connectedClientsSize; i++) {

@@ -77,7 +77,7 @@ typedef struct {
   C_LinkRawWireless_ConnectedClient
       connectedClients[C_LINK_RAW_WIRELESS_MAX_PLAYERS];
   u32 connectedClientsSize;
-} C_LinkRawWireless_AcceptConnectionsResponse;
+} C_LinkRawWireless_PollConnectionsResponse;
 
 typedef struct {
   C_LinkRawWireless_Server servers[C_LINK_RAW_WIRELESS_MAX_SERVERS];
@@ -130,12 +130,12 @@ bool C_LinkRawWireless_getSignalLevel(
 bool C_LinkRawWireless_getSlotStatus(
     C_LinkRawWirelessHandle handle,
     C_LinkRawWireless_SlotStatusResponse* response);
-bool C_LinkRawWireless_acceptConnections(
+bool C_LinkRawWireless_pollConnections(
     C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_AcceptConnectionsResponse* response);
+    C_LinkRawWireless_PollConnectionsResponse* response);
 bool C_LinkRawWireless_endHost(
     C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_AcceptConnectionsResponse* response);
+    C_LinkRawWireless_PollConnectionsResponse* response);
 bool C_LinkRawWireless_broadcastReadStart(C_LinkRawWirelessHandle handle);
 bool C_LinkRawWireless_broadcastReadPoll(
     C_LinkRawWirelessHandle handle,

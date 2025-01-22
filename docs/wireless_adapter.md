@@ -254,14 +254,14 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Send length: 0, response length: 0
 - This uses the broadcast data given by the broadcast command and actually does the broadcasting.
 
-⏲ After calling this command, wait some time (~15 scanlines) before calling `AcceptConnections` or it will fail!.
+⏲ After calling this command, wait some time (~15 scanlines) before calling `PollConnections` or it will fail!.
 
 #### EndHost - `0x1b`
 
 - Send length: 0, response length: 2+
 - This command stops host broadcast. This allows to "close" the room and stop allowing new clients, but also **keeping the existing connections alive**. Sends and Receives still work, but:
   - Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
-  - Calls to `AcceptConnections` on the host side will fail, unless `StartHost` is called again.
+  - Calls to `PollConnections` on the host side will fail, unless `StartHost` is called again.
 
 #### BroadcastRead - `0x1c`, `0x1d` and `0x1e`
 
@@ -296,15 +296,15 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
 
 ⏳ If a client sends a `0x1c` and then starts a `0x1d` loop (1 command per frame), and a console that was broadcasting is turned off, it disappears after 3 seconds.
 
-#### AcceptConnections - `0x1a`
+#### PollConnections - `0x1a`
 
 - Send length: 0, response length: 0+
-- Accepts new connections and returns a list with the connected adapters. The length of the response is zero if there are no connected adapters.
+- Polls new connections and returns a list with the connected adapters. The length of the response is zero if there are no connected adapters.
 - It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsConnectionComplete](#isconnectioncomplete---0x20)) and the least significant byte is the ID.
 
 🔗 If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
 
-❗ `0x19`, `0x1a` and `0x1b` behave like the 3 broadcast reading commands (`0x1c`, `0x1d` and `0x1e`), in the sense that `StartHost` puts the adapter in 'open host' mode, `AcceptConnections` polls new connections and `EndHost` exits the open host mode.
+❗ `0x19`, `0x1a` and `0x1b` behave like the 3 broadcast reading commands (`0x1c`, `0x1d` and `0x1e`), in the sense that `StartHost` puts the adapter in 'open host' mode, `PollConnections` polls new connections and `EndHost` exits the open host mode.
 
 #### Connect - `0x1f`
 
@@ -423,7 +423,7 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
 [![Image without alt text or caption](img/wireless/0x30.png)](img/wireless/0x30.png)
 
 - Send length 1, reponse length: 0
-- This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `AcceptConnection` calls and its `clientNumber` will be liberated, so other peers can connect.
+- This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `PollConnections` calls and its `clientNumber` will be liberated, so other peers can connect.
 
 ⚡ The clients also are able to disconnect themselves using this command, but they can only send its corresponding bit or `0xF`, other bits are ignored (they cannot disconnect other clients). Also, the host won't know if a client disconnects itself, so this feature is not very useful:
 
@@ -471,10 +471,10 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
 
 - Send length: 0, Response length: 1+
 
-- It's returns a list of the connected adapters, similar to what `AcceptConnections` responds, but also:
+- It's returns a list of the connected adapters, similar to what `PollConnections` responds, but also:
 
   - `SlotStatus` has an extra word at the start of the response, indicating the `clientNumber` that the next connection will have (or `0xFF` if the room is not accepting new clients).
-  - `SlotStatus` can be called after `EndHost`, while `AcceptConnections` fails.
+  - `SlotStatus` can be called after `EndHost`, while `PollConnections` fails.
 
 #### ConfigStatus - `0x15`
 

@@ -12,7 +12,7 @@
 //   - `startHost` = `0x19`
 //   - `getSignalLevel` = `0x11`
 //   - `getSlotStatus` = `0x14`
-//   - `acceptConnections` = `0x1A`
+//   - `pollConnections` = `0x1A`
 //   - `endHost` = `0x1B`
 //   - `broadcastReadStart` = `0x1C`
 //   - `broadcastReadPoll` = `0x1D`
@@ -111,7 +111,7 @@ class LinkRawWireless {
   static constexpr int COMMAND_START_HOST = 0x19;
   static constexpr int COMMAND_SIGNAL_LEVEL = 0x11;
   static constexpr int COMMAND_SLOT_STATUS = 0x14;
-  static constexpr int COMMAND_ACCEPT_CONNECTIONS = 0x1A;
+  static constexpr int COMMAND_POLL_CONNECTIONS = 0x1A;
   static constexpr int COMMAND_END_HOST = 0x1B;
   static constexpr int COMMAND_BROADCAST_READ_START = 0x1C;
   static constexpr int COMMAND_BROADCAST_READ_POLL = 0x1D;
@@ -184,7 +184,7 @@ class LinkRawWireless {
     u32 connectedClientsSize = 0;
   };
 
-  struct AcceptConnectionsResponse {
+  struct PollConnectionsResponse {
     ConnectedClient connectedClients[LINK_RAW_WIRELESS_MAX_PLAYERS] = {};
     u32 connectedClientsSize = 0;
   };
@@ -498,11 +498,11 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the AcceptConnections (`0x1A`) command.
+   * @brief Calls the PollConnections (`0x1A`) command.
    * @param response A structure that will be filled with the response data.
    */
-  bool acceptConnections(AcceptConnectionsResponse& response) {
-    auto result = sendCommand(COMMAND_ACCEPT_CONNECTIONS);
+  bool pollConnections(PollConnectionsResponse& response) {
+    auto result = sendCommand(COMMAND_POLL_CONNECTIONS);
 
     if (!result.success) {
       _resetState();
@@ -528,7 +528,7 @@ class LinkRawWireless {
    * @brief Calls the EndHost (`0x1B`) command.
    * @param response A structure that will be filled with the response data.
    */
-  bool endHost(AcceptConnectionsResponse& response) {
+  bool endHost(PollConnectionsResponse& response) {
     auto result = sendCommand(COMMAND_END_HOST);
 
     if (!result.success) {

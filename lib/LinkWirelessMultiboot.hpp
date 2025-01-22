@@ -267,7 +267,7 @@ class LinkWirelessMultiboot {
 
   template <typename C>
   Result waitForClients(u8 players, C listener) {
-    LinkRawWireless::AcceptConnectionsResponse acceptResponse;
+    LinkRawWireless::PollConnectionsResponse pollResponse;
 
     u32 currentPlayers = 1;
     while ((linkRawWireless.playerCount() < players && !readyFlag) ||
@@ -275,7 +275,7 @@ class LinkWirelessMultiboot {
       if (listener(progress))
         return CANCELED;
 
-      if (!linkRawWireless.acceptConnections(acceptResponse))
+      if (!linkRawWireless.pollConnections(pollResponse))
         return FAILURE;
 
       if (linkRawWireless.playerCount() > currentPlayers) {
@@ -283,8 +283,7 @@ class LinkWirelessMultiboot {
         progress.connectedClients = currentPlayers - 1;
 
         u8 lastClientNumber =
-            acceptResponse
-                .connectedClients[acceptResponse.connectedClientsSize - 1]
+            pollResponse.connectedClients[pollResponse.connectedClientsSize - 1]
                 .clientNumber;
         LINK_WIRELESS_MULTIBOOT_TRY_SUB(
             handshakeClient(lastClientNumber, listener))
@@ -293,7 +292,7 @@ class LinkWirelessMultiboot {
 
     readyFlag = true;
 
-    if (!linkRawWireless.endHost(acceptResponse))
+    if (!linkRawWireless.endHost(pollResponse))
       return FAILURE;
 
     return SUCCESS;

@@ -401,7 +401,7 @@ class LinkWireless {
     if (isAsyncCommandActive())
       return badRequest(BUSY_TRY_AGAIN);
 
-    LinkRawWireless::AcceptConnectionsResponse response;
+    LinkRawWireless::PollConnectionsResponse response;
     bool success = linkRawWireless.endHost(response);
 
     if (!success)

@@ -163,7 +163,7 @@ This version is simpler and blocks the system thread until completion. It doesn'
 
 ## Async version
 
-This version (`LinkCableMultiboot::Async`) allows more advanced use cases like displaying animations and/or audio during the transfers, probing the connections and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
+This version (`LinkCableMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, probing the connections and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
 
 ### Compile-time constants
 
@@ -333,7 +333,7 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
   - `startHost` = `0x19`
   - `getSignalLevel` = `0x11`
   - `getSlotStatus` = `0x14`
-  - `acceptConnections` = `0x1A`
+  - `pollConnections` = `0x1A`
   - `endHost` = `0x1B`
   - `broadcastReadStart` = `0x1C`
   - `broadcastReadPoll` = `0x1D`
