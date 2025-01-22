@@ -1,8 +1,6 @@
 #ifndef LINK_CABLE_MULTIBOOT_H
 #define LINK_CABLE_MULTIBOOT_H
 
-// TODO: Async C bindings, documentation, ready flag
-
 // --------------------------------------------------------------------------
 // A Multiboot tool to send small programs from one GBA to up to 3 slaves.
 // --------------------------------------------------------------------------
@@ -12,7 +10,8 @@
 // - 2) Send the ROM:
 //       LinkCableMultiboot::Result result = linkCableMultiboot->sendRom(
 //         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
-//         romLength, // in bytes, should be multiple of 0x10, 4-byte aligned
+//                   // ^ must be 4-byte aligned
+//         romLength, // in bytes, should be multiple of 0x10
 //         []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
@@ -561,7 +560,7 @@ class LinkCableMultiboot {
      * \warning This is only useful when using the `waitForReadySignal`
      * parameter.
      */
-    bool isReady() { return dynamicData.ready; }
+    [[nodiscard]] bool isReady() { return dynamicData.ready; }
 
     /**
      * @brief Marks the transfer as ready.

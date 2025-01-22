@@ -17,8 +17,8 @@ typedef enum {
 } C_LinkUART_BaudRate;
 
 typedef enum {
-  C_LINK_UART_SIZE_7_BITS,
-  C_LINK_UART_SIZE_8_BITS
+  C_LINK_UART_DATA_SIZE_SIZE_7_BITS,
+  C_LINK_UART_DATA_SIZE_SIZE_8_BITS
 } C_LinkUART_DataSize;
 
 typedef enum {

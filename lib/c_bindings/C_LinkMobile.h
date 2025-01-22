@@ -42,16 +42,16 @@ typedef enum {
   C_LINK_MOBILE_STATE_SHUTDOWN
 } C_LinkMobile_State;
 
-enum C_LinkMobile_Role {
+typedef enum {
   C_LINK_MOBILE_ROLE_NO_P2P_CONNECTION,
   C_LINK_MOBILE_ROLE_CALLER,
   C_LINK_MOBILE_ROLE_RECEIVER
-};
+} C_LinkMobile_Role;
 
-enum C_LinkMobile_ConnectionType {
+typedef enum {
   C_LINK_MOBILE_CONNECTION_TYPE_TCP,
   C_LINK_MOBILE_CONNECTION_TYPE_UDP
-};
+} C_LinkMobile_ConnectionType;
 
 typedef enum {
   C_LINK_MOBILE_ERROR_TYPE_NONE,
