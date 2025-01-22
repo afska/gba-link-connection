@@ -60,6 +60,7 @@ class LinkSPI {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
+  using vu32 = Link::vu32;
 
   static constexpr int BIT_CLOCK = 0;
   static constexpr int BIT_CLOCK_SPEED = 1;
@@ -298,7 +299,7 @@ class LinkSPI {
   DataSize dataSize = DataSize::SIZE_32BIT;
   bool waitMode = false;
   volatile AsyncState asyncState = IDLE;
-  volatile u32 asyncData = 0;
+  vu32 asyncData = 0;
   volatile bool isEnabled = false;
 
   void setNormalMode() {

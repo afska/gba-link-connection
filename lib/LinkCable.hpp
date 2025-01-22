@@ -80,8 +80,6 @@ class LinkCable {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
-  using vu32 = Link::vu32;
-  using vs32 = Link::vs32;
   using vu8 = Link::vu8;
   using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE>;
 

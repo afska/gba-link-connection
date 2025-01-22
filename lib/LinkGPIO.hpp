@@ -40,6 +40,7 @@ class LinkGPIO {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
+  using vu16 = Link::u16;
 
   static constexpr int RCNT_GENERAL_PURPOSE = 1 << 15;
   static constexpr int SIOCNT_GENERAL_PURPOSE = 0;
@@ -109,7 +110,7 @@ class LinkGPIO {
  private:
   int getBit(u16 reg, int bit) { return (reg >> bit) & 1; }
 
-  void setBit(volatile u16& reg, int bit, bool data) {
+  void setBit(vu16& reg, int bit, bool data) {
     if (data)
       reg |= 1 << bit;
     else

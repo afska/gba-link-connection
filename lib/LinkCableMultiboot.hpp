@@ -57,6 +57,8 @@ class LinkCableMultiboot {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
+  using vu32 = Link::vu32;
+  using vu8 = Link::vu8;
 
   static constexpr int MIN_ROM_SIZE = 0x100 + 0xC0;
   static constexpr int MAX_ROM_SIZE = 256 * 1024;
@@ -495,11 +497,11 @@ class LinkCableMultiboot {
     struct MultibootFixedData {
       TransferMode transferMode = TransferMode::MULTI_PLAY;
       const u16* data = nullptr;
-      u32 size = 0;
+      vu32 size = 0;
     };
 
     struct MultibootDynamicData {
-      u8 clientMask = 0;
+      vu8 clientMask = 0;
       u32 crcB = 0;
       u32 seed = 0;
       u32 crcC = 0;
@@ -509,7 +511,7 @@ class LinkCableMultiboot {
       u32 wait = 0;
       u32 tryCount = 0;
       u32 headerRemaining = 0;
-      u32 currentRomPart = 0;
+      vu32 currentRomPart = 0;
       bool currentRomPartSecondHalf = false;
     };
 

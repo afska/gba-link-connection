@@ -47,8 +47,6 @@ class LinkUART {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
-  using vu32 = Link::vu32;
-  using vs32 = Link::vs32;
   using U8Queue = Link::Queue<u8, LINK_UART_QUEUE_SIZE>;
 
   static constexpr int BIT_CTS = 2;
