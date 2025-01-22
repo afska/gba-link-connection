@@ -605,7 +605,7 @@ class LinkCableMultiboot {
         }
         case SENDING_PALETTE: {
           u8 sendMask = dynamicData.clientMask;
-          u8 clientData[3] = {};
+          u8 clientData[3] = {CLIENT_NO_DATA, CLIENT_NO_DATA, CLIENT_NO_DATA};
 
           bool success =
               validateResponse(
@@ -656,7 +656,7 @@ class LinkCableMultiboot {
           break;
         }
         case CALCULATING_CRCB: {
-          for (int i = 0; i < MAX_CLIENTS; i++) {
+          for (u32 i = 0; i < MAX_CLIENTS; i++) {
             u8 clientBit = 1 << (i + 1);
             u8 contribute = 0xFF;
 
