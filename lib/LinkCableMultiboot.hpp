@@ -1,6 +1,8 @@
 #ifndef LINK_CABLE_MULTIBOOT_H
 #define LINK_CABLE_MULTIBOOT_H
 
+// TODO: Async C bindings, documentation, ready flag
+
 // --------------------------------------------------------------------------
 // A Multiboot tool to send small programs from one GBA to up to 3 slaves.
 // --------------------------------------------------------------------------
@@ -10,7 +12,7 @@
 // - 2) Send the ROM:
 //       LinkCableMultiboot::Result result = linkCableMultiboot->sendRom(
 //         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
-//         romLength, // in bytes, should be multiple of 0x10
+//         romLength, // in bytes, should be multiple of 0x10, 4-byte aligned
 //         []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
@@ -18,6 +20,23 @@
 //         }
 //       );
 //       // `result` should be LinkCableMultiboot::Result::SUCCESS
+// - 3) (Optional) Send ROMs asynchronously:
+//       LinkCableMultiboot::Async* linkCableMultibootAsync =
+//         new LinkCableMultiboot::Async();
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_CABLE_MULTIBOOT_ASYNC_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_CABLE_MULTIBOOT_ASYNC_ISR_SERIAL);
+//       bool success = linkCableMultibootAsync->sendRom(romBytes, romLength);
+//       if (success) {
+//         // (monitor `playerCount()` and `getPercentage()`)
+//         if (
+//           linkCableMultibootAsync->getState() ==
+//           LinkCableMultiboot::Async::State::STOPPED
+//         ) {
+//           auto result = linkCableMultibootAsync->getResult();
+//           // `result` should be LinkCableMultiboot::Async::Result::SUCCESS
+//         }
+//       }
 // --------------------------------------------------------------------------
 // considerations:
 // - stop DMA before sending the ROM! (you might need to stop your audio player)
@@ -404,6 +423,10 @@ class LinkCableMultiboot {
   }
 
  public:
+  /**
+   * @brief [Asynchronous version] A Multiboot tool to send small programs from
+   * one GBA to up to 3 slaves.
+   */
   class Async {
    private:
     static constexpr int FPS = 60;
@@ -448,8 +471,19 @@ class LinkCableMultiboot {
       CRC_FAILURE = 4,
     };
 
+    /**
+     * @brief Sends the `rom`. Once completed, `getState()` should return
+     * `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should
+     * return `LinkCableMultiboot::Async::Result::SUCCESS`.
+     * @param rom A pointer to ROM data. Must be 4-byte aligned.
+     * @param romSize Size of the ROM in bytes. It must be a number between
+     * `448` and `262144`, and a multiple of `16`.
+     * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default
+     * value) or `TransferMode::SPI` for GBC cable.
+     */
     bool sendRom(const u8* rom,
                  u32 romSize,
+                 bool waitForReadySignal = false,
                  TransferMode mode = TransferMode::MULTI_PLAY) {
       if (state != STOPPED)
         return false;
@@ -468,13 +502,45 @@ class LinkCableMultiboot {
     }
 
     /**
+     * Deactivates the library, canceling the in-progress transfer, if any.
      * \warning Never call this method inside an interrupt handler!
      */
     void reset() { stop(); }
 
+    /**
+     * @brief Returns the current state.
+     */
     State getState() { return state; }
+
+    /**
+     * @brief Returns the result of the last operation.
+     */
     Result getResult() { return result; }
 
+    /**
+     * @brief Returns the number of connected players (`1~4`).
+     */
+    u32 playerCount() {
+      if (state == STOPPED)
+        return 1;
+      return 1 + __builtin_popcount(dynamicData.clientMask);
+    }
+
+    /**
+     * @brief Returns the completion percentage.
+     */
+    u32 getPercentage() {
+      if (state == STOPPED || fixedData.size == 0)
+        return 0;
+
+      return Link::_min(
+          dynamicData.currentRomPart * 100 / (fixedData.size >> 2), 100);
+    }
+
+    /**
+     * @brief This method is called by the VBLANK interrupt handler.
+     * \warning This is internal API!
+     */
     void _onVBlank() {
       if (state == STOPPED)
         return;
@@ -482,6 +548,10 @@ class LinkCableMultiboot {
       processNewFrame();
     }
 
+    /**
+     * @brief This method is called by the SERIAL interrupt handler.
+     * \warning This is internal API!
+     */
     void _onSerial() {
       if (state == STOPPED || interrupt)
         return;
