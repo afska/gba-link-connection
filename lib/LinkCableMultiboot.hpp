@@ -432,8 +432,9 @@ class LinkCableMultiboot {
       CALCULATING_CRCB = 8,
       SENDING_ROM = 9,
       SENDING_ROM_END = 10,
-      SENDING_FINAL_CRC = 11,
-      CHECKING_FINAL_CRC = 12
+      SENDING_ROM_END_WAITING = 11,
+      SENDING_FINAL_CRC = 12,
+      CHECKING_FINAL_CRC = 13
     };
 
     enum Result {
@@ -538,6 +539,14 @@ class LinkCableMultiboot {
           }
           break;
         }
+        case SENDING_ROM_END_WAITING: {
+          state = SENDING_ROM_END;
+          dynamicData.tryCount++;
+          if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS)
+            return (void)stop(FINAL_HANDSHAKE_FAILURE);
+
+          transferAsync(CMD_ROM_END);
+        }
         default: {
         }
       }
@@ -566,8 +575,6 @@ class LinkCableMultiboot {
             state = DETECTING_CLIENTS_END;
             transferAsync(CMD_CONFIRM_CLIENTS | dynamicData.clientMask);
           } else {
-            // TODO: FIX! Switch to other state and retry from vblank irq
-            Link::wait(228);
             dynamicData.tryCount++;
             if (dynamicData.tryCount >= DETECTION_TRIES) {
               startMultibootSend();
@@ -711,11 +718,7 @@ class LinkCableMultiboot {
             state = SENDING_FINAL_CRC;
             transferAsync(CMD_FINAL_CRC);
           } else {
-            dynamicData.tryCount++;
-            if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS)
-              return (void)stop(FINAL_HANDSHAKE_FAILURE);
-
-            transferAsync(CMD_ROM_END);
+            state = SENDING_ROM_END_WAITING;
           }
 
           break;
