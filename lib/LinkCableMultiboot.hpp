@@ -515,9 +515,15 @@ class LinkCableMultiboot {
     State getState() { return state; }
 
     /**
-     * @brief Returns the result of the last operation.
+     * @brief Returns the result of the last operation. After this
+     * call, the result is cleared if `clear` is `true` (default behavior).
+     * @param clear Whether it should clear the result or not.
      */
-    Result getResult() { return result; }
+    Result getResult(bool clear = true) {
+      Result _result = result;
+      result = NONE;
+      return result;
+    }
 
     /**
      * @brief Returns the number of connected players (`1~4`).
