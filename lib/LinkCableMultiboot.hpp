@@ -969,6 +969,7 @@ class LinkCableMultiboot {
     }
 
     void transferAsync(u32 data) {
+      Link::_REG_IME = 0;
       if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.transferAsync(data);
       else
