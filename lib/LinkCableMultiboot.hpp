@@ -58,6 +58,16 @@
 #define LINK_CABLE_MULTIBOOT_PALETTE_DATA 0b10010011
 #endif
 
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+/**
+ * @brief Disable nested IRQs (uncomment to enable).
+ * In the async version, SERIAL IRQs can be interrupted (once they clear their
+ * time-critical needs) by default, which helps prevent issues with audio
+ * engines. However, if something goes wrong, you can disable this behavior.
+ */
+// #define LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#endif
+
 LINK_VERSION_TAG LINK_CABLE_MULTIBOOT_VERSION = "vLinkCableMultiboot/v8.0.0";
 
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)   \
@@ -83,7 +93,7 @@ class LinkCableMultiboot {
   static constexpr int MAX_ROM_SIZE = 256 * 1024;
   static constexpr int FRAME_LINES = 228;
   static constexpr int INITIAL_WAIT_MIN_FRAMES = 4;
-  static constexpr int INITIAL_WAIT_MAX_RANDOM_FRAMES = 30;
+  static constexpr int INITIAL_WAIT_MAX_RANDOM_FRAMES = 10;
   static constexpr int INITIAL_WAIT_MIN_LINES =
       FRAME_LINES * INITIAL_WAIT_MIN_FRAMES;
   static constexpr int DETECTION_TRIES = 16;
@@ -580,11 +590,17 @@ class LinkCableMultiboot {
       if (state == STOPPED || interrupt)
         return;
 
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       interrupt = true;
+#endif
       Response response = getAsyncResponse();
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       Link::_REG_IME = 1;
+#endif
       processResponse(response);
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       interrupt = false;
+#endif
     }
 
    private:
@@ -619,12 +635,16 @@ class LinkCableMultiboot {
     MultibootDynamicData dynamicData;
     volatile State state = STOPPED;
     volatile Result result = NONE;
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
     volatile bool interrupt = false;
+#endif
 
     void processNewFrame() {
       dynamicData.irqTimeout++;
       if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
         if (!interrupt)
+#endif
           startMultibootSend();
         return;
       }
@@ -969,7 +989,9 @@ class LinkCableMultiboot {
     }
 
     void transferAsync(u32 data) {
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       Link::_REG_IME = 0;
+#endif
       if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.transferAsync(data);
       else
