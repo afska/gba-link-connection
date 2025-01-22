@@ -465,6 +465,9 @@ class LinkCableMultiboot {
       return true;
     }
 
+    /**
+     * \warning Never call this method inside an interrupt handler!
+     */
     void reset() { stop(); }
 
     State getState() { return state; }
@@ -478,11 +481,14 @@ class LinkCableMultiboot {
     }
 
     void _onSerial() {
-      if (state == STOPPED)
+      if (state == STOPPED || interrupt)
         return;
 
+      interrupt = true;
       Response response = getAsyncResponse();
+      Link::_REG_IME = 1;
       processResponse(response);
+      interrupt = false;
     }
 
    private:
@@ -513,11 +519,13 @@ class LinkCableMultiboot {
     MultibootDynamicData dynamicData;
     volatile State state = STOPPED;
     volatile Result result = NONE;
+    volatile bool interrupt = false;
 
     void processNewFrame() {
       dynamicData.irqTimeout++;
       if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
-        startMultibootSend();
+        if (!interrupt)
+          startMultibootSend();
         return;
       }
 
