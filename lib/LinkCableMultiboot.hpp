@@ -40,6 +40,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - stop DMA before sending the ROM! (you might need to stop your audio player)
+// - ^^^ this restriction only applies to the sync version
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -539,7 +540,7 @@ class LinkCableMultiboot {
     /**
      * @brief Returns the number of connected players (`1~4`).
      */
-    u32 playerCount() { return dynamicData.observedPlayers; }
+    u32 playerCount() { return dynamicData.confirmedObservedPlayers; }
 
     /**
      * @brief Returns the completion percentage.
@@ -627,6 +628,7 @@ class LinkCableMultiboot {
 
       bool ready = false;
       u32 observedPlayers = 1;
+      u32 confirmedObservedPlayers = 1;
     };
 
     LinkRawCable linkRawCable;
@@ -709,10 +711,8 @@ class LinkCableMultiboot {
             transferAsync(CMD_CONFIRM_CLIENTS | dynamicData.clientMask);
           } else {
             dynamicData.tryCount++;
-            if (dynamicData.tryCount >= DETECTION_TRIES) {
-              startMultibootSend();
-              return;
-            }
+            if (dynamicData.tryCount >= DETECTION_TRIES)
+              return (void)startMultibootSend();
 
             transferAsync(CMD_HANDSHAKE);
           }
@@ -721,11 +721,11 @@ class LinkCableMultiboot {
         }
         case DETECTING_CLIENTS_END: {
           if (!isResponseSameAsValueWithClientBit(
-                  response, dynamicData.clientMask, ACK_HANDSHAKE) ||
-              (fixedData.waitForReadySignal && !dynamicData.ready)) {
-            startMultibootSend();
-            return;
-          }
+                  response, dynamicData.clientMask, ACK_HANDSHAKE))
+            return (void)startMultibootSend();
+          dynamicData.confirmedObservedPlayers = dynamicData.observedPlayers;
+          if (fixedData.waitForReadySignal && !dynamicData.ready)
+            return (void)startMultibootSend();
 
           state = SENDING_HEADER;
           dynamicData.headerRemaining = HEADER_PARTS;
@@ -735,10 +735,8 @@ class LinkCableMultiboot {
         case SENDING_HEADER: {
           if (!isResponseSameAsValueWithClientBit(
                   response, dynamicData.clientMask,
-                  dynamicData.headerRemaining << 8)) {
-            startMultibootSend();
-            return;
-          }
+                  dynamicData.headerRemaining << 8))
+            return (void)startMultibootSend();
 
           dynamicData.headerRemaining--;
           sendHeaderPart();
@@ -776,10 +774,8 @@ class LinkCableMultiboot {
             transferAsync(CMD_CONFIRM_HANDSHAKE_DATA | handshakeData);
           } else {
             dynamicData.tryCount++;
-            if (dynamicData.tryCount >= DETECTION_TRIES) {
-              startMultibootSend();
-              return;
-            }
+            if (dynamicData.tryCount >= DETECTION_TRIES)
+              return (void)startMultibootSend();
 
             sendPaletteData();
           }
@@ -787,10 +783,8 @@ class LinkCableMultiboot {
         }
         case CONFIRMING_HANDSHAKE_DATA: {
           if (!isResponseSameAsValue(response, dynamicData.clientMask,
-                                     ACK_RESPONSE, ACK_RESPONSE_MASK)) {
-            startMultibootSend();
-            return;
-          }
+                                     ACK_RESPONSE, ACK_RESPONSE_MASK))
+            return (void)startMultibootSend();
 
           state = WAITING_BEFORE_MAIN_TRANSFER;
           dynamicData.waitFrames = WAIT_BEFORE_MAIN_TRANSFER_FRAMES;
@@ -891,13 +885,13 @@ class LinkCableMultiboot {
     void startMultibootSend() {
       auto tmpFixedData = fixedData;
       bool tmpReady = dynamicData.ready;
-      u32 tmpObservedPlayers = dynamicData.observedPlayers;
+      u32 tmpConfirmedObservedPlayers = dynamicData.confirmedObservedPlayers;
       stop();
 
       state = WAITING;
       fixedData = tmpFixedData;
       dynamicData.ready = tmpReady;
-      dynamicData.observedPlayers = tmpObservedPlayers;
+      dynamicData.confirmedObservedPlayers = tmpConfirmedObservedPlayers;
       dynamicData.waitFrames =
           INITIAL_WAIT_MIN_FRAMES +
           Link::_qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES);

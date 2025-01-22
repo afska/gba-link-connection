@@ -155,6 +155,8 @@ You can change these compile-time constants:
 
 ⚠️ stop DMA before sending the ROM! _(you might need to stop your audio player)_
 
+⚠️ ^^^ this restriction only applies to the sync version
+
 # 🔧👾 LinkRawCable
 
 [⬆️](#gba-link-connection)
