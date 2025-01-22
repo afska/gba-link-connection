@@ -117,7 +117,13 @@ class LinkCableMultiboot {
   };
 
  public:
-  enum Result { SUCCESS, INVALID_SIZE, CANCELED, FAILURE_DURING_TRANSFER };
+  enum Result {
+    SUCCESS,
+    UNALIGNED,
+    INVALID_SIZE,
+    CANCELED,
+    FAILURE_DURING_TRANSFER
+  };
 
   enum TransferMode {
     SPI = 0,
@@ -144,6 +150,8 @@ class LinkCableMultiboot {
     LINK_READ_TAG(LINK_CABLE_MULTIBOOT_VERSION);
 
     this->_mode = mode;
+    if ((u32)rom % 4 != 0)
+      return UNALIGNED;
     if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
         (romSize % 0x10) != 0)
       return INVALID_SIZE;
@@ -475,17 +483,18 @@ class LinkCableMultiboot {
     enum Result {
       NONE = -1,
       SUCCESS = 0,
-      INVALID_SIZE = 1,
-      SEND_FAILURE = 2,
-      FINAL_HANDSHAKE_FAILURE = 3,
-      CRC_FAILURE = 4,
+      UNALIGNED = 1,
+      INVALID_SIZE = 2,
+      SEND_FAILURE = 3,
+      FINAL_HANDSHAKE_FAILURE = 4,
+      CRC_FAILURE = 5,
     };
 
     /**
      * @brief Sends the `rom`. Once completed, `getState()` should return
      * `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should
      * return `LinkCableMultiboot::Async::Result::SUCCESS`. Returns `false` if
-     * there's a pending transfer or the size is invalid.
+     * there's a pending transfer or the data is invalid.
      * @param rom A pointer to ROM data. Must be 4-byte aligned.
      * @param romSize Size of the ROM in bytes. It must be a number between
      * `448` and `262144`, and a multiple of `16`.
@@ -501,6 +510,10 @@ class LinkCableMultiboot {
       if (state != STOPPED)
         return false;
 
+      if ((u32)rom % 4 != 0) {
+        result = UNALIGNED;
+        return false;
+      }
       if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
           (romSize % 0x10) != 0) {
         result = INVALID_SIZE;
