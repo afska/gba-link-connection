@@ -526,7 +526,7 @@ class LinkWirelessMultiboot {
                            u32 _bytes,
                            LinkRawWireless::ReceiveDataResponse& response) {
     LinkRawWireless::CommandResult remoteCommand;
-    volatile bool success = false;
+    bool success = false;
 
     success =
         linkRawWireless.sendDataAndWait(data, dataSize, remoteCommand, _bytes);

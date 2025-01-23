@@ -194,7 +194,7 @@ class LinkUniversal {
   [[nodiscard]] bool isConnected() { return state == CONNECTED; }
 
   /**
-   * @brief Returns the number of connected players (`0~5`).
+   * @brief Returns the number of connected players (`1~5`).
    */
   [[nodiscard]] u8 playerCount() {
     return mode == LINK_CABLE ? linkCable.playerCount()

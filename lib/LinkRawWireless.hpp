@@ -724,9 +724,9 @@ class LinkRawWireless {
     rawData[0] = header;
     for (u32 i = 0; i < dataSize; i++)
       rawData[i + 1] = data[i];
-    dataSize++;
 
-    bool success = sendCommand(COMMAND_SEND_DATA, rawData, dataSize).success;
+    bool success =
+        sendCommand(COMMAND_SEND_DATA, rawData, 1 + dataSize).success;
 
     if (!success) {
       _resetState();
@@ -757,9 +757,8 @@ class LinkRawWireless {
     rawData[0] = header;
     for (u32 i = 0; i < dataSize; i++)
       rawData[i + 1] = data[i];
-    dataSize++;
 
-    if (!sendCommand(COMMAND_SEND_DATA_AND_WAIT, rawData, dataSize, true)
+    if (!sendCommand(COMMAND_SEND_DATA_AND_WAIT, rawData, 1 + dataSize, true)
              .success) {
       _resetState();
       return false;

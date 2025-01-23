@@ -670,14 +670,14 @@ class LinkWireless {
   }
 
   /**
-   * @brief Returns the number of connected players.
+   * @brief Returns the number of connected players (`1~5`).
    */
   [[nodiscard]] u8 playerCount() {
     return linkRawWireless.sessionState.playerCount;
   }
 
   /**
-   * @brief Returns the current player ID.
+   * @brief Returns the current player ID (`0~4`).
    */
   [[nodiscard]] u8 currentPlayerId() {
     return linkRawWireless.sessionState.currentPlayerId;

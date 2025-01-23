@@ -1015,8 +1015,11 @@ class LinkCableMultiboot {
     }
 
     void stop(Result newResult = NONE) {
+      auto mode = fixedData.transferMode;
+
       resetState(newResult);
-      if (fixedData.transferMode == TransferMode::MULTI_PLAY)
+
+      if (mode == TransferMode::MULTI_PLAY)
         linkRawCable.deactivate();
       else
         linkSPI.deactivate();
