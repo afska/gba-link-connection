@@ -139,13 +139,13 @@ class LinkWirelessMultiboot {
    * @param gameName Game name. Maximum `14` characters + null terminator.
    * @param userName User name. Maximum `8` characters + null terminator.
    * @param gameId `(0 ~ 0x7FFF)` Game ID.
-   * @param players The exact number of consoles that will download the ROM.
+   * @param players The number of consoles that will download the ROM.
    * Once this number of players is reached, the code will start transmitting
    * the ROM bytes.
    * @param listener A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted. It receives a
    * `LinkWirelessMultiboot::MultibootProgress` object with details.
-   * @param keepConnectionAlive If a `true`, the adapter won't be reset after a
+   * @param keepConnectionAlive If `true`, the adapter won't be reset after a
    * successful transfer, so users can continue the session using
    * `LinkWireless::restoreExistingConnection()`.
    * \warning You can start the transfer before the player count is reached by
@@ -163,9 +163,8 @@ class LinkWirelessMultiboot {
                  bool keepConnectionAlive = false) {
     LINK_READ_TAG(LINK_WIRELESS_MULTIBOOT_VERSION);
 
-    if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE)
-      return INVALID_SIZE;
-    if (romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
+    if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE ||
+        romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE)
       return INVALID_SIZE;
     if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
         players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS)
