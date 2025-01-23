@@ -637,7 +637,7 @@ class LinkWirelessOpenSDK {
      * @param response The received response from the adapter.
      * @return The completion percentage (0~100).
      */
-    u32 processResponse(LinkRawWireless::ReceiveDataResponse response) {
+    u8 processResponse(LinkRawWireless::ReceiveDataResponse response) {
       if (finished)
         return 100;
 

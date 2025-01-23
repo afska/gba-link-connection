@@ -124,8 +124,8 @@ class LinkWirelessMultiboot {
 
   struct MultibootProgress {
     State state = STOPPED;
-    u32 connectedClients = 0;
-    u32 percentage = 0;
+    u8 connectedClients = 0;
+    u8 percentage = 0;
     volatile bool* ready = nullptr;
   };
 
@@ -423,7 +423,7 @@ class LinkWirelessMultiboot {
       LinkRawWireless::ReceiveDataResponse response;
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData(sendBuffer, response))
 
-      u32 newPercentage = multiTransfer.processResponse(response);
+      u8 newPercentage = multiTransfer.processResponse(response);
       if (newPercentage != progress.percentage) {
         progress.percentage = newPercentage;
         _LWMLOG_("-> " + std::to_string(newPercentage));

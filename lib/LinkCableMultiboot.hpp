@@ -560,7 +560,7 @@ class LinkCableMultiboot {
     /**
      * @brief Returns the completion percentage.
      */
-    [[nodiscard]] u32 getPercentage() {
+    [[nodiscard]] u8 getPercentage() {
       if (state == STOPPED || fixedData.size == 0)
         return 0;
 

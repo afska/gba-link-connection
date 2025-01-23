@@ -80,7 +80,7 @@ void C_LinkCableMultiboot_Async_getResult(
 
 u8 C_LinkCableMultiboot_Async_playerCount(
     C_LinkCableMultiboot_AsyncHandle handle);
-u32 C_LinkCableMultiboot_Async_getPercentage(
+u8 C_LinkCableMultiboot_Async_getPercentage(
     C_LinkCableMultiboot_AsyncHandle handle);
 
 bool C_LinkCableMultiboot_Async_isReady(

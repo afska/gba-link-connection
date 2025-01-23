@@ -40,7 +40,7 @@ class LinkGPIO {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
-  using vu16 = Link::u16;
+  using vu16 = Link::vu16;
 
   static constexpr int RCNT_GENERAL_PURPOSE = 1 << 15;
   static constexpr int SIOCNT_GENERAL_PURPOSE = 0;

@@ -36,8 +36,8 @@ typedef enum {
 
 typedef struct {
   C_LinkWirelessMultiboot_State state;
-  u32 connectedClients;
-  u32 percentage;
+  u8 connectedClients;
+  u8 percentage;
   volatile bool* ready;
 } C_LinkWirelessMultiboot_Progress;
 
