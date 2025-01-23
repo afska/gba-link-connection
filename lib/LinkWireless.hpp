@@ -260,12 +260,12 @@ class LinkWireless {
     maxPlayers = 2;
 #endif
 
-    this->config.forwarding = forwarding;
-    this->config.retransmission = retransmission;
-    this->config.maxPlayers = maxPlayers;
-    this->config.timeout = timeout;
-    this->config.interval = interval;
-    this->config.sendTimerId = sendTimerId;
+    config.forwarding = forwarding;
+    config.retransmission = retransmission;
+    config.maxPlayers = maxPlayers;
+    config.timeout = timeout;
+    config.interval = interval;
+    config.sendTimerId = sendTimerId;
   }
 
   /**

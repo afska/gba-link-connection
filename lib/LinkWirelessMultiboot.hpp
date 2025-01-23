@@ -25,6 +25,25 @@
 //         }
 //       );
 //       // `result` should be LinkWirelessMultiboot::Result::SUCCESS
+// - 3) (Optional) Send ROMs asynchronously:
+//       LinkWirelessMultiboot::Async* linkWirelessMultibootAsync =
+//         new LinkWirelessMultiboot::Async();
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_SERIAL);
+//       bool success = linkWirelessMultibootAsync->sendRom(
+//         romBytes, romLength, "Multiboot", "Test", 0xFFFF, 5
+//       );
+//       if (success) {
+//         // (monitor `playerCount()` and `getPercentage()`)
+//         if (
+//           linkWirelessMultibootAsync->getState() ==
+//           LinkWirelessMultiboot::Async::State::STOPPED
+//         ) {
+//           auto result = linkWirelessMultibootAsync->getResult();
+//           // `result` should be LinkWirelessMultiboot::Async::Result::SUCCESS
+//         }
+//       }
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -41,7 +60,7 @@
  * @brief Enable logging.
  * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
  */
-// #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING  // TODO: DISABLE
 #endif
 
 LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
@@ -110,17 +129,25 @@ class LinkWirelessMultiboot {
   Logger logger = [](std::string str) {};
 #endif
 
-  enum Result {
-    SUCCESS,
-    INVALID_SIZE,
-    INVALID_PLAYERS,
-    CANCELED,
-    ADAPTER_NOT_DETECTED,
-    BAD_HANDSHAKE,
-    CLIENT_DISCONNECTED,
-    FAILURE
+  enum State {
+    STOPPED = 0,
+    INITIALIZING = 1,
+    LISTENING = 2,
+    PREPARING = 3,
+    SENDING = 4,
+    CONFIRMING = 5
   };
-  enum State { STOPPED, INITIALIZING, WAITING, PREPARING, SENDING, CONFIRMING };
+
+  enum Result {
+    SUCCESS = 0,
+    INVALID_SIZE = 1,
+    INVALID_PLAYERS = 2,
+    CANCELED = 3,
+    ADAPTER_NOT_DETECTED = 4,
+    BAD_HANDSHAKE = 5,
+    CLIENT_DISCONNECTED = 6,
+    FAILURE = 7
+  };
 
   struct MultibootProgress {
     State state = STOPPED;
@@ -178,7 +205,7 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY(initialize(gameName, userName, gameId, players))
 
     _LWMLOG_("waiting for connections...");
-    progress.state = WAITING;
+    progress.state = LISTENING;
     LINK_WIRELESS_MULTIBOOT_TRY(waitForClients(players, listener))
 
     _LWMLOG_("all players are connected");
@@ -300,7 +327,7 @@ class LinkWirelessMultiboot {
   template <typename C>
   Result handshakeClient(u8 clientNumber, C listener) {
     ClientPacket handshakePackets[2] = {ClientPacket{}, ClientPacket{}};
-    volatile bool hasReceivedName = false;
+    bool hasReceivedName = false;
 
     _LWMLOG_("new client: " + std::to_string(clientNumber));
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
@@ -352,20 +379,13 @@ class LinkWirelessMultiboot {
     // (commState = 0)
 
     _LWMLOG_("validating name...");
-    for (u32 i = 0; i < 2; i++) {
-      auto receivedPayload = handshakePackets[i].payload;
-      auto expectedPayload = BOOTLOADER_HANDSHAKE[i];
-
-      for (u32 j = 0; j < BOOTLOADER_HANDSHAKE_SIZE; j++) {
-        if (!hasReceivedName || receivedPayload[j] != expectedPayload[j]) {
-          _LWMLOG_("! bad payload");
-          return BAD_HANDSHAKE;
-        }
-      }
+    if (!validateName(handshakePackets, hasReceivedName)) {
+      _LWMLOG_("! bad payload");
+      return BAD_HANDSHAKE;
     }
 
     _LWMLOG_("draining queue...");
-    volatile bool hasFinished = false;
+    bool hasFinished = false;
     while (!hasFinished) {
       if (listener(progress))
         return CANCELED;
@@ -398,17 +418,12 @@ class LinkWirelessMultiboot {
   template <typename C>
   Result sendRomBytes(const u8* rom, u32 romSize, C listener) {
     u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER];
-    for (u32 i = 0; i < LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER; i++) {
-      firstPagePatch[i] =
-          i >= ROM_HEADER_PATCH_OFFSET &&
-                  i < ROM_HEADER_PATCH_OFFSET + ROM_HEADER_PATCH_SIZE
-              ? ROM_HEADER_PATCH[i - ROM_HEADER_PATCH_OFFSET]
-              : rom[i];
-    }
+    generateFirstPagePatch(rom, firstPagePatch);
     progress.percentage = 0;
 
     LinkWirelessOpenSDK::MultiTransfer<MAX_INFLIGHT_PACKETS> multiTransfer(
-        &linkWirelessOpenSDK, romSize, progress.connectedClients);
+        &linkWirelessOpenSDK);
+    multiTransfer.configure(romSize, progress.connectedClients);
 
     while (!multiTransfer.hasFinished()) {
       if (listener(progress))
@@ -456,7 +471,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result exchangeNewData(u8 clientNumber, SendBuffer sendBuffer, C listener) {
+  Result exchangeNewData(u8 clientNumber, SendBuffer& sendBuffer, C listener) {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
@@ -491,8 +506,7 @@ class LinkWirelessMultiboot {
                       F sendAction,
                       V validatePacket,
                       C listener) {
-    volatile bool hasFinished = false;
-    while (!hasFinished) {
+    while (true) {
       if (listener(progress))
         return CANCELED;
 
@@ -500,22 +514,15 @@ class LinkWirelessMultiboot {
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAction(response))
       auto childrenData = linkWirelessOpenSDK.getChildrenData(response);
 
-      for (u32 i = 0; i < childrenData.responses[clientNumber].packetsSize;
-           i++) {
-        auto packet = childrenData.responses[clientNumber].packets[i];
-        auto header = packet.header;
-        if (validatePacket(packet)) {
-          hasFinished = true;
-          lastValidHeader = header;
-          break;
-        }
-      }
+      if (isDataValid(clientNumber, childrenData, lastValidHeader,
+                      validatePacket))
+        break;
     }
 
     return SUCCESS;
   }
 
-  Result sendAndExpectData(SendBuffer sendBuffer,
+  Result sendAndExpectData(SendBuffer& sendBuffer,
                            LinkRawWireless::ReceiveDataResponse& response) {
     return sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
                              sendBuffer.totalByteCount, response);
@@ -542,18 +549,10 @@ class LinkWirelessMultiboot {
       return FAILURE;
     }
 
-    if (remoteCommand.dataSize > 0) {
-      u8 expectedActiveChildren = 0;
-      for (u32 i = 0; i < progress.connectedClients; i++)
-        expectedActiveChildren |= 1 << i;
-      u8 activeChildren = (remoteCommand.data[0] >> 8) & expectedActiveChildren;
-
-      if (activeChildren != expectedActiveChildren) {
-        _LWMLOG_("! client timeout [" + std::to_string(activeChildren) + "]");
-        _LWMLOG_("! vs expected: [" + std::to_string(expectedActiveChildren) +
-                 "]");
-        return FAILURE;
-      }
+    if (remoteCommand.dataSize > 0 &&
+        !areAllConnected(&remoteCommand, progress.connectedClients)) {
+      _LWMLOG_("! client timeout");
+      return CLIENT_DISCONNECTED;
     }
 
     success = linkRawWireless.receiveData(response);
@@ -604,9 +603,755 @@ class LinkWirelessMultiboot {
     return rc;
   }
 #endif
+
+  static bool validateName(ClientPacket* handshakePackets,
+                           bool hasReceivedName) {
+    for (u32 i = 0; i < 2; i++) {
+      auto receivedPayload = handshakePackets[i].payload;
+      auto expectedPayload = BOOTLOADER_HANDSHAKE[i];
+
+      for (u32 j = 0; j < BOOTLOADER_HANDSHAKE_SIZE; j++) {
+        if (!hasReceivedName || receivedPayload[j] != expectedPayload[j])
+          return false;
+      }
+    }
+
+    return true;
+  }
+
+  static void generateFirstPagePatch(const u8* rom, u8* firstPagePatch) {
+    for (u32 i = 0; i < LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER; i++) {
+      firstPagePatch[i] =
+          i >= ROM_HEADER_PATCH_OFFSET &&
+                  i < ROM_HEADER_PATCH_OFFSET + ROM_HEADER_PATCH_SIZE
+              ? ROM_HEADER_PATCH[i - ROM_HEADER_PATCH_OFFSET]
+              : rom[i];
+    }
+  }
+
+  template <typename V>
+  static bool isDataValid(u8 clientNumber,
+                          ChildrenData& childrenData,
+                          ClientHeader& lastReceivedHeader,
+                          V validatePacket) {
+    for (u32 i = 0; i < childrenData.responses[clientNumber].packetsSize; i++) {
+      auto packet = childrenData.responses[clientNumber].packets[i];
+      auto header = packet.header;
+      if (validatePacket(packet)) {
+        lastReceivedHeader = header;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool areAllConnected(LinkRawWireless::CommandResult* remoteCommand,
+                              u32 connectedClients) {
+    u8 expectedActiveChildren = 0;
+    for (u32 i = 0; i < connectedClients; i++)
+      expectedActiveChildren |= 1 << i;
+    u8 activeChildren = (remoteCommand->data[0] >> 8) & expectedActiveChildren;
+
+    return activeChildren == expectedActiveChildren;
+  }
+
+ public:
+  /**
+   * @brief [Asynchronous version] A Multiboot tool to send small ROMs from a
+   * GBA to up to 4 slaves via GBA Wireless Adapter.
+   */
+  class Async {
+   private:
+    using ServerHeader = LinkWirelessOpenSDK::ServerSDKHeader;
+
+    static constexpr int FPS = 60;
+    static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 5;
+
+   public:
+#ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+    Logger logger = [](std::string str) {};
+#endif
+
+    enum State {
+      STOPPED = 0,
+      INITIALIZING = 1,
+      STARTING = 2,
+      LISTENING = 3,
+      HANDSHAKING_CLIENT_STEP1 = 4,
+      HANDSHAKING_CLIENT_STEP2 = 5,
+      HANDSHAKING_CLIENT_STEP3 = 6,
+      HANDSHAKING_CLIENT_STEP4 = 7,
+      HANDSHAKING_CLIENT_STEP5 = 8,
+      ENDING_HOST = 9,
+      SENDING_ROM_START_COMMAND = 10,
+      ENSURING_CLIENTS_ALIVE = 11,
+      SENDING_ROM_PART = 12,
+      CONFIRMING_STEP1 = 13,
+      CONFIRMING_STEP2 = 14,
+    };
+
+    enum Result {
+      NONE = -1,
+      SUCCESS = 0,
+      INVALID_SIZE = 1,
+      INVALID_PLAYERS = 2,
+      ADAPTER_NOT_DETECTED = 3,
+      INIT_FAILURE = 4,
+      BAD_HANDSHAKE = 5,
+      CLIENT_DISCONNECTED = 6,
+      FAILURE = 7
+    };
+
+    Async() : multiTransfer(&linkWirelessOpenSDK) {}
+
+    /**
+     * @brief Sends the `rom`. Once completed, `getState()` should return
+     * `LinkWirelessMultiboot::Async::State::STOPPED` and `getResult()` should
+     * return `LinkWirelessMultiboot::Async::Result::SUCCESS`. Returns `false`
+     * if there's a pending transfer or the data is invalid.
+     * @param rom A pointer to ROM data.
+     * @param romSize Size of the ROM in bytes. It must be a number between
+     * `448` and `262144`. It's recommended to use a ROM size that is a multiple
+     * of `16`, as this also ensures compatibility with Multiboot via Link
+     * Cable.
+     * @param gameName Game name. Maximum `14` characters + null terminator.
+     * @param userName User name. Maximum `8` characters + null terminator.
+     * @param gameId `(0 ~ 0x7FFF)` Game ID.
+     * @param players The number of consoles that will download the ROM.
+     * Once this number of players is reached, the code will start transmitting
+     * the ROM bytes, unless `waitForReadySignal` is `true`.
+     * @param waitForReadySignal Whether the code should wait for a
+     * `markReady()` call to start the actual transfer.
+     * @param keepConnectionAlive If `true`, the adapter won't be reset after
+     * a successful transfer, so users can continue the session using
+     * `LinkWireless::restoreExistingConnection()`.
+     */
+    bool sendRom(const u8* rom,
+                 u32 romSize,
+                 const char* gameName,
+                 const char* userName,
+                 const u16 gameId,
+                 u8 players,
+                 bool waitForReadySignal = false,
+                 bool keepConnectionAlive = false) {
+      if (state != STOPPED)
+        return false;
+
+      if (romSize < LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE ||
+          romSize > LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE) {
+        result = INVALID_SIZE;
+        return false;
+      }
+      if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
+          players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS) {
+        result = INVALID_PLAYERS;
+        return false;
+      }
+
+      stop();
+
+      fixedData.rom = rom;
+      fixedData.romSize = romSize;
+      fixedData.gameName = gameName;
+      fixedData.userName = userName;
+      fixedData.gameId = gameId;
+      fixedData.players = players;
+      fixedData.waitForReadySignal = waitForReadySignal;
+      fixedData.keepConnectionAlive = keepConnectionAlive;
+      generateFirstPagePatch(rom, fixedData.firstPagePatch);
+
+      _LWMLOG_("starting...");
+      state = INITIALIZING;
+      if (!linkRawWireless.activate()) {
+        _LWMLOG_("! adapter not detected");
+        stop(ADAPTER_NOT_DETECTED);
+        return false;
+      }
+      _LWMLOG_("activated");
+
+      if (!linkRawWireless.setup(players, SETUP_TX) ||
+          !linkRawWireless.broadcast(gameName, userName,
+                                     gameId | GAME_ID_MULTIBOOT_FLAG) ||
+          !linkRawWireless.startHost(false)) {
+        _LWMLOG_("! init failed");
+        stop(INIT_FAILURE);
+        return false;
+      }
+      _LWMLOG_("host started");
+
+      state = STARTING;
+
+      return true;
+    }
+
+    /**
+     * Deactivates the library, canceling the in-progress transfer, if any.
+     * \warning Never call this method inside an interrupt handler!
+     */
+    void reset() { stop(); }
+
+    /**
+     * @brief Returns the current state.
+     */
+    [[nodiscard]] State getState() { return state; }
+
+    /**
+     * @brief Returns the result of the last operation. After this
+     * call, the result is cleared if `clear` is `true` (default behavior).
+     * @param clear Whether it should clear the result or not.
+     */
+    Result getResult(bool clear = true) {
+      Result _result = result;
+      if (clear)
+        result = NONE;
+      return _result;
+    }
+
+    /**
+     * @brief Returns the number of connected players (`1~5`).
+     */
+    [[nodiscard]] u8 playerCount() { return 1 + dynamicData.connectedClients; }
+
+    /**
+     * @brief Returns the completion percentage (0~100).
+     */
+    [[nodiscard]] u8 getPercentage() {
+      if (state == STOPPED || fixedData.romSize == 0)
+        return 0;
+
+      return dynamicData.percentage;
+    }
+
+    /**
+     * @brief Returns whether the ready mark is active or not.
+     * \warning This is only useful when using the `waitForReadySignal`
+     * parameter.
+     */
+    [[nodiscard]] bool isReady() { return dynamicData.ready; }
+
+    /**
+     * @brief Marks the transfer as ready.
+     * \warning This is only useful when using the `waitForReadySignal`
+     * parameter.
+     */
+    void markReady() {
+      if (state == STOPPED)
+        return;
+
+      dynamicData.ready = true;
+    }
+
+    /**
+     * @brief This method is called by the VBLANK interrupt handler.
+     * \warning This is internal API!
+     */
+    void _onVBlank() {
+      if (state == STOPPED)
+        return;
+
+      processNewFrame();
+    }
+
+    /**
+     * @brief This method is called by the SERIAL interrupt handler.
+     * \warning This is internal API!
+     */
+    void _onSerial() {
+      if (state == STOPPED || interrupt)
+        return;
+
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+      interrupt = true;
+#endif
+      if (linkRawWireless._onSerial() > 0) {
+        auto response = linkRawWireless._getAsyncCommandResultRef();
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+        Link::_REG_IME = 1;
+#endif
+        processResponse(response);
+      }
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+      interrupt = false;
+#endif
+    }
+
+   private:
+    enum SendState { NOT_SENDING, SEND_AND_WAIT, RECEIVE };
+
+    struct MultibootFixedData {
+      const u8* rom = nullptr;
+      u32 romSize = 0;
+      const char* gameName = nullptr;
+      const char* userName = nullptr;
+      u16 gameId = 0;
+      u8 players = 0;
+      bool waitForReadySignal = false;
+      bool keepConnectionAlive = false;
+
+      u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER] = {};
+    };
+
+    struct HandshakeClientData {
+      ClientPacket packets[2] = {ClientPacket{}, ClientPacket{}};
+      bool didReceiveName = false;
+    };
+
+    struct MultibootDynamicData {
+      u32 irqTimeout = 0;
+      u32 wait = 0;
+
+      u8 currentClient = 0;
+      HandshakeClientData handshakeClient = HandshakeClientData{};
+      u32 percentage = 0;
+      u32 confirmationTry = 0;
+
+      ClientHeader lastReceivedHeader = ClientHeader{};
+      ServerHeader lastSentHeader = ServerHeader{};
+
+      bool ready = false;
+      u8 connectedClients = 0;
+    };
+
+    LinkRawWireless linkRawWireless;
+    LinkWirelessOpenSDK linkWirelessOpenSDK;
+    SendState sendState;
+    MultibootFixedData fixedData;
+    MultibootDynamicData dynamicData;
+    LinkWirelessOpenSDK::MultiTransfer<MAX_INFLIGHT_PACKETS> multiTransfer;
+    volatile State state = STOPPED;
+    volatile Result result = NONE;
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+    volatile bool interrupt = false;
+#endif
+
+    void processNewFrame() {
+      dynamicData.irqTimeout++;
+      if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+        if (!interrupt)  // TODO: CHECK
+#endif
+            // TODO: TIMEOUT?
+          // startMultibootSend();
+          return;
+      }
+
+      switch (state) {
+        case STARTING: {
+          dynamicData.wait++;
+          if (dynamicData.wait >= 2) {
+            state = LISTENING;
+            pollConnections();
+          }
+          break;
+        }
+        default: {
+        }
+      }
+    }
+
+    void processResponse(LinkRawWireless::CommandResult* response) {
+      dynamicData.irqTimeout = 0;
+
+      if (sendState == SEND_AND_WAIT) {
+        if (!response->success ||
+            response->commandId != LinkRawWireless::EVENT_DATA_AVAILABLE)
+          return (void)stop(FAILURE);
+
+        if (response->dataSize > 0 &&
+            !areAllConnected(response, dynamicData.connectedClients))
+          return (void)stop(CLIENT_DISCONNECTED);
+
+        receiveAsync();
+        return;
+      } else if (sendState == RECEIVE) {
+        if (!response->success)
+          return (void)stop(FAILURE);
+
+        sendState = NOT_SENDING;
+      }
+
+      switch (state) {
+        case LISTENING: {
+          if (!response->success)
+            return (void)stop(FAILURE);
+
+          u32 newConnectedClients = response->dataSize;
+          linkRawWireless.sessionState.playerCount = 1 + newConnectedClients;
+
+          if (newConnectedClients > dynamicData.connectedClients) {
+            dynamicData.connectedClients = newConnectedClients;
+            u8 lastClientNumber =
+                (u8)Link::msB32(response->data[response->dataSize - 1]);
+            _LWMLOG_("new client: " + std::to_string(lastClientNumber));
+
+            state = HANDSHAKING_CLIENT_STEP1;
+            startHandshakeWith(lastClientNumber);
+          } else {
+            pollConnections();
+          }
+          break;
+        }
+        case HANDSHAKING_CLIENT_STEP1: {
+          u8 currentClient = dynamicData.currentClient;
+
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          if (!isDataValid(currentClient, childrenData,
+                           dynamicData.lastReceivedHeader,
+                           [](ClientPacket packet) { return true; }))
+            return (void)startHandshakeWith(currentClient);
+
+          _LWMLOG_("handshake (1/2)...");
+          state = HANDSHAKING_CLIENT_STEP2;
+          sendACK(currentClient);
+          break;
+        }
+        case HANDSHAKING_CLIENT_STEP2: {
+          u8 currentClient = dynamicData.currentClient;
+
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          if (!isDataValid(currentClient, childrenData,
+                           dynamicData.lastReceivedHeader,
+                           [](ClientPacket packet) {
+                             auto header = packet.header;
+                             return header.n == 2 &&
+                                    header.commState == CommState::STARTING;
+                           }))
+            return (void)sendACK(currentClient);
+
+          _LWMLOG_("handshake (2/2)...");
+          state = HANDSHAKING_CLIENT_STEP3;
+          sendACK(currentClient);
+          break;
+        }
+        case HANDSHAKING_CLIENT_STEP3: {
+          u8 currentClient = dynamicData.currentClient;
+
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          if (!isDataValid(
+                  currentClient, childrenData, dynamicData.lastReceivedHeader,
+                  [this](ClientPacket packet) {
+                    auto header = packet.header;
+                    bool isValid = header.n == 1 && header.phase == 0 &&
+                                   header.commState == CommState::COMMUNICATING;
+                    if (isValid)
+                      dynamicData.handshakeClient.packets[0] = packet;
+                    return isValid;
+                  }))
+            return (void)sendACK(currentClient);
+
+          _LWMLOG_("receiving name...");
+          state = HANDSHAKING_CLIENT_STEP4;
+          sendACK(currentClient);
+          break;
+        }
+        case HANDSHAKING_CLIENT_STEP4: {
+          u8 currentClient = dynamicData.currentClient;
+
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          if (!isDataValid(
+                  currentClient, childrenData, dynamicData.lastReceivedHeader,
+                  [this](ClientPacket packet) {
+                    auto header = packet.header;
+                    dynamicData.lastReceivedHeader = header;
+                    if (header.n == 1 && header.phase == 1 &&
+                        header.commState == CommState::COMMUNICATING) {
+                      dynamicData.handshakeClient.packets[1] = packet;
+                      dynamicData.handshakeClient.didReceiveName = true;
+                    }
+                    return header.commState == CommState::OFF;
+                  }))
+            return (void)sendACK(currentClient);
+
+          _LWMLOG_("validating name...");
+          if (!validateName(dynamicData.handshakeClient.packets,
+                            dynamicData.handshakeClient.didReceiveName)) {
+            _LWMLOG_("! bad payload");
+            return (void)stop(BAD_HANDSHAKE);
+          }
+
+          _LWMLOG_("draining queue...");
+          state = HANDSHAKING_CLIENT_STEP5;
+          exchangeAsync({}, 0, 1);
+          break;
+        }
+        case HANDSHAKING_CLIENT_STEP5: {
+          u8 currentClient = dynamicData.currentClient;
+
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          _LWMLOG_("client " + std::to_string(currentClient) + " accepted");
+
+          bool hasFinished =
+              childrenData.responses[currentClient].packetsSize == 0;
+          if (!hasFinished)
+            return (void)exchangeAsync({}, 0, 1);
+
+          startOrKeepListening();
+          break;
+        }
+        case ENDING_HOST: {
+          if (!response->success)
+            return (void)stop(FAILURE);
+
+          _LWMLOG_("rom start command...");
+          dynamicData.currentClient = 0;
+          state = SENDING_ROM_START_COMMAND;
+          sendRomStartCommand();
+          break;
+        }
+        case SENDING_ROM_START_COMMAND: {
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          if (!isValidAcknowledge(childrenData))
+            return (void)sendRomStartCommand();
+
+          dynamicData.currentClient++;
+          if (dynamicData.currentClient < dynamicData.connectedClients)
+            return (void)sendRomStartCommand();
+
+          _LWMLOG_("SENDING ROM!");
+          state = ENSURING_CLIENTS_ALIVE;
+          multiTransfer.configure(fixedData.romSize,
+                                  dynamicData.connectedClients);
+          checkClientsAlive();
+          break;
+        }
+        case ENSURING_CLIENTS_ALIVE: {
+          if (!response->success)
+            return (void)stop(FAILURE);
+
+          if (response->dataSize - 1 < dynamicData.connectedClients)
+            return (void)stop(CLIENT_DISCONNECTED);
+
+          state = SENDING_ROM_PART;
+          sendRomPart();
+          break;
+        }
+        case SENDING_ROM_PART: {
+          LinkRawWireless::ReceiveDataResponse receiveDataResponse;
+          if (!linkRawWireless.getReceiveDataResponse(*response,
+                                                      receiveDataResponse))
+            return (void)stop(FAILURE);
+
+          u8 newPercentage = multiTransfer.processResponse(receiveDataResponse);
+          if (newPercentage != dynamicData.percentage) {
+            dynamicData.percentage = newPercentage;
+            _LWMLOG_("-> " + std::to_string(newPercentage));
+          }
+
+          state = ENSURING_CLIENTS_ALIVE;
+          checkClientsAlive();
+          break;
+        }
+        case CONFIRMING_STEP1: {
+          ChildrenData childrenData;
+          if (!parseResponse(response, childrenData))
+            return (void)stop(FAILURE);
+
+          if (!isValidAcknowledge(childrenData))
+            return (void)sendConfirmation1();
+
+          dynamicData.currentClient++;
+          if (dynamicData.currentClient < dynamicData.connectedClients)
+            return (void)sendConfirmation1();
+
+          _LWMLOG_("confirming (2/2)...");
+          state = CONFIRMING_STEP2;
+          dynamicData.confirmationTry = 0;
+          sendConfirmation2();
+          break;
+        }
+        case CONFIRMING_STEP2: {
+          if (!response->success)
+            return (void)stop(FAILURE);
+
+          dynamicData.confirmationTry++;
+          if (dynamicData.confirmationTry < FINAL_CONFIRMS)
+            return (void)sendConfirmation2();
+
+          _LWMLOG_("SUCCESS!");
+          stop(SUCCESS);
+          break;
+        }
+        default: {
+        }
+      }
+    }
+
+    void pollConnections() {
+      sendCommandAsync(LinkRawWireless::COMMAND_POLL_CONNECTIONS);
+    }
+
+    void startHandshakeWith(u8 clientNumber) {
+      dynamicData.currentClient = clientNumber;
+      dynamicData.handshakeClient = HandshakeClientData{};
+
+      exchangeAsync({}, 0, 1);
+    };
+
+    void startOrKeepListening() {
+      if ((linkRawWireless.playerCount() < fixedData.players &&
+           !dynamicData.ready) ||
+          linkRawWireless.playerCount() <= 1)
+        return (void)pollConnections();
+
+      dynamicData.ready = true;
+
+      _LWMLOG_("all players are connected");
+      state = ENDING_HOST;
+      sendCommandAsync(LinkRawWireless::COMMAND_END_HOST);
+    }
+
+    void sendRomStartCommand() {
+      u8 clientNumber = dynamicData.currentClient;
+
+      auto sendBuffer = linkWirelessOpenSDK.createServerBuffer(
+          CMD_START, CMD_START_SIZE, {1, 0, CommState::STARTING},
+          1 << clientNumber);
+      sendNewData(sendBuffer);
+    }
+
+    void checkClientsAlive() {
+      if (multiTransfer.hasFinished()) {
+        _LWMLOG_("confirming (1/2)...");
+        state = CONFIRMING_STEP1;
+        dynamicData.currentClient = 0;
+        sendConfirmation1();
+        return;
+      }
+
+      sendCommandAsync(LinkRawWireless::COMMAND_SLOT_STATUS);
+    }
+
+    void sendRomPart() {
+      auto sendBuffer = multiTransfer.createNextSendBuffer(
+          multiTransfer.getCursor() == 0 ? (const u8*)fixedData.firstPagePatch
+                                         : fixedData.rom);
+      exchangeAsync(sendBuffer);
+    }
+
+    void sendConfirmation1() {
+      auto sendBuffer = linkWirelessOpenSDK.createServerBuffer(
+          {}, 0, {0, 0, CommState::ENDING}, 1 << dynamicData.currentClient);
+      sendNewData(sendBuffer);
+    }
+
+    void sendConfirmation2() {
+      auto sendBuffer = linkWirelessOpenSDK.createServerBuffer(
+          {}, 0, {1, 0, CommState::OFF}, 0b1111);
+      sendNewData(sendBuffer);
+    }
+
+    bool parseResponse(LinkRawWireless::CommandResult* response,
+                       ChildrenData& childrenData) {
+      LinkRawWireless::ReceiveDataResponse receiveDataResponse;
+      if (!linkRawWireless.getReceiveDataResponse(*response,
+                                                  receiveDataResponse))
+        return false;
+      childrenData = linkWirelessOpenSDK.getChildrenData(receiveDataResponse);
+      return true;
+    }
+
+    bool isValidAcknowledge(ChildrenData& childrenData) {
+      return isDataValid(
+          dynamicData.currentClient, childrenData,
+          dynamicData.lastReceivedHeader, [this](ClientPacket packet) {
+            auto header = packet.header;
+            return header.isACK == 1 &&
+                   header.sequence() == dynamicData.lastSentHeader.sequence();
+          });
+    }
+
+    void sendNewData(SendBuffer& sendBuffer) {
+      dynamicData.lastSentHeader = sendBuffer.header;
+      exchangeAsync(sendBuffer);
+    }
+
+    void sendACK(u8 clientNumber) {
+      auto ackBuffer = linkWirelessOpenSDK.createServerACKBuffer(
+          dynamicData.lastReceivedHeader, clientNumber);
+      exchangeAsync(ackBuffer);
+    }
+
+    void exchangeAsync(SendBuffer& sendBuffer) {
+      exchangeAsync(sendBuffer.data, sendBuffer.dataSize,
+                    sendBuffer.totalByteCount);
+    }
+
+    void exchangeAsync(const u32* data, u32 dataSize, u32 _bytes) {
+      u32 rawData[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+      rawData[0] = linkRawWireless.getSendDataHeaderFor(_bytes);
+      for (u32 i = 0; i < dataSize; i++)
+        rawData[1 + i] = data[i];
+
+      sendState = SEND_AND_WAIT;
+      sendCommandAsync(LinkRawWireless::COMMAND_SEND_DATA_AND_WAIT, rawData,
+                       1 + dataSize, true);
+    }
+
+    void receiveAsync() {
+      sendState = RECEIVE;
+      sendCommandAsync(LinkRawWireless::COMMAND_RECEIVE_DATA);
+    }
+
+    void sendCommandAsync(u8 type,
+                          const u32* params = {},
+                          u16 length = 0,
+                          bool invertsClock = false) {
+#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+      Link::_REG_IME = 0;
+#endif
+      linkRawWireless.sendCommandAsync(type, params, length, invertsClock);
+    }
+
+    void resetState(Result newResult = NONE) {
+      state = STOPPED;
+      result = newResult;
+      sendState = NOT_SENDING;
+      fixedData = MultibootFixedData{};
+      dynamicData = MultibootDynamicData{};
+    }
+
+    void stop(Result newResult = NONE) {
+      // TODO: check keepConnectionAlive
+      resetState(newResult);
+      // TODO: IMPLEMENT, call deactivate()
+    }
+  };
 };
 
 extern LinkWirelessMultiboot* linkWirelessMultiboot;
+extern LinkWirelessMultiboot::Async* linkWirelessMultibootAsync;
+
+/**
+ * @brief VBLANK interrupt handler.
+ */
+inline void LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_VBLANK() {
+  linkWirelessMultibootAsync->_onVBlank();
+}
+
+/**
+ * @brief SERIAL interrupt handler.
+ */
+inline void LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_SERIAL() {
+  linkWirelessMultibootAsync->_onSerial();
+}
 
 #undef _LWMLOG_
 

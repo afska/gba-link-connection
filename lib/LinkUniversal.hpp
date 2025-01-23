@@ -94,7 +94,7 @@ class LinkUniversal {
   static constexpr int SERVE_WAIT_FRAMES_RANDOM = 30;
 
  public:
-  enum State { INITIALIZING, WAITING, CONNECTED };
+  enum State { INITIALIZING = 0, WAITING = 1, CONNECTED = 2 };
   enum Mode { LINK_CABLE, LINK_WIRELESS };
   enum Protocol {
     AUTODETECT,
@@ -154,8 +154,8 @@ class LinkUniversal {
             wirelessOptions.timeout,
             wirelessOptions.interval,
             wirelessOptions.sendTimerId) {
-    this->config.protocol = protocol;
-    this->config.gameName = gameName;
+    config.protocol = protocol;
+    config.gameName = gameName;
   }
 
   /**

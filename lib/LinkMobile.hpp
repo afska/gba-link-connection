@@ -267,8 +267,8 @@ class LinkMobile {
    */
   explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
                       u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
-    this->config.timeout = timeout;
-    this->config.timerId = timerId;
+    config.timeout = timeout;
+    config.timerId = timerId;
   }
 
   /**

@@ -137,12 +137,12 @@ class LinkRawWireless {
 #endif
 
   enum State {
-    NEEDS_RESET,
-    AUTHENTICATED,
-    SEARCHING,
-    SERVING,
-    CONNECTING,
-    CONNECTED
+    NEEDS_RESET = 0,
+    AUTHENTICATED = 1,
+    SEARCHING = 2,
+    SERVING = 3,
+    CONNECTING = 4,
+    CONNECTED = 5
   };
 
   struct CommandResult {
@@ -1100,11 +1100,11 @@ class LinkRawWireless {
    */
   void _resetState() {
     _LRWLOG_("state = NEEDS_RESET");
-    this->state = NEEDS_RESET;
-    this->asyncState = IDLE;
-    this->sessionState.playerCount = 1;
-    this->sessionState.currentPlayerId = 0;
-    this->sessionState.isServerClosed = false;
+    state = NEEDS_RESET;
+    asyncState = IDLE;
+    sessionState.playerCount = 1;
+    sessionState.currentPlayerId = 0;
+    sessionState.isServerClosed = false;
   }
 
   /**

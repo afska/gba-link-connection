@@ -178,7 +178,7 @@ This version (`LinkCableMultiboot::Async`) allows more advanced use cases like p
 | `getState()` | **LinkCableMultiboot::Async::State** | Returns the current state. |
 | `getResult([clear])` | **LinkCableMultiboot::Async::Result** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
 | `playerCount()` | **u8** _(1~4)_ | Returns the number of connected players. |
-| `getPercentage()` | **u32** | Returns the completion percentage. |
+| `getPercentage()` | **u32** _(0~100)_ | Returns the completion percentage. |
 | `isReady()` | **bool** | Returns whether the ready mark is active or not. <br/><br/>This is only useful when using the `waitForReadySignal` parameter. |
 | `markReady()` | **bool** | Marks the transfer as ready. <br/><br/>This is only useful when using the `waitForReadySignal` parameter. |
 

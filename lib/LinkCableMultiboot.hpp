@@ -358,6 +358,44 @@ class LinkCableMultiboot {
     return FINISHED;
   }
 
+  template <typename F>
+  Response transfer(u32 data, F cancel) {
+    if (_mode == TransferMode::MULTI_PLAY) {
+      Response response;
+      auto response16bit = linkRawCable.transfer(data, cancel);
+      for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
+        response.data[i] = response16bit.data[i];
+      response.playerId = response16bit.playerId;
+      return response;
+    } else {
+      Response response = {
+          .data = {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
+                   LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED}};
+      response.data[1] = linkSPI.transfer(data, cancel) >> 16;
+      response.playerId = 0;
+      return response;
+    }
+  }
+
+  void start() {
+    if (_mode == TransferMode::MULTI_PLAY)
+      linkRawCable.activate(MAX_BAUD_RATE);
+    else
+      linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
+  }
+
+  void stop() {
+    if (_mode == TransferMode::MULTI_PLAY)
+      linkRawCable.deactivate();
+    else
+      linkSPI.deactivate();
+  }
+
+  Result error(Result error) {
+    stop();
+    return error;
+  }
+
   static bool isResponseSameAsValue(Response response,
                                     u8 clientMask,
                                     u16 wantedValue,
@@ -400,44 +438,6 @@ class LinkCableMultiboot {
     }
 
     return count > 0;
-  }
-
-  template <typename F>
-  Response transfer(u32 data, F cancel) {
-    if (_mode == TransferMode::MULTI_PLAY) {
-      Response response;
-      auto response16bit = linkRawCable.transfer(data, cancel);
-      for (u32 i = 0; i < LINK_RAW_CABLE_MAX_PLAYERS; i++)
-        response.data[i] = response16bit.data[i];
-      response.playerId = response16bit.playerId;
-      return response;
-    } else {
-      Response response = {
-          .data = {LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED,
-                   LINK_RAW_CABLE_DISCONNECTED, LINK_RAW_CABLE_DISCONNECTED}};
-      response.data[1] = linkSPI.transfer(data, cancel) >> 16;
-      response.playerId = 0;
-      return response;
-    }
-  }
-
-  void start() {
-    if (_mode == TransferMode::MULTI_PLAY)
-      linkRawCable.activate(MAX_BAUD_RATE);
-    else
-      linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
-  }
-
-  void stop() {
-    if (_mode == TransferMode::MULTI_PLAY)
-      linkRawCable.deactivate();
-    else
-      linkSPI.deactivate();
-  }
-
-  Result error(Result error) {
-    stop();
-    return error;
   }
 
  public:
@@ -558,14 +558,14 @@ class LinkCableMultiboot {
     }
 
     /**
-     * @brief Returns the completion percentage.
+     * @brief Returns the completion percentage (0~100).
      */
     [[nodiscard]] u8 getPercentage() {
-      if (state == STOPPED || fixedData.size == 0)
+      if (state == STOPPED || fixedData.romSize == 0)
         return 0;
 
       return Link::_min(
-          dynamicData.currentRomPart * 100 / (fixedData.size >> 2), 100);
+          dynamicData.currentRomPart * 100 / (fixedData.romSize >> 2), 100);
     }
 
     /**
@@ -621,10 +621,10 @@ class LinkCableMultiboot {
 
    private:
     struct MultibootFixedData {
-      TransferMode transferMode = TransferMode::MULTI_PLAY;
+      const u16* rom = nullptr;
+      vu32 romSize = 0;
       bool waitForReadySignal = false;
-      const u16* data = nullptr;
-      vu32 size = 0;
+      TransferMode transferMode = TransferMode::MULTI_PLAY;
     };
 
     struct MultibootDynamicData {
@@ -680,7 +680,7 @@ class LinkCableMultiboot {
           dynamicData.wait++;
           if (dynamicData.wait >= dynamicData.waitFrames) {
             state = CALCULATING_CRCB;
-            transferAsync((fixedData.size - 0x190) >> 2);
+            transferAsync((fixedData.romSize - 0x190) >> 2);
           }
           break;
         }
@@ -731,7 +731,6 @@ class LinkCableMultiboot {
 
             transferAsync(CMD_HANDSHAKE);
           }
-
           break;
         }
         case DETECTING_CLIENTS_END: {
@@ -824,7 +823,7 @@ class LinkCableMultiboot {
           break;
         }
         case SENDING_ROM: {
-          u32* dataOut = (u32*)fixedData.data;
+          u32* dataOut = (u32*)fixedData.rom;
 
           if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
             if (!dynamicData.currentRomPartSecondHalf) {
@@ -863,7 +862,6 @@ class LinkCableMultiboot {
           } else {
             state = SENDING_ROM_END_WAITING;
           }
-
           break;
         }
         case SENDING_FINAL_CRC: {
@@ -877,7 +875,7 @@ class LinkCableMultiboot {
             return (void)stop(CRC_FAILURE);
 
           stop(SUCCESS);
-          state = STOPPED;
+          break;
         }
         default: {
         }
@@ -891,10 +889,10 @@ class LinkCableMultiboot {
       const u16* start = (u16*)rom;
       const u16* end = (u16*)(rom + romSize);
 
-      fixedData.transferMode = mode;
+      fixedData.rom = start;
+      fixedData.romSize = (u32)end - (u32)start;
       fixedData.waitForReadySignal = waitForReadySignal;
-      fixedData.data = start;
-      fixedData.size = (u32)end - (u32)start;
+      fixedData.transferMode = mode;
     }
 
     void startMultibootSend() {
@@ -920,7 +918,7 @@ class LinkCableMultiboot {
         return;
       }
 
-      transferAsync(fixedData.data[HEADER_PARTS - dynamicData.headerRemaining]);
+      transferAsync(fixedData.rom[HEADER_PARTS - dynamicData.headerRemaining]);
     }
 
     void sendPaletteData() {
@@ -928,9 +926,9 @@ class LinkCableMultiboot {
     }
 
     void sendRomPart() {
-      u32* dataOut = (u32*)fixedData.data;
+      u32* dataOut = (u32*)fixedData.rom;
       u32 i = dynamicData.currentRomPart;
-      if (i >= fixedData.size >> 2) {
+      if (i >= fixedData.romSize >> 2) {
         dynamicData.crcC &= 0xFFFF;
         calculateCRCData(dynamicData.crcB);
 

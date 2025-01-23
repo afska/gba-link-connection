@@ -79,10 +79,10 @@ class LinkUART {
    * @brief Constructs a new LinkUART object.
    */
   explicit LinkUART() {
-    this->config.baudRate = BAUD_RATE_0;
-    this->config.dataSize = SIZE_8_BITS;
-    this->config.parity = NO;
-    this->config.useCTS = false;
+    config.baudRate = BAUD_RATE_0;
+    config.dataSize = SIZE_8_BITS;
+    config.parity = NO;
+    config.useCTS = false;
   }
 
   /**
@@ -104,10 +104,10 @@ class LinkUART {
                 bool useCTS = false) {
     LINK_READ_TAG(LINK_UART_VERSION);
 
-    this->config.baudRate = baudRate;
-    this->config.dataSize = dataSize;
-    this->config.parity = parity;
-    this->config.useCTS = false;
+    config.baudRate = baudRate;
+    config.dataSize = dataSize;
+    config.parity = parity;
+    config.useCTS = false;
 
     LINK_BARRIER;
     isEnabled = false;

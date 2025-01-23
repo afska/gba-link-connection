@@ -426,10 +426,17 @@ class LinkWirelessOpenSDK {
       u32 cursor;
       bool ack;
       bool isActive = false;
+
+      void reset() { isActive = false; }
     };
 
     struct PendingTransferList {
       PendingTransfer transfers[MaxInflightPackets] = {};
+
+      void reset() {
+        for (u32 i = 0; i < MaxInflightPackets; i++)
+          transfers[i].reset();
+      }
 
       [[nodiscard]]
       PendingTransfer* max(bool ack = false) {
@@ -537,7 +544,12 @@ class LinkWirelessOpenSDK {
 
    public:
     u32 cursor = 0;
-    PendingTransferList pendingTransferList;
+    PendingTransferList pendingTransferList = {};
+
+    void reset() {
+      cursor = 0;
+      pendingTransferList.reset();
+    }
 
     [[nodiscard]]
     u32 nextCursor(bool canSendInflightPackets) {
@@ -578,17 +590,25 @@ class LinkWirelessOpenSDK {
   class MultiTransfer {
    public:
     /**
-     * @brief Construct a new MultiTransfer object.
+     * @brief Constructs a new MultiTransfer object.
      * @param linkWirelessOpenSDK An pointer to a `LinkWirelessOpenSDK`.
+     */
+    explicit MultiTransfer(LinkWirelessOpenSDK* linkWirelessOpenSDK) {
+      this->linkWirelessOpenSDK = linkWirelessOpenSDK;
+    }
+
+    /**
+     * @brief Configures the file transfer and resets the state.
      * @param fileSize Size of the file.
      * @param connectedClients Number of clients.
      */
-    explicit MultiTransfer(LinkWirelessOpenSDK* linkWirelessOpenSDK,
-                           u32 fileSize,
-                           u32 connectedClients) {
-      this->linkWirelessOpenSDK = linkWirelessOpenSDK;
+    void configure(u32 fileSize, u32 connectedClients) {
       this->fileSize = fileSize;
       this->connectedClients = connectedClients;
+      for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS - 1; i++)
+        transfers[i].reset();
+      this->finished = false;
+      this->cursor = 0;
     }
 
     /**
@@ -655,8 +675,8 @@ class LinkWirelessOpenSDK {
         {};
 
     LinkWirelessOpenSDK* linkWirelessOpenSDK;
-    u32 fileSize;
-    u32 connectedClients;
+    u32 fileSize = 0;
+    u32 connectedClients = 0;
     bool finished = false;
     u32 cursor = 0;
 
