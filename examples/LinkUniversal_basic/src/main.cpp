@@ -56,8 +56,8 @@ int main() {
           .timeout = restoreWirelessMultiboot ? (u32)1000
                                               : LINK_WIRELESS_DEFAULT_TIMEOUT,
           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
-      __qran_seed);
+          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID});
+  Link::randomSeed = __qran_seed;
 
   // (2) Add the required interrupt service routines
   interrupt_init();

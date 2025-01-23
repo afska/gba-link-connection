@@ -51,8 +51,7 @@ LinkUniversal* linkUniversal =
                           .maxPlayers = 2,
                           .timeout = LINK_WIRELESS_DEFAULT_TIMEOUT,
                           .interval = LINK_WIRELESS_DEFAULT_INTERVAL,
-                          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID},
-                      __qran_seed);
+                          .sendTimerId = LINK_WIRELESS_DEFAULT_SEND_TIMER_ID});
 LinkUniversal* linkConnection = linkUniversal;
 #endif
 
@@ -141,6 +140,7 @@ int main() {
     std::string output = "LinkCable_stress (v8.0.0)\n\n";
 #else
     std::string output = "LinkUniversal_stress (v8.0.0)\n\n";
+    Link::randomSeed = __qran_seed;
 #endif
 
     linkConnection->deactivate();
