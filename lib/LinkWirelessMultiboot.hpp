@@ -461,10 +461,9 @@ class LinkWirelessMultiboot {
     _LWMLOG_("confirming (2/2)...");
     for (u32 i = 0; i < FINAL_CONFIRMS; i++) {
       LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY_SUB(
-          sendAndExpectData(linkWirelessOpenSDK.createServerBuffer(
-                                {}, 0, {1, 0, CommState::OFF}, 0b1111),
-                            response))
+      auto sendBuffer = linkWirelessOpenSDK.createServerBuffer(
+          {}, 0, {1, 0, CommState::OFF}, 0b1111);
+      LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData(sendBuffer, response))
     }
 
     return SUCCESS;
@@ -492,9 +491,9 @@ class LinkWirelessMultiboot {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData(linkWirelessOpenSDK.createServerACKBuffer(
-                                       lastValidHeader, clientNumber),
-                                   response);
+          auto sendBuffer = linkWirelessOpenSDK.createServerACKBuffer(
+              lastValidHeader, clientNumber);
+          return sendAndExpectData(sendBuffer, response);
         },
         validatePacket, listener))
 
@@ -1093,12 +1092,12 @@ class LinkWirelessMultiboot {
           if (!parseResponse(response, childrenData))
             return (void)stop(FAILURE);
 
-          _LWMLOG_("client " + std::to_string(currentClient) + " accepted");
-
           bool hasFinished =
               childrenData.responses[currentClient].packetsSize == 0;
           if (!hasFinished)
             return (void)exchangeAsync({}, 0, 1);
+
+          _LWMLOG_("client " + std::to_string(currentClient) + " accepted");
 
           startOrKeepListening();
           break;
