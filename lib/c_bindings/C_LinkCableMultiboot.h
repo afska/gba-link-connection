@@ -7,6 +7,9 @@ extern "C" {
 
 #include <tonc_core.h>
 
+typedef void* C_LinkCableMultibootHandle;
+typedef void* C_LinkCableMultiboot_AsyncHandle;
+
 typedef enum {
   C_LINK_CABLE_MULTIBOOT_RESULT_SUCCESS,
   C_LINK_CABLE_MULTIBOOT_RESULT_UNALIGNED,
@@ -45,10 +48,7 @@ typedef enum {
   C_LINK_CABLE_MULTIBOOT_ASYNC_RESULT_SEND_FAILURE = 3,
   C_LINK_CABLE_MULTIBOOT_ASYNC_RESULT_FINAL_HANDSHAKE_FAILURE = 4,
   C_LINK_CABLE_MULTIBOOT_ASYNC_RESULT_CRC_FAILURE = 5,
-} Result;
-
-typedef void* C_LinkCableMultibootHandle;
-typedef void* C_LinkCableMultiboot_AsyncHandle;
+} C_LinkCableMultiboot_Async_Result;
 
 C_LinkCableMultibootHandle C_LinkCableMultiboot_create();
 void C_LinkCableMultiboot_destroy(C_LinkCableMultibootHandle handle);
@@ -74,7 +74,7 @@ void C_LinkCableMultiboot_Async_reset(C_LinkCableMultiboot_AsyncHandle handle);
 
 C_LinkCableMultiboot_Async_State C_LinkCableMultiboot_Async_getState(
     C_LinkCableMultiboot_AsyncHandle handle);
-void C_LinkCableMultiboot_Async_getResult(
+C_LinkCableMultiboot_Async_Result C_LinkCableMultiboot_Async_getResult(
     C_LinkCableMultiboot_AsyncHandle handle,
     bool clear);
 

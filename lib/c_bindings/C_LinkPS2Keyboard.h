@@ -7,9 +7,9 @@ extern "C" {
 
 #include <tonc_core.h>
 
-typedef void (*C_LinkPS2Keyboard_EventCallback)(u8 event);
-
 typedef void* C_LinkPS2KeyboardHandle;
+
+typedef void (*C_LinkPS2Keyboard_EventCallback)(u8 event);
 
 C_LinkPS2KeyboardHandle C_LinkPS2Keyboard_create(
     C_LinkPS2Keyboard_EventCallback callback);

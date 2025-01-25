@@ -53,10 +53,11 @@ C_LinkCableMultiboot_Async_State C_LinkCableMultiboot_Async_getState(
       static_cast<LinkCableMultiboot::Async*>(handle)->getState());
 }
 
-void C_LinkCableMultiboot_Async_getResult(
+C_LinkCableMultiboot_Async_Result C_LinkCableMultiboot_Async_getResult(
     C_LinkCableMultiboot_AsyncHandle handle,
     bool clear) {
-  static_cast<LinkCableMultiboot::Async*>(handle)->getResult(clear);
+  return static_cast<C_LinkCableMultiboot_Async_Result>(
+      static_cast<LinkCableMultiboot::Async*>(handle)->getResult(clear));
 }
 
 u8 C_LinkCableMultiboot_Async_playerCount(
@@ -64,7 +65,7 @@ u8 C_LinkCableMultiboot_Async_playerCount(
   return static_cast<LinkCableMultiboot::Async*>(handle)->playerCount();
 }
 
-u32 C_LinkCableMultiboot_Async_getPercentage(
+u8 C_LinkCableMultiboot_Async_getPercentage(
     C_LinkCableMultiboot_AsyncHandle handle) {
   return static_cast<LinkCableMultiboot::Async*>(handle)->getPercentage();
 }
