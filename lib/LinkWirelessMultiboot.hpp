@@ -481,7 +481,7 @@ class LinkWirelessMultiboot {
   }
 
   template <typename C>
-  Result exchangeNewData(u8 clientNumber, SendBuffer& sendBuffer, C listener) {
+  Result exchangeNewData(u8 clientNumber, SendBuffer sendBuffer, C listener) {
     LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
