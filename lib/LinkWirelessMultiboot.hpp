@@ -59,8 +59,19 @@
 /**
  * @brief Enable logging.
  * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
+ * \warning This option #includes std::string!
  */
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
+#endif
+
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+/**
+ * @brief Disable nested IRQs (uncomment to enable).
+ * In the async version, SERIAL IRQs can be interrupted (once they clear their
+ * time-critical needs) by default, which helps prevent issues with audio
+ * engines. However, if something goes wrong, you can disable this behavior.
+ */
+// #define LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
 #endif
 
 LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
@@ -862,17 +873,17 @@ class LinkWirelessMultiboot {
       if (state == STOPPED || interrupt)
         return;
 
-#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       interrupt = true;
 #endif
       if (linkRawWireless._onSerial() > 0) {
         auto response = linkRawWireless._getAsyncCommandResultRef();
-#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
         Link::_REG_IME = 1;
 #endif
         processResponse(response);
       }
-#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       interrupt = false;
 #endif
     }
@@ -922,14 +933,14 @@ class LinkWirelessMultiboot {
     LinkWirelessOpenSDK::MultiTransfer<MAX_INFLIGHT_PACKETS> multiTransfer;
     volatile State state = STOPPED;
     volatile Result result = NONE;
-#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
     volatile bool interrupt = false;
 #endif
 
     void processNewFrame() {
       dynamicData.irqTimeout++;
       if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
-#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
         if (!interrupt)
           stop(IRQ_TIMEOUT);
 #endif
@@ -1317,7 +1328,7 @@ class LinkWirelessMultiboot {
                           const u32* params = {},
                           u16 length = 0,
                           bool invertsClock = false) {
-#ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       Link::_REG_IME = 0;
 #endif
       linkRawWireless.sendCommandAsync(type, params, length, invertsClock);

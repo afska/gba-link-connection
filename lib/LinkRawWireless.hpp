@@ -51,11 +51,14 @@
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
+#ifndef LINK_RAW_WIRELESS_ENABLE_LOGGING
 /**
  * @brief Enable logging.
  * \warning Set `linkRawWireless->logger` and uncomment to enable!
+ * \warning This option #include`s std::string!
  */
 // #define LINK_RAW_WIRELESS_ENABLE_LOGGING
+#endif
 
 LINK_VERSION_TAG LINK_RAW_WIRELESS_VERSION = "vLinkRawWireless/v8.0.0";
 

@@ -311,6 +311,10 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 
 This version is simpler and blocks the system thread until completion. It doesn't require interrupt service routines.
 
+### Compile-time constants
+
+- `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultiboot->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
+
 ### Methods
 
 | Name                                                                 | Return type                       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -321,6 +325,11 @@ This version is simpler and blocks the system thread until completion. It doesn'
 ## Async version
 
 This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
+
+### Compile-time constants
+
+- `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultibootAsync->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
+- `LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ`: to disable nested IRQs. In the async version, SERIAL IRQs can be interrupted (once they clear their time-critical needs) by default, which helps prevent issues with audio engines. However, if something goes wrong, you can disable this behavior.
 
 ### Methods
 
@@ -346,6 +355,10 @@ This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases lik
 - Its demo (`LinkRawWireless_demo`) can help emulator developers in enhancing accuracy.
 
 ![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/bc7e5a7d-a1bd-46a5-8318-98160c1229ae)
+
+### Compile-time constants
+
+- `LINK_RAW_WIRELESS_ENABLE_LOGGING`: to enable logging. Set `linkRawWireless->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
 
 ## Methods
 
