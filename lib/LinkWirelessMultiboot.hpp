@@ -699,7 +699,8 @@ class LinkWirelessMultiboot {
       INIT_FAILURE = 4,
       BAD_HANDSHAKE = 5,
       CLIENT_DISCONNECTED = 6,
-      FAILURE = 7
+      FAILURE = 7,
+      IRQ_TIMEOUT = 8
     };
 
     Async() : multiTransfer(&linkWirelessOpenSDK) {}
@@ -928,11 +929,10 @@ class LinkWirelessMultiboot {
       dynamicData.irqTimeout++;
       if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
-        if (!interrupt)  // TODO: CHECK
+        if (!interrupt)
+          stop(IRQ_TIMEOUT);
 #endif
-            // TODO: TIMEOUT?
-          // startMultibootSend();
-          return;
+        return;
       }
 
       switch (state) {
@@ -1329,9 +1329,12 @@ class LinkWirelessMultiboot {
     }
 
     void stop(Result newResult = NONE) {
-      // TODO: check keepConnectionAlive
+      bool keepConnectionAlive = fixedData.keepConnectionAlive;
       resetState(newResult);
-      // TODO: IMPLEMENT, call deactivate()
+
+      if (newResult != SUCCESS || !keepConnectionAlive)
+        linkRawWireless.bye();
+      linkRawWireless.deactivate();
     }
   };
 };
