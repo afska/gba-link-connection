@@ -785,10 +785,12 @@ class LinkWirelessMultiboot {
     }
 
     /**
-     * Deactivates the library, canceling the in-progress transfer, if any.
+     * @brief Turns off the adapter and deactivates the library, canceling the
+     * in-progress transfer, if any. It returns a boolean indicating whether
+     * the transition to low consumption mode was successful.
      * \warning Never call this method inside an interrupt handler!
      */
-    void reset() { stop(); }
+    bool reset() { return stop(); }
 
     /**
      * @brief Returns the current state.
@@ -1329,13 +1331,15 @@ class LinkWirelessMultiboot {
       dynamicData = MultibootDynamicData{};
     }
 
-    void stop(Result newResult = NONE) {
+    bool stop(Result newResult = NONE) {
       bool keepConnectionAlive = fixedData.keepConnectionAlive;
       resetState(newResult);
 
+      bool success = true;
       if (newResult != SUCCESS || !keepConnectionAlive)
-        linkRawWireless.bye();
+        success = linkRawWireless.bye();
       linkRawWireless.deactivate();
+      return success;
     }
   };
 };

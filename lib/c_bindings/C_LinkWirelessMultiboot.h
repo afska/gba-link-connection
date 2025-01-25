@@ -106,7 +106,7 @@ bool C_LinkWirelessMultiboot_Async_sendRom(C_LinkWirelessMultibootHandle handle,
                                            bool waitForReadySignal,
                                            bool keepConnectionAlive);
 
-void C_LinkWirelessMultiboot_Async_reset(
+bool C_LinkWirelessMultiboot_Async_reset(
     C_LinkWirelessMultiboot_AsyncHandle handle);
 
 C_LinkWirelessMultiboot_Async_State C_LinkWirelessMultiboot_Async_getState(

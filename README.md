@@ -163,7 +163,7 @@ This version is simpler and blocks the system thread until completion. It doesn'
 
 ## Async version
 
-This version (`LinkCableMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, probing the connections and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
+This version (`LinkCableMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
 
 ### Compile-time constants
 
@@ -307,12 +307,35 @@ Its demo (`LinkWirelessMultiboot_demo`) has all the other gba-link-connection RO
 
 https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-92d4-ccf366adce2d
 
-## Methods
+## Sync version
+
+This version is simpler and blocks the system thread until completion. It doesn't require interrupt service routines.
+
+### Methods
 
 | Name                                                                 | Return type                       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | -------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sendRom(rom, romSize, gameName, userName, gameId, players, listener, [keepConnectionAlive])` | **LinkWirelessMultiboot::Result** | Sends the `rom`. <br/><br/>The `players` must be the number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. <br/><br/>During the process, the library will continuously invoke `listener` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`. <br/><br/>You can start the transfer before the player count is reached by running `*progress.ready = true;` in the`cancel` callback. <br/><br/>If `keepConnectionAlive` is `true`, the adapter won't be reset after a successful transfer, so users can continue the session using `LinkWireless::restoreExistingConnection()`. |
 | `reset()` | - | Turns off the adapter and deactivates the library. It returns a boolean indicating whether the transition to low consumption mode was successful. |
+
+## Async version
+
+This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
+
+### Methods
+
+| Name                                    | Return type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sendRom(rom, romSize, gameName, userName, gameId, players, [waitForReadySignal], [keepConnectionAlive])` | **bool** | Sends the `rom`. <br/><br/>The `players` must be the number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>If `waitForReadySignal` is `true`, it will wait until the `markReady()` method is called to start the transfer. <br/><br/>Once completed, `getState()` should return `LinkWirelessMultiboot::Async::State::STOPPED` and `getResult()` should return `LinkWirelessMultiboot::Async::Result::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid.<br/><br/>If `keepConnectionAlive` is `true`, the adapter won't be reset after a successful transfer, so users can continue the session using `LinkWireless::restoreExistingConnection()`. |
+| `reset()` | **bool** | Turns off the adapter and deactivates the library, canceling the in-progress transfer, if any. It returns a boolean indicating whether the transition to low consumption mode was successful. |
+| `getState()` | **LinkWirelessMultiboot::Async::State** | Returns the current state. |
+| `getResult([clear])` | **LinkWirelessMultiboot::Async::Result** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
+| `playerCount()` | **u8** _(1~5)_ | Returns the number of connected players. |
+| `getPercentage()` | **u32** _(0~100)_ | Returns the completion percentage. |
+| `isReady()` | **bool** | Returns whether the ready mark is active or not. <br/><br/>This is only useful when using the `waitForReadySignal` parameter. |
+| `markReady()` | **bool** | Marks the transfer as ready. <br/><br/>This is only useful when using the `waitForReadySignal` parameter. |
+
+⚠️ never call `reset()` inside an interrupt handler!
 
 # 🔧📻 LinkRawWireless
 
