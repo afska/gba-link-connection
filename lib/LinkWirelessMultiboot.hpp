@@ -60,7 +60,7 @@
  * @brief Enable logging.
  * \warning Set `linkWirelessMultiboot->logger` and uncomment to enable!
  */
-#define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING  // TODO: DISABLE
+// #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #endif
 
 LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
@@ -1207,8 +1207,10 @@ class LinkWirelessMultiboot {
     void startOrKeepListening() {
       if ((linkRawWireless.playerCount() < fixedData.players &&
            !dynamicData.ready) ||
-          linkRawWireless.playerCount() <= 1)
+          linkRawWireless.playerCount() <= 1) {
+        state = LISTENING;
         return (void)pollConnections();
+      }
 
       dynamicData.ready = true;
 
