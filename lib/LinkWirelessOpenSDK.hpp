@@ -69,7 +69,7 @@ class LinkWirelessOpenSDK {
 
     static SequenceNumber fromPacketId(u32 packetId) {
       return SequenceNumber{.n = ((packetId + 4) / 4) % 4,
-                            packetId % 4,
+                            .phase = packetId % 4,
                             .commState = COMMUNICATING};
     }
 
@@ -557,7 +557,9 @@ class LinkWirelessOpenSDK {
 
       if (canSendInflightPackets && pendingCount > 0 &&
           pendingCount < MaxInflightPackets) {
-        return pendingTransferList.max()->cursor + 1;
+        auto max = pendingTransferList.max();
+        // (`max` is never null here! but the compiler complains...)
+        return max != nullptr ? max->cursor + 1 : 0;
       } else {
         auto minWithoutAck = pendingTransferList.minWithoutAck();
         return minWithoutAck != nullptr ? minWithoutAck->cursor : cursor;
