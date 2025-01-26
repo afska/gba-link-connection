@@ -952,7 +952,7 @@ class LinkWirelessMultiboot {
           dynamicData.wait++;
           if (dynamicData.wait >= 2) {
             state = LISTENING;
-            pollConnections();
+            startOrKeepListening();
           }
           break;
         }
@@ -999,7 +999,8 @@ class LinkWirelessMultiboot {
             state = HANDSHAKING_CLIENT_STEP1;
             startHandshakeWith(lastClientNumber);
           } else {
-            pollConnections();
+            state = STARTING;
+            dynamicData.wait = 0;
           }
           break;
         }
