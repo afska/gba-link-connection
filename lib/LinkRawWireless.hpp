@@ -96,6 +96,7 @@ class LinkRawWireless {
  public:
   static constexpr int PING_WAIT = 50;
   static constexpr int TRANSFER_WAIT = 15;
+  static constexpr int MICRO_WAIT = 2;
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   static constexpr int CMD_TIMEOUT = 228;
 #else
@@ -419,6 +420,8 @@ class LinkRawWireless {
       _resetState();
       return false;
     }
+
+    Link::wait(MICRO_WAIT);
 
     return true;
   }
@@ -1402,7 +1405,7 @@ class LinkRawWireless {
       }
     }
 
-    Link::wait(2);  // this wait is VERY important to avoid desyncs!
+    Link::wait(MICRO_WAIT);  // this wait is VERY important to avoid desyncs!
     // wait at least 40us; monitoring VCOUNT to avoid requiring a timer
 
     // (normally, this occurs on the next linkSPI.transfer(...) call)

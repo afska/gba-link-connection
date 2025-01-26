@@ -1,4 +1,6 @@
-﻿# gba-link-connection
+﻿⚠️⚠️⚠️ **v8.0.0 is not ready yet! Come back later!** ⚠️⚠️⚠️
+
+# gba-link-connection
 
 A set of Game Boy Advance (GBA) C++ libraries to interact with the Serial Port. Its main purpose is to provide multiplayer support to homebrew games. [C bindings](#c-bindings) are also included for compatibility.
 
