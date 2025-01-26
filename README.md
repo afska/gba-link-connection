@@ -331,6 +331,7 @@ This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases lik
 ### Compile-time constants
 
 - `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultibootAsync->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
+- `LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED`: to only send one ROM chunk per frame. This slows down transfers but can help fix audio popping issues, as it reduces CPU time spent in interrupt handlers.
 - `LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ`: to disable nested IRQs. In the async version, SERIAL IRQs can be interrupted (once they clear their time-critical needs) by default, which helps prevent issues with audio engines. However, if something goes wrong, you can disable this behavior.
 
 ### Methods

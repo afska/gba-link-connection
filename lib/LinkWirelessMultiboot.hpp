@@ -64,6 +64,16 @@
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #endif
 
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
+/**
+ * @brief Limit transfer speed (uncomment to enable).
+ * In the async version, enable this option to only send one ROM chunk per
+ * frame. This slows down transfers but can help fix audio popping
+ * issues, as it reduces CPU time spent in interrupt handlers.
+ */
+// #define LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
+#endif
+
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
 /**
  * @brief Disable nested IRQs (uncomment to enable).
@@ -694,10 +704,11 @@ class LinkWirelessMultiboot {
       HANDSHAKING_CLIENT_STEP5 = 8,
       ENDING_HOST = 9,
       SENDING_ROM_START_COMMAND = 10,
-      ENSURING_CLIENTS_ALIVE = 11,
-      SENDING_ROM_PART = 12,
-      CONFIRMING_STEP1 = 13,
-      CONFIRMING_STEP2 = 14,
+      RESTING = 11,
+      ENSURING_CLIENTS_ALIVE = 12,
+      SENDING_ROM_PART = 13,
+      CONFIRMING_STEP1 = 14,
+      CONFIRMING_STEP2 = 15,
     };
 
     enum Result {
@@ -956,6 +967,13 @@ class LinkWirelessMultiboot {
           }
           break;
         }
+#ifdef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
+        case RESTING: {
+          state = ENSURING_CLIENTS_ALIVE;
+          checkClientsAlive();
+          break;
+        }
+#endif
         default: {
         }
       }
@@ -1168,8 +1186,12 @@ class LinkWirelessMultiboot {
             _LWMLOG_("-> " + std::to_string(newPercentage));
           }
 
+#ifdef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
+          state = RESTING;
+#else
           state = ENSURING_CLIENTS_ALIVE;
           checkClientsAlive();
+#endif
           break;
         }
         case CONFIRMING_STEP1: {
