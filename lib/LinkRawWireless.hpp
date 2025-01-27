@@ -886,7 +886,8 @@ class LinkRawWireless {
     u32 response = transfer(DATA_REQUEST_VALUE);
     u16 header = Link::msB32(response);
     u16 data = Link::lsB32(response);
-    u8 responses = Link::msB16(data);
+    u8 responses = Link::_min(Link::msB16(data),
+                              LINK_RAW_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH);
     u8 ack = Link::lsB16(data);
 
     if (header != COMMAND_HEADER_VALUE) {
