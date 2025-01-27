@@ -404,6 +404,7 @@ void messageLoop() {
         lastLostPacketPlayerId = 0;
         lastLostPacketExpected = 0;
         lastLostPacketReceived = 0;
+        linkWireless->didQueueOverflow(false);
       }
 #endif
     }
@@ -493,7 +494,8 @@ void messageLoop() {
       output += "\n_ms: " + std::to_string(Common::toMs(avgTime));
 #else
       if (lostPackets > 0) {
-        output += "\n\n_lostPackets: " + std::to_string(lostPackets) + "\n";
+        output += "\n\n_lostPackets: " + std::to_string(lostPackets) +
+                  (linkWireless->didQueueOverflow(false) ? " !\n" : "\n");
         output += "_last: (" + std::to_string(lastLostPacketPlayerId) + ":" +
                   std::to_string(lastLostPacketReceivedPacketId) + ") " +
                   std::to_string(lastLostPacketReceived) + " [vs " +
