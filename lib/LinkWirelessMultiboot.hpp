@@ -965,8 +965,8 @@ class LinkWirelessMultiboot {
           break;
         }
 #ifdef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
-        case RESTING: {
-          state = ENSURING_CLIENTS_ALIVE;
+        case State::RESTING: {
+          state = State::ENSURING_CLIENTS_ALIVE;
           checkClientsAlive();
           break;
         }
@@ -1184,7 +1184,7 @@ class LinkWirelessMultiboot {
           }
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
-          state = RESTING;
+          state = State::RESTING;
 #else
           state = State::ENSURING_CLIENTS_ALIVE;
           checkClientsAlive();
