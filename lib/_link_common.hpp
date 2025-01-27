@@ -243,7 +243,7 @@ static inline void intToStr5(char* buf, int num) {
 
 // Queue
 
-template <typename T, u32 Size, bool Overwrite = true>
+template <typename T, u32 Size>
 class Queue {
  public:
   void push(T item) {
