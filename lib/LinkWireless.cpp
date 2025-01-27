@@ -6,7 +6,7 @@ LINK_CODE_IWRAM void LinkWireless::_onSerial() {
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   interrupt = true;
   LINK_BARRIER;
-  Link::_REG_IME = 1;
+  // (nested interrupts are enabled by LinkRawWireless::_onSerial(...))
 #endif
 
   __onSerial();

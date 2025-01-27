@@ -1146,6 +1146,13 @@ class LinkRawWireless {
           asyncCommand.direction == AsyncCommand::Direction::SENDING) {
         if (!acknowledge())
           return -4;
+
+#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
+        Link::_REG_IME = 1;
+#endif
+#endif
+
         sendAsyncCommand(newData, _clockInversionSupport);
       } else if (_clockInversionSupport) {
         if (!reverseAcknowledge(asyncCommand.step ==
