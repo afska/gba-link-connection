@@ -691,7 +691,7 @@ class LinkWireless {
    * this call, the overflow flag is cleared if `clear` is `true` (default
    * behavior).
    */
-  [[nodiscard]] bool didQueueOverflow(bool clear = true) {
+  bool didQueueOverflow(bool clear = true) {
     bool overflow = sessionState.newIncomingMessages.overflow;
     if (clear)
       sessionState.newIncomingMessages.overflow = false;

@@ -162,7 +162,7 @@ class LinkCube {
    * this call, the overflow flag is cleared if `clear` is `true` (default
    * behavior).
    */
-  [[nodiscard]] bool didQueueOverflow(bool clear = true) {
+  bool didQueueOverflow(bool clear = true) {
     bool overflow = newIncomingQueue.overflow;
     if (clear)
       newIncomingQueue.overflow = false;

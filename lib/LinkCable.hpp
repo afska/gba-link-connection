@@ -268,7 +268,7 @@ class LinkCable {
    * this call, the overflow flag is cleared if `clear` is `true` (default
    * behavior).
    */
-  [[nodiscard]] bool didQueueOverflow(bool clear = true) {
+  bool didQueueOverflow(bool clear = true) {
     bool overflow = false;
 
     for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++) {
