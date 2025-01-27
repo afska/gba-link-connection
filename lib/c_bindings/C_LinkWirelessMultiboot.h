@@ -105,7 +105,8 @@ bool C_LinkWirelessMultiboot_Async_sendRom(C_LinkWirelessMultibootHandle handle,
                                            u16 gameId,
                                            u8 players,
                                            bool waitForReadySignal,
-                                           bool keepConnectionAlive);
+                                           bool keepConnectionAlive,
+                                           u32 maxTransfersPerFrame);
 
 bool C_LinkWirelessMultiboot_Async_reset(
     C_LinkWirelessMultiboot_AsyncHandle handle);

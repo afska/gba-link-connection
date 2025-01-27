@@ -64,16 +64,6 @@
 // #define LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
 #endif
 
-#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
-/**
- * @brief Limit transfer speed (uncomment to enable).
- * In the async version, enable this option to only send one ROM chunk per
- * frame. This slows down transfers but can help fix audio popping
- * issues, as it reduces CPU time spent in interrupt handlers.
- */
-// #define LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
-#endif
-
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
 /**
  * @brief Disable nested IRQs (uncomment to enable).
@@ -748,6 +738,9 @@ class LinkWirelessMultiboot {
      * @param keepConnectionAlive If `true`, the adapter won't be reset after
      * a successful transfer, so users can continue the session using
      * `LinkWireless::restoreExistingConnection()`.
+     * @param maxTransfersPerFrame Transfer limit per frame. This slows down
+     * transfers but can help fix audio popping issues, as it reduces CPU time
+     * spent in interrupt handlers.
      */
     bool sendRom(const u8* rom,
                  u32 romSize,
@@ -756,7 +749,8 @@ class LinkWirelessMultiboot {
                  const u16 gameId,
                  u8 players,
                  bool waitForReadySignal = false,
-                 bool keepConnectionAlive = false) {
+                 bool keepConnectionAlive = false,
+                 u32 maxTransfersPerFrame = 0xffffffff) {
       if (state != State::STOPPED)
         return false;
 
@@ -781,6 +775,7 @@ class LinkWirelessMultiboot {
       fixedData.players = players;
       fixedData.waitForReadySignal = waitForReadySignal;
       fixedData.keepConnectionAlive = keepConnectionAlive;
+      fixedData.maxTransfersPerFrame = maxTransfersPerFrame;
       generateFirstPagePatch(rom, fixedData.firstPagePatch);
 
       _LWMLOG_("starting...");
@@ -908,6 +903,7 @@ class LinkWirelessMultiboot {
       u8 players = 0;
       bool waitForReadySignal = false;
       bool keepConnectionAlive = false;
+      u32 maxTransfersPerFrame = 0xffffffff;
 
       u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER] = {};
     };
@@ -920,6 +916,7 @@ class LinkWirelessMultiboot {
     struct MultibootDynamicData {
       u32 irqTimeout = 0;
       u32 wait = 0;
+      u32 frameTransfers = 0;
 
       u8 currentClient = 0;
       HandshakeClientData handshakeClient = HandshakeClientData{};
@@ -946,6 +943,7 @@ class LinkWirelessMultiboot {
 #endif
 
     void processNewFrame() {
+      dynamicData.frameTransfers = 0;
       dynamicData.irqTimeout++;
       if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
@@ -964,13 +962,11 @@ class LinkWirelessMultiboot {
           }
           break;
         }
-#ifdef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
         case State::RESTING: {
           state = State::ENSURING_CLIENTS_ALIVE;
           checkClientsAlive();
           break;
         }
-#endif
         default: {
         }
       }
@@ -1183,12 +1179,13 @@ class LinkWirelessMultiboot {
             _LWMLOG_("-> " + std::to_string(newPercentage));
           }
 
-#ifdef LINK_WIRELESS_MULTIBOOT_ASYNC_LIMIT_TRANSFER_SPEED
-          state = State::RESTING;
-#else
-          state = State::ENSURING_CLIENTS_ALIVE;
-          checkClientsAlive();
-#endif
+          dynamicData.frameTransfers++;
+          if (dynamicData.frameTransfers < fixedData.maxTransfersPerFrame) {
+            state = State::ENSURING_CLIENTS_ALIVE;
+            checkClientsAlive();
+          } else {
+            state = State::RESTING;
+          }
           break;
         }
         case State::CONFIRMING_STEP1: {
