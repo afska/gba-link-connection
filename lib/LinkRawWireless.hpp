@@ -100,7 +100,7 @@ class LinkRawWireless {
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   static constexpr int CMD_TIMEOUT = 228;
 #else
-  static constexpr int CMD_TIMEOUT = 10;
+  static constexpr int CMD_TIMEOUT = 15;
 #endif
   static constexpr int LOGIN_STEPS = 9;
   static constexpr int COMMAND_HEADER_VALUE = 0x9966;
@@ -420,8 +420,6 @@ class LinkRawWireless {
       _resetState();
       return false;
     }
-
-    Link::wait(MICRO_WAIT);
 
     return true;
   }
