@@ -66,22 +66,22 @@ class LinkUART {
   static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
 
  public:
-  enum BaudRate {
+  enum class BaudRate {
     BAUD_RATE_0,  // 9600 bps
     BAUD_RATE_1,  // 38400 bps
     BAUD_RATE_2,  // 57600 bps
     BAUD_RATE_3   // 115200 bps
   };
-  enum DataSize { SIZE_7_BITS, SIZE_8_BITS };
-  enum Parity { NO, EVEN, ODD };
+  enum class DataSize { SIZE_7_BITS, SIZE_8_BITS };
+  enum class Parity { NO, EVEN, ODD };
 
   /**
    * @brief Constructs a new LinkUART object.
    */
   explicit LinkUART() {
-    config.baudRate = BAUD_RATE_0;
-    config.dataSize = SIZE_8_BITS;
-    config.parity = NO;
+    config.baudRate = BaudRate::BAUD_RATE_0;
+    config.dataSize = DataSize::SIZE_8_BITS;
+    config.parity = Parity::NO;
     config.useCTS = false;
   }
 
@@ -98,9 +98,9 @@ class LinkUART {
    * @param parity One of the enum values from `LinkUART::Parity`.
    * @param useCTS Enable RTS/CTS flow.
    */
-  void activate(BaudRate baudRate = BAUD_RATE_0,
-                DataSize dataSize = SIZE_8_BITS,
-                Parity parity = NO,
+  void activate(BaudRate baudRate = BaudRate::BAUD_RATE_0,
+                DataSize dataSize = DataSize::SIZE_8_BITS,
+                Parity parity = Parity::NO,
                 bool useCTS = false) {
     LINK_READ_TAG(LINK_UART_VERSION);
 
@@ -316,10 +316,10 @@ class LinkUART {
 
   void start() {
     setUARTMode();
-    if (config.dataSize == SIZE_8_BITS)
+    if (config.dataSize == DataSize::SIZE_8_BITS)
       set8BitData();
-    if (config.parity > NO) {
-      if (config.parity == ODD)
+    if (config.parity > Parity::NO) {
+      if (config.parity == Parity::ODD)
         setOddParity();
       setParityOn();
     }
@@ -343,7 +343,7 @@ class LinkUART {
   void setUARTMode() {
     Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
     Link::_REG_SIOCNT = (1 << BIT_UART_1) | (1 << BIT_UART_2);
-    Link::_REG_SIOCNT |= config.baudRate;
+    Link::_REG_SIOCNT |= (int)config.baudRate;
     Link::_REG_SIOMLT_SEND = 0;
   }
 

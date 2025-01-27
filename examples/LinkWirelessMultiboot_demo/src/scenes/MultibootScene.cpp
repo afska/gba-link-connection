@@ -267,7 +267,7 @@ void MultibootScene::processButtons() {
           return (keys & KEY_L) && (keys & KEY_R);
         },
         true);
-    log("-> result: " + std::to_string(result));
+    log("-> result: " + std::to_string((int)result));
     print();
   }
 

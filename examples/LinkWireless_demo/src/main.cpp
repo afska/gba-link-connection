@@ -7,14 +7,15 @@
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-#define CHECK_ERRORS(MESSAGE)                                             \
-  if ((lastError = linkWireless->getLastError()) ||                       \
-      linkWireless->getState() == LinkWireless::State::NEEDS_RESET) {     \
-    Common::log(std::string(MESSAGE) + " (" + std::to_string(lastError) + \
-                ") [" + std::to_string(linkWireless->getState()) + "]");  \
-    hang();                                                               \
-    linkWireless->activate();                                             \
-    return;                                                               \
+#define CHECK_ERRORS(MESSAGE)                                                  \
+  if ((lastError = linkWireless->getLastError()) !=                            \
+          LinkWireless::Error::NONE ||                                         \
+      linkWireless->getState() == LinkWireless::State::NEEDS_RESET) {          \
+    Common::log(std::string(MESSAGE) + " (" + std::to_string((int)lastError) + \
+                ") [" + std::to_string((int)linkWireless->getState()) + "]");  \
+    hang();                                                                    \
+    linkWireless->activate();                                                  \
+    return;                                                                    \
   }
 
 void activate();
@@ -317,7 +318,8 @@ void messageLoop() {
       if (success) {
         counters[linkWireless->currentPlayerId()] = newValue;
       } else {
-        if (linkWireless->getLastError(false) == LinkWireless::BUFFER_IS_FULL) {
+        if (linkWireless->getLastError(false) ==
+            LinkWireless::Error::BUFFER_IS_FULL) {
           linkWireless->getLastError();
           goto sendEnd;
         }

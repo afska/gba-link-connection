@@ -98,7 +98,7 @@ int main() {
               : LinkCableMultiboot::TransferMode::MULTI_PLAY);
 
       // Print results and wait
-      Common::log("Result: " + std::to_string(result) + "\n" +
+      Common::log("Result: " + std::to_string((int)result) + "\n" +
                   "Press DOWN to continue...");
       Common::waitForKey(KEY_DOWN);
     }

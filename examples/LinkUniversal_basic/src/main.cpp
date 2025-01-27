@@ -103,11 +103,11 @@ int main() {
       output += "_pID: " + std::to_string(currentPlayerId);
     } else {
       output +=
-          "Waiting... [" + std::to_string(linkUniversal->getState()) + "]";
-      output += "<" + std::to_string(linkUniversal->getMode()) + ">";
+          "Waiting... [" + std::to_string((int)linkUniversal->getState()) + "]";
+      output += "<" + std::to_string((int)linkUniversal->getMode()) + ">";
       if (linkUniversal->getMode() == LinkUniversal::Mode::LINK_WIRELESS)
         output += "          (" +
-                  std::to_string(linkUniversal->getWirelessState()) + ")";
+                  std::to_string((int)linkUniversal->getWirelessState()) + ")";
       output += "\n_wait: " + std::to_string(linkUniversal->_getWaitCount());
       output += "\n_subW: " + std::to_string(linkUniversal->_getSubWaitCount());
 

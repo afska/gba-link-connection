@@ -140,7 +140,7 @@ class LinkRawWireless {
   Logger logger = [](std::string str) {};
 #endif
 
-  enum State {
+  enum class State {
     NEEDS_RESET = 0,
     AUTHENTICATED = 1,
     SEARCHING = 2,
@@ -174,7 +174,7 @@ class LinkRawWireless {
   struct SystemStatusResponse {
     u16 deviceId = 0;
     u8 currentPlayerId = 0;
-    State adapterState = AUTHENTICATED;
+    State adapterState = State::AUTHENTICATED;
     bool isServerClosed = false;
   };
 
@@ -198,10 +198,10 @@ class LinkRawWireless {
     u32 serversSize = 0;
   };
 
-  enum ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
+  enum class ConnectionPhase { STILL_CONNECTING, ERROR, SUCCESS };
 
   struct ConnectionStatus {
-    ConnectionPhase phase = STILL_CONNECTING;
+    ConnectionPhase phase = ConnectionPhase::STILL_CONNECTING;
     u8 assignedClientNumber = 0;
   };
 
@@ -211,7 +211,7 @@ class LinkRawWireless {
     u32 dataSize = 0;
   };
 
-  enum AsyncState { IDLE, WORKING, READY };
+  enum class AsyncState { IDLE, WORKING, READY };
 
   /**
    * @brief Returns whether the library is active or not.
@@ -256,7 +256,7 @@ class LinkRawWireless {
       return false;
     }
 
-    if (systemStatus.adapterState == SERVING) {
+    if (systemStatus.adapterState == State::SERVING) {
       _LRWLOG_("restoring SERVING state");
 
       SlotStatusResponse slotStatus;
@@ -265,11 +265,11 @@ class LinkRawWireless {
         return false;
       }
 
-      state = SERVING;
+      state = State::SERVING;
       sessionState.isServerClosed = systemStatus.isServerClosed;
-    } else if (systemStatus.adapterState == CONNECTED) {
+    } else if (systemStatus.adapterState == State::CONNECTED) {
       _LRWLOG_("restoring CONNECTED state");
-      state = CONNECTED;
+      state = State::CONNECTED;
     } else {
       _LRWLOG_("! invalid adapter state");
       deactivate();
@@ -442,7 +442,7 @@ class LinkRawWireless {
       Link::wait(TRANSFER_WAIT);
 
     _LRWLOG_("state = SERVING");
-    state = SERVING;
+    state = State::SERVING;
 
     _LRWLOG_("server OPEN");
     sessionState.isServerClosed = false;
@@ -572,7 +572,7 @@ class LinkRawWireless {
     }
 
     _LRWLOG_("state = SEARCHING");
-    state = SEARCHING;
+    state = State::SEARCHING;
 
     return true;
   }
@@ -631,7 +631,7 @@ class LinkRawWireless {
     }
 
     _LRWLOG_("state = AUTHENTICATED");
-    state = AUTHENTICATED;
+    state = State::AUTHENTICATED;
 
     return true;
   }
@@ -650,7 +650,7 @@ class LinkRawWireless {
     }
 
     _LRWLOG_("state = CONNECTING");
-    state = CONNECTING;
+    state = State::CONNECTING;
 
     return true;
   }
@@ -669,7 +669,7 @@ class LinkRawWireless {
     }
 
     if (result.data[0] == WAIT_STILL_CONNECTING) {
-      response.phase = STILL_CONNECTING;
+      response.phase = ConnectionPhase::STILL_CONNECTING;
       return true;
     }
 
@@ -677,11 +677,11 @@ class LinkRawWireless {
     if (assignedPlayerId >= LINK_RAW_WIRELESS_MAX_PLAYERS) {
       _LRWLOG_("! connection failed (1)");
       _resetState();
-      response.phase = ERROR;
+      response.phase = ConnectionPhase::ERROR;
       return false;
     }
 
-    response.phase = SUCCESS;
+    response.phase = ConnectionPhase::SUCCESS;
     response.assignedClientNumber = (u8)Link::msB32(result.data[0]);
 
     return true;
@@ -709,7 +709,7 @@ class LinkRawWireless {
     u8 assignedPlayerId = 1 + (u8)status;
     sessionState.currentPlayerId = assignedPlayerId;
     _LRWLOG_("state = CONNECTED");
-    state = CONNECTED;
+    state = State::CONNECTED;
 
     return true;
   }
@@ -1014,7 +1014,7 @@ class LinkRawWireless {
                         u16 length = 0,
                         bool invertsClock = false,
                         bool _fromIRQ = false) {
-    if (asyncState != IDLE)
+    if (asyncState != AsyncState::IDLE)
       return false;
 
     asyncCommand.type = type;
@@ -1030,7 +1030,7 @@ class LinkRawWireless {
     asyncCommand.totalParameters = length;
     asyncCommand.receivedResponses = 0;
     asyncCommand.totalResponses = 0;
-    asyncState = WORKING;
+    asyncState = AsyncState::WORKING;
 
     u32 command = buildCommand(type, asyncCommand.totalParameters);
 
@@ -1051,11 +1051,11 @@ class LinkRawWireless {
    * switches the state back to `IDLE`. If not, returns an empty result.
    */
   [[nodiscard]] CommandResult getAsyncCommandResult() {
-    if (asyncState != READY)
+    if (asyncState != AsyncState::READY)
       return CommandResult{};
 
     CommandResult data = asyncCommand.result;
-    asyncState = IDLE;
+    asyncState = AsyncState::IDLE;
     return data;
   }
 
@@ -1064,8 +1064,9 @@ class LinkRawWireless {
    * It's 23 for servers and 4 for clients.
    */
   [[nodiscard]] u32 getDeviceTransferLength() {
-    return state == SERVING ? LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH
-                            : LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
+    return state == State::SERVING
+               ? LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH
+               : LINK_RAW_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH;
   }
 
   /**
@@ -1082,7 +1083,7 @@ class LinkRawWireless {
    * @brief Returns `true` if the state is `SERVING` or `CONNECTED`.
    */
   [[nodiscard]] bool isSessionActive() {
-    return state == SERVING || state == CONNECTED;
+    return state == State::SERVING || state == State::CONNECTED;
   }
 
   /**
@@ -1106,8 +1107,8 @@ class LinkRawWireless {
    */
   void _resetState() {
     _LRWLOG_("state = NEEDS_RESET");
-    state = NEEDS_RESET;
-    asyncState = IDLE;
+    state = State::NEEDS_RESET;
+    asyncState = AsyncState::IDLE;
     sessionState.playerCount = 1;
     sessionState.currentPlayerId = 0;
     sessionState.isServerClosed = false;
@@ -1119,7 +1120,7 @@ class LinkRawWireless {
    * \warning This is internal API!
    */
   [[nodiscard]] CommandResult* _getAsyncCommandResultRef() {
-    asyncState = IDLE;
+    asyncState = AsyncState::IDLE;
     return &asyncCommand.result;
   }
 
@@ -1138,7 +1139,7 @@ class LinkRawWireless {
       return -2;
     u32 newData = linkSPI.getAsyncData();
 
-    if (!isSessionActive() || asyncState != WORKING)
+    if (!isSessionActive() || asyncState != AsyncState::WORKING)
       return -3;
 
     if (asyncCommand.state == AsyncCommand::State::PENDING) {
@@ -1155,7 +1156,7 @@ class LinkRawWireless {
       }
 
       if (asyncCommand.state == AsyncCommand::State::COMPLETED) {
-        asyncState = READY;
+        asyncState = AsyncState::READY;
         return 1;
       }
     }
@@ -1195,10 +1196,10 @@ class LinkRawWireless {
   };
 
   struct AsyncCommand {
-    enum State { PENDING, COMPLETED };
-    enum Direction { SENDING, RECEIVING };
+    enum class State { PENDING, COMPLETED };
+    enum class Direction { SENDING, RECEIVING };
 
-    enum Step {
+    enum class Step {
       COMMAND_HEADER,
       COMMAND_PARAMETERS,
       RESPONSE_REQUEST,
@@ -1219,8 +1220,8 @@ class LinkRawWireless {
 
   LinkSPI linkSPI;
   LinkGPIO linkGPIO;
-  volatile State state = NEEDS_RESET;
-  volatile AsyncState asyncState = IDLE;
+  volatile State state = State::NEEDS_RESET;
+  volatile AsyncState asyncState = AsyncState::IDLE;
   AsyncCommand asyncCommand;
   volatile bool isEnabled = false;
 
@@ -1281,7 +1282,7 @@ class LinkRawWireless {
     _LRWLOG_("setting SPI to 2Mbps");
     linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
     _LRWLOG_("state = AUTHENTICATED");
-    state = AUTHENTICATED;
+    state = State::AUTHENTICATED;
 
     return true;
   }
@@ -1615,7 +1616,7 @@ class LinkRawWireless {
         linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
         asyncCommand.result.success = true;
         asyncCommand.state = AsyncCommand::State::COMPLETED;
-        asyncState = READY;
+        asyncState = AsyncState::READY;
       }
     }
   }

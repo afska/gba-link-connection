@@ -153,7 +153,7 @@ class LinkMobile {
   static constexpr u8 DIAL_PHONE_FIRST_BYTE[] = {0, 2, 1, 1};
 
  public:
-  enum State {
+  enum class State {
     NEEDS_RESET = 0,
     PINGING = 1,
     WAITING_TO_START = 2,
@@ -175,9 +175,9 @@ class LinkMobile {
     SHUTDOWN = 18
   };
 
-  enum Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
+  enum class Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
 
-  enum ConnectionType { TCP, UDP };
+  enum class ConnectionType { TCP, UDP };
 
   struct ConfigurationData {
     char magic[2];
@@ -227,7 +227,7 @@ class LinkMobile {
     u8 size = 0;
   };
 
-  enum CommandResult {
+  enum class CommandResult {
     PENDING,
     SUCCESS,
     INVALID_DEVICE_ID,
@@ -240,7 +240,7 @@ class LinkMobile {
   };
 
   struct Error {
-    enum Type {
+    enum class Type {
       NONE,
       ADAPTER_NOT_CONNECTED,
       PPP_LOGIN_FAILED,
@@ -338,7 +338,7 @@ class LinkMobile {
    * active session or available request slots.
    */
   bool call(const char* phoneNumber) {
-    if (state != SESSION_ACTIVE || userRequests.isFull())
+    if (state != State::SESSION_ACTIVE || userRequests.isFull())
       return false;
 
     auto request = UserRequest{.type = UserRequest::Type::CALL};
@@ -363,7 +363,7 @@ class LinkMobile {
    * if there's no active session, no available request slots, or no login ID.
    */
   bool callISP(const char* password, const char* loginId = "") {
-    if (state != SESSION_ACTIVE || userRequests.isFull())
+    if (state != State::SESSION_ACTIVE || userRequests.isFull())
       return false;
 
     auto request = UserRequest{.type = UserRequest::Type::PPP_LOGIN};
@@ -394,7 +394,7 @@ class LinkMobile {
    * active PPP session or available request slots.
    */
   bool dnsQuery(const char* domainName, DNSQuery* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull())
+    if (state != State::PPP_ACTIVE || userRequests.isFull())
       return result->fail();
 
     result->completed = false;
@@ -435,7 +435,7 @@ class LinkMobile {
                       u16 port,
                       ConnectionType type,
                       OpenConn* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull())
+    if (state != State::PPP_ACTIVE || userRequests.isFull())
       return result->fail();
 
     result->completed = false;
@@ -467,7 +467,7 @@ class LinkMobile {
   bool closeConnection(u8 connectionId,
                        ConnectionType type,
                        CloseConn* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull())
+    if (state != State::PPP_ACTIVE || userRequests.isFull())
       return result->fail();
 
     result->completed = false;
@@ -501,7 +501,7 @@ class LinkMobile {
   bool transfer(DataTransfer dataToSend,
                 DataTransfer* result,
                 u8 connectionId = 0xFF) {
-    if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
+    if ((state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) ||
         userRequests.isFull())
       return result->fail();
 
@@ -541,7 +541,7 @@ class LinkMobile {
    * active call or available request slots.
    */
   bool hangUp() {
-    if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
+    if ((state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) ||
         userRequests.isFull())
       return false;
 
@@ -592,19 +592,21 @@ class LinkMobile {
    * @brief Returns `true` if a P2P call is established (the state is
    * `CALL_ESTABLISHED`).
    */
-  [[nodiscard]] bool isConnectedP2P() { return state == CALL_ESTABLISHED; }
+  [[nodiscard]] bool isConnectedP2P() {
+    return state == State::CALL_ESTABLISHED;
+  }
 
   /**
    * @brief Returns `true` if a PPP session is active (the state is
    * `PPP_ACTIVE`).
    */
-  [[nodiscard]] bool isConnectedPPP() { return state == PPP_ACTIVE; }
+  [[nodiscard]] bool isConnectedPPP() { return state == State::PPP_ACTIVE; }
 
   /**
    * @brief Returns `true` if the session is active.
    */
   [[nodiscard]] bool isSessionActive() {
-    return state >= SESSION_ACTIVE && state <= SHUTDOWN_REQUESTED;
+    return state >= State::SESSION_ACTIVE && state <= State::SHUTDOWN_REQUESTED;
   }
 
   /**
@@ -612,7 +614,7 @@ class LinkMobile {
    * shutdown requests.
    */
   [[nodiscard]] bool canShutdown() {
-    return isSessionActive() && state != SHUTDOWN_REQUESTED;
+    return isSessionActive() && state != State::SHUTDOWN_REQUESTED;
   }
 
   /**
@@ -664,7 +666,7 @@ class LinkMobile {
     linkSPI._onSerial();
     u32 newData = linkSPI.getAsyncData();
 
-    if (state == NEEDS_RESET)
+    if (state == State::NEEDS_RESET)
       return;
 
     if (asyncCommand.isActive) {
@@ -716,10 +718,10 @@ class LinkMobile {
   Config config;
 
  private:
-  enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
+  enum class AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type {
+    enum class Type {
       CALL,
       PPP_LOGIN,
       DNS_QUERY,
@@ -750,11 +752,12 @@ class LinkMobile {
     void cleanup() {
       if (finished)
         return;
-      AsyncRequest* metadata = type == DNS_QUERY          ? (AsyncRequest*)dns
-                               : type == OPEN_CONNECTION  ? (AsyncRequest*)open
-                               : type == CLOSE_CONNECTION ? (AsyncRequest*)close
-                               : type == TRANSFER ? (AsyncRequest*)receive
-                                                  : nullptr;
+      AsyncRequest* metadata =
+          type == UserRequest::Type::DNS_QUERY          ? (AsyncRequest*)dns
+          : type == UserRequest::Type::OPEN_CONNECTION  ? (AsyncRequest*)open
+          : type == UserRequest::Type::CLOSE_CONNECTION ? (AsyncRequest*)close
+          : type == UserRequest::Type::TRANSFER         ? (AsyncRequest*)receive
+                                                        : nullptr;
       if (metadata != nullptr) {
         metadata->success = false;
         metadata->completed = true;
@@ -821,8 +824,8 @@ class LinkMobile {
   };
 
   struct AsyncCommand {
-    enum State { PENDING, COMPLETED };
-    enum Direction { SENDING, RECEIVING };
+    enum class State { PENDING, COMPLETED };
+    enum class Direction { SENDING, RECEIVING };
 
     State state;
     CommandResult result;
@@ -894,7 +897,7 @@ class LinkMobile {
   u32 timeoutStateFrames = 0;
   u32 pingFrameCount = 0;
   volatile Role role = Role::NO_P2P_CONNECTION;
-  volatile State state = NEEDS_RESET;
+  volatile State state = State::NEEDS_RESET;
   PacketData nextCommandData;
   u32 nextCommandDataSize = 0;
   bool hasPendingTransfer = false;
@@ -924,31 +927,31 @@ class LinkMobile {
 
     switch (request.type) {
       case UserRequest::Type::CALL: {
-        if (state != SESSION_ACTIVE && state != CALL_REQUESTED) {
+        if (state != State::SESSION_ACTIVE && state != State::CALL_REQUESTED) {
           popRequest();
           return;
         }
-        if (state != CALL_REQUESTED)
-          setState(CALL_REQUESTED);
+        if (state != State::CALL_REQUESTED)
+          setState(State::CALL_REQUESTED);
 
         if (!asyncCommand.isActive) {
-          setState(CALLING);
+          setState(State::CALLING);
           cmdDialTelephone(request.phoneNumber);
           popRequest();
         }
         break;
       }
       case UserRequest::Type::PPP_LOGIN: {
-        if (state != SESSION_ACTIVE && state != ISP_CALL_REQUESTED &&
-            state != ISP_CALLING) {
+        if (state != State::SESSION_ACTIVE &&
+            state != State::ISP_CALL_REQUESTED && state != State::ISP_CALLING) {
           popRequest();
           return;
         }
-        if (state == SESSION_ACTIVE)
-          setState(ISP_CALL_REQUESTED);
+        if (state == State::SESSION_ACTIVE)
+          setState(State::ISP_CALL_REQUESTED);
 
-        if (!asyncCommand.isActive && state == ISP_CALL_REQUESTED) {
-          setState(ISP_CALLING);
+        if (!asyncCommand.isActive && state == State::ISP_CALL_REQUESTED) {
+          setState(State::ISP_CALLING);
           cmdDialTelephone(adapterConfiguration.isValid()
                                ? adapterConfiguration.fields._ispNumber1
                                : FALLBACK_ISP_NUMBER);
@@ -956,7 +959,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::DNS_QUERY: {
-        if (state != PPP_ACTIVE) {
+        if (state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -968,7 +971,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::OPEN_CONNECTION: {
-        if (state != PPP_ACTIVE) {
+        if (state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -983,7 +986,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::CLOSE_CONNECTION: {
-        if (state != PPP_ACTIVE) {
+        if (state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -998,7 +1001,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::TRANSFER: {
-        if (state != CALL_ESTABLISHED && state != PPP_ACTIVE) {
+        if (state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -1011,7 +1014,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::HANG_UP: {
-        if (state != CALL_ESTABLISHED && state != PPP_ACTIVE) {
+        if (state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -1020,11 +1023,11 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::SHUTDOWN: {
-        if (state != SHUTDOWN_REQUESTED)
-          setState(SHUTDOWN_REQUESTED);
+        if (state != State::SHUTDOWN_REQUESTED)
+          setState(State::SHUTDOWN_REQUESTED);
 
         if (!asyncCommand.isActive) {
-          setState(ENDING_SESSION);
+          setState(State::ENDING_SESSION);
           cmdEndSession();
           popRequest();
         }
@@ -1037,36 +1040,36 @@ class LinkMobile {
 
   void processNewFrame() {
     switch (state) {
-      case WAITING_TO_START: {
+      case State::WAITING_TO_START: {
         waitFrames--;
 
         if (waitFrames == 0) {
-          setState(STARTING_SESSION);
+          setState(State::STARTING_SESSION);
           cmdBeginSession();
         }
         break;
       }
-      case WAITING_32BIT_SWITCH: {
+      case State::WAITING_32BIT_SWITCH: {
         waitFrames--;
 
         if (waitFrames == 0) {
-          setState(READING_CONFIGURATION);
+          setState(State::READING_CONFIGURATION);
           cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
         }
         break;
       }
-      case SESSION_ACTIVE: {
+      case State::SESSION_ACTIVE: {
         if (!asyncCommand.isActive)
           cmdWaitForTelephoneCall();
 
         break;
       }
-      case WAITING_8BIT_SWITCH: {
+      case State::WAITING_8BIT_SWITCH: {
         waitFrames--;
 
         if (waitFrames == 0) {
           error = {};
-          setState(SHUTDOWN);
+          setState(State::SHUTDOWN);
         }
         break;
       }
@@ -1097,17 +1100,17 @@ class LinkMobile {
     if (asyncCommand.respondsTo(COMMAND_TELEPHONE_STATUS)) {
       if (asyncCommand.cmd.header.size != 3)
         return abort(Error::Type::WEIRD_RESPONSE);
-      if (state == CALL_ESTABLISHED) {
+      if (state == State::CALL_ESTABLISHED) {
         if (!isBitHigh(asyncCommand.cmd.data.bytes[0], 2)) {
           // (call terminated)
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
       }
       return;
     }
 
     switch (state) {
-      case STARTING_SESSION: {
+      case State::STARTING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_BEGIN_SESSION))
           return;
         if (asyncCommand.cmd.header.size != LOGIN_PARTS_SIZE)
@@ -1118,29 +1121,29 @@ class LinkMobile {
             return abort(Error::Type::WEIRD_RESPONSE);
         }
 
-        setState(ACTIVATING_SIO32);
+        setState(State::ACTIVATING_SIO32);
         cmdSIO32(true);
         break;
       }
-      case ACTIVATING_SIO32: {
+      case State::ACTIVATING_SIO32: {
         if (asyncCommand.respondsTo(COMMAND_RESET)) {
           // If the adapter responds to a 0x16 instead of 0x18,
           // it's libmobile telling us that SIO32 is not supported.
           // In that case, we continue using SIO8.
-          setState(READING_CONFIGURATION);
+          setState(State::READING_CONFIGURATION);
           cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
           return;
         }
         if (!asyncCommand.respondsTo(COMMAND_SIO32))
           return;
 
-        setState(WAITING_32BIT_SWITCH);
+        setState(State::WAITING_32BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
         linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
                          LinkSPI::DataSize::SIZE_32BIT);
         break;
       }
-      case READING_CONFIGURATION: {
+      case State::READING_CONFIGURATION: {
         if (!asyncCommand.respondsTo(COMMAND_READ_CONFIGURATION_DATA))
           return;
 
@@ -1160,38 +1163,38 @@ class LinkMobile {
                                    CONFIGURATION_DATA_CHUNK);
         } else {
           setISPNumber();
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
         break;
       }
-      case SESSION_ACTIVE: {
+      case State::SESSION_ACTIVE: {
         if (!asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL))
           return;
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(CALL_ESTABLISHED);
+          setState(State::CALL_ESTABLISHED);
           role = Role::RECEIVER;
         } else {
           // (no call received)
         }
         break;
       }
-      case CALLING: {
+      case State::CALLING: {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
           return;
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(CALL_ESTABLISHED);
+          setState(State::CALL_ESTABLISHED);
           role = Role::CALLER;
         } else {
           // (call failed)
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
         break;
       }
-      case CALL_ESTABLISHED: {
+      case State::CALL_ESTABLISHED: {
         if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
           return;
         }
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
@@ -1204,38 +1207,38 @@ class LinkMobile {
 
         break;
       }
-      case ISP_CALLING: {
+      case State::ISP_CALLING: {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
           return;
         if (userRequests.isEmpty())
           return abort(Error::Type::WTF);
         auto request = userRequests.peekRef();
-        if (request->type != UserRequest::PPP_LOGIN)
+        if (request->type != UserRequest::Type::PPP_LOGIN)
           return abort(Error::Type::WTF);
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(PPP_LOGIN);
+          setState(State::PPP_LOGIN);
           cmdISPLogin(request->loginId, request->password);
         } else {
           // (ISP call failed)
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
         request->finished = true;
 
         break;
       }
-      case PPP_LOGIN: {
+      case State::PPP_LOGIN: {
         if (!asyncCommand.respondsTo(COMMAND_ISP_LOGIN))
           return;
         if (asyncCommand.result != CommandResult::SUCCESS)
           return abort(Error::Type::PPP_LOGIN_FAILED);
 
-        setState(PPP_ACTIVE);
+        setState(State::PPP_ACTIVE);
         break;
       }
-      case PPP_ACTIVE: {
+      case State::PPP_ACTIVE: {
         if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
           return;
         }
 
@@ -1244,7 +1247,7 @@ class LinkMobile {
         auto request = userRequests.peekRef();
 
         if (asyncCommand.respondsTo(COMMAND_DNS_QUERY)) {
-          if (request->type != UserRequest::DNS_QUERY)
+          if (request->type != UserRequest::Type::DNS_QUERY)
             return abort(Error::Type::WTF);
 
           if (asyncCommand.result == CommandResult::SUCCESS) {
@@ -1261,7 +1264,7 @@ class LinkMobile {
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_OPEN_TCP_CONNECTION) ||
                    asyncCommand.respondsTo(COMMAND_OPEN_UDP_CONNECTION)) {
-          if (request->type != UserRequest::OPEN_CONNECTION)
+          if (request->type != UserRequest::Type::OPEN_CONNECTION)
             return abort(Error::Type::WTF);
 
           if (asyncCommand.result == CommandResult::SUCCESS) {
@@ -1277,7 +1280,7 @@ class LinkMobile {
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_CLOSE_TCP_CONNECTION) ||
                    asyncCommand.respondsTo(COMMAND_CLOSE_UDP_CONNECTION)) {
-          if (request->type != UserRequest::CLOSE_CONNECTION)
+          if (request->type != UserRequest::Type::CLOSE_CONNECTION)
             return abort(Error::Type::WTF);
 
           request->close->success =
@@ -1285,12 +1288,12 @@ class LinkMobile {
           request->close->completed = true;
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_TRANSFER_DATA)) {
-          if (request->type != UserRequest::TRANSFER)
+          if (request->type != UserRequest::Type::TRANSFER)
             return abort(Error::Type::WTF);
 
           handleTransferDataResponse(request);
         } else if (asyncCommand.respondsTo(COMMAND_CONNECTION_CLOSED)) {
-          if (request->type != UserRequest::TRANSFER)
+          if (request->type != UserRequest::Type::TRANSFER)
             return abort(Error::Type::WTF);
 
           // (connection closed)
@@ -1300,11 +1303,11 @@ class LinkMobile {
         }
         break;
       }
-      case ENDING_SESSION: {
+      case State::ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
           return;
 
-        setState(WAITING_8BIT_SWITCH);
+        setState(State::WAITING_8BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
         linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
                          LinkSPI::DataSize::SIZE_8BIT);
@@ -1316,7 +1319,7 @@ class LinkMobile {
   }
 
   void handleTransferDataResponse(UserRequest* request) {
-    if (request->type != UserRequest::TRANSFER)
+    if (request->type != UserRequest::Type::TRANSFER)
       return abort(Error::Type::WTF);
 
     if (asyncCommand.result == CommandResult::SUCCESS) {
@@ -1342,8 +1345,8 @@ class LinkMobile {
 
   void processLoosePacket(u32 newData) {
     switch (state) {
-      case PINGING: {
-        setState(WAITING_TO_START);
+      case State::PINGING: {
+        setState(State::WAITING_TO_START);
         waitFrames = INIT_WAIT_FRAMES;
         break;
       }
@@ -1361,7 +1364,7 @@ class LinkMobile {
   void cmdEndSession() { sendCommandAsync(buildCommand(COMMAND_END_SESSION)); }
 
   void cmdDialTelephone(const char* phoneNumber) {
-    addData(DIAL_PHONE_FIRST_BYTE[adapterType], true);
+    addData(DIAL_PHONE_FIRST_BYTE[(int)adapterType], true);
     for (u32 i = 0; i < Link::strlen(phoneNumber); i++)
       addData(phoneNumber[i]);
     sendCommandAsync(buildCommand(COMMAND_DIAL_TELEPHONE, true));
@@ -1473,7 +1476,7 @@ class LinkMobile {
   }
 
   bool shouldAbortOnStateTimeout() {
-    return state > NEEDS_RESET && state < SESSION_ACTIVE;
+    return state > State::NEEDS_RESET && state < State::SESSION_ACTIVE;
   }
 
   bool shouldAbortOnRequestTimeout() { return true; }
@@ -1533,7 +1536,7 @@ class LinkMobile {
         .cmdIsSending =
             asyncCommand.direction == AsyncCommand::Direction::SENDING,
 
-        .reqType = userRequests.isEmpty() ? -1 : userRequests.peek().type};
+        .reqType = userRequests.isEmpty() ? -1 : (int)userRequests.peek().type};
 
     _LMLOG_(
         "!! %s:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "
@@ -1557,7 +1560,7 @@ class LinkMobile {
   }
 
   void resetState() {
-    setState(NEEDS_RESET);
+    setState(State::NEEDS_RESET);
 
     adapterConfiguration = AdapterConfiguration{};
     userRequests.clear();
@@ -1582,7 +1585,7 @@ class LinkMobile {
     linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
                      LinkSPI::DataSize::SIZE_8BIT);
 
-    setState(PINGING);
+    setState(State::PINGING);
     transferAsync(0);
   }
 

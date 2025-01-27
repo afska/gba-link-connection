@@ -70,11 +70,11 @@
 
 LINK_VERSION_TAG LINK_CABLE_MULTIBOOT_VERSION = "vLinkCableMultiboot/v8.0.0";
 
-#define LINK_CABLE_MULTIBOOT_TRY(CALL)   \
-  partialResult = CALL;                  \
-  if (partialResult == ABORTED)          \
-    return error(CANCELED);              \
-  else if (partialResult == NEEDS_RETRY) \
+#define LINK_CABLE_MULTIBOOT_TRY(CALL)                  \
+  partialResult = CALL;                                 \
+  if (partialResult == PartialResult::ABORTED)          \
+    return error(Result::CANCELED);                     \
+  else if (partialResult == PartialResult::NEEDS_RETRY) \
     goto retry;
 
 /**
@@ -117,7 +117,7 @@ class LinkCableMultiboot {
   };
 
  public:
-  enum Result {
+  enum class Result {
     SUCCESS,
     UNALIGNED,
     INVALID_SIZE,
@@ -125,7 +125,7 @@ class LinkCableMultiboot {
     FAILURE_DURING_TRANSFER
   };
 
-  enum TransferMode {
+  enum class TransferMode {
     SPI = 0,
     MULTI_PLAY = 1
   };  // (used in SWI call, do not swap)
@@ -134,13 +134,13 @@ class LinkCableMultiboot {
    * @brief Sends the `rom`. Once completed, the return value should be
    * `LinkCableMultiboot::Result::SUCCESS`.
    * @param rom A pointer to ROM data. Must be 4-byte aligned.
-   * @param romSize Size of the ROM in bytes. It must be a number between `448`
-   * and `262144`, and a multiple of `16`.
-   * @param cancel A function that will be continuously invoked. If it returns
-   * `true`, the transfer will be aborted.
-   * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default value)
-   * or `TransferMode::SPI` for GBC cable.
-   * \warning Blocks the system until completion or cancellation.
+   * @param romSize Size of the ROM in bytes. It must be a number between
+   * `448` and `262144`, and a multiple of `16`.
+   * @param cancel A function that will be continuously invoked. If it
+   * returns `true`, the transfer will be aborted.
+   * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default
+   * value) or `TransferMode::SPI` for GBC cable. \warning Blocks the system
+   * until completion or cancellation.
    */
   template <typename F>
   Result sendRom(const u8* rom,
@@ -151,10 +151,10 @@ class LinkCableMultiboot {
 
     this->_mode = mode;
     if ((u32)rom % 4 != 0)
-      return UNALIGNED;
+      return Result::UNALIGNED;
     if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
         (romSize % 0x10) != 0)
-      return INVALID_SIZE;
+      return Result::INVALID_SIZE;
 
   retry:
     stop();
@@ -165,7 +165,7 @@ class LinkCableMultiboot {
                    Link::_qran_range(1, INITIAL_WAIT_MAX_RANDOM_FRAMES));
 
     // 1. Prepare a "Multiboot Parameter Structure" in RAM.
-    PartialResult partialResult = NEEDS_RETRY;
+    PartialResult partialResult = PartialResult::NEEDS_RETRY;
     Link::_MultiBootParam multiBootParameters;
     multiBootParameters.client_data[0] = CLIENT_NO_DATA;
     multiBootParameters.client_data[1] = CLIENT_NO_DATA;
@@ -191,7 +191,7 @@ class LinkCableMultiboot {
     // successful, all clients have received the multiboot program successfully
     // and are now executing it - you can begin either further data transfer or
     // a multiplayer game from here.
-    return result == 1 ? FAILURE_DURING_TRANSFER : SUCCESS;
+    return result == 1 ? Result::FAILURE_DURING_TRANSFER : Result::SUCCESS;
   }
 
  private:
@@ -199,7 +199,7 @@ class LinkCableMultiboot {
   LinkSPI linkSPI;
   TransferMode _mode;
 
-  enum PartialResult { NEEDS_RETRY, FINISHED, ABORTED };
+  enum class PartialResult { NEEDS_RETRY, FINISHED, ABORTED };
 
   template <typename F>
   PartialResult detectClients(Link::_MultiBootParam& multiBootParameters,
@@ -215,7 +215,7 @@ class LinkCableMultiboot {
     for (u32 t = 0; t < DETECTION_TRIES; t++) {
       auto response = transfer(CMD_HANDSHAKE, cancel);
       if (cancel())
-        return ABORTED;
+        return PartialResult::ABORTED;
 
       multiBootParameters.client_bit = 0;
 
@@ -237,7 +237,7 @@ class LinkCableMultiboot {
     }
 
     if (!success)
-      return NEEDS_RETRY;
+      return PartialResult::NEEDS_RETRY;
 
     // 4. Fill in client_bit in the multiboot parameter structure (with
     // bits 1-3 set according to which clients responded). Send the word
@@ -248,9 +248,9 @@ class LinkCableMultiboot {
     // The clients should respond 0x7200.
     if (!isResponseSameAsValueWithClientBit(
             response, multiBootParameters.client_bit, ACK_HANDSHAKE))
-      return NEEDS_RETRY;
+      return PartialResult::NEEDS_RETRY;
 
-    return FINISHED;
+    return PartialResult::FINISHED;
   }
 
   template <typename F>
@@ -267,11 +267,11 @@ class LinkCableMultiboot {
     while (remaining > 0) {
       auto response = transfer(*(headerOut++), cancel);
       if (cancel())
-        return ABORTED;
+        return PartialResult::ABORTED;
 
       if (!isResponseSameAsValueWithClientBit(
               response, multiBootParameters.client_bit, remaining << 8))
-        return NEEDS_RETRY;
+        return PartialResult::NEEDS_RETRY;
 
       remaining--;
     }
@@ -281,18 +281,18 @@ class LinkCableMultiboot {
     Response response;
     response = transfer(CMD_HANDSHAKE, cancel);
     if (cancel())
-      return ABORTED;
+      return PartialResult::ABORTED;
     if (!isResponseSameAsValueWithClientBit(response,
                                             multiBootParameters.client_bit, 0))
-      return NEEDS_RETRY;
+      return PartialResult::NEEDS_RETRY;
     response = transfer(CMD_HANDSHAKE | multiBootParameters.client_bit, cancel);
     if (cancel())
-      return ABORTED;
+      return PartialResult::ABORTED;
     if (!isResponseSameAsValueWithClientBit(
             response, multiBootParameters.client_bit, ACK_HANDSHAKE))
-      return NEEDS_RETRY;
+      return PartialResult::NEEDS_RETRY;
 
-    return FINISHED;
+    return PartialResult::FINISHED;
   }
 
   template <typename F>
@@ -307,7 +307,7 @@ class LinkCableMultiboot {
     for (u32 i = 0; i < DETECTION_TRIES; i++) {
       auto response = transfer(data, cancel);
       if (cancel())
-        return ABORTED;
+        return PartialResult::ABORTED;
 
       u8 sendMask = multiBootParameters.client_bit;
       success = validateResponse(
@@ -329,9 +329,9 @@ class LinkCableMultiboot {
     }
 
     if (!success)
-      return NEEDS_RETRY;
+      return PartialResult::NEEDS_RETRY;
 
-    return FINISHED;
+    return PartialResult::FINISHED;
   }
 
   template <typename F>
@@ -350,12 +350,12 @@ class LinkCableMultiboot {
     u16 data = CMD_CONFIRM_HANDSHAKE_DATA | multiBootParameters.handshake_data;
     auto response = transfer(data, cancel);
     if (cancel())
-      return ABORTED;
+      return PartialResult::ABORTED;
     if (!isResponseSameAsValue(response, multiBootParameters.client_bit,
                                ACK_RESPONSE, ACK_RESPONSE_MASK))
-      return NEEDS_RETRY;
+      return PartialResult::NEEDS_RETRY;
 
-    return FINISHED;
+    return PartialResult::FINISHED;
   }
 
   template <typename F>
@@ -463,7 +463,7 @@ class LinkCableMultiboot {
     static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 1;
 
    public:
-    enum State {
+    enum class State {
       STOPPED = 0,
       WAITING = 1,
       DETECTING_CLIENTS = 2,
@@ -480,7 +480,7 @@ class LinkCableMultiboot {
       CHECKING_FINAL_CRC = 13
     };
 
-    enum Result {
+    enum class Result {
       NONE = -1,
       SUCCESS = 0,
       UNALIGNED = 1,
@@ -507,16 +507,16 @@ class LinkCableMultiboot {
                  u32 romSize,
                  bool waitForReadySignal = false,
                  TransferMode mode = TransferMode::MULTI_PLAY) {
-      if (state != STOPPED)
+      if (state != State::STOPPED)
         return false;
 
       if ((u32)rom % 4 != 0) {
-        result = UNALIGNED;
+        result = Result::UNALIGNED;
         return false;
       }
       if (romSize < MIN_ROM_SIZE || romSize > MAX_ROM_SIZE ||
           (romSize % 0x10) != 0) {
-        result = INVALID_SIZE;
+        result = Result::INVALID_SIZE;
         return false;
       }
 
@@ -546,7 +546,7 @@ class LinkCableMultiboot {
     Result getResult(bool clear = true) {
       Result _result = result;
       if (clear)
-        result = NONE;
+        result = Result::NONE;
       return _result;
     }
 
@@ -561,7 +561,7 @@ class LinkCableMultiboot {
      * @brief Returns the completion percentage (0~100).
      */
     [[nodiscard]] u8 getPercentage() {
-      if (state == STOPPED || fixedData.romSize == 0)
+      if (state == State::STOPPED || fixedData.romSize == 0)
         return 0;
 
       return Link::_min(
@@ -581,7 +581,7 @@ class LinkCableMultiboot {
      * parameter.
      */
     void markReady() {
-      if (state == STOPPED)
+      if (state == State::STOPPED)
         return;
 
       dynamicData.ready = true;
@@ -592,7 +592,7 @@ class LinkCableMultiboot {
      * \warning This is internal API!
      */
     void _onVBlank() {
-      if (state == STOPPED)
+      if (state == State::STOPPED)
         return;
 
       processNewFrame();
@@ -603,7 +603,7 @@ class LinkCableMultiboot {
      * \warning This is internal API!
      */
     void _onSerial() {
-      if (state == STOPPED || interrupt)
+      if (state == State::STOPPED || interrupt)
         return;
 
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
@@ -650,8 +650,8 @@ class LinkCableMultiboot {
     LinkSPI linkSPI;
     MultibootFixedData fixedData;
     MultibootDynamicData dynamicData;
-    volatile State state = STOPPED;
-    volatile Result result = NONE;
+    volatile State state = State::STOPPED;
+    volatile Result result = Result::NONE;
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
     volatile bool interrupt = false;
 #endif
@@ -667,28 +667,28 @@ class LinkCableMultiboot {
       }
 
       switch (state) {
-        case WAITING: {
+        case State::WAITING: {
           dynamicData.wait++;
           if (dynamicData.wait >= dynamicData.waitFrames) {
-            state = DETECTING_CLIENTS;
+            state = State::DETECTING_CLIENTS;
             start();
             transferAsync(CMD_HANDSHAKE);
           }
           break;
         }
-        case WAITING_BEFORE_MAIN_TRANSFER: {
+        case State::WAITING_BEFORE_MAIN_TRANSFER: {
           dynamicData.wait++;
           if (dynamicData.wait >= dynamicData.waitFrames) {
-            state = CALCULATING_CRCB;
+            state = State::CALCULATING_CRCB;
             transferAsync((fixedData.romSize - 0x190) >> 2);
           }
           break;
         }
-        case SENDING_ROM_END_WAITING: {
-          state = SENDING_ROM_END;
+        case State::SENDING_ROM_END_WAITING: {
+          state = State::SENDING_ROM_END;
           dynamicData.tryCount++;
           if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS)
-            return (void)stop(FINAL_HANDSHAKE_FAILURE);
+            return (void)stop(Result::FINAL_HANDSHAKE_FAILURE);
 
           transferAsync(CMD_ROM_END);
         }
@@ -701,7 +701,7 @@ class LinkCableMultiboot {
       dynamicData.irqTimeout = 0;
 
       switch (state) {
-        case DETECTING_CLIENTS: {
+        case State::DETECTING_CLIENTS: {
           u32 players = 1;
           dynamicData.clientMask = 0;
 
@@ -722,7 +722,7 @@ class LinkCableMultiboot {
           dynamicData.observedPlayers = players;
 
           if (success) {
-            state = DETECTING_CLIENTS_END;
+            state = State::DETECTING_CLIENTS_END;
             transferAsync(CMD_CONFIRM_CLIENTS | dynamicData.clientMask);
           } else {
             dynamicData.tryCount++;
@@ -733,7 +733,7 @@ class LinkCableMultiboot {
           }
           break;
         }
-        case DETECTING_CLIENTS_END: {
+        case State::DETECTING_CLIENTS_END: {
           if (!isResponseSameAsValueWithClientBit(
                   response, dynamicData.clientMask, ACK_HANDSHAKE))
             return (void)startMultibootSend();
@@ -741,12 +741,12 @@ class LinkCableMultiboot {
           if (fixedData.waitForReadySignal && !dynamicData.ready)
             return (void)startMultibootSend();
 
-          state = SENDING_HEADER;
+          state = State::SENDING_HEADER;
           dynamicData.headerRemaining = HEADER_PARTS;
           sendHeaderPart();
           break;
         }
-        case SENDING_HEADER: {
+        case State::SENDING_HEADER: {
           if (!isResponseSameAsValueWithClientBit(
                   response, dynamicData.clientMask,
                   dynamicData.headerRemaining << 8))
@@ -756,7 +756,7 @@ class LinkCableMultiboot {
           sendHeaderPart();
           break;
         }
-        case SENDING_PALETTE: {
+        case State::SENDING_PALETTE: {
           u8 sendMask = dynamicData.clientMask;
           u8 clientData[3] = {CLIENT_NO_DATA, CLIENT_NO_DATA, CLIENT_NO_DATA};
 
@@ -776,7 +776,7 @@ class LinkCableMultiboot {
               sendMask == 0;
 
           if (success) {
-            state = CONFIRMING_HANDSHAKE_DATA;
+            state = State::CONFIRMING_HANDSHAKE_DATA;
             u8 handshakeData = HANDSHAKE_DATA;
             dynamicData.seed = LINK_CABLE_MULTIBOOT_PALETTE_DATA;
             for (u32 i = 0; i < MAX_CLIENTS; i++) {
@@ -795,16 +795,16 @@ class LinkCableMultiboot {
           }
           break;
         }
-        case CONFIRMING_HANDSHAKE_DATA: {
+        case State::CONFIRMING_HANDSHAKE_DATA: {
           if (!isResponseSameAsValue(response, dynamicData.clientMask,
                                      ACK_RESPONSE, ACK_RESPONSE_MASK))
             return (void)startMultibootSend();
 
-          state = WAITING_BEFORE_MAIN_TRANSFER;
+          state = State::WAITING_BEFORE_MAIN_TRANSFER;
           dynamicData.waitFrames = WAIT_BEFORE_MAIN_TRANSFER_FRAMES;
           break;
         }
-        case CALCULATING_CRCB: {
+        case State::CALCULATING_CRCB: {
           for (u32 i = 0; i < MAX_CLIENTS; i++) {
             u8 clientBit = 1 << (i + 1);
             u8 contribute = 0xFF;
@@ -814,7 +814,7 @@ class LinkCableMultiboot {
             dynamicData.crcB |= contribute << (8 * (i + 1));
           }
 
-          state = SENDING_ROM;
+          state = State::SENDING_ROM;
           dynamicData.crcC = fixedData.transferMode == TransferMode::MULTI_PLAY
                                  ? CRCC_MULTI_START
                                  : CRCC_NORMAL_START;
@@ -822,14 +822,14 @@ class LinkCableMultiboot {
           sendRomPart();
           break;
         }
-        case SENDING_ROM: {
+        case State::SENDING_ROM: {
           u32* dataOut = (u32*)fixedData.rom;
 
           if (fixedData.transferMode == TransferMode::MULTI_PLAY) {
             if (!dynamicData.currentRomPartSecondHalf) {
               if (!isResponseSameAsValue(response, dynamicData.clientMask,
                                          dynamicData.currentRomPart << 2))
-                return (void)stop(SEND_FAILURE);
+                return (void)stop(Result::SEND_FAILURE);
 
               dynamicData.currentRomPartSecondHalf = true;
               sendRomPart();
@@ -837,12 +837,12 @@ class LinkCableMultiboot {
             } else {
               if (!isResponseSameAsValue(response, dynamicData.clientMask,
                                          (dynamicData.currentRomPart << 2) + 2))
-                return (void)stop(SEND_FAILURE);
+                return (void)stop(Result::SEND_FAILURE);
             }
           } else {
             if (!isResponseSameAsValue(response, dynamicData.clientMask,
                                        dynamicData.currentRomPart << 2))
-              return (void)stop(SEND_FAILURE);
+              return (void)stop(Result::SEND_FAILURE);
           }
 
           calculateCRCData(dataOut[dynamicData.currentRomPart]);
@@ -852,29 +852,29 @@ class LinkCableMultiboot {
           sendRomPart();
           break;
         }
-        case SENDING_ROM_END: {
+        case State::SENDING_ROM_END: {
           bool success = isResponseSameAsValue(response, dynamicData.clientMask,
                                                ACK_ROM_END);
 
           if (success) {
-            state = SENDING_FINAL_CRC;
+            state = State::SENDING_FINAL_CRC;
             transferAsync(CMD_FINAL_CRC);
           } else {
-            state = SENDING_ROM_END_WAITING;
+            state = State::SENDING_ROM_END_WAITING;
           }
           break;
         }
-        case SENDING_FINAL_CRC: {
-          state = CHECKING_FINAL_CRC;
+        case State::SENDING_FINAL_CRC: {
+          state = State::CHECKING_FINAL_CRC;
           transferAsync(dynamicData.crcC);
           break;
         }
-        case CHECKING_FINAL_CRC: {
+        case State::CHECKING_FINAL_CRC: {
           if (!isResponseSameAsValue(response, dynamicData.clientMask,
                                      dynamicData.crcC))
-            return (void)stop(CRC_FAILURE);
+            return (void)stop(Result::CRC_FAILURE);
 
-          stop(SUCCESS);
+          stop(Result::SUCCESS);
           break;
         }
         default: {
@@ -901,7 +901,7 @@ class LinkCableMultiboot {
       u32 tmpConfirmedObservedPlayers = dynamicData.confirmedObservedPlayers;
       stop();
 
-      state = WAITING;
+      state = State::WAITING;
       fixedData = tmpFixedData;
       dynamicData.ready = tmpReady;
       dynamicData.confirmedObservedPlayers = tmpConfirmedObservedPlayers;
@@ -912,7 +912,7 @@ class LinkCableMultiboot {
 
     void sendHeaderPart() {
       if (dynamicData.headerRemaining <= 0) {
-        state = SENDING_PALETTE;
+        state = State::SENDING_PALETTE;
         dynamicData.tryCount = 0;
         sendPaletteData();
         return;
@@ -932,7 +932,7 @@ class LinkCableMultiboot {
         dynamicData.crcC &= 0xFFFF;
         calculateCRCData(dynamicData.crcB);
 
-        state = SENDING_ROM_END;
+        state = State::SENDING_ROM_END;
         dynamicData.tryCount = 0;
         transferAsync(CMD_ROM_END);
         return;
@@ -968,8 +968,8 @@ class LinkCableMultiboot {
       dynamicData.crcC = tmpCrcC;
     }
 
-    void resetState(Result newResult = NONE) {
-      state = STOPPED;
+    void resetState(Result newResult = Result::NONE) {
+      state = State::STOPPED;
       result = newResult;
       fixedData = MultibootFixedData{};
       dynamicData = MultibootDynamicData{};
@@ -1012,7 +1012,7 @@ class LinkCableMultiboot {
         linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
     }
 
-    void stop(Result newResult = NONE) {
+    void stop(Result newResult = Result::NONE) {
       auto mode = fixedData.transferMode;
 
       resetState(newResult);

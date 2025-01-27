@@ -196,7 +196,7 @@ class LinkWireless {
   using State = LinkRawWireless::State;
   using SignalLevelResponse = LinkRawWireless::SignalLevelResponse;
 
-  enum Error {
+  enum class Error {
     // User errors
     NONE = 0,
     WRONG_STATE = 1,
@@ -281,7 +281,7 @@ class LinkWireless {
   bool activate() {
     LINK_READ_TAG(LINK_WIRELESS_VERSION);
 
-    lastError = NONE;
+    lastError = Error::NONE;
     isEnabled = false;
 
     LINK_BARRIER;
@@ -330,7 +330,7 @@ class LinkWireless {
     if (turnOff)
       success = activate() && linkRawWireless.bye();
 
-    lastError = NONE;
+    lastError = Error::NONE;
     isEnabled = false;
     resetState();
     stop();
@@ -355,19 +355,19 @@ class LinkWireless {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless.getState() != State::AUTHENTICATED &&
         linkRawWireless.getState() != State::SERVING)
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
     if (Link::strlen(gameName) > LINK_WIRELESS_MAX_GAME_NAME_LENGTH)
-      return badRequest(GAME_NAME_TOO_LONG);
+      return badRequest(Error::GAME_NAME_TOO_LONG);
     if (Link::strlen(userName) > LINK_WIRELESS_MAX_USER_NAME_LENGTH)
-      return badRequest(USER_NAME_TOO_LONG);
+      return badRequest(Error::USER_NAME_TOO_LONG);
 
     isSendingSyncCommand = true;
     if (isAsyncCommandActive())
-      return badRequest(BUSY_TRY_AGAIN);
+      return badRequest(Error::BUSY_TRY_AGAIN);
 
     if (linkRawWireless.getState() != State::SERVING) {
       if (!setup(config.maxPlayers))
-        return abort(COMMAND_FAILED);
+        return abort(Error::COMMAND_FAILED);
     }
 
     bool success = linkRawWireless.broadcast(gameName, userName, gameId, false);
@@ -376,7 +376,7 @@ class LinkWireless {
       success = success && linkRawWireless.startHost(false);
 
     if (!success)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     LINK_BARRIER;
     isSendingSyncCommand = false;
@@ -395,17 +395,17 @@ class LinkWireless {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless.getState() != State::SERVING ||
         linkRawWireless.sessionState.isServerClosed)
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     isSendingSyncCommand = true;
     if (isAsyncCommandActive())
-      return badRequest(BUSY_TRY_AGAIN);
+      return badRequest(Error::BUSY_TRY_AGAIN);
 
     LinkRawWireless::PollConnectionsResponse response;
     bool success = linkRawWireless.endHost(response);
 
     if (!success)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     LINK_BARRIER;
     isSendingSyncCommand = false;
@@ -427,7 +427,7 @@ class LinkWireless {
   bool getSignalLevel(SignalLevelResponse& response) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (!isSessionActive())
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     if (linkRawWireless.getState() == LinkRawWireless::State::SERVING) {
       for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
@@ -437,12 +437,12 @@ class LinkWireless {
 
     isSendingSyncCommand = true;
     if (isAsyncCommandActive())
-      return badRequest(BUSY_TRY_AGAIN);
+      return badRequest(Error::BUSY_TRY_AGAIN);
 
     bool success = linkRawWireless.getSignalLevel(response);
 
     if (!success)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     LINK_BARRIER;
     isSendingSyncCommand = false;
@@ -490,12 +490,12 @@ class LinkWireless {
   bool getServersAsyncStart() {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless.getState() != State::AUTHENTICATED)
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     bool success = linkRawWireless.broadcastReadStart();
 
     if (!success)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     return true;
   }
@@ -508,18 +508,18 @@ class LinkWireless {
   bool getServersAsyncEnd(Server servers[]) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless.getState() != State::SEARCHING)
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     LinkRawWireless::BroadcastReadPollResponse response;
     bool success1 = linkRawWireless.broadcastReadPoll(response);
 
     if (!success1)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     bool success2 = linkRawWireless.broadcastReadEnd();
 
     if (!success2)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     auto foundServers = response.servers;
     for (u32 i = 0; i < response.serversSize; i++) {
@@ -547,12 +547,12 @@ class LinkWireless {
   bool connect(u16 serverId) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless.getState() != State::AUTHENTICATED)
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     bool success = linkRawWireless.connect(serverId);
 
     if (!success)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     return true;
   }
@@ -566,22 +566,22 @@ class LinkWireless {
   bool keepConnecting() {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (linkRawWireless.getState() != State::CONNECTING)
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     LinkRawWireless::ConnectionStatus response;
     bool success1 = linkRawWireless.keepConnecting(response);
 
     if (!success1)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     if (response.phase == LinkRawWireless::ConnectionPhase::STILL_CONNECTING)
       return true;
     else if (response.phase == LinkRawWireless::ConnectionPhase::ERROR)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     auto success2 = linkRawWireless.finishConnection();
     if (!success2)
-      return abort(COMMAND_FAILED);
+      return abort(Error::COMMAND_FAILED);
 
     return true;
   }
@@ -593,11 +593,11 @@ class LinkWireless {
   bool send(u16 data, int _author = -1) {
     LINK_WIRELESS_RESET_IF_NEEDED
     if (!isSessionActive())
-      return badRequest(WRONG_STATE);
+      return badRequest(Error::WRONG_STATE);
 
     if (!canAddNewMessage()) {
       if (_author < 0)
-        lastError = BUFFER_IS_FULL;
+        lastError = Error::BUFFER_IS_FULL;
       return false;
     }
 
@@ -707,7 +707,7 @@ class LinkWireless {
   Error getLastError(bool clear = true) {
     Error error = lastError;
     if (clear)
-      lastError = NONE;
+      lastError = Error::NONE;
     return error;
   }
 
@@ -819,12 +819,12 @@ class LinkWireless {
     if (isConnected() && !sessionState.recvFlag)
       sessionState.recvTimeout++;
     if (sessionState.recvTimeout >= config.timeout)
-      return (void)abort(TIMEOUT);
+      return (void)abort(Error::TIMEOUT);
 
 #ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
     trackRemoteTimeouts();
     if (!checkRemoteTimeouts())
-      return (void)abort(REMOTE_TIMEOUT);
+      return (void)abort(Error::REMOTE_TIMEOUT);
 #endif
 
     sessionState.recvFlag = false;
@@ -859,7 +859,7 @@ class LinkWireless {
 
     int status = linkRawWireless._onSerial(false);
     if (status <= -4) {
-      return (void)abort(ACKNOWLEDGE_FAILED);
+      return (void)abort(Error::ACKNOWLEDGE_FAILED);
     } else if (status > 0) {
       auto result = linkRawWireless._getAsyncCommandResultRef();
       processAsyncCommand(result);
@@ -969,7 +969,7 @@ class LinkWireless {
   u32 nextAsyncCommandData[MAX_COMMAND_TRANSFER_LENGTH];
   u32 nextAsyncCommandDataSize = 0;
   volatile bool isSendingSyncCommand = false;
-  volatile Error lastError = NONE;
+  volatile Error lastError = Error::NONE;
   volatile bool isEnabled = false;
 
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
@@ -1007,10 +1007,10 @@ class LinkWireless {
     if (!commandResult->success) {
       return (void)abort(
           commandResult->commandId == LinkRawWireless::COMMAND_SEND_DATA
-              ? SEND_DATA_FAILED
+              ? Error::SEND_DATA_FAILED
           : commandResult->commandId == LinkRawWireless::COMMAND_RECEIVE_DATA
-              ? RECEIVE_DATA_FAILED
-              : COMMAND_FAILED);
+              ? Error::RECEIVE_DATA_FAILED
+              : Error::COMMAND_FAILED);
     }
 
     switch (commandResult->commandId) {

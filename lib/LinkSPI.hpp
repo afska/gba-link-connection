@@ -73,9 +73,9 @@ class LinkSPI {
   static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
 
  public:
-  enum Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
-  enum DataSize { SIZE_32BIT, SIZE_8BIT };
-  enum AsyncState { IDLE, WAITING, READY };
+  enum class Mode { SLAVE, MASTER_256KBPS, MASTER_2MBPS };
+  enum class DataSize { SIZE_32BIT, SIZE_8BIT };
+  enum class AsyncState { IDLE, WAITING, READY };
 
   /**
    * @brief Returns whether the library is active or not.
@@ -87,26 +87,26 @@ class LinkSPI {
    * @param mode One of the enum values from `LinkSPI::Mode`.
    * @param dataSize One of the enum values from `LinkSPI::DataSize`.
    */
-  void activate(Mode mode, DataSize dataSize = SIZE_32BIT) {
+  void activate(Mode mode, DataSize dataSize = DataSize::SIZE_32BIT) {
     LINK_READ_TAG(LINK_SPI_VERSION);
 
     this->mode = mode;
     this->dataSize = dataSize;
     this->waitMode = false;
-    this->asyncState = IDLE;
+    this->asyncState = AsyncState::IDLE;
     this->asyncData = 0;
 
     setNormalMode();
     disableTransfer();
 
-    if (mode == SLAVE)
+    if (mode == Mode::SLAVE)
       setSlaveMode();
     else {
       setMasterMode();
 
-      if (mode == MASTER_256KBPS)
+      if (mode == Mode::MASTER_256KBPS)
         set256KbpsSpeed();
-      else if (mode == MASTER_2MBPS)
+      else if (mode == Mode::MASTER_2MBPS)
         set2MbpsSpeed();
     }
 
@@ -120,9 +120,9 @@ class LinkSPI {
     isEnabled = false;
     setGeneralPurposeMode();
 
-    mode = SLAVE;
+    mode = Mode::SLAVE;
     waitMode = false;
-    asyncState = IDLE;
+    asyncState = AsyncState::IDLE;
     asyncData = 0;
   }
 
@@ -147,13 +147,13 @@ class LinkSPI {
                F cancel,
                bool _async = false,
                bool _customAck = false) {
-    if (asyncState != IDLE)
+    if (asyncState != AsyncState::IDLE)
       return noData();
 
     setData(data);
 
     if (_async) {
-      asyncState = WAITING;
+      asyncState = AsyncState::WAITING;
       setInterruptsOn();
     } else {
       setInterruptsOff();
@@ -163,7 +163,7 @@ class LinkSPI {
       if (cancel()) {
         disableTransfer();
         setInterruptsOff();
-        asyncState = IDLE;
+        asyncState = AsyncState::IDLE;
         return noData();
       }
 
@@ -224,11 +224,11 @@ class LinkSPI {
    * the state back to `IDLE`. If not, returns an empty response.
    */
   [[nodiscard]] u32 getAsyncData() {
-    if (asyncState != READY)
+    if (asyncState != AsyncState::READY)
       return noData();
 
     u32 data = asyncData;
-    asyncState = IDLE;
+    asyncState = AsyncState::IDLE;
     return data;
   }
 
@@ -265,14 +265,14 @@ class LinkSPI {
    * \warning This is internal API!
    */
   void _onSerial(bool _customAck = false) {
-    if (!isEnabled || asyncState != WAITING)
+    if (!isEnabled || asyncState != AsyncState::WAITING)
       return;
 
     if (!_customAck)
       disableTransfer();
 
     setInterruptsOff();
-    asyncState = READY;
+    asyncState = AsyncState::READY;
     asyncData = getData();
   }
 
@@ -298,14 +298,14 @@ class LinkSPI {
   Mode mode = Mode::SLAVE;
   DataSize dataSize = DataSize::SIZE_32BIT;
   bool waitMode = false;
-  volatile AsyncState asyncState = IDLE;
+  volatile AsyncState asyncState = AsyncState::IDLE;
   vu32 asyncData = 0;
   volatile bool isEnabled = false;
 
   void setNormalMode() {
     Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
 
-    if (dataSize == SIZE_32BIT)
+    if (dataSize == DataSize::SIZE_32BIT)
       Link::_REG_SIOCNT = 1 << BIT_LENGTH;
     else
       Link::_REG_SIOCNT = 0;
@@ -317,19 +317,20 @@ class LinkSPI {
   }
 
   void setData(u32 data) {
-    if (dataSize == SIZE_32BIT)
+    if (dataSize == DataSize::SIZE_32BIT)
       Link::_REG_SIODATA32 = data;
     else
       Link::_REG_SIODATA8 = data & 0xFF;
   }
 
   u32 getData() {
-    return dataSize == SIZE_32BIT ? Link::_REG_SIODATA32
-                                  : Link::_REG_SIODATA8 & 0xFF;
+    return dataSize == DataSize::SIZE_32BIT ? Link::_REG_SIODATA32
+                                            : Link::_REG_SIODATA8 & 0xFF;
   }
 
   u32 noData() {
-    return dataSize == SIZE_32BIT ? LINK_SPI_NO_DATA_32 : LINK_SPI_NO_DATA_8;
+    return dataSize == DataSize::SIZE_32BIT ? LINK_SPI_NO_DATA_32
+                                            : LINK_SPI_NO_DATA_8;
   }
 
   void enableTransfer() { _setSOLow(); }
@@ -346,7 +347,7 @@ class LinkSPI {
   void setInterruptsOn() { setBitHigh(BIT_IRQ); }
   void setInterruptsOff() { setBitLow(BIT_IRQ); }
 
-  bool isMaster() { return mode != SLAVE; }
+  bool isMaster() { return mode != Mode::SLAVE; }
   bool isBitHigh(u8 bit) { return (Link::_REG_SIOCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { Link::_REG_SIOCNT |= 1 << bit; }
   void setBitLow(u8 bit) { Link::_REG_SIOCNT &= ~(1 << bit); }

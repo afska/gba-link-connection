@@ -49,8 +49,8 @@ class LinkGPIO {
   static constexpr u8 DIRECTION_BITS[] = {6, 7, 5, 4};
 
  public:
-  enum Pin { SI, SO, SD, SC };
-  enum Direction { INPUT, OUTPUT };
+  enum class Pin { SI, SO, SD, SC };
+  enum class Direction { INPUT, OUTPUT };
 
   /**
    * @brief Resets communication mode to General Purpose (same as
@@ -70,7 +70,7 @@ class LinkGPIO {
    * @param direction One of the enum values from `LinkGPIO::Direction`.
    */
   void setMode(Pin pin, Direction direction) {
-    setBit(Link::_REG_RCNT, DIRECTION_BITS[pin],
+    setBit(Link::_REG_RCNT, DIRECTION_BITS[(int)pin],
            direction == Direction::OUTPUT);
   }
 
@@ -78,7 +78,7 @@ class LinkGPIO {
    * @brief Returns the direction set at `pin`.
    */
   [[nodiscard]] Direction getMode(Pin pin) {
-    return Direction(getBit(Link::_REG_RCNT, DIRECTION_BITS[pin]));
+    return Direction(getBit(Link::_REG_RCNT, DIRECTION_BITS[(int)pin]));
   }
 
   /**
@@ -86,7 +86,7 @@ class LinkGPIO {
    * @param pin One of the enum values from `LinkGPIO::Pin`.
    */
   [[nodiscard]] bool readPin(Pin pin) {
-    return (Link::_REG_RCNT & (1 << DATA_BITS[pin])) != 0;
+    return (Link::_REG_RCNT & (1 << DATA_BITS[(int)pin])) != 0;
   }
 
   /**
@@ -95,7 +95,7 @@ class LinkGPIO {
    * @param isHigh `true` = HIGH, `false` = LOW.
    */
   void writePin(Pin pin, bool isHigh) {
-    setBit(Link::_REG_RCNT, DATA_BITS[pin], isHigh);
+    setBit(Link::_REG_RCNT, DATA_BITS[(int)pin], isHigh);
   }
 
   /**

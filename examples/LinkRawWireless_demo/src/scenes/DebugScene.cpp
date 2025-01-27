@@ -498,7 +498,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         if (success) {
           log("< [device id] " + linkRawWireless->toHex(response.deviceId, 4));
           log("< [player id] " + std::to_string(response.currentPlayerId));
-          log("< [state] " + std::to_string(response.adapterState));
+          log("< [state] " + std::to_string((int)response.adapterState));
           log("< [closed] " + std::to_string(response.isServerClosed));
         }
 
@@ -691,9 +691,13 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         bool success = linkRawWireless->keepConnecting(response);
 
         if (success) {
-          log(std::string("< [phase] ") + (response.phase == 0   ? "CONNECTING"
-                                           : response.phase == 1 ? "ERROR"
-                                                                 : "SUCCESS"));
+          log(std::string("< [phase] ") +
+              (response.phase ==
+                       LinkRawWireless::ConnectionPhase::STILL_CONNECTING
+                   ? "CONNECTING"
+               : response.phase == LinkRawWireless::ConnectionPhase::ERROR
+                   ? "ERROR"
+                   : "SUCCESS"));
           if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
             log("< [slot] " + std::to_string(response.assignedClientNumber));
 

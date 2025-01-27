@@ -54,7 +54,7 @@ class LinkWirelessOpenSDK {
     u32 totalByteCount = 0;
   };
 
-  enum CommState : unsigned int {
+  enum class CommState : unsigned int {
     OFF = 0,
     STARTING = 1,
     COMMUNICATING = 2,
@@ -65,12 +65,12 @@ class LinkWirelessOpenSDK {
   struct SequenceNumber {
     u32 n = 0;
     u32 phase = 0;
-    CommState commState = OFF;
+    CommState commState = CommState::OFF;
 
     static SequenceNumber fromPacketId(u32 packetId) {
       return SequenceNumber{.n = ((packetId + 4) / 4) % 4,
                             .phase = packetId % 4,
-                            .commState = COMMUNICATING};
+                            .commState = CommState::COMMUNICATING};
     }
 
     bool operator==(const SequenceNumber& other) {
