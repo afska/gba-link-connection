@@ -139,8 +139,8 @@ class LinkCableMultiboot {
    * @param cancel A function that will be continuously invoked. If it
    * returns `true`, the transfer will be aborted.
    * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default
-   * value) or `TransferMode::SPI` for GBC cable. \warning Blocks the system
-   * until completion or cancellation.
+   * value) or `TransferMode::SPI` for GBC cable.
+   * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
   Result sendRom(const u8* rom,
