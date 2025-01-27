@@ -686,6 +686,7 @@ class LinkWirelessMultiboot {
 
     static constexpr int FPS = 60;
     static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 5;
+    static constexpr int START_WAIT_FRAMES = 2;
 
    public:
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
@@ -957,7 +958,7 @@ class LinkWirelessMultiboot {
       switch (state) {
         case STARTING: {
           dynamicData.wait++;
-          if (dynamicData.wait >= 2) {
+          if (dynamicData.wait >= START_WAIT_FRAMES) {
             state = LISTENING;
             startOrKeepListening();
           }
@@ -1014,7 +1015,7 @@ class LinkWirelessMultiboot {
             startHandshakeWith(lastClientNumber);
           } else {
             state = STARTING;
-            dynamicData.wait = 0;
+            dynamicData.wait = START_WAIT_FRAMES - 1;
           }
           break;
         }
