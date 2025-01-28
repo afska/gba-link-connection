@@ -7,7 +7,7 @@
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
-//       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse();
+//       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse(2);
 // - 2) Add the required interrupt service routines:
 //       interrupt_init();
 //       interrupt_add(INTR_TIMER2, []() {});
