@@ -238,15 +238,13 @@ class LinkWireless {
    * (ignoring other peers).
    * @param retransmission If `true`, the library handles retransmission for
    * you, so there should be no packet loss.
-   * @param maxPlayers Maximum number of allowed players. If your game only
-   * supports -for example- two players, set this to `2` as it will make
-   * transfers faster.
+   * @param maxPlayers `(2~5)` Maximum number of allowed players.
    * @param timeout Number of *frames* without receiving *any* data to reset the
    * connection.
    * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
    * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
-   * @param sendTimerId GBA Timer to use for sending.
+   * @param sendTimerId `(0~3)` GBA Timer to use for sending.
    * \warning You can use `Link::perFrame(...)` to convert from *packets per
    * frame* to *interval values*.
    */

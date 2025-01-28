@@ -256,7 +256,7 @@ class AsyncMultiboot {
   virtual bool sendRom(const u8* rom, u32 romSize) = 0;
   virtual bool reset() = 0;
   [[nodiscard]] virtual bool isSending() = 0;
-  virtual Result getResult(bool clear) = 0;
+  virtual Result getResult(bool clear = true) = 0;
   [[nodiscard]] virtual u8 playerCount() = 0;
   [[nodiscard]] virtual u8 getPercentage() = 0;
   [[nodiscard]] virtual bool isReady() = 0;
