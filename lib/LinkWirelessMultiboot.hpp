@@ -27,22 +27,20 @@
 //       // `result` should be LinkWirelessMultiboot::Result::SUCCESS
 // - 3) (Optional) Send ROMs asynchronously:
 //       LinkWirelessMultiboot::Async* linkWirelessMultibootAsync =
-//         new LinkWirelessMultiboot::Async();
+//         new LinkWirelessMultiboot::Async("Multiboot", "Test");
 //       interrupt_init();
 //       interrupt_add(INTR_VBLANK, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_VBLANK);
 //       interrupt_add(INTR_SERIAL, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_SERIAL);
 //       interrupt_add(INTR_TIMER3, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_TIMER);
 //       bool success = linkWirelessMultibootAsync->sendRom(
-//         romBytes, romLength, "Multiboot", "Test", 0xFFFF, 5
+//         romBytes, romLength
 //       );
 //       if (success) {
 //         // (monitor `playerCount()` and `getPercentage()`)
-//         if (
-//           linkWirelessMultibootAsync->getState() ==
-//           LinkWirelessMultiboot::Async::State::STOPPED
-//         ) {
+//         if (!linkWirelessMultibootAsync->isSending()) {
 //           auto result = linkWirelessMultibootAsync->getResult();
-//           // `result` should be LinkWirelessMultiboot::Async::Result::SUCCESS
+//           // `result` should be
+//           // LinkWirelessMultiboot::Async::GeneralResult::SUCCESS
 //         }
 //       }
 // --------------------------------------------------------------------------
@@ -687,6 +685,8 @@ class LinkWirelessMultiboot {
     Logger logger = [](std::string str){};
 #endif
 
+    using GeneralResult = Link::AsyncMultiboot::Result;
+
     enum class State {
       STOPPED = 0,
       INITIALIZING = 1,
@@ -760,8 +760,8 @@ class LinkWirelessMultiboot {
     /**
      * @brief Sends the `rom`. Once completed, `getState()` should return
      * `LinkWirelessMultiboot::Async::State::STOPPED` and `getResult()` should
-     * return `LinkWirelessMultiboot::Async::Result::SUCCESS`. Returns `false`
-     * if there's a pending transfer or the data is invalid.
+     * return `LinkWirelessMultiboot::Async::GeneralResult::SUCCESS`. Returns
+     * `false` if there's a pending transfer or the data is invalid.
      * @param rom A pointer to ROM data.
      * @param romSize Size of the ROM in bytes. It must be a number between
      * `448` and `262144`. It's recommended to use a ROM size that is a multiple

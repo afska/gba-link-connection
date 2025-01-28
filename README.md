@@ -167,14 +167,28 @@ This version is simpler and blocks the system thread until completion. It doesn'
 
 This version (`LinkCableMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines. The class is polymorphic with `LinkWirelessMultiboot::Async`.
 
+
+### Constructor
+
+`new LinkCableMultiboot::Async(...)` accepts these **optional** parameters:
+
+| Name          | Type           | Default       | Description                                                                                                                                                                                                                                                                    |
+| ------------- | -------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `waitForReadySignal`    | **bool**   | `false` | Whether the code should wait for a `markReady()` call to start the actual transfer.                                                                                                                                                                                                                                                     |
+| `mode`     | **LinkCableMultiboot::TransferMode**        | `""`           | Either `LinkCableMultiboot::TransferMode::MULTI_PLAY` for GBA cable (default value) or `LinkCableMultiboot::TransferMode::SPI` for GBC cable.                                                                                                                                           |
+
+You can update these values at any time without creating a new instance by mutating the `config` property. Keep in mind that the changes won't be applied after the next `sendRom(...)` call.
+
 ### Methods
 
 | Name                                    | Return type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sendRom(rom, romSize, [waitForReadySignal], [mode])` | **bool** | Sends the `rom` (must be 4-byte aligned). <br/><br/>The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. <br/><br/>If `waitForReadySignal` is `true`, it will wait until the `markReady()` method is called to start the transfer. <br/><br/>The `mode` can be either `LinkCableMultiboot::TransferMode::MULTI_PLAY` for GBA cable (default value) or `LinkCableMultiboot::TransferMode::SPI` for GBC cable. <br/><br/>Once completed, `getState()` should return `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should return `LinkCableMultiboot::Async::Result::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid. |
-| `reset()` | - | Deactivates the library, canceling the in-progress transfer, if any. |
+| `sendRom(rom, romSize)` | **bool** | Sends the `rom` (must be 4-byte aligned). <br/><br/>The `romSize` must be a number between `448` and `262144`, and a multiple of `16`. <br/><br/>Once completed, `getState()` should return `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should return `LinkCableMultiboot::Async::GeneralResult::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid. |
+| `reset()` | **bool** | Deactivates the library, canceling the in-progress transfer, if any. |
+| `isSending()` | **bool** | Returns whether there's an active transfer or not. |
 | `getState()` | **LinkCableMultiboot::Async::State** | Returns the current state. |
-| `getResult([clear])` | **LinkCableMultiboot::Async::Result** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
+| `getResult([clear])` | **LinkCableMultiboot::Async::GeneralResult** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
+| `getDetailedResult([clear])` | **LinkCableMultiboot::Async::Result** | Returns the detailed result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
 | `playerCount()` | **u8** _(1~4)_ | Returns the number of connected players. |
 | `getPercentage()` | **u32** _(0~100)_ | Returns the completion percentage. |
 | `isReady()` | **bool** | Returns whether the ready mark is active or not. <br/><br/>This is only useful when using the `waitForReadySignal` parameter. |
@@ -349,11 +363,11 @@ You can update these values at any time without creating a new instance by mutat
 
 | Name                                    | Return type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sendRom(rom, romSize)` | **bool** | Sends the `rom`. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>Once completed, `getState()` should return `LinkWirelessMultiboot::Async::State::STOPPED` and `getResult()` should return `LinkWirelessMultiboot::Async::Result::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid. |
+| `sendRom(rom, romSize)` | **bool** | Sends the `rom`. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>Once completed, `isSending()` should return `false` and `getResult()` should return `LinkWirelessMultiboot::Async::GeneralResult::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid. |
 | `reset()` | **bool** | Turns off the adapter and deactivates the library, canceling the in-progress transfer, if any. It returns a boolean indicating whether the transition to low consumption mode was successful. |
 | `isSending()` | **bool** | Returns whether there's an active transfer or not. |
 | `getState()` | **LinkWirelessMultiboot::Async::State** | Returns the current state. |
-| `getResult([clear])` | **Link::AsyncMultiboot::Result** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
+| `getResult([clear])` | **LinkWirelessMultiboot::Async::GeneralResult** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
 | `getDetailedResult([clear])` | **LinkWirelessMultiboot::Async::Result** | Returns the detailed result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
 | `playerCount()` | **u8** _(1~5)_ | Returns the number of connected players. |
 | `getPercentage()` | **u32** _(0~100)_ | Returns the completion percentage. |

@@ -23,6 +23,11 @@ typedef enum {
   C_LINK_CABLE_MULTIBOOT_TRANSFER_MODE_MULTI_PLAY = 1
 } C_LinkCableMultiboot_TransferMode;
 
+typedef struct {
+  bool waitForReadySignal;
+  C_LinkCableMultiboot_TransferMode mode;
+} C_LinkCableMultiboot_Async_Config;
+
 typedef enum {
   C_LINK_CABLE_MULTIBOOT_ASYNC_STATE_STOPPED,
   C_LINK_CABLE_MULTIBOOT_ASYNC_STATE_WAITING,
@@ -39,6 +44,14 @@ typedef enum {
   C_LINK_CABLE_MULTIBOOT_ASYNC_STATE_SENDING_FINAL_CRC,
   C_LINK_CABLE_MULTIBOOT_ASYNC_STATE_CHECKING_FINAL_CRC
 } C_LinkCableMultiboot_Async_State;
+
+typedef enum {
+  C_LINK_WIRELESS_MULTIBOOT_ASYNC_GENERAL_RESULT_NONE = -1,
+  C_LINK_WIRELESS_MULTIBOOT_ASYNC_GENERAL_RESULT_SUCCESS = 0,
+  C_LINK_WIRELESS_MULTIBOOT_ASYNC_GENERAL_RESULT_INVALID_DATA = 1,
+  C_LINK_WIRELESS_MULTIBOOT_ASYNC_GENERAL_RESULT_INIT_FAILED = 2,
+  C_LINK_WIRELESS_MULTIBOOT_ASYNC_GENERAL_RESULT_FAILURE = 3,
+} C_LinkCableMultiboot_Async_GeneralResult;
 
 typedef enum {
   C_LINK_CABLE_MULTIBOOT_ASYNC_RESULT_NONE = -1,
@@ -60,21 +73,27 @@ C_LinkCableMultiboot_Result C_LinkCableMultiboot_sendRom(
     bool (*cancel)(void),
     C_LinkCableMultiboot_TransferMode mode);
 
-C_LinkCableMultiboot_AsyncHandle C_LinkCableMultiboot_Async_create();
+C_LinkCableMultiboot_AsyncHandle C_LinkCableMultiboot_Async_createDefault();
+C_LinkCableMultiboot_AsyncHandle C_LinkCableMultiboot_Async_create(
+    bool waitForReadySignal,
+    C_LinkCableMultiboot_TransferMode mode);
 void C_LinkCableMultiboot_Async_destroy(
     C_LinkCableMultiboot_AsyncHandle handle);
 
 bool C_LinkCableMultiboot_Async_sendRom(C_LinkCableMultiboot_AsyncHandle handle,
                                         const u8* rom,
-                                        u32 romSize,
-                                        bool waitForReadySignal,
-                                        C_LinkCableMultiboot_TransferMode mode);
+                                        u32 romSize);
 
-void C_LinkCableMultiboot_Async_reset(C_LinkCableMultiboot_AsyncHandle handle);
+bool C_LinkCableMultiboot_Async_reset(C_LinkCableMultiboot_AsyncHandle handle);
 
+bool C_LinkCableMultiboot_Async_isSending(
+    C_LinkCableMultiboot_AsyncHandle handle);
 C_LinkCableMultiboot_Async_State C_LinkCableMultiboot_Async_getState(
     C_LinkCableMultiboot_AsyncHandle handle);
-C_LinkCableMultiboot_Async_Result C_LinkCableMultiboot_Async_getResult(
+C_LinkCableMultiboot_Async_GeneralResult C_LinkCableMultiboot_Async_getResult(
+    C_LinkCableMultiboot_AsyncHandle handle,
+    bool clear);
+C_LinkCableMultiboot_Async_Result C_LinkCableMultiboot_Async_getDetailedResult(
     C_LinkCableMultiboot_AsyncHandle handle,
     bool clear);
 
@@ -87,6 +106,12 @@ bool C_LinkCableMultiboot_Async_isReady(
     C_LinkCableMultiboot_AsyncHandle handle);
 void C_LinkCableMultiboot_Async_markReady(
     C_LinkCableMultiboot_AsyncHandle handle);
+
+C_LinkCableMultiboot_Async_Config C_LinkCableMultiboot_Async_getConfig(
+    C_LinkCableMultiboot_AsyncHandle handle);
+void C_LinkCableMultiboot_Async_setConfig(
+    C_LinkCableMultiboot_AsyncHandle handle,
+    C_LinkCableMultiboot_Async_Config config);
 
 void C_LinkCableMultiboot_Async_onVBlank(
     C_LinkCableMultiboot_AsyncHandle handle);

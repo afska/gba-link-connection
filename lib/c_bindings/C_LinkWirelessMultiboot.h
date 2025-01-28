@@ -17,17 +17,6 @@ typedef void* C_LinkWirelessMultiboot_AsyncHandle;
 #define C_LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_INTERVAL 50
 #define C_LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_TIMER_ID 3
 
-typedef struct {
-  const char* gameName;
-  const char* userName;
-  u16 gameId;
-  u8 players;
-  bool waitForReadySignal;
-  bool keepConnectionAlive;
-  u16 interval;
-  u8 timerId;
-} C_LinkWirelessMultiboot_Async_Config;
-
 typedef enum {
   C_LINK_WIRELESS_MULTIBOOT_STATE_STOPPED,
   C_LINK_WIRELESS_MULTIBOOT_STATE_INITIALIZING,
@@ -57,6 +46,17 @@ typedef struct {
 
 typedef bool (*C_LinkWirelessMultiboot_ListenerCallback)(
     C_LinkWirelessMultiboot_Progress progress);
+
+typedef struct {
+  const char* gameName;
+  const char* userName;
+  u16 gameId;
+  u8 players;
+  bool waitForReadySignal;
+  bool keepConnectionAlive;
+  u16 interval;
+  u8 timerId;
+} C_LinkWirelessMultiboot_Async_Config;
 
 typedef enum {
   C_LINK_WIRELESS_MULTIBOOT_ASYNC_STATE_STOPPED,

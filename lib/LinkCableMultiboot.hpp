@@ -28,12 +28,10 @@
 //       bool success = linkCableMultibootAsync->sendRom(romBytes, romLength);
 //       if (success) {
 //         // (monitor `playerCount()` and `getPercentage()`)
-//         if (
-//           linkCableMultibootAsync->getState() ==
-//           LinkCableMultiboot::Async::State::STOPPED
-//         ) {
+//         if (!linkCableMultibootAsync->isSending()) {
 //           auto result = linkCableMultibootAsync->getResult();
-//           // `result` should be LinkCableMultiboot::Async::Result::SUCCESS
+//           // `result` should be
+//           // LinkCableMultiboot::Async::GeneralResult::SUCCESS
 //         }
 //       }
 // --------------------------------------------------------------------------
@@ -445,7 +443,7 @@ class LinkCableMultiboot {
    * @brief [Asynchronous version] A Multiboot tool to send small programs from
    * one GBA to up to 3 slaves.
    */
-  class Async {
+  class Async : Link::AsyncMultiboot {
    private:
     static constexpr int FPS = 60;
     static constexpr int WAIT_BEFORE_MAIN_TRANSFER_FRAMES = 4;
@@ -463,6 +461,8 @@ class LinkCableMultiboot {
     static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 1;
 
    public:
+    using GeneralResult = Link::AsyncMultiboot::Result;
+
     enum class State {
       STOPPED = 0,
       WAITING = 1,
@@ -491,22 +491,28 @@ class LinkCableMultiboot {
     };
 
     /**
-     * @brief Sends the `rom`. Once completed, `getState()` should return
-     * `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should
-     * return `LinkCableMultiboot::Async::Result::SUCCESS`. Returns `false` if
-     * there's a pending transfer or the data is invalid.
-     * @param rom A pointer to ROM data. Must be 4-byte aligned.
-     * @param romSize Size of the ROM in bytes. It must be a number between
-     * `448` and `262144`, and a multiple of `16`.
+     * @brief Constructs a new LinkCableMultiboot::Async object.
      * @param waitForReadySignal Whether the code should wait for a
      * `markReady()` call to start the actual transfer.
      * @param mode Either `TransferMode::MULTI_PLAY` for GBA cable (default
      * value) or `TransferMode::SPI` for GBC cable.
      */
-    bool sendRom(const u8* rom,
-                 u32 romSize,
-                 bool waitForReadySignal = false,
-                 TransferMode mode = TransferMode::MULTI_PLAY) {
+    explicit Async(bool waitForReadySignal = false,
+                   TransferMode mode = TransferMode::MULTI_PLAY) {
+      config.waitForReadySignal = waitForReadySignal;
+      config.mode = mode;
+    }
+
+    /**
+     * @brief Sends the `rom`. Once completed, `getState()` should return
+     * `LinkCableMultiboot::Async::State::STOPPED` and `getResult()` should
+     * return `LinkCableMultiboot::Async::GeneralResult::SUCCESS`. Returns
+     * `false` if there's a pending transfer or the data is invalid.
+     * @param rom A pointer to ROM data. Must be 4-byte aligned.
+     * @param romSize Size of the ROM in bytes. It must be a number between
+     * `448` and `262144`, and a multiple of `16`.
+     */
+    bool sendRom(const u8* rom, u32 romSize) override {
       if (state != State::STOPPED)
         return false;
 
@@ -521,7 +527,7 @@ class LinkCableMultiboot {
       }
 
       resetState();
-      initFixedData(rom, romSize, waitForReadySignal, mode);
+      initFixedData(rom, romSize, config.waitForReadySignal, config.mode);
       startMultibootSend();
 
       return true;
@@ -531,7 +537,15 @@ class LinkCableMultiboot {
      * Deactivates the library, canceling the in-progress transfer, if any.
      * \warning Never call this method inside an interrupt handler!
      */
-    void reset() { stop(); }
+    bool reset() override {
+      stop();
+      return true;
+    }
+
+    /**
+     * @brief Returns whether there's an active transfer or not.
+     */
+    [[nodiscard]] bool isSending() override { return state != State::STOPPED; }
 
     /**
      * @brief Returns the current state.
@@ -539,11 +553,31 @@ class LinkCableMultiboot {
     [[nodiscard]] State getState() { return state; }
 
     /**
+     * @brief Returns the result of the last operation. After this
+     * call, the result is cleared if `clear` is `true` (default behavior).
+     * @param clear Whether it should clear the result or not.
+     */
+    Link::AsyncMultiboot::Result getResult(bool clear = true) override {
+      auto detailedResult = getDetailedResult(clear);
+      switch (detailedResult) {
+        case Result::NONE:
+          return Link::AsyncMultiboot::Result::NONE;
+        case Result::SUCCESS:
+          return Link::AsyncMultiboot::Result::SUCCESS;
+        case Result::UNALIGNED:
+        case Result::INVALID_SIZE:
+          return Link::AsyncMultiboot::Result::INVALID_DATA;
+        default:
+          return Link::AsyncMultiboot::Result::FAILURE;
+      }
+    }
+
+    /**
      * @brief Returns the detailed result of the last operation. After this
      * call, the result is cleared if `clear` is `true` (default behavior).
      * @param clear Whether it should clear the result or not.
      */
-    Result getResult(bool clear = true) {
+    Result getDetailedResult(bool clear = true) {
       Result _result = result;
       if (clear)
         result = Result::NONE;
@@ -553,14 +587,14 @@ class LinkCableMultiboot {
     /**
      * @brief Returns the number of connected players (`1~4`).
      */
-    [[nodiscard]] u8 playerCount() {
+    [[nodiscard]] u8 playerCount() override {
       return dynamicData.confirmedObservedPlayers;
     }
 
     /**
      * @brief Returns the completion percentage (0~100).
      */
-    [[nodiscard]] u8 getPercentage() {
+    [[nodiscard]] u8 getPercentage() override {
       if (state == State::STOPPED || fixedData.romSize == 0)
         return 0;
 
@@ -573,14 +607,14 @@ class LinkCableMultiboot {
      * \warning This is only useful when using the `waitForReadySignal`
      * parameter.
      */
-    [[nodiscard]] bool isReady() { return dynamicData.ready; }
+    [[nodiscard]] bool isReady() override { return dynamicData.ready; }
 
     /**
      * @brief Marks the transfer as ready.
      * \warning This is only useful when using the `waitForReadySignal`
      * parameter.
      */
-    void markReady() {
+    void markReady() override {
       if (state == State::STOPPED)
         return;
 
@@ -618,6 +652,16 @@ class LinkCableMultiboot {
       interrupt = false;
 #endif
     }
+
+    struct Config {
+      bool waitForReadySignal = false;
+      TransferMode mode = TransferMode::MULTI_PLAY;
+    };
+
+    /**
+     * @brief LinkWirelessMultiboot::Async configuration.
+     */
+    Config config;
 
    private:
     struct MultibootFixedData {
