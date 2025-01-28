@@ -104,13 +104,6 @@ You can update these values at any time without creating a new instance:
 - Mutate the `config` property.
 - Call `activate()`.
 
-## Compile-time constants
-
-- `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's around `390` bytes. There's a double-buffered pending queue (to avoid data races), `1` incoming queue and `1` outgoing queue.
-  - You can approximate the memory usage with:
-    - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)` <=> `LINK_CABLE_QUEUE_SIZE * 26`
-
 ## Methods
 
 | Name                        | Return type    | Description                                                                                                                                                                      |
@@ -133,6 +126,13 @@ You can update these values at any time without creating a new instance:
 
 ⚠️ `0xFFFF` and `0x0` are reserved values, so don't send them!
 
+## Compile-time constants
+
+- `LINK_CABLE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max **per player**). The default value is `15`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's around `390` bytes. There's a double-buffered pending queue (to avoid data races), `1` incoming queue and `1` outgoing queue.
+  - You can approximate the memory usage with:
+    - `(LINK_CABLE_QUEUE_SIZE * sizeof(u16) * LINK_CABLE_MAX_PLAYERS) * 3 + LINK_CABLE_QUEUE_SIZE * sizeof(u16)` <=> `LINK_CABLE_QUEUE_SIZE * 26`
+
 # 💻 LinkCableMultiboot
 
 _(aka Multiboot through Multi-Play Mode)_
@@ -147,12 +147,6 @@ Its demo (`LinkCableMultiboot_demo`) has all the other gba-link-connection ROMs 
 
 This version is simpler and blocks the system thread until completion. It doesn't require interrupt service routines.
 
-### Compile-time constants
-
-- `LINK_CABLE_MULTIBOOT_PALETTE_DATA`: to control how the logo is displayed.
-  - Format: `0b1CCCDSS1`, where `C`=color, `D`=direction, `S`=speed.
-  - Default: `0b10010011`.
-
 ### Methods
 
 | Name                                    | Return type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -163,13 +157,15 @@ This version is simpler and blocks the system thread until completion. It doesn'
 
 ⚠️ this restriction only applies to the sync version!
 
-## Async version
-
-This version (`LinkCableMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
-
 ### Compile-time constants
 
-- `LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ`: to disable nested IRQs. In the async version, SERIAL IRQs can be interrupted (once they clear their time-critical needs) by default, which helps prevent issues with audio engines. However, if something goes wrong, you can disable this behavior.
+- `LINK_CABLE_MULTIBOOT_PALETTE_DATA`: to control how the logo is displayed.
+  - Format: `0b1CCCDSS1`, where `C`=color, `D`=direction, `S`=speed.
+  - Default: `0b10010011`.
+
+## Async version
+
+This version (`LinkCableMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines. The class is polymorphic with `LinkWirelessMultiboot::Async`.
 
 ### Methods
 
@@ -185,6 +181,10 @@ This version (`LinkCableMultiboot::Async`) allows more advanced use cases like p
 | `markReady()` | **bool** | Marks the transfer as ready. <br/><br/>This is only useful when using the `waitForReadySignal` parameter. |
 
 ⚠️ never call `reset()` inside an interrupt handler!
+
+### Compile-time constants
+
+- `LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ`: to disable nested IRQs. In the async version, SERIAL IRQs can be interrupted (once they clear their time-critical needs) by default, which helps prevent issues with audio engines. However, if something goes wrong, you can disable this behavior.
 
 # 🔧👾 LinkRawCable
 
@@ -247,20 +247,6 @@ You can update these values at any time without creating a new instance:
 - Mutate the `config` property.
 - Call `activate()`.
 
-## Compile-time constants
-
-- `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's around `960` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
-  - You can approximate the memory usage with:
-    - `LINK_WIRELESS_QUEUE_SIZE * sizeof(Message) * 4` <=> `LINK_WIRELESS_QUEUE_SIZE * 32`
-- `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
-- `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
-  - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
-- `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
-  - This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is disabled.
-- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
-- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" `5` bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties. When this option is enabled, the `maxPlayers` constructor parameter will be ignored.
-
 ## Methods
 
 - Most of these methods return a boolean, indicating if the action was successful. If not, you can call `getLastError()` to know the reason. Usually, unless it's a trivial error (like buffers being full), the connection with the adapter is reset and the game needs to start again.
@@ -299,6 +285,20 @@ You can update these values at any time without creating a new instance:
 
 ⚠️ `0xFFFF` is a reserved value, so don't send it!
 
+## Compile-time constants
+
+- `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's around `960` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
+  - You can approximate the memory usage with:
+    - `LINK_WIRELESS_QUEUE_SIZE * sizeof(Message) * 4` <=> `LINK_WIRELESS_QUEUE_SIZE * 32`
+- `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;20]` for servers and `[2;4]` for clients. The default values are `20` and `4`, but you might want to set them a bit lower to reduce CPU usage.
+- `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
+  - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
+- `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
+  - This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is disabled.
+- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
+- `LINK_WIRELESS_TWO_PLAYERS_ONLY`: to optimize the library for two players. This will make the code smaller and use less CPU. It will also let you "misuse" `5` bits from the packet header to send small packets really fast (e.g. pressed keys) without confirmation, using the `QUICK_SEND` and `QUICK_RECEIVE` properties. When this option is enabled, the `maxPlayers` constructor parameter will be ignored.
+
 # 💻 LinkWirelessMultiboot
 
 _(aka Multiboot through Wireless Adapter)_
@@ -313,10 +313,6 @@ https://github.com/afska/gba-link-connection/assets/1631752/9a648bff-b14f-4a85-9
 
 This version is simpler and blocks the system thread until completion. It doesn't require interrupt service routines.
 
-### Compile-time constants
-
-- `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultiboot->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
-
 ### Methods
 
 | Name                                                                 | Return type                       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -324,29 +320,52 @@ This version is simpler and blocks the system thread until completion. It doesn'
 | `sendRom(rom, romSize, gameName, userName, gameId, players, listener, [keepConnectionAlive])` | **LinkWirelessMultiboot::Result** | Sends the `rom`. <br/><br/>The `players` must be the number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. <br/><br/>During the process, the library will continuously invoke `listener` (passing a `LinkWirelessMultiboot::MultibootProgress` object as argument), and abort the transfer if it returns `true`. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>Once completed, the return value should be `LinkWirelessMultiboot::Result::SUCCESS`. <br/><br/>You can start the transfer before the player count is reached by running `*progress.ready = true;` in the`cancel` callback. <br/><br/>If `keepConnectionAlive` is `true`, the adapter won't be reset after a successful transfer, so users can continue the session using `LinkWireless::restoreExistingConnection()`. |
 | `reset()` | - | Turns off the adapter and deactivates the library. It returns a boolean indicating whether the transition to low consumption mode was successful. |
 
-## Async version
-
-This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines.
-
 ### Compile-time constants
 
-- `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultibootAsync->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
-- `LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ`: to disable nested IRQs. In the async version, SERIAL IRQs can be interrupted (once they clear their time-critical needs) by default, which helps prevent issues with audio engines. However, if something goes wrong, you can disable this behavior.
+- `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultiboot->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
+
+## Async version
+
+This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases like playing animations and/or audio during the transfers, displaying the number of connected players and send percentage, and marking the transfer as 'ready' to start. It requires adding the provided interrupt service routines. The class is polymorphic with `LinkCableMultiboot::Async`.
+
+### Constructor
+
+`new LinkWirelessMultiboot::Async(...)` accepts these **optional** parameters:
+
+| Name          | Type           | Default       | Description                                                                                                                                                                                                                                                                    |
+| ------------- | -------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `gameName`    | **const char\***   | `""` | Game name. Maximum `14` characters + null terminator.                                                                                                                                                                                                                                                     |
+| `userName`     | **const char\***        | `""`           | Maximum number of _frames_ without receiving data from other player before marking them as disconnected or resetting the connection.                                                                                                                                           |
+| `gameId` | **u16** _(0 ~ 0x7FFF)_ | `0x7FFF` | The Game ID to be broadcasted. |
+| `players` | **u32** _(2~5)_ | `5` | The number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes, unless `waitForReadySignal` is `true`. |
+| `waitForReadySignal` | **bool** | `false` | Whether the code should wait for a `markReady()` call to start the actual transfer. |
+| `keepConnectionAlive` | **bool** | `false` | If `true`, the adapter won't be reset after a successful transfer, so users can continue the session using `LinkWireless::restoreExistingConnection()`.
+| `interval`    | **u16**        | `50`          | Number of _1024-cycle ticks_ (61.04μs) between transfers _(50 = 3.052ms)_. It's the interval of Timer #`timerId`. <br/><br/>Lower values will transfer faster but also consume more CPU. Some audio players require precise interrupt timing to avoid crashes! Use a minimum of 30. |
+| `timerId` | **u8** _(0~3)_ | `3`           | GBA Timer to use for sending.                                                                                                                                                                                                                                                  |
+
+You can update these values at any time without creating a new instance by mutating the `config` property. Keep in mind that the changes won't be applied after the next `sendRom(...)` call.
 
 ### Methods
 
 | Name                                    | Return type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sendRom(rom, romSize, gameName, userName, gameId, players, [waitForReadySignal], [keepConnectionAlive], [maxTransfersPerFrame])` | **bool** | Sends the `rom`. <br/><br/>The `players` must be the number of consoles that will download the ROM. Once this number of players is reached, the code will start transmitting the ROM bytes. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>If `waitForReadySignal` is `true`, it will wait until the `markReady()` method is called to start the transfer. <br/><br/>Setting a `maxTransfersPerFrame` limit slows down transfers but can help fix audio popping issues, as it reduces CPU time spent in interrupt handlers. <br/><br/>Once completed, `getState()` should return `LinkWirelessMultiboot::Async::State::STOPPED` and `getResult()` should return `LinkWirelessMultiboot::Async::Result::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid.<br/><br/>If `keepConnectionAlive` is `true`, the adapter won't be reset after a successful transfer, so users can continue the session using `LinkWireless::restoreExistingConnection()`. |
+| `sendRom(rom, romSize)` | **bool** | Sends the `rom`. <br/><br/>The `romSize` must be a number between `448` and `262144`. It's recommended to use a ROM size that is a multiple of `16`, since this also ensures compatibility with Multiboot via Link Cable. <br/><br/>Once completed, `getState()` should return `LinkWirelessMultiboot::Async::State::STOPPED` and `getResult()` should return `LinkWirelessMultiboot::Async::Result::SUCCESS`. <br/><br/>Returns `false` if there's a pending transfer or the data is invalid. |
 | `reset()` | **bool** | Turns off the adapter and deactivates the library, canceling the in-progress transfer, if any. It returns a boolean indicating whether the transition to low consumption mode was successful. |
+| `isSending()` | **bool** | Returns whether there's an active transfer or not. |
 | `getState()` | **LinkWirelessMultiboot::Async::State** | Returns the current state. |
-| `getResult([clear])` | **LinkWirelessMultiboot::Async::Result** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
+| `getResult([clear])` | **Link::AsyncMultiboot::Result** | Returns the result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
+| `getDetailedResult([clear])` | **LinkWirelessMultiboot::Async::Result** | Returns the detailed result of the last operation. <br/><br/>After this call, the result is cleared if `clear` is `true` (default behavior). |
 | `playerCount()` | **u8** _(1~5)_ | Returns the number of connected players. |
 | `getPercentage()` | **u32** _(0~100)_ | Returns the completion percentage. |
 | `isReady()` | **bool** | Returns whether the ready mark is active or not. |
 | `markReady()` | **bool** | Marks the transfer as ready. |
 
 ⚠️ never call `reset()` inside an interrupt handler!
+
+### Compile-time constants
+
+- `LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING`: to enable logging. Set `linkWirelessMultibootAsync->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
+- `LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ`: to disable nested IRQs. In the async version, SERIAL IRQs can be interrupted (once they clear their time-critical needs) by default, which helps prevent issues with audio engines. However, if something goes wrong, you can disable this behavior.
 
 # 🔧📻 LinkRawWireless
 
@@ -357,10 +376,6 @@ This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases lik
 - Its demo (`LinkRawWireless_demo`) can help emulator developers in enhancing accuracy.
 
 ![screenshot](https://github.com/afska/gba-link-connection/assets/1631752/bc7e5a7d-a1bd-46a5-8318-98160c1229ae)
-
-### Compile-time constants
-
-- `LINK_RAW_WIRELESS_ENABLE_LOGGING`: to enable logging. Set `linkRawWireless->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
 
 ## Methods
 
@@ -394,6 +409,10 @@ This version (`LinkWirelessMultiboot::Async`) allows more advanced use cases lik
   - `getReceiveDataResponse(...)`
 
 ⚠️ advanced usage only; if you're building a game, use `LinkWireless`!
+
+### Compile-time constants
+
+- `LINK_RAW_WIRELESS_ENABLE_LOGGING`: to enable logging. Set `linkRawWireless->logger` and it will be called to report the detailed state of the library. Note that this option `#include`s `std::string`!
 
 # 🔧🏛 LinkWirelessOpenSDK
 
@@ -431,11 +450,6 @@ https://github.com/afska/gba-link-connection/assets/1631752/d1f49a48-6b17-4954-9
 | `cableOptions`    | **LinkUniversal::CableOptions**    | _same as LinkCable_    | All the [👾 LinkCable](#-LinkCable) constructor parameters in one _struct_.                                                                                                                                                                                   |
 | `wirelessOptions` | **LinkUniversal::WirelessOptions** | _same as LinkWireless_ | All the [📻 LinkWireless](#-LinkWireless) constructor parameters in one _struct_.                                                                                                                                                                             |
 
-## Compile-time constants
-
-- `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `5`, but since LinkCable's limit is `4`, you might want to decrease it.
-- `LINK_UNIVERSAL_GAME_ID_FILTER`: to restrict wireless connections to rooms with a specific game ID (`0x0000` ~ `0x7FFF`). The default value (`0`) connects to any game ID and uses `0x7FFF` when serving.
-
 ## Methods
 
 The interface is the same as [👾 LinkCable](#-LinkCable). Additionally, it supports these methods:
@@ -449,6 +463,11 @@ The interface is the same as [👾 LinkCable](#-LinkCable). Additionally, it sup
 | `setProtocol(protocol)` | -                           | Sets the active `protocol`.                                                                                                                                                                                                                        |
 | `getLinkCable()`          | **LinkCable\***                           | Returns the internal `LinkCable` instance (for advanced usage).                                                                                                                                                                                              |
 | `getLinkWireless()`          | **LinkWireless\***                           | Returns the internal `LinkWireless` instance (for advanced usage).                                                                                                                                                                                              |
+
+## Compile-time constants
+
+- `LINK_UNIVERSAL_MAX_PLAYERS`: to set a maximum number of players. The default value is `5`, but since LinkCable's limit is `4`, you might want to decrease it.
+- `LINK_UNIVERSAL_GAME_ID_FILTER`: to restrict wireless connections to rooms with a specific game ID (`0x0000` ~ `0x7FFF`). The default value (`0`) connects to any game ID and uses `0x7FFF` when serving.
 
 # 🔌 LinkGPIO
 
@@ -537,10 +556,6 @@ _(aka UART Mode)_
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/2ca8abb8-1a38-40bb-bf7d-bf29a0f880cd)
 
-## Compile-time constants
-
-- `LINK_UART_QUEUE_SIZE`: to set the buffer size.
-
 ## Methods
 
 | Name                                           | Return type | Description                                                                                                                                                                                                                  |
@@ -561,6 +576,10 @@ _(aka UART Mode)_
 | `read()`                                       | **u8**      | Reads a byte. Returns 0 if nothing is found.                                                                                                                                                                                 |
 | `send(data)`                                   | -           | Sends a `data` byte.                                                                                                                                                                                                         |
 
+## Compile-time constants
+
+- `LINK_UART_QUEUE_SIZE`: to set the buffer size.
+
 ## UART Configuration
 
 The GBA operates using `1` stop bit, but everything else can be configured. By default, the library uses `8N1`, which means 8-bit data and no parity bit. RTS/CTS is disabled by default.
@@ -579,13 +598,6 @@ _(aka JOYBUS Mode)_
 
 ![screenshot](https://github.com/user-attachments/assets/93c11c9a-bdbf-4726-a070-895465739789)
 
-## Compile-time constants
-
-- `LINK_CUBE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing values the queues can store at max). The default value is `10`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's around `120` bytes. There's a double-buffered pending queue (to avoid data races), and 1 outgoing queue.
-  - You can approximate the memory usage with:
-    - `LINK_CUBE_QUEUE_SIZE * sizeof(u32) * 3` <=> `LINK_CUBE_QUEUE_SIZE * 12`
-
 ## Methods
 
 | Name                | Return type | Description                                                                                                                                        |
@@ -602,6 +614,13 @@ _(aka JOYBUS Mode)_
 | `pendingCount()`    | **u32**     | Returns the number of pending outgoing transfers.                                                                                                  |
 | `didQueueOverflow([clear])`    | **bool**     | Returns whether the internal receive queue lost messages at some point due to being full. This can happen if your queue size is too low, if you receive too much data without calling `read(...)` enough times, or if excessive `read(...)` calls prevent the ISR from copying data. <br/><br/>After this call, the overflow flag is cleared if `clear` is `true` (default behavior).                                                                                                 |
 | `didReset([clear])` | **bool**    | Returns whether a JOYBUS reset was requested or not. <br/><br/>After this call, the reset flag is cleared if `clear` is `true` (default behavior).           |
+
+## Compile-time constants
+
+- `LINK_CUBE_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing values the queues can store at max). The default value is `10`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's around `120` bytes. There's a double-buffered pending queue (to avoid data races), and 1 outgoing queue.
+  - You can approximate the memory usage with:
+    - `LINK_CUBE_QUEUE_SIZE * sizeof(u32) * 3` <=> `LINK_CUBE_QUEUE_SIZE * 12`
 
 # 📱 LinkMobile
 
@@ -633,11 +652,6 @@ You can update these values at any time without creating a new instance:
 - Mutate the `config` property.
 - Call `activate()`.
 
-## Compile-time constants
-
-- `LINK_MOBILE_QUEUE_SIZE`: to set a custom request queue size (how many commands can be queued at the same time). The default value is `10`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's around `3` KB.
-
 ## Methods
 
 - All actions are asynchronous/nonblocking. That means, they will return `true` if nothing is awfully wrong, but the actual consequence will occur some frames later. You can call `getState()` at any time to know what it's doing.
@@ -668,6 +682,12 @@ You can update these values at any time without creating a new instance:
 | `canShutdown()`                                | **bool**              | Returns `true` if there's an active session and there's no previous shutdown requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `getDataSize()`                                | **LinkSPI::DataSize** | Returns the current operation mode (`LinkSPI::DataSize`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `getError()`                                   | **LinkMobile::Error** | Returns details about the last error that caused the connection to be aborted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+## Compile-time constants
+
+- `LINK_MOBILE_QUEUE_SIZE`: to set a custom request queue size (how many commands can be queued at the same time). The default value is `10`, which seems fine for most games.
+  - This affects how much memory is allocated. With the default value, it's around `3` KB.
+
 
 # 🖱️ LinkPS2Mouse
 

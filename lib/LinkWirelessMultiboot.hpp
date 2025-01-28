@@ -31,6 +31,7 @@
 //       interrupt_init();
 //       interrupt_add(INTR_VBLANK, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_VBLANK);
 //       interrupt_add(INTR_SERIAL, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_SERIAL);
+//       interrupt_add(INTR_TIMER3, LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_TIMER);
 //       bool success = linkWirelessMultibootAsync->sendRom(
 //         romBytes, romLength, "Multiboot", "Test", 0xFFFF, 5
 //       );
@@ -81,6 +82,8 @@ LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
 #define LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS 2
 #define LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS 5
+#define LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_INTERVAL 50
+#define LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_TIMER_ID 3
 #define LINK_WIRELESS_MULTIBOOT_TRY(CALL)       \
   LINK_BARRIER;                                 \
   if ((lastResult = CALL) != Result::SUCCESS) { \
@@ -670,17 +673,18 @@ class LinkWirelessMultiboot {
    * @brief [Asynchronous version] A Multiboot tool to send small ROMs from a
    * GBA to up to 4 slaves via GBA Wireless Adapter.
    */
-  class Async {
+  class Async : Link::AsyncMultiboot {
    private:
     using ServerHeader = LinkWirelessOpenSDK::ServerSDKHeader;
 
+    static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
     static constexpr int FPS = 60;
     static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 5;
     static constexpr int START_WAIT_FRAMES = 2;
 
    public:
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
-    Logger logger = [](std::string str) {};
+    Logger logger = [](std::string str){};
 #endif
 
     enum class State {
@@ -695,11 +699,10 @@ class LinkWirelessMultiboot {
       HANDSHAKING_CLIENT_STEP5 = 8,
       ENDING_HOST = 9,
       SENDING_ROM_START_COMMAND = 10,
-      RESTING = 11,
-      ENSURING_CLIENTS_ALIVE = 12,
-      SENDING_ROM_PART = 13,
-      CONFIRMING_STEP1 = 14,
-      CONFIRMING_STEP2 = 15,
+      ENSURING_CLIENTS_ALIVE = 11,
+      SENDING_ROM_PART = 12,
+      CONFIRMING_STEP1 = 13,
+      CONFIRMING_STEP2 = 14,
     };
 
     enum class Result {
@@ -715,7 +718,44 @@ class LinkWirelessMultiboot {
       IRQ_TIMEOUT = 8
     };
 
-    Async() : multiTransfer(&linkWirelessOpenSDK) {}
+    /**
+     * @brief Constructs a new LinkWirelessMultiboot::Async object.
+     * @param gameName Game name. Maximum `14` characters + null terminator.
+     * @param userName User name. Maximum `8` characters + null terminator.
+     * @param gameId `(0 ~ 0x7FFF)` The Game ID to be broadcasted.
+     * @param players The number of consoles that will download the ROM.
+     * Once this number of players is reached, the code will start transmitting
+     * the ROM bytes, unless `waitForReadySignal` is `true`.
+     * @param waitForReadySignal Whether the code should wait for a
+     * `markReady()` call to start the actual transfer.
+     * @param keepConnectionAlive If `true`, the adapter won't be reset after
+     * a successful transfer, so users can continue the session using
+     * `LinkWireless::restoreExistingConnection()`.
+     * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
+     * *(50 = 3.052ms)*. It's the interval of Timer #`timerId`. Lower values
+     * will transfer faster but also consume more CPU. Some audio players
+     * require precise interrupt timing to avoid crashes! Use a minimum of 30.
+     * @param timerId `(0~3)` GBA Timer to use for waiting.
+     */
+    explicit Async(
+        const char* gameName = "",
+        const char* userName = "",
+        u16 gameId = LINK_RAW_WIRELESS_MAX_GAME_ID,
+        u8 players = 5,
+        bool waitForReadySignal = false,
+        bool keepConnectionAlive = false,
+        u16 interval = LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_INTERVAL,
+        u8 timerId = LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_TIMER_ID)
+        : multiTransfer(&linkWirelessOpenSDK) {
+      config.gameName = gameName;
+      config.userName = userName;
+      config.gameId = gameId;
+      config.players = players;
+      config.waitForReadySignal = waitForReadySignal;
+      config.keepConnectionAlive = keepConnectionAlive;
+      config.interval = interval;
+      config.timerId = timerId;
+    }
 
     /**
      * @brief Sends the `rom`. Once completed, `getState()` should return
@@ -727,30 +767,8 @@ class LinkWirelessMultiboot {
      * `448` and `262144`. It's recommended to use a ROM size that is a multiple
      * of `16`, as this also ensures compatibility with Multiboot via Link
      * Cable.
-     * @param gameName Game name. Maximum `14` characters + null terminator.
-     * @param userName User name. Maximum `8` characters + null terminator.
-     * @param gameId `(0 ~ 0x7FFF)` Game ID.
-     * @param players The number of consoles that will download the ROM.
-     * Once this number of players is reached, the code will start transmitting
-     * the ROM bytes, unless `waitForReadySignal` is `true`.
-     * @param waitForReadySignal Whether the code should wait for a
-     * `markReady()` call to start the actual transfer.
-     * @param keepConnectionAlive If `true`, the adapter won't be reset after
-     * a successful transfer, so users can continue the session using
-     * `LinkWireless::restoreExistingConnection()`.
-     * @param maxTransfersPerFrame Transfer limit per frame. This slows down
-     * transfers but can help fix audio popping issues, as it reduces CPU time
-     * spent in interrupt handlers.
      */
-    bool sendRom(const u8* rom,
-                 u32 romSize,
-                 const char* gameName,
-                 const char* userName,
-                 const u16 gameId,
-                 u8 players,
-                 bool waitForReadySignal = false,
-                 bool keepConnectionAlive = false,
-                 u32 maxTransfersPerFrame = 0xffffffff) {
+    bool sendRom(const u8* rom, u32 romSize) override {
       if (state != State::STOPPED)
         return false;
 
@@ -759,8 +777,8 @@ class LinkWirelessMultiboot {
         result = Result::INVALID_SIZE;
         return false;
       }
-      if (players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
-          players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS) {
+      if (config.players < LINK_WIRELESS_MULTIBOOT_MIN_PLAYERS ||
+          config.players > LINK_WIRELESS_MULTIBOOT_MAX_PLAYERS) {
         result = Result::INVALID_PLAYERS;
         return false;
       }
@@ -769,13 +787,13 @@ class LinkWirelessMultiboot {
 
       fixedData.rom = rom;
       fixedData.romSize = romSize;
-      fixedData.gameName = gameName;
-      fixedData.userName = userName;
-      fixedData.gameId = gameId;
-      fixedData.players = players;
-      fixedData.waitForReadySignal = waitForReadySignal;
-      fixedData.keepConnectionAlive = keepConnectionAlive;
-      fixedData.maxTransfersPerFrame = maxTransfersPerFrame;
+      fixedData.gameName = config.gameName;
+      fixedData.userName = config.userName;
+      fixedData.gameId = config.gameId;
+      fixedData.players = config.players;
+      fixedData.waitForReadySignal = config.waitForReadySignal;
+      fixedData.keepConnectionAlive = config.keepConnectionAlive;
+      fixedData.timerId = config.timerId;
       generateFirstPagePatch(rom, fixedData.firstPagePatch);
 
       _LWMLOG_("starting...");
@@ -787,9 +805,10 @@ class LinkWirelessMultiboot {
       }
       _LWMLOG_("activated");
 
-      if (!linkRawWireless.setup(players, SETUP_TX) ||
-          !linkRawWireless.broadcast(gameName, userName,
-                                     gameId | GAME_ID_MULTIBOOT_FLAG) ||
+      if (!linkRawWireless.setup(fixedData.players, SETUP_TX) ||
+          !linkRawWireless.broadcast(
+              fixedData.gameName, fixedData.userName,
+              fixedData.gameId | GAME_ID_MULTIBOOT_FLAG) ||
           !linkRawWireless.startHost(false)) {
         _LWMLOG_("! init failed");
         stop(Result::INIT_FAILURE);
@@ -808,7 +827,12 @@ class LinkWirelessMultiboot {
      * the transition to low consumption mode was successful.
      * \warning Never call this method inside an interrupt handler!
      */
-    bool reset() { return stop(); }
+    bool reset() override { return stop(); }
+
+    /**
+     * @brief Returns whether there's an active transfer or not.
+     */
+    [[nodiscard]] bool isSending() override { return state != State::STOPPED; }
 
     /**
      * @brief Returns the current state.
@@ -820,7 +844,30 @@ class LinkWirelessMultiboot {
      * call, the result is cleared if `clear` is `true` (default behavior).
      * @param clear Whether it should clear the result or not.
      */
-    Result getResult(bool clear = true) {
+    Link::AsyncMultiboot::Result getResult(bool clear = true) override {
+      auto detailedResult = getDetailedResult(clear);
+      switch (detailedResult) {
+        case Result::NONE:
+          return Link::AsyncMultiboot::Result::NONE;
+        case Result::SUCCESS:
+          return Link::AsyncMultiboot::Result::SUCCESS;
+        case Result::INVALID_SIZE:
+        case Result::INVALID_PLAYERS:
+          return Link::AsyncMultiboot::Result::INVALID_DATA;
+        case Result::ADAPTER_NOT_DETECTED:
+        case Result::INIT_FAILURE:
+          return Link::AsyncMultiboot::Result::INIT_FAILED;
+        default:
+          return Link::AsyncMultiboot::Result::FAILURE;
+      }
+    }
+
+    /**
+     * @brief Returns the detailed result of the last operation. After this
+     * call, the result is cleared if `clear` is `true` (default behavior).
+     * @param clear Whether it should clear the result or not.
+     */
+    Result getDetailedResult(bool clear = true) {
       Result _result = result;
       if (clear)
         result = Result::NONE;
@@ -830,12 +877,14 @@ class LinkWirelessMultiboot {
     /**
      * @brief Returns the number of connected players (`1~5`).
      */
-    [[nodiscard]] u8 playerCount() { return 1 + dynamicData.connectedClients; }
+    [[nodiscard]] u8 playerCount() override {
+      return 1 + dynamicData.connectedClients;
+    }
 
     /**
      * @brief Returns the completion percentage (0~100).
      */
-    [[nodiscard]] u8 getPercentage() {
+    [[nodiscard]] u8 getPercentage() override {
       if (state == State::STOPPED || fixedData.romSize == 0)
         return 0;
 
@@ -845,12 +894,12 @@ class LinkWirelessMultiboot {
     /**
      * @brief Returns whether the ready mark is active or not.
      */
-    [[nodiscard]] bool isReady() { return dynamicData.ready; }
+    [[nodiscard]] bool isReady() override { return dynamicData.ready; }
 
     /**
      * @brief Marks the transfer as ready.
      */
-    void markReady() {
+    void markReady() override {
       if (state == State::STOPPED)
         return;
 
@@ -891,6 +940,35 @@ class LinkWirelessMultiboot {
 #endif
     }
 
+    /**
+     * @brief This method is called by the TIMER interrupt handler.
+     * \warning This is internal API!
+     */
+    void _onTimer() {
+      if (state != State::SENDING_ROM_PART || interrupt)
+        return;
+
+      state = State::ENSURING_CLIENTS_ALIVE;
+      checkClientsAlive();
+      stopTimer();
+    }
+
+    struct Config {
+      const char* gameName;
+      const char* userName;
+      u16 gameId;
+      u8 players;
+      bool waitForReadySignal;
+      bool keepConnectionAlive;
+      u16 interval;
+      u8 timerId;
+    };
+
+    /**
+     * @brief LinkWirelessMultiboot::Async configuration.
+     */
+    Config config;
+
    private:
     enum class SendState { NOT_SENDING, SEND_AND_WAIT, RECEIVE };
 
@@ -903,7 +981,8 @@ class LinkWirelessMultiboot {
       u8 players = 0;
       bool waitForReadySignal = false;
       bool keepConnectionAlive = false;
-      u32 maxTransfersPerFrame = 0xffffffff;
+      u32 interval = LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_INTERVAL;
+      u8 timerId = LINK_WIRELESS_MULTIBOOT_ASYNC_DEFAULT_TIMER_ID;
 
       u8 firstPagePatch[LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER] = {};
     };
@@ -960,11 +1039,6 @@ class LinkWirelessMultiboot {
             state = State::LISTENING;
             startOrKeepListening();
           }
-          break;
-        }
-        case State::RESTING: {
-          state = State::ENSURING_CLIENTS_ALIVE;
-          checkClientsAlive();
           break;
         }
         default: {
@@ -1180,12 +1254,7 @@ class LinkWirelessMultiboot {
           }
 
           dynamicData.frameTransfers++;
-          if (dynamicData.frameTransfers < fixedData.maxTransfersPerFrame) {
-            state = State::ENSURING_CLIENTS_ALIVE;
-            checkClientsAlive();
-          } else {
-            state = State::RESTING;
-          }
+          startTimer();
           break;
         }
         case State::CONFIRMING_STEP1: {
@@ -1342,6 +1411,17 @@ class LinkWirelessMultiboot {
       sendCommandAsync(LinkRawWireless::COMMAND_RECEIVE_DATA);
     }
 
+    void stopTimer() {
+      Link::_REG_TM[config.timerId].cnt =
+          Link::_REG_TM[config.timerId].cnt & (~Link::_TM_ENABLE);
+    }
+
+    void startTimer() {
+      Link::_REG_TM[config.timerId].start = -config.interval;
+      Link::_REG_TM[config.timerId].cnt =
+          Link::_TM_ENABLE | Link::_TM_IRQ | BASE_FREQUENCY;
+    }
+
     void sendCommandAsync(u8 type,
                           const u32* params = {},
                           u16 length = 0,
@@ -1363,6 +1443,7 @@ class LinkWirelessMultiboot {
     bool stop(Result newResult = Result::NONE) {
       bool keepConnectionAlive = fixedData.keepConnectionAlive;
       resetState(newResult);
+      stopTimer();
 
       bool success = true;
       if (newResult != Result::SUCCESS || !keepConnectionAlive)
@@ -1388,6 +1469,13 @@ inline void LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_VBLANK() {
  */
 inline void LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_SERIAL() {
   linkWirelessMultibootAsync->_onSerial();
+}
+
+/**
+ * @brief TIMER interrupt handler.
+ */
+inline void LINK_WIRELESS_MULTIBOOT_ASYNC_ISR_TIMER() {
+  linkWirelessMultibootAsync->_onTimer();
 }
 
 #undef _LWMLOG_

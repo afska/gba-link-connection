@@ -263,7 +263,7 @@ class LinkMobile {
    * @brief Constructs a new LinkMobile object.
    * @param timeout Number of *frames* without completing a request to reset a
    * connection. Defaults to 600 (10 seconds).
-   * @param timerId GBA Timer to use for waiting.
+   * @param timerId `(0~3)` GBA Timer to use for waiting.
    */
   explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
                       u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {

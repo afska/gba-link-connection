@@ -241,6 +241,30 @@ static inline void intToStr5(char* buf, int num) {
   buf[j] = '\0';
 }
 
+// Interfaces
+
+class AsyncMultiboot {
+ public:
+  enum class Result {
+    NONE = -1,
+    SUCCESS = 0,
+    INVALID_DATA = 1,
+    INIT_FAILED = 2,
+    FAILURE = 3
+  };
+
+  virtual bool sendRom(const u8* rom, u32 romSize) = 0;
+  virtual bool reset() = 0;
+  [[nodiscard]] virtual bool isSending() = 0;
+  virtual Result getResult(bool clear) = 0;
+  [[nodiscard]] virtual u8 playerCount() = 0;
+  [[nodiscard]] virtual u8 getPercentage() = 0;
+  [[nodiscard]] virtual bool isReady() = 0;
+  virtual void markReady() = 0;
+
+  virtual ~AsyncMultiboot() = default;
+};
+
 // Queue
 
 template <typename T, u32 Size>

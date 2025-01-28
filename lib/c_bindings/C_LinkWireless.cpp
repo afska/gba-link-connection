@@ -167,25 +167,25 @@ void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle) {
 
 C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle) {
   C_LinkWireless_Config config;
-  config.forwarding = static_cast<LinkWireless*>(handle)->config.forwarding;
-  config.retransmission =
-      static_cast<LinkWireless*>(handle)->config.retransmission;
-  config.maxPlayers = static_cast<LinkWireless*>(handle)->config.maxPlayers;
-  config.timeout = static_cast<LinkWireless*>(handle)->config.timeout;
-  config.interval = static_cast<LinkWireless*>(handle)->config.interval;
-  config.sendTimerId = static_cast<LinkWireless*>(handle)->config.sendTimerId;
+  auto instance = static_cast<LinkWireless*>(handle);
+  config.forwarding = instance->config.forwarding;
+  config.retransmission = instance->config.retransmission;
+  config.maxPlayers = instance->config.maxPlayers;
+  config.timeout = instance->config.timeout;
+  config.interval = instance->config.interval;
+  config.sendTimerId = instance->config.sendTimerId;
   return config;
 }
 
 void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
                               C_LinkWireless_Config config) {
-  static_cast<LinkWireless*>(handle)->config.forwarding = config.forwarding;
-  static_cast<LinkWireless*>(handle)->config.retransmission =
-      config.retransmission;
-  static_cast<LinkWireless*>(handle)->config.maxPlayers = config.maxPlayers;
-  static_cast<LinkWireless*>(handle)->config.timeout = config.timeout;
-  static_cast<LinkWireless*>(handle)->config.interval = config.interval;
-  static_cast<LinkWireless*>(handle)->config.sendTimerId = config.sendTimerId;
+  auto instance = static_cast<LinkWireless*>(handle);
+  instance->config.forwarding = config.forwarding;
+  instance->config.retransmission = config.retransmission;
+  instance->config.maxPlayers = config.maxPlayers;
+  instance->config.timeout = config.timeout;
+  instance->config.interval = config.interval;
+  instance->config.sendTimerId = config.sendTimerId;
 }
 
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle) {

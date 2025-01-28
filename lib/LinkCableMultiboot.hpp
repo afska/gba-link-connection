@@ -539,7 +539,7 @@ class LinkCableMultiboot {
     [[nodiscard]] State getState() { return state; }
 
     /**
-     * @brief Returns the result of the last operation. After this
+     * @brief Returns the detailed result of the last operation. After this
      * call, the result is cleared if `clear` is `true` (default behavior).
      * @param clear Whether it should clear the result or not.
      */
