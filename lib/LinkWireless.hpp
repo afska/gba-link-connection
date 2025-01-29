@@ -589,9 +589,8 @@ class LinkWireless {
     if (!isSessionActive())
       return badRequest(Error::WRONG_STATE);
 
-    if (!canAddNewMessage()) {
-      if (_author < 0)
-        lastError = Error::BUFFER_IS_FULL;
+    if (!canAddNewMessage() && _author < 0) {
+      lastError = Error::BUFFER_IS_FULL;
       return false;
     }
 
@@ -1360,7 +1359,7 @@ class LinkWireless {
           linkRawWireless.sessionState.playerCount - LINK_WIRELESS_MIN_PLAYERS;
     } else {
       // sometimes, when a client is disconnected, the Wireless Adapter keeps
-      // repeating old data in its slot! we now use the `clientCount` as a
+      // repeating old data in its slot! we use the `clientCount` as a
       // heartbeat to detect this situation so REMOTE_TIMEOUT works correctly
       sessionState.localHeartbeat = (sessionState.localHeartbeat + 1) % 4;
       header.clientCount = sessionState.localHeartbeat;
