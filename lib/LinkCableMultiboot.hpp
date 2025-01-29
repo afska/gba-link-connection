@@ -534,7 +534,8 @@ class LinkCableMultiboot {
     }
 
     /**
-     * Deactivates the library, canceling the in-progress transfer, if any.
+     * @brief Deactivates the library, canceling the in-progress transfer, if
+     * any.
      * \warning Never call this method inside an interrupt handler!
      */
     bool reset() override {

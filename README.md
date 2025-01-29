@@ -297,8 +297,6 @@ You can update these values at any time without creating a new instance:
 | `getLastError([clear])`                   | **Error** | If one of the other methods returns `false`, you can inspect this to know the cause. <br/><br/>After this call, the last error is cleared if `clear` is `true` (default behavior).                                                                                                                                                                                                                                                                                                                                                               |
 | `resetTimer()`                            | -                       | Restarts the send timer without disconnecting. Call this if you changed `config.interval`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
-⚠️ `0xFFFF` is a reserved value, so don't send it!
-
 ## Compile-time constants
 
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.

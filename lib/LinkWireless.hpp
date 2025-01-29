@@ -48,9 +48,6 @@
 //     That causes packet loss. You REALLY want to use libugba's instead.
 //     (see examples)
 // --------------------------------------------------------------------------
-// `send(...)` restrictions:
-// - 0xFFFF is a reserved value, so don't send it!
-// --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
 #pragma GCC system_header
@@ -173,7 +170,6 @@ class LinkWireless {
 #endif
   static constexpr int MAX_PACKET_IDS = 1 << PACKET_ID_BITS;
   static constexpr int PACKET_ID_MASK = MAX_PACKET_IDS - 1;
-  static constexpr int MSG_PING = 0xFFFF;
   static constexpr int BROADCAST_SEARCH_WAIT_FRAMES = 60;
   static constexpr int MAX_COMMAND_TRANSFER_LENGTH = 22;
 
@@ -940,17 +936,19 @@ class LinkWireless {
     u32 lastConfirmationFromServer = 0;
     u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
     u32 lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
+    int lastHeartbeatFromClients[LINK_WIRELESS_MAX_PLAYERS];
+    int localHeartbeat = 0;
   };
 
   struct MessageHeader {
-    unsigned int partialPacketId : PACKET_ID_BITS;
+    unsigned int partialPacketId : PACKET_ID_BITS;  // confirmations: high part
     unsigned int isConfirmation : 1;
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
     unsigned int playerId : 1;
     unsigned int quickData : 5;
 #else
     unsigned int playerId : 3;
-    unsigned int clientCount : 2;
+    unsigned int clientCount : 2;  // clients: heartbeat (cycles 0~3)
 #endif
     unsigned int dataChecksum : 4;
   };
@@ -1166,7 +1164,8 @@ class LinkWireless {
       u8 remotePlayerCount = LINK_WIRELESS_MIN_PLAYERS + header.clientCount;
 #endif
       u32 checksum = header.dataChecksum;
-      bool isPing = data == MSG_PING;
+      bool isPing = !config.retransmission && isConfirmation;
+      bool isServer = linkRawWireless.getState() == State::SERVING;
 
       if (checksum != buildChecksum(data))
         continue;
@@ -1175,26 +1174,43 @@ class LinkWireless {
       message.packetId = partialPacketId;
       message.data = data;
       message.playerId = remotePlayerId;
-      if (!acceptMessage(message, isConfirmation, remotePlayerCount))
-        continue;
-      if (config.retransmission && isConfirmation &&
-          !handleConfirmation(message))
-        continue;
 
-      sessionState.msgTimeouts[0] = 0;
-      sessionState.msgTimeouts[remotePlayerId] = 0;
-      sessionState.msgFlags[0] = true;
-      sessionState.msgFlags[remotePlayerId] = true;
+      if (!isConfirmation) {
+        if (!acceptMessage(message))
+          continue;
 
-      if (!isPing && !isConfirmation)
-        sessionState.newIncomingMessages.push(message);
+        if (!isPing)
+          sessionState.newIncomingMessages.push(message);
+      } else if (config.retransmission &&
+                 !handleConfirmation(message, remotePlayerId)) {
+        continue;
+      }
+
+      if (!isServer)
+        linkRawWireless.sessionState.playerCount = remotePlayerCount;
+
+      bool shouldResetTimeouts = true;
+#ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
+      if (isServer && isConfirmation) {
+        shouldResetTimeouts =
+            header.clientCount !=
+            sessionState.lastHeartbeatFromClients[remotePlayerId];
+        sessionState.lastHeartbeatFromClients[remotePlayerId] =
+            header.clientCount;
+      }
+#endif
+
+      if (shouldResetTimeouts) {
+        sessionState.msgTimeouts[0] = 0;
+        sessionState.msgTimeouts[remotePlayerId] = 0;
+        sessionState.msgFlags[0] = true;
+        sessionState.msgFlags[remotePlayerId] = true;
+      }
     }
     copyIncomingState();
   }
 
-  bool acceptMessage(Message& message,
-                     bool isConfirmation,
-                     u32 remotePlayerCount) {  // (irq only)
+  bool acceptMessage(Message& message) {  // (irq only)
     if (linkRawWireless.getState() == State::SERVING) {
       u32 expectedPacketId =
           (sessionState.lastPacketIdFromClients[message.playerId] + 1) %
@@ -1202,29 +1218,22 @@ class LinkWireless {
       // if message.packetId > expectedPacketId = packet loss (gap)
       // if message.packetId < expectedPacketId = retransmission of old packet
 
-      if (config.retransmission && !isConfirmation &&
-          message.packetId != expectedPacketId)
+      if (config.retransmission && message.packetId != expectedPacketId)
         return false;
 
-      if (!isConfirmation)
-        message.packetId =
-            ++sessionState.lastPacketIdFromClients[message.playerId];
+      message.packetId =
+          ++sessionState.lastPacketIdFromClients[message.playerId];
     } else {
       u32 expectedPacketId =
           (sessionState.lastPacketIdFromServer + 1) % MAX_PACKET_IDS;
 
-      if (config.retransmission && !isConfirmation &&
-          message.packetId != expectedPacketId)
+      if (config.retransmission && message.packetId != expectedPacketId)
         return false;
 
-      linkRawWireless.sessionState.playerCount = remotePlayerCount;
-
-      if (!isConfirmation)
-        message.packetId = ++sessionState.lastPacketIdFromServer;
+      message.packetId = ++sessionState.lastPacketIdFromServer;
     }
 
     bool isMessageFromCurrentPlayer =
-        !isConfirmation &&
         message.playerId == linkRawWireless.sessionState.currentPlayerId;
 
     return !isMessageFromCurrentPlayer;
@@ -1237,11 +1246,10 @@ class LinkWireless {
 
   void addPingMessageIfNeeded() {  // (irq only)
     if (sessionState.outgoingMessages.isEmpty() && !sessionState.pingSent) {
-      Message pingMessage;
-      pingMessage.packetId = newPacketId();
-      pingMessage.playerId = linkRawWireless.sessionState.currentPlayerId;
-      pingMessage.data = MSG_PING;
-      sessionState.outgoingMessages.push(pingMessage);
+      u16 header = buildConfirmationHeader(
+          linkRawWireless.sessionState.currentPlayerId, 0);
+      u32 rawMessage = Link::buildU32(header, 0);
+      addAsyncData(rawMessage);
       sessionState.pingSent = true;
     }
   }
@@ -1276,22 +1284,23 @@ class LinkWireless {
     }
   }
 
-  bool handleConfirmation(Message confirmation) {  // (irq only)
+  bool handleConfirmation(Message confirmation,
+                          u8 remotePlayerId) {  // (irq only)
     u32 confirmationData = (confirmation.packetId << 16) | confirmation.data;
 
     if (linkRawWireless.getState() == State::CONNECTED) {
-      if (confirmation.playerId == 0 &&
+      if (remotePlayerId == 0 &&
           !sessionState.didReceiveLastPacketIdFromServer) {
         sessionState.lastPacketIdFromServer = confirmationData;
         sessionState.didReceiveLastPacketIdFromServer = true;
-      } else if (confirmation.playerId ==
+      } else if (remotePlayerId ==
                  linkRawWireless.sessionState.currentPlayerId) {
         handleServerConfirmation(confirmationData);
       } else {
         return false;
       }
     } else {
-      handleClientConfirmation(confirmationData, confirmation.playerId);
+      handleClientConfirmation(confirmationData, remotePlayerId);
     }
 
     return true;
@@ -1327,6 +1336,9 @@ class LinkWireless {
     // confirmation messages "repurpose" some message header fields:
     //     packetId => high 6 bits of confirmation
     //     data     => low 16 bits of confirmation
+    // full confirmations are 22-bit numbers => 4194303 would be the maximum
+    // supported packetId in a session; sending 2 packets per frame, it'd be
+    // reached at ~9.709034 hours of gameplay! that should be enough, right?
     u8 highPart = (confirmationData >> 16) & PACKET_ID_MASK;
     u16 lowPart = confirmationData & 0xFFFF;
     return buildMessageHeader(playerId, highPart, buildChecksum(lowPart), true);
@@ -1343,8 +1355,16 @@ class LinkWireless {
 #ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
     header.quickData = QUICK_SEND;
 #else
-    header.clientCount =
-        linkRawWireless.sessionState.playerCount - LINK_WIRELESS_MIN_PLAYERS;
+    if (linkRawWireless.getState() == State::SERVING) {
+      header.clientCount =
+          linkRawWireless.sessionState.playerCount - LINK_WIRELESS_MIN_PLAYERS;
+    } else {
+      // sometimes, when a client is disconnected, the Wireless Adapter keeps
+      // repeating old data in its slot! we now use the `clientCount` as a
+      // heartbeat to detect this situation so REMOTE_TIMEOUT works correctly
+      sessionState.localHeartbeat = (sessionState.localHeartbeat + 1) % 4;
+      header.clientCount = sessionState.localHeartbeat;
+    }
 #endif
     header.dataChecksum = dataChecksum;
 
@@ -1482,11 +1502,13 @@ class LinkWireless {
     sessionState.lastPacketId = 0;
     sessionState.lastPacketIdFromServer = 0;
     sessionState.lastConfirmationFromServer = 0;
+    sessionState.localHeartbeat = -1;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
       sessionState.msgTimeouts[i] = 0;
       sessionState.msgFlags[i] = false;
       sessionState.lastPacketIdFromClients[i] = 0;
       sessionState.lastConfirmationFromClients[i] = 0;
+      sessionState.lastHeartbeatFromClients[i] = -1;
     }
     nextAsyncCommandDataSize = 0;
 

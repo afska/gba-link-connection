@@ -804,7 +804,7 @@ class LinkRawWireless {
   bool bye() { return sendCommand(COMMAND_BYE).success; }
 
   /**
-   * Returns the header for the commands 0x24 and 0x25.
+   * @brief Returns the header for the commands 0x24 and 0x25.
    * @param bytes The number of bytes of the command.
    */
   u32 getSendDataHeaderFor(u32 bytes) {
@@ -814,7 +814,7 @@ class LinkRawWireless {
   }
 
   /**
-   * Returns the parsed response of a 0x26 command.
+   * @brief Returns the parsed response of a 0x26 command.
    * @param result The raw response returned by the command call.
    * @param response A structure that will be filled with the response data.
    */
