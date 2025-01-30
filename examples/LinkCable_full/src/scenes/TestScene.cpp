@@ -72,7 +72,7 @@ void TestScene::tick(u16 keys) {
   // other buttons
   if (selectHandler->hasBeenPressedNow()) {
     DEBULOG("! lagging...");
-    Link::wait(9000);
+    Link::wait(228 * 5);
   }
   if (rightHandler->hasBeenReleasedNow())
     printWirelessSignalLevel();

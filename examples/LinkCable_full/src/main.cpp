@@ -157,7 +157,7 @@ void printTutorial() {
 #ifdef USE_LINK_UNIVERSAL
   DEBULOG("RIGHT: get signal level");
 #endif
-  DEBULOG("SELECT: force lag (9k lines)");
+  DEBULOG("SELECT: force lag (5 frames)");
   DEBULOG("DOWN: turn off connection");
   DEBULOG("");
 }
