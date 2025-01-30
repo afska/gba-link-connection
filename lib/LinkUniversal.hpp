@@ -363,12 +363,11 @@ class LinkUniversal {
   }
 
   /**
-   * @brief Returns whether the internal receive queue lost messages at some
-   * point due to being full. This can happen if your queue size is too low, if
-   * you receive too much data without calling `sync(...)` enough times, or if
-   * you don't `read(...)` enough messages before the next `sync()` call. After
-   * this call, the overflow flag is cleared if `clear` is `true` (default
-   * behavior).
+   * @brief Returns whether the internal queue lost messages at some point due
+   * to being full. This can happen if your queue size is too low, if you
+   * receive too much data without calling `sync(...)` enough times, or if you
+   * don't `read(...)` enough messages before the next `sync()` call. After this
+   * call, the overflow flag is cleared if `clear` is `true` (default behavior).
    */
   bool didQueueOverflow(bool clear = true) {
     bool overflow = mode == Mode::LINK_CABLE

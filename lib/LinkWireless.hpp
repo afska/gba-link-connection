@@ -677,18 +677,21 @@ class LinkWireless {
   }
 
   /**
-   * @brief Returns whether the internal receive queue lost messages at some
-   * point due to being full. This can happen if your queue size is too low, if
-   * you receive too much data without calling `receive(...)` enough times, or
-   * if excessive `receive(...)` calls prevent the ISR from copying data. After
+   * @brief Returns whether the internal queue lost messages at some point due
+   * to being full. This can happen if your queue size is too low, if you
+   * receive too much data without calling `receive(...)` enough times, or if
+   * excessive `receive(...)` calls prevent the ISR from copying data. After
    * this call, the overflow flag is cleared if `clear` is `true` (default
    * behavior).
    */
   bool didQueueOverflow(bool clear = true) {
-    bool overflow = sessionState.newIncomingMessages.overflow;
-    if (clear)
+    bool overflowReceive = sessionState.newIncomingMessages.overflow;
+    bool overflowForwardedMessage = sessionState.newOutgoingMessages.overflow;
+    if (clear) {
       sessionState.newIncomingMessages.overflow = false;
-    return overflow;
+      sessionState.newOutgoingMessages.overflow = false;
+    }
+    return overflowReceive || overflowForwardedMessage;
   }
 
   /**
