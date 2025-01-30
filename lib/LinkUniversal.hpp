@@ -371,8 +371,9 @@ class LinkUniversal {
    * behavior).
    */
   bool didQueueOverflow(bool clear = true) {
-    bool overflow = mode == Mode::LINK_CABLE ? linkCable.didQueueOverflow()
-                                             : linkWireless.didQueueOverflow();
+    bool overflow = mode == Mode::LINK_CABLE
+                        ? linkCable.didQueueOverflow(clear)
+                        : linkWireless.didQueueOverflow(clear);
 
     for (u32 i = 0; i < LINK_UNIVERSAL_MAX_PLAYERS; i++) {
       overflow = overflow || incomingMessages[i].overflow;
