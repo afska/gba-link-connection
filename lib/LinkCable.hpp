@@ -400,8 +400,8 @@ class LinkCable {
  private:
   struct ExternalState {
     U16Queue syncedIncomingMessages[LINK_CABLE_MAX_PLAYERS];
-    vu8 playerCount;
-    vu8 currentPlayerId;
+    vu8 playerCount = 1;
+    vu8 currentPlayerId = 0;
   };
 
   struct InternalState {

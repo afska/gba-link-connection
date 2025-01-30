@@ -161,7 +161,7 @@ class LinkPS2Keyboard {
   }
 
  private:
-  bool isEnabled = false;
+  volatile bool isEnabled = false;
   u8 bitcount = 0;
   u8 incoming = 0;
   u8 parityBit = 0;
