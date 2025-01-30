@@ -69,6 +69,10 @@ u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId) {
   return static_cast<LinkCable*>(handle)->peek(playerId);
 }
 
+bool C_LinkCable_canSend(C_LinkCableHandle handle) {
+  return static_cast<LinkCable*>(handle)->canSend();
+}
+
 bool C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
   return static_cast<LinkCable*>(handle)->send(data);
 }

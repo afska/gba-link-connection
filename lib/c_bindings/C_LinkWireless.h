@@ -114,6 +114,7 @@ bool C_LinkWireless_connect(C_LinkWirelessHandle handle, u16 serverId);
 bool C_LinkWireless_keepConnecting(C_LinkWirelessHandle handle);
 
 bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data);
+bool C_LinkWireless_canSend(C_LinkWirelessHandle handle);
 bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
                             C_LinkWireless_Message messages[]);
 

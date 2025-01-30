@@ -55,6 +55,7 @@ bool C_LinkCable_canRead(C_LinkCableHandle handle, u8 playerId);
 u16 C_LinkCable_read(C_LinkCableHandle handle, u8 playerId);
 u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
 
+bool C_LinkCable_canSend(C_LinkCableHandle handle);
 bool C_LinkCable_send(C_LinkCableHandle handle, u16 data);
 
 bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear);

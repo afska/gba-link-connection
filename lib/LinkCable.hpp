@@ -253,12 +253,18 @@ class LinkCable {
    */
   bool send(u16 data) {
     if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA ||
-        _state.outgoingMessages.isFull())
+        !canSend())
       return false;
 
     _state.outgoingMessages.syncPush(data);
     return true;
   }
+
+  /**
+   * @brief Returns if a `send(...)` call would fail due to the queue being
+   * full.
+   */
+  bool canSend() { return !_state.outgoingMessages.isFull(); }
 
   /**
    * @brief Returns whether the internal queue lost messages at some point due

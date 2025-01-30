@@ -349,6 +349,15 @@ class LinkUniversal {
   }
 
   /**
+   * @brief Returns if a `send(...)` call would fail due to the queue being
+   * full.
+   */
+  bool canSend() {
+    return mode == Mode::LINK_CABLE ? linkCable.canSend()
+                                    : linkWireless.canSend();
+  }
+
+  /**
    * @brief Sends `data` to all connected players.
    * @param data The value to be sent.
    * \warning If `data` is invalid or the send queue is full, a `false` will be

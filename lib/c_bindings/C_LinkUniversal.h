@@ -76,6 +76,7 @@ bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, u8 playerId);
 u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, u8 playerId);
 u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, u8 playerId);
 
+bool C_LinkUniversal_canSend(C_LinkUniversalHandle handle);
 bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data);
 
 bool C_LinkUniversal_didQueueOverflow(C_LinkUniversalHandle handle, bool clear);

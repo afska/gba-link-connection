@@ -108,6 +108,10 @@ bool C_LinkWireless_keepConnecting(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->keepConnecting();
 }
 
+bool C_LinkWireless_canSend(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->canSend();
+}
+
 bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data) {
   return static_cast<LinkWireless*>(handle)->send(data);
 }

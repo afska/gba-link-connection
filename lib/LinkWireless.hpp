@@ -581,6 +581,12 @@ class LinkWireless {
   }
 
   /**
+   * @brief Returns if a `send(...)` call would fail due to the queue being
+   * full.
+   */
+  bool canSend() { return !sessionState.newOutgoingMessages.isFull(); }
+
+  /**
    * @brief Enqueues `data` to be sent to other nodes.
    * @param data The value to be sent.
    */
@@ -589,7 +595,7 @@ class LinkWireless {
     if (!isSessionActive())
       return badRequest(Error::WRONG_STATE);
 
-    if (!canAddNewMessage() && _author < 0) {
+    if (!canSend() && _author < 0) {
       lastError = Error::BUFFER_IS_FULL;
       return false;
     }
@@ -999,8 +1005,6 @@ class LinkWireless {
   }
 #endif
 #endif
-
-  bool canAddNewMessage() { return !sessionState.newOutgoingMessages.isFull(); }
 
   LINK_INLINE void processAsyncCommand(
       const LinkRawWireless::CommandResult* commandResult) {  // (irq only)
