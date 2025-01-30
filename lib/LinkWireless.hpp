@@ -936,7 +936,7 @@ class LinkWireless {
     u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
     u32 lastConfirmationFromClients[LINK_WIRELESS_MAX_PLAYERS];
     int lastHeartbeatFromClients[LINK_WIRELESS_MAX_PLAYERS];
-    int localHeartbeat = 0;
+    int localHeartbeat = -1;
   };
 
   struct MessageHeader {
