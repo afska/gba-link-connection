@@ -70,7 +70,7 @@ void TestScene::tick(u16 keys) {
   }
 
   // other buttons
-  if (selectHandler->hasBeenPressedNow()) {
+  if (selectHandler->getIsPressed()) {
     DEBULOG("! lagging...");
     Link::wait(228 * 5);
   }
