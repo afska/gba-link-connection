@@ -50,7 +50,8 @@ int main() {
             std::to_string(linkConnection->playerCount()) + " R" +
             std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
             std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
-            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)),
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) +
+            (linkConnection->didQueueOverflow(false) ? "!" : ""),
         0, -3);
 #else
     if (linkConnection->isConnected()) {
@@ -73,7 +74,9 @@ int main() {
                 std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) +
                 "-S" +
                 std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) +
-                "-E" + std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)),
+                "-E" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) +
+                (linkConnection->didQueueOverflow(false) ? "!" : ""),
             0, -3);
       } else {
         TextStream::instance().setText(
@@ -89,7 +92,8 @@ int main() {
                                    ->sessionState.incomingMessages.size()) +
                 " <<" +
                 std::to_string(linkConnection->getLinkWireless()
-                                   ->sessionState.newIncomingMessages.size()),
+                                   ->sessionState.newIncomingMessages.size()) +
+                (linkConnection->didQueueOverflow(false) ? "!" : ""),
             0, -3);
       }
     } else {
