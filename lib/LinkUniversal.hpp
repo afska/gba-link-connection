@@ -197,8 +197,9 @@ class LinkUniversal {
    * @brief Returns the number of connected players (`1~5`).
    */
   [[nodiscard]] u8 playerCount() {
-    return mode == Mode::LINK_CABLE ? linkCable.playerCount()
-                                    : linkWireless.playerCount();
+    return Link::_min(mode == Mode::LINK_CABLE ? linkCable.playerCount()
+                                               : linkWireless.playerCount(),
+                      LINK_UNIVERSAL_MAX_PLAYERS);
   }
 
   /**
