@@ -1258,9 +1258,12 @@ class LinkWireless {
 #ifndef LINK_WIRELESS_TWO_PLAYERS_ONLY
       if (config.maxPlayers > 2 &&
           (sessionState.lastPacketIdFromClients[1] == 0 ||
-           sessionState.lastPacketIdFromClients[2] == 0 ||
-           sessionState.lastPacketIdFromClients[3] == 0 ||
-           sessionState.lastPacketIdFromClients[4] == 0)) {
+           (sessionState.lastPacketIdFromClients[2] == 0 &&
+            linkRawWireless.sessionState.playerCount > 2) ||
+           (sessionState.lastPacketIdFromClients[3] == 0 &&
+            linkRawWireless.sessionState.playerCount > 3) ||
+           (sessionState.lastPacketIdFromClients[4] == 0 &&
+            linkRawWireless.sessionState.playerCount > 4))) {
         u32 lastPacketId = sessionState.lastPacketId;
         u16 header = buildConfirmationHeader(0, lastPacketId);
         u32 rawMessage = Link::buildU32(header, lastPacketId & 0xFFFF);
