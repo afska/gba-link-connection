@@ -161,6 +161,12 @@ bool C_LinkRawWireless_receiveData(
 bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
                             C_LinkRawWireless_CommandResult* remoteCommand);
 
+bool C_LinkRawWireless_disconnectClient(C_LinkRawWirelessHandle handle,
+                                        bool client0,
+                                        bool client1,
+                                        bool client2,
+                                        bool client3);
+
 bool C_LinkRawWireless_bye(C_LinkRawWirelessHandle handle);
 
 u32 C_LinkRawWireless_getSendDataHeaderFor(C_LinkRawWirelessHandle handle,

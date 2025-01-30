@@ -24,6 +24,7 @@
 //   - `sendDataAndWait` = `0x25`
 //   - `receiveData` = `0x26`
 //   - `wait` = `0x27`
+//   - `disconnectClient` = `0x30`
 //   - `bye` = `0x3D`
 // - Use `sendCommand(...)` to send arbitrary commands.
 // - Use `sendCommandAsync(...)` to send arbitrary commands asynchronously.
@@ -127,6 +128,7 @@ class LinkRawWireless {
   static constexpr int COMMAND_SEND_DATA_AND_WAIT = 0x25;
   static constexpr int COMMAND_RECEIVE_DATA = 0x26;
   static constexpr int COMMAND_WAIT = 0x27;
+  static constexpr int COMMAND_DISCONNECT_CLIENT = 0x30;
   static constexpr int COMMAND_BYE = 0x3d;
   static constexpr int EVENT_WAIT_TIMEOUT = 0x27;
   static constexpr int EVENT_DATA_AVAILABLE = 0x28;
@@ -799,7 +801,19 @@ class LinkRawWireless {
   }
 
   /**
-   * @brief Calls the Bye (`3d`) command.
+   * @brief Calls the DisconnectClient (`0x30`) command.
+   */
+  bool disconnectClient(bool client0,
+                        bool client1,
+                        bool client2,
+                        bool client3) {
+    u32 bitfield =
+        (client0 << 0) | (client1 << 1) | (client2 << 2) | (client3 << 3);
+    return sendCommand(COMMAND_DISCONNECT_CLIENT, &bitfield, 1).success;
+  }
+
+  /**
+   * @brief Calls the Bye (`0x3D`) command.
    */
   bool bye() { return sendCommand(COMMAND_BYE).success; }
 

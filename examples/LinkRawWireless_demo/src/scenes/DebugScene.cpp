@@ -813,7 +813,25 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
-    case 0x30:
+    case 0x30: {
+      bool client0 = selectOption("Disconnect client 0?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+      bool client1 = selectOption("Disconnect client 1?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+      bool client2 = selectOption("Disconnect client 2?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+      bool client3 = selectOption("Disconnect client 3?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+
+      return logOperation("sending " + name,
+                          [client0, client1, client2, client3]() {
+                            bool success = linkRawWireless->disconnectClient(
+                                client0, client1, client2, client3);
+                            if (success)
+                              log("DISCONNECTED!");
+                            return success;
+                          });
+    }
     case 0x32:
     case 0x33:
     case 0x34:

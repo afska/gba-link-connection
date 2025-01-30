@@ -410,6 +410,7 @@ You can update these values at any time without creating a new instance by mutat
   - `sendDataAndWait` = `0x25`
   - `receiveData` = `0x26`
   - `wait` = `0x27`
+  - `disconnectClient` = `0x30`
   - `bye` = `0x3D`
 - Use `sendCommand(...)` to send arbitrary commands.
 - Use `sendCommandAsync(...)` to send arbitrary commands asynchronously.

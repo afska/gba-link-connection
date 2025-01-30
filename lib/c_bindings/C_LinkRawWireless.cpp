@@ -232,6 +232,15 @@ bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
   return success;
 }
 
+bool C_LinkRawWireless_disconnectClient(C_LinkRawWirelessHandle handle,
+                                        bool client0,
+                                        bool client1,
+                                        bool client2,
+                                        bool client3) {
+  return static_cast<LinkRawWireless*>(handle)->disconnectClient(
+      client0, client1, client2, client3);
+}
+
 bool C_LinkRawWireless_bye(C_LinkRawWirelessHandle handle) {
   return static_cast<LinkRawWireless*>(handle)->bye();
 }
