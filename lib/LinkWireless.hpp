@@ -903,7 +903,9 @@ class LinkWireless {
    */
   Config config;
 
+#ifndef LINK_WIRELESS_DEBUG_MODE
  private:
+#endif
   using MessageQueue = Link::Queue<Message, LINK_WIRELESS_QUEUE_SIZE>;
 
   struct SignalLevel {

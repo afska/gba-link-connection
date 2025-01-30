@@ -40,18 +40,70 @@ int main() {
       DEBULOG("! started");
     }
 
+    // log player ID/count and debug flags
     static constexpr int BIT_READY = 3;
     static constexpr int BIT_ERROR = 6;
     static constexpr int BIT_START = 7;
-
-    // log player ID/count and important flags
+#ifndef USE_LINK_UNIVERSAL
     TextStream::instance().setText(
         "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
-            std::to_string(linkConnection->playerCount()) + "-R" +
+            std::to_string(linkConnection->playerCount()) + " R" +
             std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
             std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
             std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)),
-        0, 14);
+        0, -3);
+#else
+    if (linkConnection->isConnected()) {
+      if (linkConnection->getMode() == LinkUniversal::Mode::LINK_CABLE) {
+        auto readyToSyncMessages =
+            linkConnection->getLinkCable()->_state.readyToSyncMessages;
+        auto newMessages = linkConnection->getLinkCable()->_state.newMessages;
+        u32 readyToSyncSize =
+            readyToSyncMessages[0].size() + readyToSyncMessages[1].size() +
+            readyToSyncMessages[2].size() + readyToSyncMessages[3].size();
+        u32 newSize = newMessages[0].size() + newMessages[1].size() +
+                      newMessages[2].size() + newMessages[3].size();
+        TextStream::instance().setText(
+            "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+                std::to_string(linkConnection->playerCount()) + " >" +
+                std::to_string(linkConnection->getLinkCable()
+                                   ->_state.outgoingMessages.size()) +
+                " <" + std::to_string(readyToSyncSize) + " <<" +
+                std::to_string(newSize) + " / R" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) +
+                "-S" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) +
+                "-E" + std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)),
+            0, -3);
+      } else {
+        TextStream::instance().setText(
+            "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+                std::to_string(linkConnection->playerCount()) + " >" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.newOutgoingMessages.size()) +
+                " >>" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.outgoingMessages.size()) +
+                " <" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.incomingMessages.size()) +
+                " <<" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.newIncomingMessages.size()),
+            0, -3);
+      }
+    } else {
+      TextStream::instance().setText(
+          "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+              std::to_string(linkConnection->playerCount()) + " [" +
+              std::to_string((int)linkConnection->getState()) + "]<" +
+              std::to_string((int)linkConnection->getMode()) + ">(" +
+              std::to_string((int)linkConnection->getWirelessState()) + ") w(" +
+              std::to_string(linkConnection->_getWaitCount()) + ") sw(" +
+              std::to_string(linkConnection->_getSubWaitCount()) + ")",
+          0, -3);
+    }
+#endif
 
     engine->update();
 

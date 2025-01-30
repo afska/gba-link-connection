@@ -3,6 +3,9 @@
 
 // #define USE_LINK_UNIVERSAL
 
+#define LINK_CABLE_DEBUG_MODE
+#define LINK_WIRELESS_DEBUG_MODE
+
 #ifndef USE_LINK_UNIVERSAL
 #include "../../../lib/LinkCable.hpp"
 #else
