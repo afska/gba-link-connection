@@ -1243,8 +1243,8 @@ class LinkWirelessMultiboot {
         }
         case State::SENDING_ROM_PART: {
           LinkRawWireless::ReceiveDataResponse receiveDataResponse;
-          if (!linkRawWireless.getReceiveDataResponse(*response,
-                                                      receiveDataResponse))
+          if (!response->success || !linkRawWireless.getReceiveDataResponse(
+                                        *response, receiveDataResponse))
             return (void)stop(Result::FAILURE);
 
           u8 newPercentage = multiTransfer.processResponse(receiveDataResponse);
@@ -1362,8 +1362,8 @@ class LinkWirelessMultiboot {
     bool parseResponse(LinkRawWireless::CommandResult* response,
                        ChildrenData& childrenData) {
       LinkRawWireless::ReceiveDataResponse receiveDataResponse;
-      if (!linkRawWireless.getReceiveDataResponse(*response,
-                                                  receiveDataResponse))
+      if (!response->success || !linkRawWireless.getReceiveDataResponse(
+                                    *response, receiveDataResponse))
         return false;
       childrenData = linkWirelessOpenSDK.getChildrenData(receiveDataResponse);
       return true;

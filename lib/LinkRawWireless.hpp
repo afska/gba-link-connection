@@ -781,6 +781,12 @@ class LinkRawWireless {
    */
   bool receiveData(ReceiveDataResponse& response) {
     auto result = sendCommand(COMMAND_RECEIVE_DATA);
+
+    if (!result.success) {
+      _resetState();
+      return false;
+    }
+
     return getReceiveDataResponse(result, response);
   }
 
@@ -832,31 +838,23 @@ class LinkRawWireless {
    * @param result The raw response returned by the command call.
    * @param response A structure that will be filled with the response data.
    */
-  bool getReceiveDataResponse(CommandResult result,
+  bool getReceiveDataResponse(CommandResult& result,
                               ReceiveDataResponse& response) {
-    for (u32 i = 0; i < result.dataSize; i++)
-      response.data[i] = result.data[i];
-    response.dataSize = result.dataSize;
-
-    if (!result.success) {
-      _resetState();
-      return false;
-    }
-
     for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS; i++)
       response.sentBytes[i] = 0;
 
-    if (response.dataSize > 0) {
-      u32 header = response.data[0];
-      for (u32 i = 1; i < response.dataSize; i++)
-        response.data[i - 1] = response.data[i];
-      response.dataSize--;
-      response.sentBytes[0] = header & 0b1111111;
-      response.sentBytes[1] = (header >> 8) & 0b11111;
-      response.sentBytes[2] = (header >> 13) & 0b11111;
-      response.sentBytes[3] = (header >> 18) & 0b11111;
-      response.sentBytes[4] = (header >> 23) & 0b11111;
-    }
+    response.dataSize = result.dataSize > 0 ? result.dataSize - 1 : 0;
+    if (result.dataSize == 0)
+      return true;
+
+    for (u32 i = 1; i < result.dataSize; i++)
+      response.data[i - 1] = result.data[i];
+    u32 header = result.data[0];
+    response.sentBytes[0] = header & 0b1111111;
+    response.sentBytes[1] = (header >> 8) & 0b11111;
+    response.sentBytes[2] = (header >> 13) & 0b11111;
+    response.sentBytes[3] = (header >> 18) & 0b11111;
+    response.sentBytes[4] = (header >> 23) & 0b11111;
 
     return true;
   }
@@ -911,7 +909,7 @@ class LinkRawWireless {
     }
     if (ack != type + RESPONSE_ACK) {
       if (ack == 0xEE && responses == 1 && !invertsClock) {
-        u8 __attribute__((unused)) code = (u8)transfer(DATA_REQUEST_VALUE);
+        u8 LINK_UNUSED code = (u8)transfer(DATA_REQUEST_VALUE);
         _LRWLOG_("! error received");
         _LRWLOG_(code == 1 ? "! invalid state" : "! unknown cmd");
       } else {

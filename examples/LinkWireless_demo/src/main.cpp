@@ -76,6 +76,16 @@ start:
       isRestoringFromMultiboot ? 1000 : LINK_WIRELESS_DEFAULT_TIMEOUT,
       LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
 
+  linkWireless->log = [](std::string str) {
+    u16 keys;
+    do {
+      keys = ~REG_KEYS & KEY_ANY;
+    } while ((keys & KEY_DOWN));
+
+    Common::log(str);
+    Common::waitForKey(KEY_DOWN);
+  };  // TODO: REMOVE
+
   // (2) Add the required interrupt service routines
   interrupt_init();
   interrupt_add(INTR_VBLANK, LINK_WIRELESS_ISR_VBLANK);
@@ -200,19 +210,18 @@ void connect() {
 
   // (5) Connect to a server
   LinkWireless::Server servers[LINK_WIRELESS_MAX_SERVERS];
-  linkWireless->getServers(servers, animate);
+  u32 serverCount;
+  linkWireless->getServers(servers, serverCount, animate);
   CHECK_ERRORS("Search failed :(")
 
-  if (servers[0].id == LINK_WIRELESS_END) {
+  if (serverCount == 0) {
     Common::log("Nothing found :(");
     hang();
     return;
   } else {
     std::string str = "Press START to connect\n(first ID will be used)\n\n";
-    for (u32 i = 0; i < 3; i++) {
+    for (u32 i = 0; i < serverCount; i++) {
       auto server = servers[i];
-      if (server.id == LINK_WIRELESS_END)
-        break;
 
       str +=
           std::to_string(server.id) +
@@ -337,11 +346,10 @@ void messageLoop() {
 
     // (7) Receive data
     LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
-    linkWireless->receive(messages);
-    for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
+    u32 receivedCount;
+    linkWireless->receive(messages, receivedCount);
+    for (u32 i = 0; i < receivedCount; i++) {
       auto message = messages[i];
-      if (message.packetId == LINK_WIRELESS_END)
-        break;
 
 #ifndef LINK_WIRELESS_PROFILING_ENABLED
       u32 expected = counters[message.playerId] + 1;
@@ -466,20 +474,21 @@ void messageLoop() {
     output += "\n<< " + std::to_string(linkWireless->QUICK_RECEIVE) + "\n";
 #endif
 
-    output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount());
+    output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount()) +
+              " (" + std::to_string(linkWireless->_getInflightCount()) + ")";
     if (retransmission && !altView) {
       output +=
           "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
       output += "\n_nextPndngPkgId: " +
                 std::to_string(linkWireless->_nextPendingPacketId());
       if (linkWireless->currentPlayerId() == 0) {
-        output += "\n_lastConfFromC1: " +
-                  std::to_string(linkWireless->_lastConfirmationFromClient1());
+        output += "\n_lastACKFromC1: " +
+                  std::to_string(linkWireless->_lastACKFromClient1());
         output += "\n_lastPkgIdFromC1: " +
                   std::to_string(linkWireless->_lastPacketIdFromClient1());
       } else {
-        output += "\n_lastConfFromSrv: " +
-                  std::to_string(linkWireless->_lastConfirmationFromServer());
+        output += "\n_lastACKFromSrv: " +
+                  std::to_string(linkWireless->_lastACKFromServer());
         output += "\n_lastPkgIdFromSrv: " +
                   std::to_string(linkWireless->_lastPacketIdFromServer());
       }

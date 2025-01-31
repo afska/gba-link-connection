@@ -108,12 +108,12 @@ compile() {
   cd ..
 
   # LinkWireless_demo_2players
-  cd LinkWireless_demo/
-  mv LinkWireless_demo$suffix.gba backup.gba || :
-  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_ENABLE_NESTED_IRQ=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_TWO_PLAYERS_ONLY=1"
-  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_2players$suffix.gba
-  mv backup.gba LinkWireless_demo$suffix.gba || :
-  cd ..
+  # cd LinkWireless_demo/
+  # mv LinkWireless_demo$suffix.gba backup.gba || :
+  # make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_ENABLE_NESTED_IRQ=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_TWO_PLAYERS_ONLY=1"
+  # cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_2players$suffix.gba
+  # mv backup.gba LinkWireless_demo$suffix.gba || :
+  # cd .. // TODO: REMOVE
 
   # LinkWireless_demo_profiler
   cd LinkWireless_demo/

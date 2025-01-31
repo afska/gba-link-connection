@@ -5,7 +5,7 @@ extern "C" {
 C_LinkRawWireless_CommandResult fromCppResult(
     LinkRawWireless::CommandResult cppResult);
 LinkRawWireless::CommandResult toCppResult(
-    C_LinkRawWireless_CommandResult result);
+    const C_LinkRawWireless_CommandResult* result);
 
 C_LinkRawWirelessHandle C_LinkRawWireless_create() {
   return new LinkRawWireless();
@@ -252,11 +252,12 @@ u32 C_LinkRawWireless_getSendDataHeaderFor(C_LinkRawWirelessHandle handle,
 
 bool C_LinkRawWireless_getReceiveDataResponse(
     C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_CommandResult result,
+    const C_LinkRawWireless_CommandResult* result,
     C_LinkRawWireless_ReceiveDataResponse* response) {
   LinkRawWireless::ReceiveDataResponse cppResponse;
+  auto cppResult = toCppResult(result);
   bool success = static_cast<LinkRawWireless*>(handle)->getReceiveDataResponse(
-      toCppResult(result), cppResponse);
+      cppResult, cppResponse);
   for (u32 i = 0; i < cppResponse.dataSize; i++)
     response->data[i] = cppResponse.data[i];
   response->dataSize = cppResponse.dataSize;
@@ -348,13 +349,13 @@ C_LinkRawWireless_CommandResult fromCppResult(
   return result;
 }
 LinkRawWireless::CommandResult toCppResult(
-    C_LinkRawWireless_CommandResult result) {
+    const C_LinkRawWireless_CommandResult* result) {
   LinkRawWireless::CommandResult cppResult;
   cppResult.success = cppResult.success;
-  cppResult.commandId = result.commandId;
-  for (u32 i = 0; i < result.dataSize; i++)
-    cppResult.data[i] = result.data[i];
-  cppResult.dataSize = result.dataSize;
+  cppResult.commandId = result->commandId;
+  for (u32 i = 0; i < result->dataSize; i++)
+    cppResult.data[i] = result->data[i];
+  cppResult.dataSize = result->dataSize;
   return cppResult;
 }
 }

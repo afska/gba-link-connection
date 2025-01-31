@@ -149,7 +149,7 @@ class LinkUniversal {
                   cableOptions.sendTimerId),
         linkWireless(
             wirelessOptions.retransmission,
-            true,
+            true,  // TODO: FIX THIS IS VERY WRONG
             Link::_min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
             wirelessOptions.timeout,
             wirelessOptions.interval,
@@ -524,12 +524,11 @@ class LinkUniversal {
 
   void receiveWirelessMessages() {
     LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
-    linkWireless.receive(messages);
+    u32 receivedCount;
+    linkWireless.receive(messages, receivedCount);
 
-    for (u32 i = 0; i < LINK_WIRELESS_QUEUE_SIZE; i++) {
+    for (u32 i = 0; i < receivedCount; i++) {
       auto message = messages[i];
-      if (message.packetId == LINK_WIRELESS_END)
-        break;
 
       if (message.playerId < LINK_UNIVERSAL_MAX_PLAYERS)
         incomingMessages[message.playerId].push(message.data);
@@ -582,15 +581,14 @@ class LinkUniversal {
 
   bool tryConnectOrServeWirelessSession() {
     LinkWireless::Server servers[LINK_WIRELESS_MAX_SERVERS];
-    if (!linkWireless.getServersAsyncEnd(servers))
+    u32 serverCount;
+    if (!linkWireless.getServersAsyncEnd(servers, serverCount))
       return false;
 
     u32 maxRandomNumber = 0;
     u32 serverIndex = 0;
-    for (u32 i = 0; i < LINK_WIRELESS_MAX_SERVERS; i++) {
+    for (u32 i = 0; i < serverCount; i++) {
       auto server = servers[i];
-      if (server.id == LINK_WIRELESS_END)
-        break;
 
       if (!server.isFull() &&
           Link::areStrEqual(server.gameName, config.gameName) &&

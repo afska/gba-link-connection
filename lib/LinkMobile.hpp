@@ -199,7 +199,7 @@ class LinkMobile {
     u8 checksumLow;
 
     char _ispNumber1[16 + 1];  // (parsed from `configurationSlot1`)
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct AsyncRequest {
     volatile bool completed = false;
@@ -790,11 +790,11 @@ class LinkMobile {
   struct MagicBytes {
     u8 magic1 = COMMAND_MAGIC_VALUE1;
     u8 magic2 = COMMAND_MAGIC_VALUE2;
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct PacketData {
     u8 bytes[LINK_MOBILE_COMMAND_TRANSFER_BUFFER] = {};
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct PacketHeader {
     u8 commandId = 0;
@@ -804,12 +804,12 @@ class LinkMobile {
 
     u16 sum() { return commandId + _unused_ + _unusedSizeHigh_ + size; }
     u8 pureCommandId() { return commandId & (~OR_VALUE); }
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct PacketChecksum {
     u8 high = 0;
     u8 low = 0;
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct Command {
     MagicBytes magicBytes;

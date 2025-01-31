@@ -84,7 +84,7 @@ class LinkCable {
   using U16Queue = Link::Queue<u16, LINK_CABLE_QUEUE_SIZE>;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
-  static constexpr int REMOTE_TIMEOUT_OFFLINE = -1;
+  static constexpr int MSG_TIMEOUT_OFFLINE = -1;
 
  public:
   using BaudRate = LinkRawCable::BaudRate;
@@ -516,7 +516,7 @@ class LinkCable {
   }
 
   bool isOnline(u8 playerId) {
-    return _state.msgTimeouts[playerId] != REMOTE_TIMEOUT_OFFLINE;
+    return _state.msgTimeouts[playerId] != MSG_TIMEOUT_OFFLINE;
   }
 
   void setOnline(u8 playerId) {
@@ -525,7 +525,7 @@ class LinkCable {
   }
 
   void setOffline(u8 playerId) {
-    _state.msgTimeouts[playerId] = REMOTE_TIMEOUT_OFFLINE;
+    _state.msgTimeouts[playerId] = MSG_TIMEOUT_OFFLINE;
     _state.msgFlags[playerId] = false;
   }
 };

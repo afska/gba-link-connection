@@ -92,7 +92,7 @@ class LinkWirelessOpenSDK {
       return SequenceNumber{.n = n, .phase = phase, .commState = commState};
     }
   };
-  union ServerSDKHeaderSerializer {
+  union ServerSDKHeaderPacker {
     ServerSDKHeader asStruct;
     u32 asInt;
   };
@@ -119,7 +119,7 @@ class LinkWirelessOpenSDK {
       return SequenceNumber{.n = n, .phase = phase, .commState = commState};
     }
   };
-  union ClientSDKHeaderSerializer {
+  union ClientSDKHeaderPacker {
     ClientSDKHeader asStruct;
     u16 asInt;
   };
@@ -393,30 +393,30 @@ class LinkWirelessOpenSDK {
 
   [[nodiscard]]
   ClientSDKHeader parseClientHeader(u32 clientHeaderInt) {
-    ClientSDKHeaderSerializer clientSerializer;
-    clientSerializer.asInt = clientHeaderInt & HEADER_MASK_CLIENT;
-    return clientSerializer.asStruct;
+    ClientSDKHeaderPacker clientPacker;
+    clientPacker.asInt = clientHeaderInt & HEADER_MASK_CLIENT;
+    return clientPacker.asStruct;
   }
 
   [[nodiscard]]
   u16 serializeClientHeader(ClientSDKHeader clientHeader) {
-    ClientSDKHeaderSerializer clientSerializer;
-    clientSerializer.asStruct = clientHeader;
-    return clientSerializer.asInt & HEADER_MASK_CLIENT;
+    ClientSDKHeaderPacker clientPacker;
+    clientPacker.asStruct = clientHeader;
+    return clientPacker.asInt & HEADER_MASK_CLIENT;
   }
 
   [[nodiscard]]
   ServerSDKHeader parseServerHeader(u32 serverHeaderInt) {
-    ServerSDKHeaderSerializer serverSerializer;
-    serverSerializer.asInt = serverHeaderInt & HEADER_MASK_SERVER;
-    return serverSerializer.asStruct;
+    ServerSDKHeaderPacker serverPacker;
+    serverPacker.asInt = serverHeaderInt & HEADER_MASK_SERVER;
+    return serverPacker.asStruct;
   }
 
   [[nodiscard]]
   u32 serializeServerHeader(ServerSDKHeader serverHeader) {
-    ServerSDKHeaderSerializer serverSerializer;
-    serverSerializer.asStruct = serverHeader;
-    return serverSerializer.asInt & HEADER_MASK_SERVER;
+    ServerSDKHeaderPacker serverPacker;
+    serverPacker.asStruct = serverHeader;
+    return serverPacker.asInt & HEADER_MASK_SERVER;
   }
 
   template <u32 MaxInflightPackets>

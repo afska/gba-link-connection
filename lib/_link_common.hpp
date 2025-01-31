@@ -22,6 +22,9 @@
   __attribute__((section(".iwram"), target("arm"), noinline))
 #define LINK_INLINE inline __attribute__((always_inline))
 #define LINK_NOINLINE __attribute__((noinline))
+#define LINK_PACKED __attribute__((packed))
+#define LINK_WORDALIGNED __attribute__((aligned(4)))
+#define LINK_UNUSED __attribute__((unused))
 #define LINK_VERSION_TAG inline const char*
 #define LINK_READ_TAG(TAG) (void)*((volatile const char*)TAG)
 
@@ -57,10 +60,10 @@ struct _TMR_REC {
   union {
     u16 start;
     u16 count;
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   u16 cnt;
-} __attribute__((aligned(4)));
+} LINK_WORDALIGNED;
 
 typedef struct {
   u32 reserved1[5];
@@ -309,7 +312,7 @@ class Queue {
     vs32 currentFront = front;
 
     for (u32 i = 0; i < count; i++) {
-      if (!action(arr[currentFront]))
+      if (!action(&arr[currentFront]))
         return;
       currentFront = (currentFront + 1) % Size;
     }

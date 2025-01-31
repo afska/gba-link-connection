@@ -60,9 +60,13 @@ bool C_LinkWireless_getSignalLevel(
 }
 
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
-                               C_LinkWireless_Server servers[]) {
+                               C_LinkWireless_Server servers[],
+                               u32* serverCount) {
   LinkWireless::Server cppServers[C_LINK_WIRELESS_MAX_SERVERS];
-  bool result = static_cast<LinkWireless*>(handle)->getServers(cppServers);
+  u32 count;
+  bool result =
+      static_cast<LinkWireless*>(handle)->getServers(cppServers, count);
+  *serverCount = count;
 
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_SERVERS; i++) {
     servers[i].id = cppServers[i].id;
@@ -82,10 +86,13 @@ bool C_LinkWireless_getServersAsyncStart(C_LinkWirelessHandle handle) {
 }
 
 bool C_LinkWireless_getServersAsyncEnd(C_LinkWirelessHandle handle,
-                                       C_LinkWireless_Server servers[]) {
+                                       C_LinkWireless_Server servers[],
+                                       u32* serverCount) {
   LinkWireless::Server cppServers[C_LINK_WIRELESS_MAX_SERVERS];
+  u32 count;
   bool result =
-      static_cast<LinkWireless*>(handle)->getServersAsyncEnd(cppServers);
+      static_cast<LinkWireless*>(handle)->getServersAsyncEnd(cppServers, count);
+  *serverCount = count;
 
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_SERVERS; i++) {
     servers[i].id = cppServers[i].id;
@@ -117,9 +124,12 @@ bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data) {
 }
 
 bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
-                            C_LinkWireless_Message messages[]) {
+                            C_LinkWireless_Message messages[],
+                            u32* receivedCount) {
   LinkWireless::Message cppMessages[C_LINK_WIRELESS_MAX_PLAYERS];
-  bool result = static_cast<LinkWireless*>(handle)->receive(cppMessages);
+  u32 count;
+  bool result = static_cast<LinkWireless*>(handle)->receive(cppMessages, count);
+  *receivedCount = count;
 
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_PLAYERS; i++) {
     messages[i].packetId = cppMessages[i].packetId;

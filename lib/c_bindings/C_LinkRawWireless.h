@@ -16,7 +16,6 @@ typedef void* C_LinkRawWirelessHandle;
 #define C_LINK_RAW_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define C_LINK_RAW_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define C_LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 23
-#define C_LINK_RAW_WIRELESS_SETUP_MAGIC 0x003C0000
 #define C_LINK_RAW_WIRELESS_MAX_SERVERS 4
 
 typedef enum {
@@ -173,7 +172,7 @@ u32 C_LinkRawWireless_getSendDataHeaderFor(C_LinkRawWirelessHandle handle,
                                            u32 bytes);
 bool C_LinkRawWireless_getReceiveDataResponse(
     C_LinkRawWirelessHandle handle,
-    C_LinkRawWireless_CommandResult result,
+    const C_LinkRawWireless_CommandResult* result,
     C_LinkRawWireless_ReceiveDataResponse* response);
 
 C_LinkRawWireless_CommandResult C_LinkRawWireless_sendCommand(

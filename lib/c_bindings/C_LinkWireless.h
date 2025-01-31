@@ -11,22 +11,13 @@ typedef void* C_LinkWirelessHandle;
 
 #define C_LINK_WIRELESS_MAX_PLAYERS 5
 #define C_LINK_WIRELESS_MIN_PLAYERS 2
-#define C_LINK_WIRELESS_END 0
-#define C_LINK_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH 22
-#define C_LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH 30
-#define C_LINK_WIRELESS_BROADCAST_LENGTH 6
-#define C_LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH \
-  (1 + C_LINK_WIRELESS_BROADCAST_LENGTH)
-#define C_LINK_WIRELESS_MAX_SERVERS              \
-  (C_LINK_WIRELESS_MAX_COMMAND_RESPONSE_LENGTH / \
-   C_LINK_WIRELESS_BROADCAST_RESPONSE_LENGTH)
+#define C_LINK_WIRELESS_MAX_SERVERS 4
 #define C_LINK_WIRELESS_MAX_GAME_ID 0x7FFF
 #define C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define C_LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define C_LINK_WIRELESS_DEFAULT_TIMEOUT 10
 #define C_LINK_WIRELESS_DEFAULT_INTERVAL 50
 #define C_LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
-#define C_LINK_WIRELESS_DEFAULT_ASYNC_ACK_TIMER_ID -1
 
 typedef enum {
   C_LINK_WIRELESS_STATE_NEEDS_RESET,
@@ -49,7 +40,7 @@ typedef enum {
   C_LINK_WIRELESS_ERROR_RECEIVE_DATA_FAILED,
   C_LINK_WIRELESS_ERROR_ACKNOWLEDGE_FAILED,
   C_LINK_WIRELESS_ERROR_TIMEOUT,
-  C_LINK_WIRELESS_ERROR_REMOTE_TIMEOUT,
+  C_LINK_WIRELESS_ERROR_CLIENT_TIMEOUT,
   C_LINK_WIRELESS_ERROR_BUSY_TRY_AGAIN
 } C_LinkWireless_Error;
 
@@ -105,10 +96,12 @@ bool C_LinkWireless_getSignalLevel(
     C_LinkWireless_SignalLevelResponse* response);
 
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
-                               C_LinkWireless_Server servers[]);
+                               C_LinkWireless_Server servers[],
+                               u32* serverCount);
 bool C_LinkWireless_getServersAsyncStart(C_LinkWirelessHandle handle);
 bool C_LinkWireless_getServersAsyncEnd(C_LinkWirelessHandle handle,
-                                       C_LinkWireless_Server servers[]);
+                                       C_LinkWireless_Server servers[],
+                                       u32* serverCount);
 
 bool C_LinkWireless_connect(C_LinkWirelessHandle handle, u16 serverId);
 bool C_LinkWireless_keepConnecting(C_LinkWirelessHandle handle);
@@ -116,7 +109,8 @@ bool C_LinkWireless_keepConnecting(C_LinkWirelessHandle handle);
 bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data);
 bool C_LinkWireless_canSend(C_LinkWirelessHandle handle);
 bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
-                            C_LinkWireless_Message messages[]);
+                            C_LinkWireless_Message messages[],
+                            u32* receivedCount);
 
 C_LinkWireless_State C_LinkWireless_getState(C_LinkWirelessHandle handle);
 bool C_LinkWireless_isConnected(C_LinkWirelessHandle handle);
