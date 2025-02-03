@@ -73,7 +73,7 @@
 /**
  * @brief Max server transfer length per timer tick. Must be in the range
  * `[6;21]`. The default value is `11`. Higher values will use the bandwidth
- * more efficiently but consume more CPU!
+ * more efficiently but also consume more CPU!
  * \warning This is measured in words (1 message = 1 halfword). One word is used
  * as a header, so a max transfer length of 11 could transfer up to 20 messages.
  */
@@ -1163,7 +1163,7 @@ class LinkWireless {
          &firstPacketId, &firstMsg, &msgCount, &highPart,
          &pendingForwardedCount, &currentPlayerBitMapIndex,
          &playerBitMapCount](Message* message) {
-          // create packet id if the packet can be sent
+          // create packet ID if the packet can be sent
           if (message->packetId == NO_ID_ASSIGNED_YET) {
             if (sessionState.inflightCount < maxInflightPackets) {
               message->packetId = newPacketId(maxPacketIds);
@@ -1173,7 +1173,7 @@ class LinkWireless {
             }
           }
 
-          // get first added packet id and add first msg if needed
+          // get first added packet ID and add first msg if needed
           if (firstPacketId == NO_ID_ASSIGNED_YET) {
             firstPacketId = message->packetId;
             if (!isServer) {
@@ -1248,7 +1248,7 @@ class LinkWireless {
       transferHeader.playerCount = sessionState.localHeartbeat;
     }
 
-    // first packet id, or 0 if there are no messages
+    // first packet ID, or 0 if there are no messages
     if (msgCount > 0)
       transferHeader.firstPacketId = firstPacketId;
 
@@ -1460,7 +1460,7 @@ class LinkWireless {
       u32 packetId = sessionState.outgoingMessages.peek().packetId;
 
       // if the current message is not inflight, we've entered the section of
-      // 'new' messages (with no id assigned), so we quit!
+      // 'new' messages (with no ID assigned), so we quit!
       if (packetId == NO_ID_ASSIGNED_YET)
         break;
 
@@ -1482,7 +1482,7 @@ class LinkWireless {
                       u32& currentPacketId,
                       u32& playerBitMap,
                       int& playerBitMapCount) {  // (irq only)
-    // store the packet id and increment (msgs are consecutive inside transfers)
+    // store the packet ID and increment (msgs are consecutive inside transfers)
     u32 packetId = currentPacketId;
     currentPacketId =
         (currentPacketId + 1) %
@@ -1506,7 +1506,7 @@ class LinkWireless {
       sessionState.lastPacketIdFromServer = packetId;
       sessionState.didReceiveFirstPacketFromServer = true;
     } else {
-      // if retransmission is enabled, the packet id needs to be expected
+      // if retransmission is enabled, the packet ID needs to be expected
       if (config.retransmission) {
         u32 expectedPacketId =
             playerId > 0
@@ -1538,13 +1538,19 @@ class LinkWireless {
 
     // forward to other clients if needed
     if (playerId > 0 && config.forwarding &&
-        linkRawWireless.sessionState.playerCount > 2) {
-      Message forwardedMessage;
-      forwardedMessage.data = message.data;
-      forwardedMessage.playerId = message.playerId;
+        linkRawWireless.sessionState.playerCount > 2)
+      forwardMessage(message);
+  }
+
+  void forwardMessage(Message& message) {  // (irq only)
+    Message forwardedMessage;
+    forwardedMessage.data = message.data;
+    forwardedMessage.playerId = message.playerId;
+    if (!sessionState.outgoingMessages.isFull()) {
       sessionState.outgoingMessages.push(forwardedMessage);
       sessionState.forwardedCount++;
-    }
+    } else
+      sessionState.outgoingMessages.overflow = true;
   }
 
   bool checkRemoteTimeouts() {  // (irq only)
