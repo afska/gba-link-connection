@@ -302,16 +302,15 @@ You can update these values at any time without creating a new instance:
 ## Compile-time constants
 
 - `LINK_WIRELESS_QUEUE_SIZE`: to set a custom buffer size (how many incoming and outgoing messages the queues can store at max). The default value is `30`, which seems fine for most games.
-  - This affects how much memory is allocated. With the default value, it's around `720` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
+  - This affects how much memory is allocated. With the default value, it's around `480` bytes. There's a double-buffered incoming queue and a double-buffered outgoing queue (to avoid data races).
   - You can approximate the memory usage with:
-    - `(LINK_WIRELESS_QUEUE_SIZE * sizeof(Message) * LINK_WIRELESS_MAX_PLAYERS) * 2 + (LINK_WIRELESS_QUEUE_SIZE * sizeof(Message)) * 2` <=> `LINK_WIRELESS_QUEUE_SIZE * 48`
-- `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Transfers contain retransmission headers and multiple user messages. These values must be in the range `[6;21]` for servers and `[2;4]` for clients. The default values are `21` and `4`, but you might want to set them a bit lower to reduce CPU usage.
-  - This is measured in words (1 message = 1 halfword). One word is used as a header, so a max transfer length of 21 could transfer up to 40 messages.
+    - `LINK_WIRELESS_QUEUE_SIZE * sizeof(Message) * 4` <=> `LINK_WIRELESS_QUEUE_SIZE * 16`
+- `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Higher values will use the bandwidth more efficiently but consume more CPU! These values must be in the range `[6;21]` for servers and `[2;4]` for clients. The default values are `11` and `4`, but you might want to set them a bit lower to reduce CPU usage.
+  - This is measured in words (1 message = 1 halfword). One word is used as a header, so a max transfer length of 11 could transfer up to 20 messages.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
   - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
 - `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
   - This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is disabled.
-- `LINK_WIRELESS_USE_SEND_RECEIVE_LATCH`: to alternate between sends and receives on each timer tick (instead of doing both things). This is disabled by default. Enabling it will introduce a bit of latency but also reduce _a lot_ the overall CPU usage. It's enabled in the `LinkWireless_demo` example, but disabled in the `LinkUniversal_*` examples.
 
 # 💻 LinkWirelessMultiboot
 

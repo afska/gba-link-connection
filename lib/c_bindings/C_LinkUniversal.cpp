@@ -19,9 +19,9 @@ C_LinkUniversalHandle C_LinkUniversal_create(
           cableOptions.timeout, cableOptions.interval,
           cableOptions.sendTimerId},
       LinkUniversal::WirelessOptions{
-          wirelessOptions.retransmission, wirelessOptions.maxPlayers,
-          wirelessOptions.timeout, wirelessOptions.interval,
-          wirelessOptions.sendTimerId});
+          wirelessOptions.forwarding, wirelessOptions.retransmission,
+          wirelessOptions.maxPlayers, wirelessOptions.timeout,
+          wirelessOptions.interval, wirelessOptions.sendTimerId});
 }
 
 void C_LinkUniversal_destroy(C_LinkUniversalHandle handle) {

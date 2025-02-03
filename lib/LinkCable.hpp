@@ -121,6 +121,7 @@ class LinkCable {
    */
   void activate() {
     LINK_READ_TAG(LINK_CABLE_VERSION);
+    static_assert(LINK_CABLE_QUEUE_SIZE >= 1);
 
     LINK_BARRIER;
     isEnabled = false;

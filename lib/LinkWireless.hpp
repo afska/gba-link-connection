@@ -1,10 +1,6 @@
 #ifndef LINK_WIRELESS_H
 #define LINK_WIRELESS_H
 
-#include <functional>
-#include <string>
-// TODO: REMOVE ^^^^
-
 // --------------------------------------------------------------------------
 // A high level driver for the GBA Wireless Adapter.
 // --------------------------------------------------------------------------
@@ -66,22 +62,22 @@
  * store at max **per player**). The default value is `30`, which seems fine for
  * most games.
  * \warning This affects how much memory is allocated. With the default value,
- * it's around `720` bytes. There's a double-buffered incoming queue and a
+ * it's around `480` bytes. There's a double-buffered incoming queue and a
  * double-buffered outgoing queue (to avoid data races).
- * \warning You can approximate the usage with `LINK_WIRELESS_QUEUE_SIZE * 48`.
+ * \warning You can approximate the usage with `LINK_WIRELESS_QUEUE_SIZE * 16`.
  */
 #define LINK_WIRELESS_QUEUE_SIZE 30
-#endif  // TODO: RECALCULATE USAGE (and update README)
+#endif
 
 #ifndef LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH
 /**
  * @brief Max server transfer length per timer tick. Must be in the range
- * `[6;21]`. The default value is `21`, but you might want to set it a bit lower
- * to reduce CPU usage.
+ * `[6;21]`. The default value is `11`. Higher values will use the bandwidth
+ * more efficiently but consume more CPU!
  * \warning This is measured in words (1 message = 1 halfword). One word is used
- * as a header, so a max transfer length of 21 could transfer up to 40 messages.
+ * as a header, so a max transfer length of 11 could transfer up to 20 messages.
  */
-#define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 21
+#define LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH 11
 #endif
 
 #ifndef LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH
@@ -104,8 +100,8 @@
  * For example, in a Makefile-based project, verify that the file is in your
  * `SRCDIRS` list.
  */
-#define LINK_WIRELESS_PUT_ISR_IN_IWRAM
-#endif  // TODO: RESTORE
+// #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#endif
 
 #ifndef LINK_WIRELESS_ENABLE_NESTED_IRQ
 /**
@@ -118,19 +114,6 @@
  */
 // #define LINK_WIRELESS_ENABLE_NESTED_IRQ
 #endif
-
-#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-/**
- * @brief Use send/receive latch (uncomment to enable).
- * This makes it alternate between sends and receives on each timer tick
- * (instead of doing both things). Enabling it will introduce some latency but
- * also reduce overall CPU usage.
- */
-#define LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-#endif  // TODO: RESTORE?
-
-// TODO: MAKE SURE ALL CODE IS IN IWRAM
-// TODO: SIMULATE A FULL QUEUE AND TWEAK DEFAULT TRANSFER LENGTH
 
 LINK_VERSION_TAG LINK_WIRELESS_VERSION = "vLinkWireless/v8.0.0";
 
@@ -151,16 +134,10 @@ LINK_VERSION_TAG LINK_WIRELESS_VERSION = "vLinkWireless/v8.0.0";
     if (!reset())                                       \
       return false;
 
-// TODO: ALLOW FORWARDING=off IN LINKUNIVERSAL
-// TODO: DEPRECATE 2player and MAKE SEND_RECEIVE latch default
-
 /**
  * @brief A high level driver for the GBA Wireless Adapter.
  */
 class LinkWireless {
- public:
-  std::function<void(std::string)> log;
-
  private:
   using u32 = Link::u32;
   using u16 = Link::u16;
@@ -184,7 +161,7 @@ class LinkWireless {
   static constexpr int BIT_HAS_MORE = 15;
 
  public:
-#define LINK_WIRELESS_PROFILING_ENABLED  // TODO: RESTORE
+// #define LINK_WIRELESS_PROFILING_ENABLED
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
   u32 vblankTime = 0;
   u32 serialTime = 0;
@@ -211,7 +188,7 @@ class LinkWireless {
     RECEIVE_DATA_FAILED = 8,
     ACKNOWLEDGE_FAILED = 9,
     TIMEOUT = 10,
-    CLIENT_TIMEOUT = 11,
+    REMOTE_TIMEOUT = 11,
     BUSY_TRY_AGAIN = 12,
   };
 
@@ -220,12 +197,6 @@ class LinkWireless {
     u8 playerId = 0;
     u8 packetId = NO_ID_ASSIGNED_YET;
   };
-
-  // struct Message {
-  //   u16 data = 0;
-  //   u8 playerId = 0;
-  //   u8 packetId = NO_ID_ASSIGNED_YET;
-  // };
 
   struct Server {
     u16 id = 0;
@@ -280,6 +251,11 @@ class LinkWireless {
    */
   bool activate() {
     LINK_READ_TAG(LINK_WIRELESS_VERSION);
+    static_assert(LINK_WIRELESS_QUEUE_SIZE >= 1);
+    static_assert(LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH >= 6 &&
+                  LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH <= 21);
+    static_assert(LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH >= 2 &&
+                  LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH <= 4);
 
     lastError = Error::NONE;
     isEnabled = false;
@@ -845,8 +821,8 @@ class LinkWireless {
     if (sessionState.recvTimeout >= config.timeout)
       return (void)abort(Error::TIMEOUT);
 
-    if (linkRawWireless.getState() == State::SERVING && !checkClientTimeouts())
-      return (void)abort(Error::CLIENT_TIMEOUT);
+    if (!checkRemoteTimeouts())
+      return (void)abort(Error::REMOTE_TIMEOUT);
 
     sessionState.recvFlag = false;
     sessionState.signalLevelCalled = false;
@@ -952,10 +928,8 @@ class LinkWireless {
     bool msgFlags[LINK_WIRELESS_MAX_PLAYERS];    // (~= LinkCable::msgFlags)
 
     bool signalLevelCalled = false;
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     bool sendReceiveLatch = false;  // true = send ; false = receive
     bool shouldWaitForServer = false;
-#endif
 
     bool didReceiveFirstPacketFromServer = false;
     u32 inflightCount = 0;
@@ -1107,26 +1081,17 @@ class LinkWireless {
       case LinkRawWireless::COMMAND_SEND_DATA: {
         // SendData (end)
 
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         if (linkRawWireless.getState() == State::CONNECTED)
           sessionState.shouldWaitForServer = true;
         sessionState.sendReceiveLatch = !sessionState.sendReceiveLatch;
-#else
-        if (linkRawWireless.getState() == State::SERVING) {
-          // ReceiveData (start)
-          sendCommandAsync(LinkRawWireless::COMMAND_RECEIVE_DATA);
-        }
-#endif
 
         break;
       }
       case LinkRawWireless::COMMAND_RECEIVE_DATA: {
         // ReceiveData (end)
 
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.sendReceiveLatch =
             sessionState.shouldWaitForServer || !sessionState.sendReceiveLatch;
-#endif
 
         if (commandResult->dataSize == 0)
           break;
@@ -1134,18 +1099,9 @@ class LinkWireless {
         sessionState.recvFlag = true;
         sessionState.recvTimeout = 0;
 
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
         sessionState.shouldWaitForServer = false;
-#endif
 
         addIncomingMessagesFromData(commandResult);
-
-#ifndef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-        if (linkRawWireless.getState() == State::CONNECTED) {
-          // SendData (start)
-          sendPendingData();
-        }
-#endif
 
         break;
       }
@@ -1162,12 +1118,8 @@ class LinkWireless {
         sessionState.signalLevelCalled = true;
     } else if (linkRawWireless.getState() == State::CONNECTED ||
                isConnected()) {
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
       bool shouldReceive =
           !sessionState.sendReceiveLatch || sessionState.shouldWaitForServer;
-#else
-      bool shouldReceive = linkRawWireless.getState() == State::CONNECTED;
-#endif
 
       if (shouldReceive) {
         // ReceiveData (start)
@@ -1236,10 +1188,6 @@ class LinkWireless {
                playerBitMapCount == MAX_PLAYER_BITMAP_ENTRIES)) {
             if (playerBitMapCount == MAX_PLAYER_BITMAP_ENTRIES)
               addToAsyncDataShifted(currentPlayerBitMapIndex, 1, BIT_HAS_MORE);
-
-            if (highPart) {
-              log("IT SHOULD BE FALSE WTF");  // TODO: REMOVE
-            }
 
             // `highPart` should always be false here!
             currentPlayerBitMapIndex = nextAsyncCommandDataSize;
@@ -1427,22 +1375,23 @@ class LinkWireless {
         remainingWords--;
       }
 
+      bool shouldResetTimeouts = true;
       if (isServer) {
         // reset timeouts, only if the heartbeat from the clients changed (*)
         int heartbeat = header.playerCount;
-        bool shouldResetTimeouts =
+        shouldResetTimeouts =
             heartbeat != sessionState.lastHeartbeatFromClients[i];
         sessionState.lastHeartbeatFromClients[i] = heartbeat;
         // (*) sometimes, when a client is disconnected, the Wireless Adapter
         // keeps repeating old data in its slot! we use this heartbeat to verify
         // that the client is still generating packets actively!
+      }
 
-        if (shouldResetTimeouts) {
-          sessionState.msgTimeouts[0] = 0;
-          sessionState.msgTimeouts[i] = 0;
-          sessionState.msgFlags[0] = true;
-          sessionState.msgFlags[i] = true;
-        }
+      if (shouldResetTimeouts) {
+        sessionState.msgTimeouts[0] = 0;
+        sessionState.msgTimeouts[i] = 0;
+        sessionState.msgFlags[0] = true;
+        sessionState.msgFlags[i] = true;
       }
     }
 
@@ -1597,8 +1546,12 @@ class LinkWireless {
     }
   }
 
-  bool checkClientTimeouts() {  // (irq only)
-    for (u32 i = 1; i < linkRawWireless.sessionState.playerCount; i++) {
+  bool checkRemoteTimeouts() {  // (irq only)
+    bool isServer = linkRawWireless.getState() == State::SERVING;
+    u32 startPlayerId = isServer ? 1 : 0;
+    u32 endPlayerId = isServer ? linkRawWireless.sessionState.playerCount : 1;
+
+    for (u32 i = startPlayerId; i < endPlayerId; i++) {
       if (!sessionState.msgFlags[i]) {
         sessionState.msgTimeouts[i]++;
         if (sessionState.msgTimeouts[i] > config.timeout)
@@ -1708,10 +1661,8 @@ class LinkWireless {
     sessionState.recvFlag = false;
     sessionState.recvTimeout = 0;
     sessionState.signalLevelCalled = false;
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
     sessionState.sendReceiveLatch = false;
     sessionState.shouldWaitForServer = false;
-#endif
     sessionState.didReceiveFirstPacketFromServer = false;
     sessionState.inflightCount = 0;
     sessionState.forwardedCount = 0;

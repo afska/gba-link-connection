@@ -42,6 +42,7 @@ typedef struct {
 } C_LinkUniversal_CableOptions;
 
 typedef struct {
+  bool forwarding;
   bool retransmission;
   u32 maxPlayers;
   u32 timeout;

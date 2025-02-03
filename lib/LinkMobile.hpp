@@ -283,6 +283,7 @@ class LinkMobile {
    */
   void activate() {
     LINK_READ_TAG(LINK_MOBILE_VERSION);
+    static_assert(LINK_MOBILE_QUEUE_SIZE >= 1);
 
     error = {};
 

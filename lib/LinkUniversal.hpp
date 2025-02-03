@@ -113,6 +113,7 @@ class LinkUniversal {
   };
 
   struct WirelessOptions {
+    bool forwarding;
     bool retransmission;
     u32 maxPlayers;
     u32 timeout;
@@ -139,7 +140,7 @@ class LinkUniversal {
                                           LINK_CABLE_DEFAULT_SEND_TIMER_ID},
                          WirelessOptions wirelessOptions =
                              WirelessOptions{
-                                 true, LINK_UNIVERSAL_MAX_PLAYERS,
+                                 true, true, LINK_UNIVERSAL_MAX_PLAYERS,
                                  LINK_WIRELESS_DEFAULT_TIMEOUT,
                                  LINK_WIRELESS_DEFAULT_INTERVAL,
                                  LINK_WIRELESS_DEFAULT_SEND_TIMER_ID})
@@ -148,8 +149,8 @@ class LinkUniversal {
                   cableOptions.interval,
                   cableOptions.sendTimerId),
         linkWireless(
+            wirelessOptions.forwarding,
             wirelessOptions.retransmission,
-            true,  // TODO: FIX THIS IS VERY WRONG
             Link::_min(wirelessOptions.maxPlayers, LINK_UNIVERSAL_MAX_PLAYERS),
             wirelessOptions.timeout,
             wirelessOptions.interval,

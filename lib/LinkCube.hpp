@@ -75,6 +75,7 @@ class LinkCube {
    */
   void activate() {
     LINK_READ_TAG(LINK_CUBE_VERSION);
+    static_assert(LINK_CUBE_QUEUE_SIZE >= 1);
 
     LINK_BARRIER;
     isEnabled = false;

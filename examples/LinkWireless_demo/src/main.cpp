@@ -43,12 +43,6 @@ int main() {
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   buildSettings += " + irq_nested\n";
 #endif
-#ifdef LINK_WIRELESS_USE_SEND_RECEIVE_LATCH
-  buildSettings += " + s/r_latch\n";
-#endif
-#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
-  buildSettings += " + 2players\n";
-#endif
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
   buildSettings += " + profiler\n";
 #endif
@@ -75,16 +69,6 @@ start:
       forwarding, retransmission, maxPlayers,
       isRestoringFromMultiboot ? 1000 : LINK_WIRELESS_DEFAULT_TIMEOUT,
       LINK_WIRELESS_DEFAULT_INTERVAL, LINK_WIRELESS_DEFAULT_SEND_TIMER_ID);
-
-  linkWireless->log = [](std::string str) {
-    u16 keys;
-    do {
-      keys = ~REG_KEYS & KEY_ANY;
-    } while ((keys & KEY_DOWN));
-
-    Common::log(str);
-    Common::waitForKey(KEY_DOWN);
-  };  // TODO: REMOVE
 
   // (2) Add the required interrupt service routines
   interrupt_init();
@@ -313,16 +297,10 @@ void messageLoop() {
 
     // (6) Send data
     if ((keys & KEY_B) || (!sending && (keys & KEY_A))) {
-      bool doubleSend = false;
       sending = true;
 
-    again:
       u16 newValue = counters[linkWireless->currentPlayerId()] + 1;
       bool success = linkWireless->send(newValue);
-
-#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
-      linkWireless->QUICK_SEND = newValue % 32;
-#endif
 
       if (success) {
         counters[linkWireless->currentPlayerId()] = newValue;
@@ -335,9 +313,14 @@ void messageLoop() {
         CHECK_ERRORS("Send failed :(")
       }
 
-      if (!doubleSend && (keys & KEY_LEFT)) {
-        doubleSend = true;
-        goto again;
+      if (keys & KEY_LEFT) {
+        // send x10
+        for (u32 i = 0; i < 10; i++) {
+          if (linkWireless->canSend()) {
+            counters[linkWireless->currentPlayerId()]++;
+            linkWireless->send(counters[linkWireless->currentPlayerId()]);
+          }
+        }
       }
     }
   sendEnd:
@@ -468,12 +451,7 @@ void messageLoop() {
           "p" + std::to_string(i) + ": " + std::to_string(counters[i]) + "\n";
     }
 
-// Debug output
-#ifdef LINK_WIRELESS_TWO_PLAYERS_ONLY
-    output += "\n>> " + std::to_string(linkWireless->QUICK_SEND);
-    output += "\n<< " + std::to_string(linkWireless->QUICK_RECEIVE) + "\n";
-#endif
-
+    // Debug output
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount()) +
               " (" + std::to_string(linkWireless->_getInflightCount()) + ")";
     if (retransmission && !altView) {
@@ -516,7 +494,7 @@ void messageLoop() {
     // RIGHT = More options
     if (keys & KEY_RIGHT) {
       Common::log(
-          "- Hold LEFT = Double send\n- Hold DOWN = Test lag\n- L = Decrease "
+          "- Hold LEFT = Send x10\n- Hold DOWN = Test lag\n- L = Decrease "
           "interval\n- R = Increase interval\n- DOWN = Close dialogs\n- "
           "START+UP: Close srv (prof)\n- UP: Update brdcst (prof)\n- "
           "SELECT = Disconnect");
