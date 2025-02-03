@@ -1313,7 +1313,7 @@ class LinkWireless {
     bool isServer = linkRawWireless.getState() == State::SERVING;
     u32 cursor = 1;
     u32 startPlayerId = isServer ? 1 : 0;
-    u32 endPlayerId = isServer ? LINK_WIRELESS_MAX_PLAYERS : 1;
+    u32 endPlayerId = isServer ? linkRawWireless.sessionState.playerCount : 1;
 
     // server reads from indexes 1~4, clients read from index 0
     for (u32 i = startPlayerId; i < endPlayerId; i++) {
@@ -1330,10 +1330,19 @@ class LinkWireless {
       remainingWords--;
       TransferHeader header = packer.asStruct;
 
-      // if retransmission is enabled, we delete confirmed messages based on the
+      // if retransmission is enabled, we update the confirmations based on the
       // ACKs found in the header
-      if (config.retransmission)
-        processACKs(i, header, isServer);
+      if (config.retransmission) {
+        if (isServer) {
+          sessionState.lastACKFromClients[i] = header.ack1;
+        } else {
+          u32 currentPlayerId = linkRawWireless.sessionState.currentPlayerId;
+          sessionState.lastACKFromServer = currentPlayerId == 1   ? header.ack1
+                                           : currentPlayerId == 2 ? header.ack2
+                                           : currentPlayerId == 3 ? header.ack3
+                                                                  : header.ack4;
+        }
+      }
 
       // clients update their player count based on the transfer header
       if (!isServer)
@@ -1398,86 +1407,16 @@ class LinkWireless {
       }
     }
 
+    // remove confirmed messages based on the updated ACKs
+    if (config.retransmission) {
+      if (isServer)
+        removeConfirmedMessagesFromClients();
+      else
+        removeConfirmedMessagesFromServer();
+    }
+
     // copy data from the interrupt world to the main world
     copyIncomingState();
-  }
-
-  LINK_INLINE void processACKs(u32 playerId,
-                               TransferHeader& transferHeader,
-                               bool isServer) {  // (irq only)
-    if (isServer) {
-      processACKFromClient(playerId, transferHeader.ack1);
-    } else {
-      u32 currentPlayerId = linkRawWireless.sessionState.currentPlayerId;
-      processACKFromServer(currentPlayerId == 1   ? transferHeader.ack1
-                           : currentPlayerId == 2 ? transferHeader.ack2
-                           : currentPlayerId == 3 ? transferHeader.ack3
-                                                  : transferHeader.ack4);
-    }
-  }
-
-  LINK_INLINE void processACKFromServer(u32 ack) {  // (irq only)
-    sessionState.lastACKFromServer = ack;
-    removeConfirmedMessages(ack, MAX_PACKET_IDS_CLIENT,
-                            MAX_INFLIGHT_PACKETS_CLIENT);
-  }
-
-  LINK_INLINE void processACKFromClient(u32 playerId, u32 ack) {  // (irq only)
-    sessionState.lastACKFromClients[playerId] = ack;
-
-    u32 ringMinAck = 0xFFFFFFFF;
-    for (u32 i = 1; i < config.maxPlayers; i++) {
-      u32 ack = sessionState.lastACKFromClients[i];
-
-      // ignore clients that didn't confirm anything yet
-      if (ack == NO_ACK_RECEIVED_YET)
-        continue;
-
-      if (ringMinAck == 0xFFFFFFFF) {
-        // on first time, we set `ringMinAck`
-        ringMinAck = ack;
-      } else {
-        // we compare `ringMinAck` vs `ack` in circular space
-        // (0..MAX_PACKET_IDS_CLIENT-1):
-        //   -> how many steps it is from `ringMinAck` down to `ack`?
-        u32 dist = (ringMinAck - ack) & (MAX_PACKET_IDS_CLIENT - 1);
-
-        // if dist >= MAX_INFLIGHT_PACKETS_CLIENT => `ack` is "behind"
-        // `ringMinAck`, so we replace it!
-        if (dist >= MAX_INFLIGHT_PACKETS_CLIENT)
-          ringMinAck = ack;
-      }
-    }
-
-    // if we found a valid minimum ack across all clients, we remove!
-    if (ringMinAck != 0xFFFFFFFF)
-      removeConfirmedMessages(ringMinAck, MAX_PACKET_IDS_SERVER,
-                              MAX_INFLIGHT_PACKETS_SERVER);
-  }
-
-  LINK_INLINE void removeConfirmedMessages(
-      u32 ack,
-      const u32 maxPacketIds,
-      const u32 maxInflightPackets) {  // (irq only)
-    while (!sessionState.outgoingMessages.isEmpty()) {
-      u32 packetId = sessionState.outgoingMessages.peek().packetId;
-
-      // if the current message is not inflight, we've entered the section of
-      // 'new' messages (with no ID assigned), so we quit!
-      if (packetId == NO_ID_ASSIGNED_YET)
-        break;
-
-      // we release the packet if it was confirmed (aka inside the send window)
-      // example with maxPacketIds=16, maxInflightPackets=7, ack=4:
-      //   => we would be releasing packets 4,3,2,1,15,14,13
-      if (((ack - packetId) & (maxPacketIds - 1)) <= maxInflightPackets) {
-        auto message = sessionState.outgoingMessages.pop();
-        sessionState.inflightCount--;
-        if (maxPacketIds == MAX_PACKET_IDS_SERVER && message.playerId > 0)
-          sessionState.forwardedCount--;
-      } else
-        break;
-    }
   }
 
   LINK_INLINE void processMessage(u32 playerId,
@@ -1554,6 +1493,67 @@ class LinkWireless {
       sessionState.forwardedCount++;
     } else
       sessionState.outgoingMessages.overflow = true;
+  }
+
+  LINK_INLINE void removeConfirmedMessagesFromServer() {  // (irq only)
+    removeConfirmedMessages(sessionState.lastACKFromServer,
+                            MAX_PACKET_IDS_CLIENT, MAX_INFLIGHT_PACKETS_CLIENT);
+  }
+
+  LINK_INLINE void removeConfirmedMessagesFromClients() {  // (irq only)
+    u32 ringMinAck = 0xFFFFFFFF;
+    for (u32 i = 1; i < linkRawWireless.sessionState.playerCount; i++) {
+      u32 ack = sessionState.lastACKFromClients[i];
+
+      // ignore clients that didn't confirm anything yet
+      if (ack == NO_ACK_RECEIVED_YET)
+        continue;
+
+      if (ringMinAck == 0xFFFFFFFF) {
+        // on first time, we set `ringMinAck`
+        ringMinAck = ack;
+      } else {
+        // we compare `ringMinAck` vs `ack` in circular space
+        // (0..MAX_PACKET_IDS_CLIENT-1):
+        //   -> how many steps it is from `ringMinAck` down to `ack`?
+        u32 dist = (ringMinAck - ack) & (MAX_PACKET_IDS_CLIENT - 1);
+
+        // if dist >= MAX_INFLIGHT_PACKETS_CLIENT => `ack` is "behind"
+        // `ringMinAck`, so we replace it!
+        if (dist >= MAX_INFLIGHT_PACKETS_CLIENT)
+          ringMinAck = ack;
+      }
+    }
+
+    // if we found a valid minimum ack across all clients, we remove!
+    if (ringMinAck != 0xFFFFFFFF)
+      removeConfirmedMessages(ringMinAck, MAX_PACKET_IDS_SERVER,
+                              MAX_INFLIGHT_PACKETS_SERVER);
+  }
+
+  LINK_INLINE void removeConfirmedMessages(
+      u32 ack,
+      const u32 maxPacketIds,
+      const u32 maxInflightPackets) {  // (irq only)
+    while (!sessionState.outgoingMessages.isEmpty()) {
+      u32 packetId = sessionState.outgoingMessages.peek().packetId;
+
+      // if the current message is not inflight, we've entered the section of
+      // 'new' messages (with no ID assigned), so we quit!
+      if (packetId == NO_ID_ASSIGNED_YET)
+        break;
+
+      // we release the packet if it was confirmed (aka inside the send window)
+      // example with maxPacketIds=16, maxInflightPackets=7, ack=4:
+      //   => we would be releasing packets 4,3,2,1,15,14,13
+      if (((ack - packetId) & (maxPacketIds - 1)) <= maxInflightPackets) {
+        auto message = sessionState.outgoingMessages.pop();
+        sessionState.inflightCount--;
+        if (maxPacketIds == MAX_PACKET_IDS_SERVER && message.playerId > 0)
+          sessionState.forwardedCount--;
+      } else
+        break;
+    }
   }
 
   bool checkRemoteTimeouts() {  // (irq only)
