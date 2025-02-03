@@ -85,8 +85,9 @@
  * @brief Max client transfer length per timer tick. Must be in the range
  * `[2;4]`. The default value is `4`. Changing this is not recommended, it's
  * already too low.
- * \warning This is measured in words (1 message = 1 halfword). One word is used
- * as a header, so a max transfer length of 4 could transfer up to 6 messages.
+ * \warning This is measured in words (1 message = 1 halfword). One halfword is
+ * used as a header, so a max transfer length of 4 could transfer up to 7
+ * messages.
  */
 #define LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH 4
 #endif
@@ -1596,15 +1597,6 @@ class LinkWireless {
                 (sessionState.lastPacketId + 1) % maxPacketIds);
   }
 
-  bool sendCommandAsync(u8 type, bool withData = false) {  // (irq only)
-    if (isSendingSyncCommand)
-      return false;
-
-    u32 size = withData ? nextAsyncCommandDataSize : 0;
-    return linkRawWireless.sendCommandAsync(type, nextAsyncCommandData, size,
-                                            false, true);
-  }
-
   void addToLastAsyncDataHalfword(u16 value) {  // (irq only)
     addToAsyncDataShifted(nextAsyncCommandDataSize - 1, value, 16);
   }
@@ -1618,6 +1610,15 @@ class LinkWireless {
       nextAsyncCommandDataSize = 0;
     nextAsyncCommandData[nextAsyncCommandDataSize] = value;
     nextAsyncCommandDataSize++;
+  }
+
+  bool sendCommandAsync(u8 type, bool withData = false) {  // (irq only)
+    if (isSendingSyncCommand)
+      return false;
+
+    u32 size = withData ? nextAsyncCommandDataSize : 0;
+    return linkRawWireless.sendCommandAsync(type, nextAsyncCommandData, size,
+                                            false, true);
   }
 
   bool isAsyncCommandActive() {
