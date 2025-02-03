@@ -15,7 +15,7 @@ LINK_CODE_IWRAM void LinkWireless::_onSerial() {
   irqEnd();
 #endif
 }
-LINK_CODE_IWRAM void LinkWireless::_onTimer() {
+void LinkWireless::_onTimer() {
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   if (interrupt)
     return;

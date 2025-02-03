@@ -993,15 +993,16 @@ class LinkWireless {
     // - `hasMore` indicates whether there are more messages owned by player IDs
     //   greater than 0, which adds another `PlayerBitMap` after the messages.
     // - Each `PlayerBitMap` occupies the space of a regular message, but
-    //   doesn't affect the packet ID sequence
+    //   doesn't affect the packet ID sequence. By design, they are always
+    //   placed in the low part.
     // ---
     // Example: Let's say there's a stream with 12 packets (p1~pC).
     // Before pB, some of the packets are forwarded from other clients.
     // So, the transfer header (THD) takes the first word and sets
     // `hasPlayerBitMap=1`. The low part of the next word is a `PlayerBitMap`
     // (PB) and describes the owners of the following 5 messages (p1~p5). Since
-    // there are more forwarded messages, a new PB is added describing p6~pA
-    // (last PB had `hasMore`=1). The last two messages (pB~pC) are server
+    // there are more forwarded messages (last PB had `hasMore`=1), a new PB is
+    // added describing p6~pA. The last two messages (pB~pC) are server
     // messages, so there's no need for a new PB (last PB had `hasMore`=0).
     //   w00    w01    w02    w03    w04    w05    w06    w07
     // |-----||--|--||--|--||--|--||--|--||--|--||--|--||--|--|
@@ -1111,7 +1112,7 @@ class LinkWireless {
     }
   }
 
-  LINK_INLINE void checkConnectionsOrTransferData() {  // (irq only)
+  void checkConnectionsOrTransferData() {  // (irq only)
     if (linkRawWireless.getState() == State::SERVING &&
         !sessionState.signalLevelCalled) {
       // SignalLevel (start)
@@ -1219,7 +1220,7 @@ class LinkWireless {
 
           msgCount++;
 
-          // only continue if we have available words
+          // only continue if we have available halfwords
           return nextAsyncCommandDataSize < maxTransferLength || highPart;
         });
 
@@ -1298,7 +1299,8 @@ class LinkWireless {
     sessionState.inflightCount = 0;
   }
 
-  void addIncomingMessagesFromData(const CommandResult* result) {  // (irq only)
+  LINK_INLINE void addIncomingMessagesFromData(
+      const CommandResult* result) {  // (irq only)
     // parse ReceiveData header
     u32 sentBytes[LINK_WIRELESS_MAX_PLAYERS] = {0, 0, 0, 0, 0};
     u32 receiveDataHeader = result->data[0];
@@ -1338,7 +1340,7 @@ class LinkWireless {
         linkRawWireless.sessionState.playerCount =
             LINK_WIRELESS_MIN_PLAYERS + header.playerCount;
 
-      // in some cases, the first message could be in the header itself
+      // clients can send their first message in the header itself
       u32 currentPacketId = header.firstPacketId;
       bool hasFirstMsg =
           isServer && (currentPacketId & HAS_FIRST_MSG_MASK) != 0;
@@ -1400,9 +1402,9 @@ class LinkWireless {
     copyIncomingState();
   }
 
-  void processACKs(u32 playerId,
-                   TransferHeader& transferHeader,
-                   bool isServer) {  // (irq only)
+  LINK_INLINE void processACKs(u32 playerId,
+                               TransferHeader& transferHeader,
+                               bool isServer) {  // (irq only)
     if (isServer) {
       processACKFromClient(playerId, transferHeader.ack1);
     } else {
@@ -1414,13 +1416,13 @@ class LinkWireless {
     }
   }
 
-  void processACKFromServer(u32 ack) {  // (irq only)
+  LINK_INLINE void processACKFromServer(u32 ack) {  // (irq only)
     sessionState.lastACKFromServer = ack;
     removeConfirmedMessages(ack, MAX_PACKET_IDS_CLIENT,
                             MAX_INFLIGHT_PACKETS_CLIENT);
   }
 
-  void processACKFromClient(u32 playerId, u32 ack) {  // (irq only)
+  LINK_INLINE void processACKFromClient(u32 playerId, u32 ack) {  // (irq only)
     sessionState.lastACKFromClients[playerId] = ack;
 
     u32 ringMinAck = 0xFFFFFFFF;
@@ -1453,9 +1455,10 @@ class LinkWireless {
                               MAX_INFLIGHT_PACKETS_SERVER);
   }
 
-  void removeConfirmedMessages(u32 ack,
-                               const u32 maxPacketIds,
-                               const u32 maxInflightPackets) {  // (irq only)
+  LINK_INLINE void removeConfirmedMessages(
+      u32 ack,
+      const u32 maxPacketIds,
+      const u32 maxInflightPackets) {  // (irq only)
     while (!sessionState.outgoingMessages.isEmpty()) {
       u32 packetId = sessionState.outgoingMessages.peek().packetId;
 
@@ -1477,11 +1480,11 @@ class LinkWireless {
     }
   }
 
-  void processMessage(u32 playerId,
-                      u32 data,
-                      u32& currentPacketId,
-                      u32& playerBitMap,
-                      int& playerBitMapCount) {  // (irq only)
+  LINK_INLINE void processMessage(u32 playerId,
+                                  u32 data,
+                                  u32& currentPacketId,
+                                  u32& playerBitMap,
+                                  int& playerBitMapCount) {  // (irq only)
     // store the packet ID and increment (msgs are consecutive inside transfers)
     u32 packetId = currentPacketId;
     currentPacketId =
@@ -1542,7 +1545,7 @@ class LinkWireless {
       forwardMessage(message);
   }
 
-  void forwardMessage(Message& message) {  // (irq only)
+  LINK_INLINE void forwardMessage(Message& message) {  // (irq only)
     Message forwardedMessage;
     forwardedMessage.data = message.data;
     forwardedMessage.playerId = message.playerId;
@@ -1587,7 +1590,7 @@ class LinkWireless {
     }
   }
 
-  void copyIncomingState() {  // (irq only)
+  LINK_INLINE void copyIncomingState() {  // (irq only)
     if (sessionState.incomingMessages.isReading())
       return;
 
