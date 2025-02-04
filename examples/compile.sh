@@ -107,11 +107,19 @@ compile() {
   cp LinkWireless_demo$suffix.gba ../$folder/
   cd ..
 
-  # LinkWireless_demo_profiler
+  # LinkWireless_prof_code_iwram
   cd LinkWireless_demo/
   mv LinkWireless_demo$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_PROFILING_ENABLED=1"
-  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_profiler$suffix.gba
+  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_prof_code_iwram$suffix.gba
+  mv backup.gba LinkWireless_demo$suffix.gba || :
+  cd ..
+
+  # LinkWireless_prof_code_rom
+  cd LinkWireless_demo/
+  mv LinkWireless_demo$suffix.gba backup.gba || :
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PROFILING_ENABLED=1"
+  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_prof_code_rom$suffix.gba
   mv backup.gba LinkWireless_demo$suffix.gba || :
   cd ..
 }
@@ -130,7 +138,14 @@ rm hello.gbfs
 for file in *.gba; do
   ../pad16.sh "$file"
 done
+mv Hello.gba _hello.gba
+for file in Link*.gba; do
+  mv "$file" "${file#Link}"
+done
 gbfs roms.gbfs *
+for file in *.gba; do
+  mv "$file" "Link$file"
+done
 cd ..
 
 # Bundle all multiboot ROMs in the multiboot launchers
