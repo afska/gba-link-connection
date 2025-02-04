@@ -49,7 +49,7 @@ int main() {
       ;
   }
 
-  bool left = false, right = false, a = false, b = false, l = false;
+  bool left = true, right = true, a = true, b = true, l = true;
 
   while (true) {
     // Get selected ROM name

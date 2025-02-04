@@ -89,9 +89,9 @@ start:
     linkWireless->activate();
   }
 
-  bool activating = false;
-  bool serving = false;
-  bool connecting = false;
+  bool activating = true;
+  bool serving = true;
+  bool connecting = true;
 
   while (true) {
     u16 keys = ~REG_KEYS & KEY_ANY;
@@ -274,7 +274,9 @@ void messageLoop() {
 
   bool sending = false;
   bool altView = false;
-  bool switching = false;
+
+  bool switching = true;
+  bool moreKeys = true;
 
 #ifndef LINK_WIRELESS_PROFILING_ENABLED
   u32 lostPackets = 0;
@@ -493,7 +495,7 @@ void messageLoop() {
     }
 
     // RIGHT = More options
-    if (keys & KEY_RIGHT) {
+    if (Common::didPress(KEY_RIGHT, moreKeys)) {
       Common::log(
           "- Hold LEFT = Send x10\n- Hold DOWN = Test lag\n- L = Decrease "
           "interval\n- R = Increase interval\n- DOWN = Close dialogs\n- "

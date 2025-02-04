@@ -24,9 +24,9 @@ std::string outgoingData = "";
 u32 counter = 0;
 u32 frameCounter = 0;
 
-bool left = false, right = false, up = false, down = false;
-bool a = false, b = false, l = false, r = false;
-bool start = false, select = false;
+bool left = true, right = true, up = true, down = true;
+bool a = true, b = true, l = true, r = true;
+bool start = true, select = true;
 std::string selectedNumber = "";
 std::string selectedPassword = "";
 std::string selectedDomain = "";

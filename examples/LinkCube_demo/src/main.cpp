@@ -4,7 +4,7 @@
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-bool a = false, b = false, l = false;
+bool a = true, b = true, l = true;
 
 // (1) Create a LinkCube instance
 LinkCube* linkCube = new LinkCube();

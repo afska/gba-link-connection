@@ -186,8 +186,8 @@ void test(bool withSync) {
   u16 expectedCounter = 0;
   bool error = false;
   u16 receivedRemoteCounter = 0;
-  bool increasingInterval = false;
-  bool decreasingInterval = false;
+  bool increasingInterval = true;
+  bool decreasingInterval = true;
 
   Common::log("Waiting for data...");
 
