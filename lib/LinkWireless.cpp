@@ -1,8 +1,12 @@
 #include "LinkWireless.hpp"
 
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
+#define _LINK_CODE LINK_CODE_IWRAM
+#else
+#define _LINK_CODE
+#endif
 
-LINK_CODE_IWRAM void LinkWireless::_onSerial() {
+_LINK_CODE void LinkWireless::_onSerial() {
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   interrupt = true;
   LINK_BARRIER;
@@ -46,5 +50,3 @@ void LinkWireless::_onTimer() {
  *   - VBLANK interrupts are postponed if SERIAL or TIMER ISRs are running.
  *   - Nobody can interrupt VBLANK ISR.
  */
-
-#endif

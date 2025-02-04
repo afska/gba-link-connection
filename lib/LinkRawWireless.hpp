@@ -1176,10 +1176,8 @@ class LinkRawWireless {
         if (!acknowledge())
           return -4;
 
-#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
         Link::_REG_IME = 1;
-#endif
 #endif
 
         sendAsyncCommand(newData, _clockInversionSupport);
@@ -1665,11 +1663,9 @@ class LinkRawWireless {
   }
 
   void transferAsync(u32 data, bool fromIRQ) {
-#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
     if (fromIRQ)
       Link::_REG_IME = 0;
-#endif
 #endif
 
     linkSPI.transfer(data, []() { return false; }, true, true);

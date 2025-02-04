@@ -110,8 +110,6 @@
  * enable).
  * This can be useful, for example, if your audio engine requires calling a
  * VBlank handler with precise timing.
- * \warning This won't produce any effect if `LINK_WIRELESS_PUT_ISR_IN_IWRAM` is
- * disabled.
  */
 // #define LINK_WIRELESS_ENABLE_NESTED_IRQ
 #endif
@@ -820,13 +818,11 @@ class LinkWireless {
     if (!isEnabled)
       return;
 
-#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
     if (interrupt) {
       pendingVBlank = true;
       return;
     }
-#endif
 #endif
 
 #ifdef LINK_WIRELESS_PROFILING_ENABLED
@@ -1057,13 +1053,10 @@ class LinkWireless {
   volatile Error lastError = Error::NONE;
   volatile bool isEnabled = false;
 
-#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   volatile bool interrupt = false, pendingVBlank = false;
 #endif
-#endif
 
-#ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
   void irqEnd() {
     Link::_REG_IME = 0;
@@ -1074,7 +1067,6 @@ class LinkWireless {
       pendingVBlank = false;
     }
   }
-#endif
 #endif
 
   LINK_INLINE void processAsyncCommand(
