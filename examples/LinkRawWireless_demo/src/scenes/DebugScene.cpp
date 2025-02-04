@@ -933,6 +933,10 @@ std::vector<u32> DebugScene::selectDataToSend() {
 
   data.push_back(bytes);
 
+  if (selectOption(">> Include data?", std::vector<std::string>{"yes", "no"}) ==
+      1)
+    return data;
+
   u32 words = (bytes + 3) / 4;
   for (u32 i = 0; i < (u32)words; i++) {
     int word = selectU32("Word " + std::to_string(i + 1) + "/" +

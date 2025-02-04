@@ -378,7 +378,7 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
   - **Host**: `ReceiveData`
     - Receives `{rcvHeader}`, 20
 
-🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet. Until we have a better name, we'll call this **ghost sends**.
+🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header), up to 4. This is probably just garbage that stays in the hardware buffer, but since clients cannot take initiative, some games send 1 byte and no data on the server side to let clients talk. Until we have a better name, we'll call this **ghost sends**.
 
 #### SendDataWait - `0x25`
 
