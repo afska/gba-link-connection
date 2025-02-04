@@ -733,6 +733,12 @@ class LinkWireless {
   [[nodiscard]] u32 _getInflightCount() { return sessionState.inflightCount; }
 
   /**
+   * @brief Returns the number of forwarded outgoing messages.
+   * \warning This is internal API!
+   */
+  [[nodiscard]] u32 _getForwardedCount() { return sessionState.forwardedCount; }
+
+  /**
    * @brief Returns the last packet ID.
    * \warning This is internal API!
    */

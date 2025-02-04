@@ -453,7 +453,8 @@ void messageLoop() {
 
     // Debug output
     output += "\n_buffer: " + std::to_string(linkWireless->_getPendingCount()) +
-              " (" + std::to_string(linkWireless->_getInflightCount()) + ")";
+              " (" + std::to_string(linkWireless->_getInflightCount()) + "i, " +
+              std::to_string(linkWireless->_getForwardedCount()) + "f)";
     if (retransmission && !altView) {
       output +=
           "\n_lastPkgId: " + std::to_string(linkWireless->_lastPacketId());
