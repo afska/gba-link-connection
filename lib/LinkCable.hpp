@@ -341,7 +341,10 @@ class LinkCable {
     }
 
     auto response = LinkRawCable::getData();
+
+    LINK_BARRIER;
     state.currentPlayerId = response.playerId;
+    LINK_BARRIER;
 
     _state.IRQFlag = true;
     _state.IRQTimeout = 0;
@@ -365,7 +368,9 @@ class LinkCable {
       }
     }
 
+    LINK_BARRIER;
     state.playerCount = newPlayerCount;
+    LINK_BARRIER;
 
     LinkRawCable::setData(LINK_CABLE_NO_DATA);
 
@@ -453,6 +458,7 @@ class LinkCable {
   }
 
   void resetState() {
+    LINK_BARRIER;
     state.playerCount = 1;
     state.currentPlayerId = 0;
 
@@ -470,6 +476,7 @@ class LinkCable {
     }
     _state.IRQFlag = false;
     _state.IRQTimeout = 0;
+    LINK_BARRIER;
   }
 
   void stop() {

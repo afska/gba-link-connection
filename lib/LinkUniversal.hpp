@@ -703,6 +703,7 @@ class LinkUniversal {
   }
 
   void resetState() {
+    LINK_BARRIER;
     waitCount = 0;
     switchWait =
         SWITCH_WAIT_FRAMES + Link::_qran_range(1, SWITCH_WAIT_FRAMES_RANDOM);
@@ -712,6 +713,7 @@ class LinkUniversal {
       incomingMessages[i].clear();
       incomingMessages[i].overflow = false;
     }
+    LINK_BARRIER;
   }
 
   u32 safeStoi(const char* str) {

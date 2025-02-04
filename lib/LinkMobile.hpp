@@ -1561,6 +1561,7 @@ class LinkMobile {
   }
 
   void resetState() {
+    LINK_BARRIER;
     setState(State::NEEDS_RESET);
 
     adapterConfiguration = AdapterConfiguration{};
@@ -1575,6 +1576,7 @@ class LinkMobile {
     adapterType = AdapterType::UNKNOWN;
 
     userRequests.syncClear();
+    LINK_BARRIER;
   }
 
   void stop() {

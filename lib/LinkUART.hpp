@@ -309,8 +309,10 @@ class LinkUART {
   }
 
   void resetState() {
+    LINK_BARRIER;
     incomingQueue.clear();
     outgoingQueue.clear();
+    LINK_BARRIER;
   }
 
   void stop() { setGeneralPurposeMode(); }

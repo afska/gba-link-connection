@@ -230,6 +230,7 @@ class LinkCube {
   }
 
   void resetState() {
+    LINK_BARRIER;
     needsClear = false;
     newIncomingQueue.clear();
     if (incomingQueue.isReading())
@@ -240,6 +241,7 @@ class LinkCube {
     resetFlag = false;
 
     newIncomingQueue.overflow = false;
+    LINK_BARRIER;
   }
 
   void setPendingData() {

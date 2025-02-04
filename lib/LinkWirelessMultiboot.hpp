@@ -596,12 +596,14 @@ class LinkWirelessMultiboot {
   }
 
   void resetState() {
+    LINK_BARRIER;
     progress.state = State::STOPPED;
     progress.connectedClients = 0;
     progress.percentage = 0;
     progress.ready = &readyFlag;
     readyFlag = false;
     lastValidHeader = ClientHeader{};
+    LINK_BARRIER;
   }
 
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
@@ -1072,8 +1074,10 @@ class LinkWirelessMultiboot {
           if (!response->success)
             return (void)stop(Result::FAILURE);
 
+          LINK_BARRIER;
           u32 newConnectedClients = response->dataSize;
           linkRawWireless.sessionState.playerCount = 1 + newConnectedClients;
+          LINK_BARRIER;
 
           if (newConnectedClients > dynamicData.connectedClients) {
             dynamicData.connectedClients = newConnectedClients;
@@ -1433,11 +1437,13 @@ class LinkWirelessMultiboot {
     }
 
     void resetState(Result newResult = Result::NONE) {
+      LINK_BARRIER;
       state = State::STOPPED;
       result = newResult;
       sendState = SendState::NOT_SENDING;
       fixedData = MultibootFixedData{};
       dynamicData = MultibootDynamicData{};
+      LINK_BARRIER;
     }
 
     bool stop(Result newResult = Result::NONE) {

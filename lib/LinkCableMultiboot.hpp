@@ -1014,10 +1014,12 @@ class LinkCableMultiboot {
     }
 
     void resetState(Result newResult = Result::NONE) {
+      LINK_BARRIER;
       state = State::STOPPED;
       result = newResult;
       fixedData = MultibootFixedData{};
       dynamicData = MultibootDynamicData{};
+      LINK_BARRIER;
     }
 
     Response getAsyncResponse() {

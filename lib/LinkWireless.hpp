@@ -1080,8 +1080,10 @@ class LinkWireless {
         }
 
         if (players > linkRawWireless.sessionState.playerCount) {
+          LINK_BARRIER;
           linkRawWireless.sessionState.playerCount =
               Link::_min(players, config.maxPlayers);
+          LINK_BARRIER;
         }
 
         break;
@@ -1351,9 +1353,12 @@ class LinkWireless {
       }
 
       // clients update their player count based on the transfer header
-      if (!isServer)
+      if (!isServer) {
+        LINK_BARRIER;
         linkRawWireless.sessionState.playerCount =
             LINK_WIRELESS_MIN_PLAYERS + header.playerCount;
+        LINK_BARRIER;
+      }
 
       // clients can send their first message in the header itself
       u32 currentPacketId = header.firstPacketId;
@@ -1672,6 +1677,7 @@ class LinkWireless {
   }
 
   void resetState() {
+    LINK_BARRIER;
     linkRawWireless._resetState();
 
     sessionState.recvFlag = false;
@@ -1705,6 +1711,7 @@ class LinkWireless {
     sessionState.signalLevel = SignalLevel{};
 
     isSendingSyncCommand = false;
+    LINK_BARRIER;
   }
 
   void stop() {

@@ -278,7 +278,10 @@ class LinkRawWireless {
       return false;
     }
 
+    LINK_BARRIER;
     sessionState.currentPlayerId = systemStatus.currentPlayerId;
+    LINK_BARRIER;
+
     _LRWLOG_("restored ok!");
 
     isEnabled = true;
@@ -336,11 +339,14 @@ class LinkRawWireless {
     response.deviceId = Link::lsB32(status);
 
     u8 slot = Link::lsB16(Link::msB32(status)) & 0b1111;
+
+    LINK_BARRIER;
     response.currentPlayerId = slot == 0b0001   ? 1
                                : slot == 0b0010 ? 2
                                : slot == 0b0100 ? 3
                                : slot == 0b1000 ? 4
                                                 : 0;
+    LINK_BARRIER;
 
     u8 adapterState = Link::msB16(Link::msB32(status));
     response.isServerClosed = false;
@@ -495,10 +501,12 @@ class LinkRawWireless {
       }
     }
 
+    LINK_BARRIER;
     u8 oldPlayerCount = sessionState.playerCount;
     sessionState.playerCount = 1 + response.connectedClientsSize;
     if (sessionState.playerCount != oldPlayerCount)
       _LRWLOG_("now: " + std::to_string(sessionState.playerCount) + " players");
+    LINK_BARRIER;
 
     return true;
   }
@@ -522,10 +530,12 @@ class LinkRawWireless {
                           .clientNumber = (u8)Link::msB32(result.data[i])};
     }
 
+    LINK_BARRIER;
     u8 oldPlayerCount = sessionState.playerCount;
     sessionState.playerCount = 1 + result.dataSize;
     if (sessionState.playerCount != oldPlayerCount)
       _LRWLOG_("now: " + std::to_string(sessionState.playerCount) + " players");
+    LINK_BARRIER;
 
     return true;
   }
@@ -549,10 +559,12 @@ class LinkRawWireless {
                           .clientNumber = (u8)Link::msB32(result.data[i])};
     }
 
+    LINK_BARRIER;
     u8 oldPlayerCount = sessionState.playerCount;
     sessionState.playerCount = 1 + result.dataSize;
     if (sessionState.playerCount != oldPlayerCount)
       _LRWLOG_("now: " + std::to_string(sessionState.playerCount) + " players");
+    LINK_BARRIER;
 
     _LRWLOG_("server CLOSED");
     sessionState.isServerClosed = true;
@@ -706,8 +718,11 @@ class LinkRawWireless {
       return false;
     }
 
+    LINK_BARRIER;
     u8 assignedPlayerId = 1 + (u8)status;
     sessionState.currentPlayerId = assignedPlayerId;
+    LINK_BARRIER;
+
     _LRWLOG_("state = CONNECTED");
     state = State::CONNECTED;
 
@@ -1117,12 +1132,14 @@ class LinkRawWireless {
    * \warning This is internal API!
    */
   void _resetState() {
+    LINK_BARRIER;
     _LRWLOG_("state = NEEDS_RESET");
     state = State::NEEDS_RESET;
     asyncState = AsyncState::IDLE;
     sessionState.playerCount = 1;
     sessionState.currentPlayerId = 0;
     sessionState.isServerClosed = false;
+    LINK_BARRIER;
   }
 
   /**
