@@ -169,14 +169,18 @@ bool C_LinkWireless_didQueueOverflow(C_LinkWirelessHandle handle, bool clear) {
   return static_cast<LinkWireless*>(handle)->didQueueOverflow(clear);
 }
 
-C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
-                                                 bool clear) {
-  return static_cast<C_LinkWireless_Error>(
-      static_cast<LinkWireless*>(handle)->getLastError(clear));
+void C_LinkWireless_resetTimeout(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->resetTimeout();
 }
 
 void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->resetTimer();
+}
+
+C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
+                                                 bool clear) {
+  return static_cast<C_LinkWireless_Error>(
+      static_cast<LinkWireless*>(handle)->getLastError(clear));
 }
 
 C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle) {

@@ -290,6 +290,19 @@ class LinkCable {
   }
 
   /**
+   * @brief Resets other players' timeout count to `0`.
+   * \warning Call this if you changed `config.timeout`.
+   */
+  void resetTimeout() {
+    if (!isEnabled)
+      return;
+
+    LINK_BARRIER;
+    _state.isResetTimeoutPending = true;
+    LINK_BARRIER;
+  }
+
+  /**
    * @brief Restarts the send timer without disconnecting.
    * \warning Call this if you changed `config.interval`.
    */
@@ -308,6 +321,13 @@ class LinkCable {
   void _onVBlank() {
     if (!isEnabled)
       return;
+
+    if (_state.isResetTimeoutPending) {
+      _state.IRQTimeout = 0;
+      for (u32 i = 0; i < LINK_CABLE_MAX_PLAYERS; i++)
+        _state.msgTimeouts[i] = 0;
+      _state.isResetTimeoutPending = false;
+    }
 
     if (!_state.IRQFlag)
       _state.IRQTimeout++;
@@ -397,7 +417,7 @@ class LinkCable {
 
   struct Config {
     BaudRate baudRate;
-    u32 timeout;   // can be changed in realtime
+    u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
     u16 interval;  // can be changed in realtime, but call `resetTimer()`
     u8 sendTimerId;
   };
@@ -421,10 +441,11 @@ class LinkCable {
     U16Queue outgoingMessages;
     U16Queue readyToSyncMessages[LINK_CABLE_MAX_PLAYERS];
     U16Queue newMessages[LINK_CABLE_MAX_PLAYERS];
-    u32 IRQTimeout;
+    u32 IRQTimeout = 0;
     int msgTimeouts[LINK_CABLE_MAX_PLAYERS];
     bool msgFlags[LINK_CABLE_MAX_PLAYERS];
-    bool IRQFlag;
+    bool IRQFlag = false;
+    volatile bool isResetTimeoutPending = false;
   };
 
   LinkRawCable linkRawCable;
@@ -476,6 +497,7 @@ class LinkCable {
     }
     _state.IRQFlag = false;
     _state.IRQTimeout = 0;
+    _state.isResetTimeoutPending = false;
     LINK_BARRIER;
   }
 

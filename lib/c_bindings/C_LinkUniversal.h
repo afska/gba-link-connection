@@ -81,6 +81,8 @@ bool C_LinkUniversal_canSend(C_LinkUniversalHandle handle);
 bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data);
 
 bool C_LinkUniversal_didQueueOverflow(C_LinkUniversalHandle handle, bool clear);
+
+void C_LinkUniversal_resetTimeout(C_LinkUniversalHandle handle);
 void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle);
 
 C_LinkUniversal_State C_LinkUniversal_getState(C_LinkUniversalHandle handle);

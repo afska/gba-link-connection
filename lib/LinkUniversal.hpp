@@ -394,6 +394,20 @@ class LinkUniversal {
   }
 
   /**
+   * @brief Resets other players' timeout count to `0`.
+   * \warning Call this if you changed `config.timeout`.
+   */
+  void resetTimeout() {
+    if (!isEnabled)
+      return;
+
+    if (linkCable.isActive())
+      linkCable.resetTimeout();
+    if (linkWireless.isActive())
+      linkWireless.resetTimeout();
+  }
+
+  /**
    * @brief Restarts the send timer without disconnecting.
    * \warning Call this if you changed `config.interval`.
    */

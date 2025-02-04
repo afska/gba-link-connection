@@ -25,7 +25,7 @@ typedef enum {
 
 typedef struct {
   C_LinkCable_BaudRate baudRate;
-  u32 timeout;   // can be changed in realtime
+  u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
   u16 interval;  // can be changed in realtime, but call `resetTimer()`
   u8 sendTimerId;
 } C_LinkCable_Config;
@@ -59,6 +59,8 @@ bool C_LinkCable_canSend(C_LinkCableHandle handle);
 bool C_LinkCable_send(C_LinkCableHandle handle, u16 data);
 
 bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear);
+
+void C_LinkCable_resetTimeout(C_LinkCableHandle handle);
 void C_LinkCable_resetTimer(C_LinkCableHandle handle);
 
 C_LinkCable_Config C_LinkCable_getConfig(C_LinkCableHandle handle);

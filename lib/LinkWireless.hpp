@@ -694,16 +694,16 @@ class LinkWireless {
   }
 
   /**
-   * @brief If one of the other methods returns `false`, you can inspect this to
-   * know the cause. After this call, the last error is cleared if `clear` is
-   * `true` (default behavior).
-   * @param clear Whether it should clear the error or not.
+   * @brief Resets other players' timeout count to `0`.
+   * \warning Call this if you changed `config.timeout`.
    */
-  Error getLastError(bool clear = true) {
-    Error error = lastError;
-    if (clear)
-      lastError = Error::NONE;
-    return error;
+  void resetTimeout() {
+    if (!isEnabled)
+      return;
+
+    LINK_BARRIER;
+    sessionState.isResetTimeoutPending = true;
+    LINK_BARRIER;
   }
 
   /**
@@ -716,6 +716,19 @@ class LinkWireless {
 
     stopTimer();
     startTimer();
+  }
+
+  /**
+   * @brief If one of the other methods returns `false`, you can inspect this to
+   * know the cause. After this call, the last error is cleared if `clear` is
+   * `true` (default behavior).
+   * @param clear Whether it should clear the error or not.
+   */
+  Error getLastError(bool clear = true) {
+    Error error = lastError;
+    if (clear)
+      lastError = Error::NONE;
+    return error;
   }
 
   /**
@@ -823,6 +836,13 @@ class LinkWireless {
     if (!isSessionActive())
       return;
 
+    if (sessionState.isResetTimeoutPending) {
+      sessionState.recvTimeout = 0;
+      for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+        sessionState.msgTimeouts[i] = 0;
+      sessionState.isResetTimeoutPending = false;
+    }
+
     if (isConnected() && !sessionState.recvFlag)
       sessionState.recvTimeout++;
     if (sessionState.recvTimeout >= config.timeout)
@@ -902,7 +922,7 @@ class LinkWireless {
     bool forwarding;
     bool retransmission;
     u8 maxPlayers;
-    u32 timeout;   // can be changed in realtime
+    u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
     u16 interval;  // can be changed in realtime, but call `resetTimer()`
     u8 sendTimerId;
   };
@@ -948,6 +968,7 @@ class LinkWireless {
     u32 lastACKFromClients[LINK_WIRELESS_MAX_PLAYERS];
     int lastHeartbeatFromClients[LINK_WIRELESS_MAX_PLAYERS];
     int localHeartbeat = -1;
+    volatile bool isResetTimeoutPending = false;
   };
 
   struct TransferHeader {
@@ -1692,6 +1713,7 @@ class LinkWireless {
     sessionState.lastPacketIdFromServer = 0;
     sessionState.lastACKFromServer = 0;
     sessionState.localHeartbeat = -1;
+    sessionState.isResetTimeoutPending = false;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
       sessionState.msgTimeouts[i] = 0;
       sessionState.msgFlags[i] = false;

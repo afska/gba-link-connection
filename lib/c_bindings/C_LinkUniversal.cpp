@@ -95,6 +95,10 @@ bool C_LinkUniversal_didQueueOverflow(C_LinkUniversalHandle handle,
   return static_cast<LinkUniversal*>(handle)->didQueueOverflow(clear);
 }
 
+void C_LinkUniversal_resetTimeout(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->resetTimeout();
+}
+
 void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->resetTimer();
 }

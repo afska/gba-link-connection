@@ -81,6 +81,10 @@ bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear) {
   return static_cast<LinkCable*>(handle)->didQueueOverflow(clear);
 }
 
+void C_LinkCable_resetTimeout(C_LinkCableHandle handle) {
+  static_cast<LinkCable*>(handle)->resetTimeout();
+}
+
 void C_LinkCable_resetTimer(C_LinkCableHandle handle) {
   static_cast<LinkCable*>(handle)->resetTimer();
 }

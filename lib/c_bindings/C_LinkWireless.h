@@ -62,7 +62,7 @@ typedef struct {
   bool forwarding;
   bool retransmission;
   u8 maxPlayers;
-  u32 timeout;   // can be changed in realtime
+  u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
   u16 interval;  // can be changed in realtime, but call `resetTimer()`
   u8 sendTimerId;
 } C_LinkWireless_Config;
@@ -118,12 +118,14 @@ bool C_LinkWireless_isSessionActive(C_LinkWirelessHandle handle);
 bool C_LinkWireless_isServerClosed(C_LinkWirelessHandle handle);
 u8 C_LinkWireless_playerCount(C_LinkWirelessHandle handle);
 u8 C_LinkWireless_currentPlayerId(C_LinkWirelessHandle handle);
+
 bool C_LinkWireless_didQueueOverflow(C_LinkWirelessHandle handle, bool clear);
+
+void C_LinkWireless_resetTimeout(C_LinkWirelessHandle handle);
+void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle);
 
 C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
                                                  bool clear);
-
-void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle);
 
 C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle);
 void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
