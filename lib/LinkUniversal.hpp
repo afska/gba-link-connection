@@ -186,6 +186,7 @@ class LinkUniversal {
       linkCable.deactivate();
     bool success = linkWireless.deactivate(turnOffWireless);
     resetState();
+    mode = Mode::LINK_CABLE;
     return success;
   }
 
