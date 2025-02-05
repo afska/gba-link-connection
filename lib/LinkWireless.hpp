@@ -1194,7 +1194,7 @@ class LinkWireless {
     }
   }
 
-  void checkConnectionsOrTransferData() {  // (irq only)
+  LINK_WIRELESS_TIMER_ISR void checkConnectionsOrTransferData() {  // (irq only)
     if (linkRawWireless.getState() == State::SERVING &&
         !sessionState.signalLevelCalled) {
       // SignalLevel (start)
@@ -1215,7 +1215,7 @@ class LinkWireless {
     }
   }
 
-  void sendPendingData() {  // (irq only)
+  LINK_WIRELESS_TIMER_ISR void sendPendingData() {  // (irq only)
     copyOutgoingState();
 
     setDataFromOutgoingMessages();
@@ -1223,9 +1223,9 @@ class LinkWireless {
       clearInflightMessagesIfNeeded();
   }
 
-  void setDataFromOutgoingMessages() {  // (irq only)
-    addAsyncData(0, true);              // SendData header (filled later)
-    addAsyncData(0);                    // Transfer header (filled later)
+  LINK_WIRELESS_TIMER_ISR void setDataFromOutgoingMessages() {  // (irq only)
+    addAsyncData(0, true);  // SendData header (filled later)
+    addAsyncData(0);        // Transfer header (filled later)
 
     bool isServer = linkRawWireless.getState() == State::SERVING;
     u32 maxPacketIds = isServer ? MAX_PACKET_IDS_SERVER : MAX_PACKET_IDS_CLIENT;
