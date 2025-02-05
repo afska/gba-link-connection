@@ -312,8 +312,8 @@ You can update these values at any time without creating a new instance:
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
   - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
   - Depending on how much IWRAM you have available, you might want to tweak these knobs:
-    * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_SERIAL`: (default: `1`) Put the SERIAL ISR in IWRAM (recommended)
-    * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_TIMER`: (default: `0`) Put the TIMER ISR in IWRAM (not so recommended)
+    * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_SERIAL`: (default: `1`) Put the SERIAL ISR in IWRAM (recommended, since this handler runs ~20 times per frame)
+    * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_TIMER`: (default: `1`) Put the TIMER ISR in IWRAM (not that necessary)
     * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_SERIAL_LEVEL`: (default: `"-Ofast"`) Optimization level for the SERIAL ISR
     * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_TIMER_LEVEL`: (default: `"-Ofast"`) Optimization level for the TIMER ISR
 - `LINK_WIRELESS_ENABLE_NESTED_IRQ`: to allow `LINK_WIRELESS_ISR_*` functions to be interrupted. This can be useful, for example, if your audio engine requires calling a VBlank handler with precise timing.
