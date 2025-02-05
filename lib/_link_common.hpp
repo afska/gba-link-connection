@@ -391,7 +391,7 @@ static inline void reset() {
   _REG_SIOCNT = 0;
 }
 
-// Packets per frame -> Timer interval
+// Transfers per frame -> Timer interval
 static inline u16 perFrame(u16 packets) {
   return (1667 * 1024) / (packets * 6104);
 }

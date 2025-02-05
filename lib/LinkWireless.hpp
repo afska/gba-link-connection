@@ -138,7 +138,7 @@ LINK_VERSION_TAG LINK_WIRELESS_VERSION = "vLinkWireless/v8.0.0";
 #define LINK_WIRELESS_MAX_GAME_NAME_LENGTH 14
 #define LINK_WIRELESS_MAX_USER_NAME_LENGTH 8
 #define LINK_WIRELESS_DEFAULT_TIMEOUT 10
-#define LINK_WIRELESS_DEFAULT_INTERVAL 50
+#define LINK_WIRELESS_DEFAULT_INTERVAL 75
 #define LINK_WIRELESS_DEFAULT_SEND_TIMER_ID 3
 
 #define LINK_WIRELESS_RESET_IF_NEEDED                   \
@@ -258,7 +258,7 @@ class LinkWireless {
    * @param timeout Number of *frames* without receiving *any* data to reset the
    * connection.
    * @param interval Number of *1024-cycle ticks* (61.04μs) between transfers
-   * *(50 = 3.052ms)*. It's the interval of Timer #`sendTimerId`. Lower values
+   * *(75 = 4.578ms)*. It's the interval of Timer #`sendTimerId`. Lower values
    * will transfer faster but also consume more CPU.
    * @param sendTimerId `(0~3)` GBA Timer to use for sending.
    * \warning You can use `Link::perFrame(...)` to convert from *packets per
