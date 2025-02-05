@@ -1,8 +1,5 @@
 #include "LinkWireless.hpp"
 
-#if defined(LINK_WIRELESS_PUT_ISR_IN_IWRAM) || \
-    defined(LINK_WIRELESS_ENABLE_NESTED_IRQ)
-
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 
 #if LINK_WIRELESS_PUT_ISR_IN_IWRAM_SERIAL == 1
@@ -21,37 +18,21 @@
 #define _LINK_TIMER_ISR
 #endif
 
-#endif
-
 _LINK_SERIAL_ISR void LinkWireless::_onSerial() {
-#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  interrupt = true;
-  LINK_BARRIER;
-  // (nested interrupts are enabled by LinkRawWireless::_onSerial(...))
-#endif
-
   __onSerial();
-
-#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  irqEnd();
-#endif
 }
 
 _LINK_TIMER_ISR void LinkWireless::_onTimer() {
-#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  if (interrupt)
-    return;
-
-  interrupt = true;
-  LINK_BARRIER;
-  Link::_REG_IME = 1;
-#endif
-
   __onTimer();
+}
 
-#ifdef LINK_WIRELESS_ENABLE_NESTED_IRQ
-  irqEnd();
-#endif
+_LINK_SERIAL_ISR void LinkWireless::processMessage(u32 playerId,
+                                                   u32 data,
+                                                   u32& currentPacketId,
+                                                   u32& playerBitMap,
+                                                   int& playerBitMapCount) {
+  _processMessage(playerId, data, currentPacketId, playerBitMap,
+                  playerBitMapCount);
 }
 
 /**
