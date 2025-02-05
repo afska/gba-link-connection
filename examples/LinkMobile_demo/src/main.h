@@ -3,7 +3,6 @@
 
 #include "../../../lib/LinkMobile.hpp"
 
-#include <vector>
 #include "../../_lib/common.h"
 
 struct DefaultValue {

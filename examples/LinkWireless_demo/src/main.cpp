@@ -3,7 +3,6 @@
 
 #include <cstring>
 #include <functional>
-#include <vector>
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
