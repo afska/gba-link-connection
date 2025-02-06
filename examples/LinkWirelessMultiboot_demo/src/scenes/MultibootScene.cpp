@@ -256,9 +256,16 @@ void MultibootScene::processButtons() {
     printFile();
 
     // (2) Send the ROM
+    u32 percentage = 0;
     auto result = linkWirelessMultiboot->sendRom(
         romToSend, fileLength, "Multiboot", "Test", 0xFFFF, players,
-        [](LinkWirelessMultiboot::MultibootProgress progress) {
+        [&percentage](LinkWirelessMultiboot::MultibootProgress progress) {
+          // Show progress
+          if (percentage != progress.percentage) {
+            percentage = progress.percentage;
+            log("-> " + std::to_string(percentage));
+          }
+
           u16 keys = ~REG_KEYS & KEY_ANY;
           if (keys & KEY_SELECT) {
             // SELECT = Start transfer before the player count is reached

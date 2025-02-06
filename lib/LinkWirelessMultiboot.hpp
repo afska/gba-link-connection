@@ -450,10 +450,7 @@ class LinkWirelessMultiboot {
       LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData(sendBuffer, response))
 
       u8 newPercentage = multiTransfer.processResponse(response);
-      if (newPercentage != progress.percentage) {
-        progress.percentage = newPercentage;
-        _LWMLOG_("-> " + std::to_string(newPercentage));
-      }
+      progress.percentage = newPercentage;
     }
 
     return Result::SUCCESS;
@@ -1252,10 +1249,7 @@ class LinkWirelessMultiboot {
             return (void)stop(Result::FAILURE);
 
           u8 newPercentage = multiTransfer.processResponse(receiveDataResponse);
-          if (newPercentage != dynamicData.percentage) {
-            dynamicData.percentage = newPercentage;
-            _LWMLOG_("-> " + std::to_string(newPercentage));
-          }
+          dynamicData.percentage = newPercentage;
 
           dynamicData.frameTransfers++;
           startTimer();
