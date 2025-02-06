@@ -122,7 +122,7 @@ class LinkRawWireless {
   static constexpr int COMMAND_BROADCAST_READ_POLL = 0x1D;
   static constexpr int COMMAND_BROADCAST_READ_END = 0x1E;
   static constexpr int COMMAND_CONNECT = 0x1F;
-  static constexpr int COMMAND_IS_FINISHED_CONNECT = 0x20;
+  static constexpr int COMMAND_IS_CONNECTION_COMPLETE = 0x20;
   static constexpr int COMMAND_FINISH_CONNECTION = 0x21;
   static constexpr int COMMAND_SEND_DATA = 0x24;
   static constexpr int COMMAND_SEND_DATA_AND_WAIT = 0x25;
@@ -672,7 +672,7 @@ class LinkRawWireless {
    * @param response A structure that will be filled with the response data.
    */
   bool keepConnecting(ConnectionStatus& response) {
-    auto result = sendCommand(COMMAND_IS_FINISHED_CONNECT);
+    auto result = sendCommand(COMMAND_IS_CONNECTION_COMPLETE);
     if (!result.success || result.dataSize == 0) {
       if (result.dataSize == 0)
         _LRWLOG_("! empty response");
