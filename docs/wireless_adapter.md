@@ -651,19 +651,23 @@ enum CommState : unsigned int {
 - Server: ACKs the packet
 - Client: sends `0x424D08A6`, `0x004C442D`
   - Header: `0x08A6` (`size=6, n=1, ph=1, ack=0, commState=2`)
-  - Payload: `MB-DL`
+  - Payload: `0x4D`, `0x42`, `0x2D`, `0x44`, `0x4C`, `0x00`
+    - => `MB-DL`
 - Server: ACKs the packet
 - Client: sends `0x000008C6`, `0x50000000`
   - Header: `0x08C6` (`size=6, n=1, ph=2, ack=0, commState=2`)
-  - Payload: `P`
+  - Payload: `0x00`, `0x00`, `0x00`, `0x00`, `0x00`, `0x00`, `0x50`
+    - => `P`
 - Server: ACKs the packet
 - Client: sends `0x414C08E6`, `0x20524559`
   - Header: `0x08E6` (`size=6, n=1, ph=3, ack=0, commState=2`)
-  - Payload: `LAYER`
+  - Payload: `0x4C`, `0x41`, `0x59`, `0x45`, `0x52`, `0x20`
+    - => `LAYER `
 - Server: ACKs the packet
 - Client: sends `0x00410902`
   - Header: `0x0902` (`size=2, n=2, ph=0, ack=0, commState=2`)
-  - Payload: `A`
+  - Payload: `0x41`, `0x00`
+    - => `A`
 - Server: ACKs the packet
 - Client: sends `0x00000C00`
   - Header: `0x0C00` (`size=0, n=0, ph=0, ack=0, commState=3`) (`3 = ENDING`)
@@ -672,7 +676,7 @@ enum CommState : unsigned int {
 - Client: sends `0x00000080`
   - Header: `0x0080` (`size=0, n=1, ph=0, ack=0, commState=0`) (`0 = OFF`)
   - No payload
-- Server: ACKs the packet
+- Server: Ghost send _(OFF state doesn't expect an ack!)_
 
 ## (2) ROM start command
 
@@ -694,7 +698,7 @@ After all ROM chunks are ACK'd, the last transfers are:
 
 - `size=0, n=0, ph=0, ack=0, commState=3` (`3 = ENDING`)
 - `size=0, n=1, ph=0, ack=0, commState=0` (`0 = OFF`)
-  - this one is not acknowledged by the clients!
+  - _OFF state, so this one is not acknowledged by the clients!_
 
 ## SPI config
 

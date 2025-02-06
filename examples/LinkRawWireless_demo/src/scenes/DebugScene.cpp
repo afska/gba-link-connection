@@ -137,7 +137,7 @@ void DebugScene::load() {
   };
 
   log("---");
-  log("LinkRawWireless demo");
+  log("LinkRawWireless_demo");
   log("  (v8.0.0)");
   log("");
   log("START: reset wireless adapter");

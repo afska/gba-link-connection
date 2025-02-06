@@ -190,7 +190,7 @@ void MultibootScene::load() {
 #endif
 
   log("---");
-  log("LinkWirelessMultiboot demo");
+  log("LinkWirelessMultiboot_demo");
   log("  (v8.0.0)");
   log("");
   if (fs == NULL) {
