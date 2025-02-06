@@ -799,8 +799,8 @@ class LinkWireless {
    * @brief Returns the last ACK received from player ID 1.
    * \warning This is internal API!
    */
-  [[nodiscard]] u32 _lastACKFromClient1() {
-    return sessionState.lastACKFromClients[1];
+  [[nodiscard]] u32 _lastAckFromClient1() {
+    return sessionState.lastAckFromClients[1];
   }
 
   /**
@@ -815,8 +815,8 @@ class LinkWireless {
    * @brief Returns the last ACK received from the server.
    * \warning This is internal API!
    */
-  [[nodiscard]] u32 _lastACKFromServer() {
-    return sessionState.lastACKFromServer;
+  [[nodiscard]] u32 _lastAckFromServer() {
+    return sessionState.lastAckFromServer;
   }
 
   /**
@@ -980,9 +980,9 @@ class LinkWireless {
     u32 forwardedCount = 0;
     u32 lastPacketId = 0;
     u32 lastPacketIdFromServer = 0;
-    u32 lastACKFromServer = 0;
+    u32 lastAckFromServer = 0;
     u32 lastPacketIdFromClients[LINK_WIRELESS_MAX_PLAYERS];
-    u32 lastACKFromClients[LINK_WIRELESS_MAX_PLAYERS];
+    u32 lastAckFromClients[LINK_WIRELESS_MAX_PLAYERS];
     int lastHeartbeatFromClients[LINK_WIRELESS_MAX_PLAYERS];
     int localHeartbeat = -1;
     volatile bool isResetTimeoutPending = false;
@@ -1416,10 +1416,10 @@ class LinkWireless {
       // ACKs found in the header
       if (config.retransmission) {
         if (isServer) {
-          sessionState.lastACKFromClients[i] = header.ack1;
+          sessionState.lastAckFromClients[i] = header.ack1;
         } else {
           u32 currentPlayerId = linkRawWireless.sessionState.currentPlayerId;
-          sessionState.lastACKFromServer = currentPlayerId == 1   ? header.ack1
+          sessionState.lastAckFromServer = currentPlayerId == 1   ? header.ack1
                                            : currentPlayerId == 2 ? header.ack2
                                            : currentPlayerId == 3 ? header.ack3
                                                                   : header.ack4;
@@ -1590,7 +1590,7 @@ class LinkWireless {
 
   LINK_WIRELESS_SERIAL_ISR void
   removeConfirmedMessagesFromServer() {  // (irq only)
-    removeConfirmedMessages(sessionState.lastACKFromServer,
+    removeConfirmedMessages(sessionState.lastAckFromServer,
                             MAX_PACKET_IDS_CLIENT, MAX_INFLIGHT_PACKETS_CLIENT);
   }
 
@@ -1598,7 +1598,7 @@ class LinkWireless {
   removeConfirmedMessagesFromClients() {  // (irq only)
     u32 ringMinAck = 0xFFFFFFFF;
     for (u32 i = 1; i < linkRawWireless.sessionState.playerCount; i++) {
-      u32 ack = sessionState.lastACKFromClients[i];
+      u32 ack = sessionState.lastAckFromClients[i];
 
       // ignore clients that didn't confirm anything yet
       if (ack == NO_ACK_RECEIVED_YET)
@@ -1779,14 +1779,14 @@ class LinkWireless {
     sessionState.forwardedCount = 0;
     sessionState.lastPacketId = 0;
     sessionState.lastPacketIdFromServer = 0;
-    sessionState.lastACKFromServer = 0;
+    sessionState.lastAckFromServer = 0;
     sessionState.localHeartbeat = -1;
     sessionState.isResetTimeoutPending = false;
     for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++) {
       sessionState.msgTimeouts[i] = 0;
       sessionState.msgFlags[i] = false;
       sessionState.lastPacketIdFromClients[i] = 0;
-      sessionState.lastACKFromClients[i] = NO_ACK_RECEIVED_YET;
+      sessionState.lastAckFromClients[i] = NO_ACK_RECEIVED_YET;
       sessionState.lastHeartbeatFromClients[i] = -1;
     }
     nextAsyncCommandDataSize = 0;

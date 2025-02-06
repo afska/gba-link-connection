@@ -453,7 +453,7 @@ class LinkWirelessOpenSDK {
       }
 
       [[nodiscard]]
-      PendingTransfer* minWithoutAck() {
+      PendingTransfer* minWithoutACK() {
         u32 minCursor = 0xFFFFFFFF;
         int minI = -1;
         for (u32 i = 0; i < MaxInflightPackets; i++) {
@@ -488,14 +488,14 @@ class LinkWirelessOpenSDK {
 
         transfers[index].ack = true;
 
-        auto maxAckTransfer = max(true);
-        bool canUpdateCursor = maxAckTransfer != nullptr &&
-                               isAckCompleteUpTo(maxAckTransfer->cursor);
+        auto maxACKTransfer = max(true);
+        bool canUpdateCursor = maxACKTransfer != nullptr &&
+                               isACKCompleteUpTo(maxACKTransfer->cursor);
 
         if (canUpdateCursor)
           cleanup();
 
-        return canUpdateCursor ? maxAckTransfer->cursor + 1 : -1;
+        return canUpdateCursor ? maxACKTransfer->cursor + 1 : -1;
       }
 
       void cleanup() {
@@ -521,7 +521,7 @@ class LinkWirelessOpenSDK {
 
      private:
       [[nodiscard]]
-      bool isAckCompleteUpTo(u32 cursor) {
+      bool isACKCompleteUpTo(u32 cursor) {
         for (u32 i = 0; i < MaxInflightPackets; i++)
           if (transfers[i].isActive && !transfers[i].ack &&
               transfers[i].cursor < cursor)
@@ -561,8 +561,8 @@ class LinkWirelessOpenSDK {
         // (`max` is never null here! but the compiler complains...)
         return max != nullptr ? max->cursor + 1 : 0;
       } else {
-        auto minWithoutAck = pendingTransferList.minWithoutAck();
-        return minWithoutAck != nullptr ? minWithoutAck->cursor : cursor;
+        auto minWithoutACK = pendingTransferList.minWithoutACK();
+        return minWithoutACK != nullptr ? minWithoutACK->cursor : cursor;
       }
     }
 
@@ -688,10 +688,10 @@ class LinkWirelessOpenSDK {
           auto header = childrenData.responses[i].packets[j].header;
 
           if (header.isACK) {
-            int newAckCursor =
+            int newACKCursor =
                 transfers[i].pendingTransferList.ack(header.sequence());
-            if (newAckCursor > -1)
-              transfers[i].cursor = newAckCursor;
+            if (newACKCursor > -1)
+              transfers[i].cursor = newACKCursor;
           }
         }
       }

@@ -462,13 +462,13 @@ void messageLoop() {
       output += "\n_nextPndngPkgId: " +
                 std::to_string(linkWireless->_nextPendingPacketId());
       if (linkWireless->currentPlayerId() == 0) {
-        output += "\n_lastACKFromC1: " +
-                  std::to_string(linkWireless->_lastACKFromClient1());
+        output += "\n_lastAckFromC1: " +
+                  std::to_string(linkWireless->_lastAckFromClient1());
         output += "\n_lastPkgIdFromC1: " +
                   std::to_string(linkWireless->_lastPacketIdFromClient1());
       } else {
-        output += "\n_lastACKFromSrv: " +
-                  std::to_string(linkWireless->_lastACKFromServer());
+        output += "\n_lastAckFromSrv: " +
+                  std::to_string(linkWireless->_lastAckFromServer());
         output += "\n_lastPkgIdFromSrv: " +
                   std::to_string(linkWireless->_lastPacketIdFromServer());
       }
