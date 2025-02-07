@@ -682,7 +682,9 @@ enum CommState : unsigned int {
 
 - Server: sends `0x00044807`, `0x00000054`, `0x00000002`
   - Header: `0x044807` (`size=7, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
-  - Payload: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
+  - Payload: these 7 bytes depend on the game
+    - _No No No Puzzle Chailien_ sends: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
+    - _Super Mario Bros Famicom Mini_ sends: `0x00`, `0x54`, `0x00`, `0xFC`, `0x44`, `0x01`, `0x00`
 - Client: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
 
 ## (3) ROM bytes
