@@ -507,6 +507,7 @@ _(aka General Purpose Mode)_
 | `readPin(pin)`               | **bool**                | Returns whether a `pin` is _HIGH_ or not (when set as an input).                                                |
 | `writePin(pin, isHigh)`      | -                       | Sets a `pin` to be high or not (when set as an output).                                                         |
 | `setSIInterrupts(isEnabled)` | -                       | If it `isEnabled`, an IRQ will be generated when `SI` changes from _HIGH_ to _LOW_.                             |
+| `getSIInterrupts()` | **bool**                       | Returns whether SI-falling interrupts are enabled or not.                             |
 
 ⚠️ always set the `SI` terminal to an input!
 

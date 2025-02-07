@@ -6,10 +6,10 @@
 
 static std::string scanCodes = "";
 static std::string output = "";
-static u32 irqs = 0;
+static vu32 irqCount = 0;
 void SERIAL() {
   LINK_PS2_KEYBOARD_ISR_SERIAL();
-  irqs++;
+  irqCount++;
 }
 
 // (1) Create a LinkPS2Keyboard instance
@@ -49,9 +49,9 @@ int main() {
     } else {
       if (keys & KEY_B) {
         scanCodes = "";
-        irqs = 0;
+        irqCount = 0;
       }
-      output += std::to_string(irqs) + " - " + scanCodes;
+      output += std::to_string(irqCount) + " - " + scanCodes;
     }
 
     // Print

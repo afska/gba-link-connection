@@ -107,6 +107,11 @@ class LinkGPIO {
     setBit(Link::_REG_RCNT, BIT_SI_INTERRUPT, isEnabled);
   }
 
+  /**
+   * @brief Returns whether SI-falling interrupts are enabled or not.
+   */
+  bool getSIInterrupts() { return getBit(Link::_REG_RCNT, BIT_SI_INTERRUPT); }
+
  private:
   int getBit(u16 reg, int bit) { return (reg >> bit) & 1; }
 

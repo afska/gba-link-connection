@@ -44,4 +44,8 @@ void C_LinkGPIO_writePin(C_LinkGPIOHandle handle,
 void C_LinkGPIO_setSIInterrupts(C_LinkGPIOHandle handle, bool isEnabled) {
   static_cast<LinkGPIO*>(handle)->setSIInterrupts(isEnabled);
 }
+
+bool C_LinkGPIO_getSIInterrupts(C_LinkGPIOHandle handle) {
+  return static_cast<LinkGPIO*>(handle)->getSIInterrupts();
+}
 }
