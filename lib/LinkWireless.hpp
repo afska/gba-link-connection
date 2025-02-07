@@ -1386,11 +1386,16 @@ class LinkWireless {
     // parse ReceiveData header
     u32 sentBytes[LINK_WIRELESS_MAX_PLAYERS] = {0, 0, 0, 0, 0};
     u32 receiveDataHeader = result->data[0];
-    sentBytes[0] = receiveDataHeader & 0b1111111;
-    sentBytes[1] = (receiveDataHeader >> 8) & 0b11111;
-    sentBytes[2] = (receiveDataHeader >> 13) & 0b11111;
-    sentBytes[3] = (receiveDataHeader >> 18) & 0b11111;
-    sentBytes[4] = (receiveDataHeader >> 23) & 0b11111;
+    sentBytes[0] = Link::_min(receiveDataHeader & 0b1111111,
+                              LinkRawWireless::MAX_TRANSFER_BYTES_SERVER);
+    sentBytes[1] = Link::_min((receiveDataHeader >> 8) & 0b11111,
+                              LinkRawWireless::MAX_TRANSFER_BYTES_CLIENT);
+    sentBytes[2] = Link::_min((receiveDataHeader >> 13) & 0b11111,
+                              LinkRawWireless::MAX_TRANSFER_BYTES_CLIENT);
+    sentBytes[3] = Link::_min((receiveDataHeader >> 18) & 0b11111,
+                              LinkRawWireless::MAX_TRANSFER_BYTES_CLIENT);
+    sentBytes[4] = Link::_min((receiveDataHeader >> 23) & 0b11111,
+                              LinkRawWireless::MAX_TRANSFER_BYTES_CLIENT);
 
     bool isServer = linkRawWireless.getState() == State::SERVING;
     u32 cursor = 1;
