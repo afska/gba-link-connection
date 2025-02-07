@@ -125,15 +125,15 @@ class LinkWirelessMultiboot {
   static constexpr int MAX_INFLIGHT_PACKETS = 4;
   static constexpr int FINAL_CONFIRMS = 3;
   static constexpr u8 CMD_START[] = {0x00, 0x54, 0x00, 0x00, 0x00, 0x02, 0x00};
-  static constexpr u8 CMD_START_SIZE = 7;
+  static constexpr int CMD_START_SIZE = 7;
   static constexpr u8 BOOTLOADER_HANDSHAKE[][6] = {
       {0x00, 0x00, 0x52, 0x46, 0x55, 0x2D},
       {0x4D, 0x42, 0x2D, 0x44, 0x4C, 0x00}};
-  static constexpr u8 BOOTLOADER_HANDSHAKE_SIZE = 6;
+  static constexpr int BOOTLOADER_HANDSHAKE_SIZE = 6;
   static constexpr u8 ROM_HEADER_PATCH[] = {0x52, 0x46, 0x55, 0x2D, 0x4D, 0x42,
                                             0x4F, 0x4F, 0x54, 0x00, 0x00, 0x00};
-  static constexpr u8 ROM_HEADER_PATCH_OFFSET = 4;
-  static constexpr u8 ROM_HEADER_PATCH_SIZE = 12;
+  static constexpr int ROM_HEADER_PATCH_OFFSET = 4;
+  static constexpr int ROM_HEADER_PATCH_SIZE = 12;
 
  public:
 #ifdef LINK_WIRELESS_MULTIBOOT_ENABLE_LOGGING
@@ -342,10 +342,10 @@ class LinkWirelessMultiboot {
     bool hasReceivedName = false;
 
     _LWMLOG_("new client: " + std::to_string(clientNumber));
-    LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
+    LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeAndValidate(
         clientNumber,
         [this](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData({}, 0, 1, response);
+          return exchange({}, 0, 1, response);
         },
         [](ClientPacket packet) { return true; }, listener))
     // (initial client packet received)
@@ -403,7 +403,7 @@ class LinkWirelessMultiboot {
         return Result::CANCELED;
 
       LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData({}, 0, 1, response))
+      LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchange({}, 0, 1, response))
       auto childrenData = linkWirelessOpenSDK.getChildrenData(response);
       hasFinished = childrenData.responses[clientNumber].packetsSize == 0;
     }
@@ -447,7 +447,7 @@ class LinkWirelessMultiboot {
           multiTransfer.getCursor() == 0 ? (const u8*)firstPagePatch : rom);
 
       LinkRawWireless::ReceiveDataResponse response;
-      LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData(sendBuffer, response))
+      LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchange(sendBuffer, response))
 
       u8 newPercentage = multiTransfer.processResponse(response);
       progress.percentage = newPercentage;
@@ -472,7 +472,7 @@ class LinkWirelessMultiboot {
       LinkRawWireless::ReceiveDataResponse response;
       auto sendBuffer = linkWirelessOpenSDK.createServerBuffer(
           {}, 0, {1, 0, CommState::OFF}, 0b1111);
-      LINK_WIRELESS_MULTIBOOT_TRY_SUB(sendAndExpectData(sendBuffer, response))
+      LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchange(sendBuffer, response))
     }
 
     return Result::SUCCESS;
@@ -480,10 +480,10 @@ class LinkWirelessMultiboot {
 
   template <typename C>
   Result exchangeNewData(u8 clientNumber, SendBuffer sendBuffer, C listener) {
-    LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
+    LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeAndValidate(
         clientNumber,
         [this, &sendBuffer](LinkRawWireless::ReceiveDataResponse& response) {
-          return sendAndExpectData(sendBuffer, response);
+          return exchange(sendBuffer, response);
         },
         [&sendBuffer](ClientPacket packet) {
           auto header = packet.header;
@@ -497,12 +497,12 @@ class LinkWirelessMultiboot {
 
   template <typename V, typename C>
   Result exchangeACKData(u8 clientNumber, V validatePacket, C listener) {
-    LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeData(
+    LINK_WIRELESS_MULTIBOOT_TRY_SUB(exchangeAndValidate(
         clientNumber,
         [this, clientNumber](LinkRawWireless::ReceiveDataResponse& response) {
           auto sendBuffer = linkWirelessOpenSDK.createServerACKBuffer(
               lastValidHeader, clientNumber);
-          return sendAndExpectData(sendBuffer, response);
+          return exchange(sendBuffer, response);
         },
         validatePacket, listener))
 
@@ -510,10 +510,10 @@ class LinkWirelessMultiboot {
   }
 
   template <typename F, typename V, typename C>
-  Result exchangeData(u8 clientNumber,
-                      F sendAction,
-                      V validatePacket,
-                      C listener) {
+  Result exchangeAndValidate(u8 clientNumber,
+                             F sendAction,
+                             V validatePacket,
+                             C listener) {
     while (true) {
       if (listener(progress))
         return Result::CANCELED;
@@ -530,16 +530,16 @@ class LinkWirelessMultiboot {
     return Result::SUCCESS;
   }
 
-  Result sendAndExpectData(SendBuffer& sendBuffer,
-                           LinkRawWireless::ReceiveDataResponse& response) {
-    return sendAndExpectData(sendBuffer.data, sendBuffer.dataSize,
-                             sendBuffer.totalByteCount, response);
+  Result exchange(SendBuffer& sendBuffer,
+                  LinkRawWireless::ReceiveDataResponse& response) {
+    return exchange(sendBuffer.data, sendBuffer.dataSize,
+                    sendBuffer.totalByteCount, response);
   }
 
-  Result sendAndExpectData(const u32* data,
-                           u32 dataSize,
-                           u32 _bytes,
-                           LinkRawWireless::ReceiveDataResponse& response) {
+  Result exchange(const u32* data,
+                  u32 dataSize,
+                  u32 _bytes,
+                  LinkRawWireless::ReceiveDataResponse& response) {
     LinkRawWireless::CommandResult remoteCommand;
     bool success = false;
 
@@ -1104,7 +1104,7 @@ class LinkWirelessMultiboot {
 
           _LWMLOG_("handshake (1/2)...");
           state = State::HANDSHAKING_CLIENT_STEP2;
-          sendACK(currentClient);
+          sendACKData(currentClient);
           break;
         }
         case State::HANDSHAKING_CLIENT_STEP2: {
@@ -1121,11 +1121,11 @@ class LinkWirelessMultiboot {
                              return header.n == 2 &&
                                     header.commState == CommState::STARTING;
                            }))
-            return (void)sendACK(currentClient);
+            return (void)sendACKData(currentClient);
 
           _LWMLOG_("handshake (2/2)...");
           state = State::HANDSHAKING_CLIENT_STEP3;
-          sendACK(currentClient);
+          sendACKData(currentClient);
           break;
         }
         case State::HANDSHAKING_CLIENT_STEP3: {
@@ -1145,11 +1145,11 @@ class LinkWirelessMultiboot {
                       dynamicData.handshakeClient.packets[0] = packet;
                     return isValid;
                   }))
-            return (void)sendACK(currentClient);
+            return (void)sendACKData(currentClient);
 
           _LWMLOG_("receiving name...");
           state = State::HANDSHAKING_CLIENT_STEP4;
-          sendACK(currentClient);
+          sendACKData(currentClient);
           break;
         }
         case State::HANDSHAKING_CLIENT_STEP4: {
@@ -1171,7 +1171,7 @@ class LinkWirelessMultiboot {
                     }
                     return header.commState == CommState::OFF;
                   }))
-            return (void)sendACK(currentClient);
+            return (void)sendACKData(currentClient);
 
           _LWMLOG_("validating name...");
           if (!validateName(dynamicData.handshakeClient.packets,
@@ -1382,7 +1382,7 @@ class LinkWirelessMultiboot {
       exchangeAsync(sendBuffer);
     }
 
-    void sendACK(u8 clientNumber) {
+    void sendACKData(u8 clientNumber) {
       auto ackBuffer = linkWirelessOpenSDK.createServerACKBuffer(
           dynamicData.lastReceivedHeader, clientNumber);
       exchangeAsync(ackBuffer);

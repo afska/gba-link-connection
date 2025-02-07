@@ -77,6 +77,7 @@ class LinkWirelessOpenSDK {
       return n == other.n && phase == other.phase &&
              commState == other.commState;
     }
+    bool operator!=(const SequenceNumber& other) { return !(*this == other); }
   };
 
   struct ServerSDKHeader {
