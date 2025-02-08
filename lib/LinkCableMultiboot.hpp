@@ -660,7 +660,7 @@ class LinkCableMultiboot {
     };
 
     /**
-     * @brief LinkWirelessMultiboot::Async configuration.
+     * @brief LinkCableMultiboot::Async configuration.
      */
     Config config;
 
