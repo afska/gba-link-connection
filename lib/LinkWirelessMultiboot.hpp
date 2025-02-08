@@ -952,6 +952,7 @@ class LinkWirelessMultiboot {
       stopTimer();
     }
 
+   private:
     struct Config {
       const char* gameName;
       const char* userName;
@@ -963,12 +964,6 @@ class LinkWirelessMultiboot {
       u8 timerId;
     };
 
-    /**
-     * @brief LinkWirelessMultiboot::Async configuration.
-     */
-    Config config;
-
-   private:
     enum class SendState { NOT_SENDING, SEND_AND_WAIT, RECEIVE };
 
     struct MultibootFixedData {
@@ -1010,6 +1005,7 @@ class LinkWirelessMultiboot {
 
     LinkRawWireless linkRawWireless;
     LinkWirelessOpenSDK linkWirelessOpenSDK;
+    Config config;
     SendState sendState;
     MultibootFixedData fixedData;
     MultibootDynamicData dynamicData;

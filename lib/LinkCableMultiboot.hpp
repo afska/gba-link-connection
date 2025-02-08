@@ -654,17 +654,12 @@ class LinkCableMultiboot {
 #endif
     }
 
+   private:
     struct Config {
       bool waitForReadySignal = false;
       TransferMode mode = TransferMode::MULTI_PLAY;
     };
 
-    /**
-     * @brief LinkCableMultiboot::Async configuration.
-     */
-    Config config;
-
-   private:
     struct MultibootFixedData {
       const u16* rom = nullptr;
       vu32 romSize = 0;
@@ -693,6 +688,7 @@ class LinkCableMultiboot {
 
     LinkRawCable linkRawCable;
     LinkSPI linkSPI;
+    Config config;
     MultibootFixedData fixedData;
     MultibootDynamicData dynamicData;
     volatile State state = State::STOPPED;

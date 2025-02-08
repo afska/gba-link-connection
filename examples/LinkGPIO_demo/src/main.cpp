@@ -29,11 +29,10 @@ void init() {
 int main() {
   init();
 
-  bool left = false, up = false, right = false, down = false;
-  bool start = false, select = false;
+  bool left = true, up = true, right = true, down = true;
+  bool start = true, select = true;
 
   while (true) {
-    // (3) Use the pins
     std::string output = "LinkGPIO_demo (v8.0.0)\n\n";
 
     // Commands

@@ -15,10 +15,9 @@
 //       linkIR->activate();
 // - 4) Send IR signals:
 //       linkIR->send({21, 2, 40, 4, 32, 0});
-//                     // u16 array
+//                     // u16 array, numbers are microseconds
 //                     // even indices: marks (IR on)
 //                     // odd indices: spaces (IR off)
-//                     // numbers represent microseconds
 //                     // 0 = EOS
 // - 5) Receive IR signals;
 //       u16 pulses[2000];
@@ -37,10 +36,14 @@
 LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 #define LINK_IR_SIGNAL_END 0
+#define LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE 15
 #define LINK_IR_DEFAULT_TIMER_ID 3
 
 /**
  * @brief A driver for the Infrared Adapter (AGB-006).
+ * \warning If you enable this, make sure that `LinkIR.cpp` gets compiled!
+ * For example, in a Makefile-based project, verify that the file is in your
+ * `SRCDIRS` list.
  */
 class LinkIR {
  private:
@@ -50,15 +53,20 @@ class LinkIR {
   using Pin = LinkGPIO::Pin;
   using Direction = LinkGPIO::Direction;
 
-  static constexpr int TIMEOUT_MICROSECONDS = 1000;
+  static constexpr int TIMEOUT_MICROSECONDS = 2500;
   static constexpr int TO_TICKS = 17;
 
  public:
   /**
    * @brief Constructs a new LinkIR object.
-   * @param timerId `(0~3)` GBA Timer to use for waiting.
+   * @param tolerancePercentage Tolerance % for demodulation (default: 15).
+   * @param modulationTimerId `(0~3)` GBA Timer to use for modulating
+   * signals.
+   * @param timerId `(0~3)` GBA Timer to use for counting elapsed time.
    */
-  explicit LinkIR(u8 timerId = LINK_IR_DEFAULT_TIMER_ID) {
+  explicit LinkIR(u8 tolerancePercentage = LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE,
+                  u8 timerId = LINK_IR_DEFAULT_TIMER_ID) {
+    config.tolerancePercentage = tolerancePercentage;
     config.timerId = timerId;
   }
 
@@ -91,13 +99,44 @@ class LinkIR {
     linkGPIO.setSIInterrupts(true);
 
     linkGPIO.writePin(Pin::SO, true);
-    setTimer(TIMEOUT_MICROSECONDS);
-    Link::_IntrWait(0,
-                    Link::_IRQ_SERIAL | Link::_TIMER_IRQ_IDS[config.timerId]);
+    waitMicroseconds(TIMEOUT_MICROSECONDS);
+    linkGPIO.writePin(Pin::SO, false);
+    linkGPIO.setSIInterrupts(false);
 
     bool success = irq;
     irq = false;
+
     return success;
+  }
+
+  /**
+   * Sends a generic IR signal.
+   * @param pulses An array of u16 numbers describing the signal. Even indices
+   * are *marks* (IR on), odd indices are *spaces* (IR off), and `0` ends the
+   * signal.
+   * @tparam modulate38kHz Whether the *marks* should be modulated to 38kHz or
+   * not. Most common protocols require this (for example, the NEC Protocol).
+   */
+  template <bool modulate38kHz>
+  void send(u16* pulses) {
+    linkGPIO.writePin(Pin::SO, false);
+    for (u32 i = 0; pulses[i] != 0; i++) {
+      u32 microseconds = pulses[i];
+      bool isMark = i % 2 == 0;
+
+      if (isMark) {
+        if constexpr (modulate38kHz) {
+          generate38kHzSignal(microseconds);
+        } else {
+          linkGPIO.writePin(Pin::SO, true);
+          waitMicroseconds(microseconds);
+        }
+      } else {
+        linkGPIO.writePin(Pin::SO, false);
+        waitMicroseconds(microseconds);
+      }
+    }
+    linkGPIO.writePin(Pin::SO, false);
   }
 
   /**
@@ -120,6 +159,7 @@ class LinkIR {
   }
 
   struct Config {
+    u8 tolerancePercentage;
     u8 timerId;
   };
 
@@ -134,14 +174,10 @@ class LinkIR {
   volatile bool isEnabled = false;
   volatile bool irq = false;
 
-  void resetState() { irq = false; }
+  void generate38kHzSignal(u32 microseconds);  // defined in ASM (`LinkIR.cpp`)
+  void waitMicroseconds(u32 microseconds);     // defined in ASM (`LinkIR.cpp`)
 
-  void setTimer(u32 microseconds) {
-    u32 cycles = microseconds * TO_TICKS;
-    Link::_REG_TM[config.timerId].start = -cycles;
-    Link::_REG_TM[config.timerId].cnt =
-        Link::_TM_ENABLE | Link::_TM_IRQ | Link::_TM_FREQ_1;
-  }
+  void resetState() { irq = false; }
 };
 
 extern LinkIR* linkIR;
@@ -153,7 +189,6 @@ inline void LINK_IR_ISR_SERIAL() {
   linkIR->_onSerial();
 }
 
-// TODO: IMPLEMENT
 // TODO: C BINDINGS
 
 #endif  // LINK_IR_H
