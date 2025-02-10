@@ -30,6 +30,16 @@ int main() {
 
   bool a = true, b = true;
 
+  // linkIR->startCount();
+  // for (u32 i = 0; i < 60; i++) {
+  //   VBlankIntrWait();
+  // }
+  // u32 elapsedUs = linkIR->stopCount();
+  // linkIR->stopCount();
+  // Common::log(std::to_string(elapsedUs));
+  // while (true)
+  //   ;
+
   while (true) {
     std::string output = "LinkIR_demo (v8.0.0)\n\n";
 

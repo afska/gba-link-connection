@@ -1,6 +1,6 @@
 #include "LinkIR.hpp"
 
-// To modulate a signal to 38kHz, we need to stay 13.15µs LOW and 13.15µs HIGH.
+// To modulate a signal at 38kHz, we need to stay 13.15µs LOW and 13.15µs HIGH.
 //   38kHz signal => 38000/second =>
 //     period = 1000000µs / 38000 = 26.31µs
 //     halfPeriod = 13.15µs

@@ -37,6 +37,7 @@
 LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 #define LINK_IR_SIGNAL_END 0
+#define LINK_IR_NEC_TOTAL_PULSES 68
 #define LINK_IR_NEC_LEADER_MARK 9000
 #define LINK_IR_NEC_LEADER_SPACE 4500
 #define LINK_IR_NEC_PULSE 560
@@ -109,9 +110,9 @@ class LinkIR {
     linkGPIO.writePin(Pin::SO, false);
     linkGPIO.setSIInterrupts(true);
 
-    linkGPIO.writePin(Pin::SO, true);
+    turnLightOn();
     waitMicroseconds(TIMEOUT_MICROSECONDS);
-    linkGPIO.writePin(Pin::SO, false);
+    turnLightOff();
     linkGPIO.setSIInterrupts(false);
 
     bool success = irq;
@@ -121,7 +122,7 @@ class LinkIR {
   }
 
   void sendNEC(u8 address, u8 command) {
-    u16 pulses[68];
+    u16 pulses[LINK_IR_NEC_TOTAL_PULSES];
     u32 i = 0;
 
     pulses[i++] = LINK_IR_NEC_LEADER_MARK;
@@ -133,37 +134,31 @@ class LinkIR {
     pulses[i++] = LINK_IR_NEC_PULSE;
     pulses[i++] = LINK_IR_SIGNAL_END;
 
-    send<true>(pulses);
+    send(pulses);
   }
 
   /**
-   * Sends a generic IR signal.
+   * Sends a generic IR signal, modulating at standard 38kHz.
    * @param pulses An array of u16 numbers describing the signal. Even indices
    * are *marks* (IR on), odd indices are *spaces* (IR off), and `0` ends the
    * signal.
-   * @tparam modulate38kHz Whether the *marks* should be modulated to 38kHz or
-   * not. Most common protocols require this (for example, the NEC Protocol).
+   * \warning The carrier frequency is tied to the ASM code. To transmit in
+   * other frequencies, you'll have to bitbang the `SO` pin yourself.
    */
-  template <bool modulate38kHz>
   void send(u16* pulses) {
-    linkGPIO.writePin(Pin::SO, false);
+    turnLightOff();
+
     for (u32 i = 0; pulses[i] != 0; i++) {
       u32 microseconds = pulses[i];
       bool isMark = i % 2 == 0;
 
       if (isMark) {
-        if constexpr (modulate38kHz) {
-          generate38kHzSignal(microseconds);
-        } else {
-          linkGPIO.writePin(Pin::SO, true);
-          waitMicroseconds(microseconds);
-        }
+        generate38kHzSignal(microseconds);
       } else {
-        linkGPIO.writePin(Pin::SO, false);
+        turnLightOff();
         waitMicroseconds(microseconds);
       }
     }
-    linkGPIO.writePin(Pin::SO, false);
   }
 
   bool receiveNEC(u8& address, u8& command) {
@@ -175,6 +170,18 @@ class LinkIR {
     // TODO: IMPLEMENT
     return false;
   }
+
+  /**
+   * Turns the IR LED on.
+   * \warning The adapter won't keep it on for more than 10µs. Add some pauses
+   * after every 10µs.
+   */
+  void turnLightOn() { linkGPIO.writePin(Pin::SO, true); }
+
+  /**
+   * Turns the IR LED off.
+   */
+  void turnLightOff() { linkGPIO.writePin(Pin::SO, false); }
 
   /**
    * @brief Deactivates the library.
