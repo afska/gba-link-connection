@@ -14,16 +14,24 @@
 //       interrupt_add(INTR_TIMER3, []() {});
 // - 3) Initialize the library with:
 //       linkIR->activate();
-// - 4) Send IR signals:
-//       linkIR->send({21, 2, 40, 4, 32, 0});
+// - 4) Send NEC signals:
+//       linkIR->sendNec(0x04, 0x03);
+// - 5) Receive NEC signals:
+//       // TODO: IMPLEMENT
+// - 6) Send 38kHz signals:
+//       linkIR->send({9000, 4500, 560, 560, 560, 1690, 0});
 //                     // u16 array, numbers are microseconds
 //                     // even indices: marks (IR on)
 //                     // odd indices: spaces (IR off)
 //                     // 0 = EOS
-// - 5) Receive IR signals;
+// - 7) Receive 38kHz signals;
 //       u16 pulses[2000];
 //       linkIR->receive(pulses, 2000, 30000);
 //       // out array, max entries, timeout (in microseconds)
+// - 8) Bitbang the LED manually:
+//       linkIR->setLight(true);
+// - 9) Receive manually:
+//       bool ledOn = linkIR->isDetectingLight();
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -37,13 +45,12 @@
 LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 #define LINK_IR_SIGNAL_END 0
-#define LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE 15
 #define LINK_IR_DEFAULT_PRIMARY_TIMER_ID 2
 #define LINK_IR_DEFAULT_SECONDARY_TIMER_ID 3
 
 /**
  * @brief A driver for the Infrared Adapter (AGB-006).
- * \warning If you enable this, make sure that `lib/iwram_code/LinkIR.cpp` gets
+ * \warning To use this, make sure that `lib/iwram_code/LinkIR.cpp` gets
  * compiled! For example, in a Makefile-based project, verify that the directory
  * is in your `SRCDIRS` list.
  */
@@ -117,12 +124,14 @@ class LinkIR {
     setLight(false);
     linkGPIO.setSIInterrupts(false);
 
-    bool success = irq;
-    irq = false;
-
-    return success;
+    return detected;
   }
 
+  /**
+   * Sends a NEC signal.
+   * @param address An 8-bit address, to specify the device.
+   * @param command An 8-bit command, to specify the action.
+   */
   void sendNEC(u8 address, u8 command) {
     u16 pulses[NEC_TOTAL_PULSES];
     u32 i = 0;
@@ -148,10 +157,23 @@ class LinkIR {
    * other frequencies, you'll have to bitbang the `SO` pin yourself with
    * `setLight(...)`.
    */
-  void send(u16 pulses[]);
+  void send(u16 pulses[]);  // defined in `LinkIR.cpp`
 
-  // TODO: DOCUMENT
-  bool receive(u16 pulses[], u32 maxEntries, u32 timeout, u32 startTimeout);
+  /**
+   * Receives a generic IR signal modulated at standard 38kHz.
+   * @param pulses An array to be filled with u16 numbers describing the signal.
+   * Even indices are *marks* (IR on), odd indices are *spaces* (IR off), and
+   * `0` ends the signal.
+   * @param maxEntries Maximum capacity of the `pulses` array.
+   * @param timeout Number of microseconds inside a *space* after terminating
+   * the reception. It doesn't start to count until the first *mark*.
+   * @param startTimeout Number of microseconds before the first *mark* to abort
+   * the reception.
+   */
+  bool receive(u16 pulses[],
+               u32 maxEntries,
+               u32 timeout,
+               u32 startTimeout = 0xFFFFFFFF);  // defined in `LinkIR.cpp`
 
   /**
    * Turns the output IR LED ON/OFF through the `SO` pin (HIGH = ON).
@@ -188,11 +210,10 @@ class LinkIR {
     if (!isEnabled)
       return;
 
-    irq = true;
+    detected = true;
   }
 
   struct Config {
-    u8 tolerancePercentage;
     u8 primaryTimerId;
     u8 secondaryTimerId;
   };
@@ -203,10 +224,10 @@ class LinkIR {
    */
   Config config;
 
-  //  private: // TODO: REMOVE
+ private:
   LinkGPIO linkGPIO;
   volatile bool isEnabled = false;
-  volatile bool irq = false;
+  volatile bool detected = false;
 
   void addNECByte(u16 pulses[], u32& i, u8 value) {
     for (u32 b = 0; b < 8; b++) {
@@ -218,7 +239,7 @@ class LinkIR {
   void generate38kHzSignal(u32 microseconds);  // defined in ASM (`LinkIR.cpp`)
   void waitMicroseconds(u32 microseconds);     // defined in ASM (`LinkIR.cpp`)
 
-  void resetState() { irq = false; }
+  void resetState() { detected = false; }
 
   void startCount() {
     Link::_REG_TM[config.primaryTimerId].start = 0;

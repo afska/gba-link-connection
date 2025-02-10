@@ -39,6 +39,8 @@ _LINK_SERIAL_ISR void LinkWireless::processMessage(u32 playerId,
  * NOTES:
  * When using `LINK_WIRELESS_ENABLE_NESTED_IRQ`:
  *   - Any user ISR can interrupt the library ISRs.
+ *     * The SERIAL ISR only enables nested interrupts after completing the
+ *       acknowledge with the Wireless Adapter.
  *   - SERIAL ISR can interrupt TIMER ISR.
  *     -> This doesn't cause data races since TIMER ISR only works when
  *        there is no active async task.
