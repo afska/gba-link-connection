@@ -10,6 +10,7 @@
 // - 2) Add the interrupt service routines:
 //       interrupt_init();
 //       interrupt_add(INTR_SERIAL, LINK_IR_ISR_SERIAL);
+//       interrupt_add(INTR_TIMER2, []() {});
 //       interrupt_add(INTR_TIMER3, []() {});
 // - 3) Initialize the library with:
 //       linkIR->activate();
@@ -42,7 +43,8 @@ LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 #define LINK_IR_NEC_SPACE_1 1690
 #define LINK_IR_NEC_SPACE_0 560
 #define LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE 15
-#define LINK_IR_DEFAULT_TIMER_ID 3
+#define LINK_IR_DEFAULT_PRIMARY_TIMER_ID 2
+#define LINK_IR_DEFAULT_SECONDARY_TIMER_ID 3
 
 /**
  * @brief A driver for the Infrared Adapter (AGB-006).
@@ -70,9 +72,11 @@ class LinkIR {
    * @param timerId `(0~3)` GBA Timer to use for counting elapsed time.
    */
   explicit LinkIR(u8 tolerancePercentage = LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE,
-                  u8 timerId = LINK_IR_DEFAULT_TIMER_ID) {
+                  u8 primaryTimerId = LINK_IR_DEFAULT_PRIMARY_TIMER_ID,
+                  u8 secondaryTimerId = LINK_IR_DEFAULT_SECONDARY_TIMER_ID) {
     config.tolerancePercentage = tolerancePercentage;
-    config.timerId = timerId;
+    config.primaryTimerId = primaryTimerId;
+    config.secondaryTimerId = secondaryTimerId;
   }
 
   /**
@@ -160,6 +164,14 @@ class LinkIR {
     linkGPIO.writePin(Pin::SO, false);
   }
 
+  bool receiveNEC(u8& address, u8& command) {
+    // TODO: IMPLEMENT
+  }
+
+  bool receive(u16 pulses[], u32 maxEntries, u32 timeout) {
+    // TODO: IMPLEMENT
+  }
+
   /**
    * @brief Deactivates the library.
    */
@@ -181,7 +193,8 @@ class LinkIR {
 
   struct Config {
     u8 tolerancePercentage;
-    u8 timerId;
+    u8 primaryTimerId;
+    u8 secondaryTimerId;
   };
 
   /**
@@ -190,12 +203,12 @@ class LinkIR {
    */
   Config config;
 
- private:
+  //  private: // TODO: REMOVE
   LinkGPIO linkGPIO;
   volatile bool isEnabled = false;
   volatile bool irq = false;
 
-  void addNECByte(u16* pulses, u32& i, u8 value) {
+  void addNECByte(u16 pulses[], u32& i, u8 value) {
     for (u32 b = 0; b < 8; b++) {
       pulses[i++] = LINK_IR_NEC_PULSE;
       pulses[i++] =
@@ -207,6 +220,28 @@ class LinkIR {
   void waitMicroseconds(u32 microseconds);     // defined in ASM (`LinkIR.cpp`)
 
   void resetState() { irq = false; }
+
+  void startCount() {
+    Link::_REG_TM[config.primaryTimerId].start = 0;
+    Link::_REG_TM[config.secondaryTimerId].start = 0;
+
+    Link::_REG_TM[config.primaryTimerId].cnt = 0;
+    Link::_REG_TM[config.secondaryTimerId].cnt = 0;
+
+    Link::_REG_TM[config.secondaryTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_CASCADE;
+    Link::_REG_TM[config.primaryTimerId].cnt =
+        Link::_TM_ENABLE | Link::_TM_FREQ_1;
+  }
+
+  u32 stopCount() {
+    Link::_REG_TM[config.primaryTimerId].cnt = 0;
+    Link::_REG_TM[config.secondaryTimerId].cnt = 0;
+
+    return (Link::_REG_TM[config.primaryTimerId].count |
+            (Link::_REG_TM[config.secondaryTimerId].count << 16)) /
+           TO_TICKS;
+  }
 };
 
 extern LinkIR* linkIR;

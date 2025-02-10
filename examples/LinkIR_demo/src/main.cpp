@@ -16,6 +16,7 @@ void init() {
   interrupt_init();
   interrupt_add(INTR_VBLANK, []() {});
   interrupt_add(INTR_SERIAL, LINK_IR_ISR_SERIAL);
+  interrupt_add(INTR_TIMER2, []() {});
   interrupt_add(INTR_TIMER3, []() {});
 
   // (3) Initialize the library
@@ -27,7 +28,7 @@ int main() {
 
   linkIR->activate();
 
-  bool a = true;
+  bool a = true, b = true;
 
   while (true) {
     std::string output = "LinkIR_demo (v8.0.0)\n\n";
@@ -36,6 +37,7 @@ int main() {
               (isConnected ? "DETECTED" : "not detected");
 
     output += "\n\nA = Send NEC A=0x04, C=0x03";
+    output += "\nB = Receive";
 
     if (Common::didPress(KEY_A, a)) {
       Common::log("Sending...");
@@ -86,7 +88,16 @@ int main() {
       //     // terminator
       //     0});
       Common::log("DONE!");
-      Common::waitForKey(KEY_B);
+      Common::waitForKey(KEY_DOWN);
+    }
+
+    if (Common::didPress(KEY_B, b)) {
+      u8 address, command;
+      if (linkIR->receiveNEC(address, command)) {
+      } else {
+        Common::log("Failed");
+      }
+      Common::waitForKey(KEY_DOWN);
     }
 
     VBlankIntrWait();
