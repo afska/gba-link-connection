@@ -37,13 +37,6 @@
 LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 #define LINK_IR_SIGNAL_END 0
-#define LINK_38KHZ_PERIOD (1000000 / 38000)
-#define LINK_IR_NEC_TOTAL_PULSES 68
-#define LINK_IR_NEC_LEADER_MARK 9000
-#define LINK_IR_NEC_LEADER_SPACE 4500
-#define LINK_IR_NEC_PULSE 560
-#define LINK_IR_NEC_SPACE_1 1690
-#define LINK_IR_NEC_SPACE_0 560
 #define LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE 15
 #define LINK_IR_DEFAULT_PRIMARY_TIMER_ID 2
 #define LINK_IR_DEFAULT_SECONDARY_TIMER_ID 3
@@ -62,21 +55,29 @@ class LinkIR {
   using Pin = LinkGPIO::Pin;
   using Direction = LinkGPIO::Direction;
 
+  static constexpr int CYCLES_PER_MICROSECOND = 17;
   static constexpr int TIMEOUT_MICROSECONDS = 2500;
-  static constexpr int TO_CYCLES = 17;
+  static constexpr int DEMODULATION_38KHZ_PERIOD = 1000000 / 38000;
+  static constexpr int DEMODULATION_WINDOW_FACTOR = 2;
+  static constexpr int DEMODULATION_SAMPLE_WINDOW_CYCLES =
+      DEMODULATION_38KHZ_PERIOD * DEMODULATION_WINDOW_FACTOR *
+      CYCLES_PER_MICROSECOND;
+  static constexpr int DEMODULATION_MIN_TRANSITIONS = 2;
+  static constexpr int NEC_TOTAL_PULSES = 68;
+  static constexpr int NEC_LEADER_MARK = 9000;
+  static constexpr int NEC_LEADER_SPACE = 4500;
+  static constexpr int NEC_PULSE = 560;
+  static constexpr int NEC_SPACE_1 = 1690;
+  static constexpr int NEC_SPACE_0 = 560;
 
  public:
   /**
    * @brief Constructs a new LinkIR object.
-   * @param tolerancePercentage Tolerance % for demodulation (default: 15).
-   * @param modulationTimerId `(0~3)` GBA Timer to use for modulating
-   * signals.
-   * @param timerId `(0~3)` GBA Timer to use for counting elapsed time.
+   * @param primaryTimerId `(0~3)` GBA Timer to use for counting time (1/2).
+   * @param secondaryTimerId `(0~3)` GBA Timer to use for counting time (2/2).
    */
-  explicit LinkIR(u8 tolerancePercentage = LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE,
-                  u8 primaryTimerId = LINK_IR_DEFAULT_PRIMARY_TIMER_ID,
+  explicit LinkIR(u8 primaryTimerId = LINK_IR_DEFAULT_PRIMARY_TIMER_ID,
                   u8 secondaryTimerId = LINK_IR_DEFAULT_SECONDARY_TIMER_ID) {
-    config.tolerancePercentage = tolerancePercentage;
     config.primaryTimerId = primaryTimerId;
     config.secondaryTimerId = secondaryTimerId;
   }
@@ -123,16 +124,16 @@ class LinkIR {
   }
 
   void sendNEC(u8 address, u8 command) {
-    u16 pulses[LINK_IR_NEC_TOTAL_PULSES];
+    u16 pulses[NEC_TOTAL_PULSES];
     u32 i = 0;
 
-    pulses[i++] = LINK_IR_NEC_LEADER_MARK;
-    pulses[i++] = LINK_IR_NEC_LEADER_SPACE;
+    pulses[i++] = NEC_LEADER_MARK;
+    pulses[i++] = NEC_LEADER_SPACE;
     addNECByte(pulses, i, address);
     addNECByte(pulses, i, (u8)~address);
     addNECByte(pulses, i, command);
     addNECByte(pulses, i, (u8)~command);
-    pulses[i++] = LINK_IR_NEC_PULSE;
+    pulses[i++] = NEC_PULSE;
     pulses[i++] = LINK_IR_SIGNAL_END;
 
     send(pulses);
@@ -147,28 +148,10 @@ class LinkIR {
    * other frequencies, you'll have to bitbang the `SO` pin yourself with
    * `setLight(...)`.
    */
-  void send(u16* pulses) {
-    setLight(false);
+  void send(u16 pulses[]);
 
-    for (u32 i = 0; pulses[i] != 0; i++) {
-      u32 microseconds = pulses[i];
-      bool isMark = i % 2 == 0;
-
-      if (isMark) {
-        generate38kHzSignal(microseconds);
-      } else {
-        setLight(false);
-        waitMicroseconds(microseconds);
-      }
-    }
-  }
-
-  bool receiveNEC(u8& address, u8& command) {
-    // TODO: IMPLEMENT
-    return false;
-  }
-
-  bool receive(u16 pulses[], u32 maxEntries, u32 timeout);  // IWRAM
+  // TODO: DOCUMENT
+  bool receive(u16 pulses[], u32 maxEntries, u32 timeout, u32 startTimeout);
 
   /**
    * Turns the output IR LED ON/OFF through the `SO` pin (HIGH = ON).
@@ -181,17 +164,13 @@ class LinkIR {
   /**
    * Returns whether the output IR LED is ON or OFF.
    */
-  bool getOutputLight() {
-    return linkGPIO.readPin(Pin::SO);
-  }  // TODO: isEmittingLight()
+  bool isEmittingLight() { return linkGPIO.readPin(Pin::SO); }
 
   /**
    * Returns whether a remote light signal is detected through the `SI` pin
    * (LOW = DETECTED) or not.
    */
-  bool getInputLight() {
-    return !linkGPIO.readPin(Pin::SI);
-  }  // TODO: isDetectingLight()
+  bool isDetectingLight() { return !linkGPIO.readPin(Pin::SI); }
 
   /**
    * @brief Deactivates the library.
@@ -231,9 +210,8 @@ class LinkIR {
 
   void addNECByte(u16 pulses[], u32& i, u8 value) {
     for (u32 b = 0; b < 8; b++) {
-      pulses[i++] = LINK_IR_NEC_PULSE;
-      pulses[i++] =
-          (value >> b) & 1 ? LINK_IR_NEC_SPACE_1 : LINK_IR_NEC_SPACE_0;
+      pulses[i++] = NEC_PULSE;
+      pulses[i++] = (value >> b) & 1 ? NEC_SPACE_1 : NEC_SPACE_0;
     }
   }
 

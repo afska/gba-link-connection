@@ -59,55 +59,88 @@ LINK_CODE_IWRAM void LinkIR::waitMicroseconds(u32 microseconds) {
       : "r1", "r2");
 }
 
-LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
-                                     u32 maxEntries,
-                                     u32 timeout) {
-  // u32 extraPeriod = (LINK_38KHZ_PERIOD * config.tolerancePercentage) / 100;
+LINK_CODE_IWRAM void LinkIR::send(u16 pulses[]) {
+  setLight(false);
 
-  startCount();
-  bool isHigh = false;
-  u32 currentCycles = 0;
-  u32 currentTimeoutCycles = 0;
-  u32 totalCycles = 0;
-  int i = -1;
+  for (u32 i = 0; pulses[i] != 0; i++) {
+    u32 microseconds = pulses[i];
+    bool isMark = i % 2 == 0;
 
-  while (true) {
-    if (totalCycles >= timeout * TO_CYCLES)
-      break;
-
-    u32 elapsedCycles = stopCount();
-    startCount();
-    currentCycles += elapsedCycles;
-    currentTimeoutCycles += elapsedCycles;
-    if (i >= 0)
-      totalCycles += elapsedCycles;
-
-    if (getInputLight()) {
-      if (!isHigh) {
-        isHigh = true;
-        if (i >= 0)
-          pulses[i] = currentCycles / TO_CYCLES;
-        i++;
-        if (i >= (int)maxEntries - 1)
-          break;
-        currentCycles = 0;
-      }
-      currentTimeoutCycles = 0;
+    if (isMark) {
+      generate38kHzSignal(microseconds);
     } else {
-      int diff = currentTimeoutCycles - /*LINK_38KHZ_PERIOD*/ 100 * TO_CYCLES;
-
-      if (isHigh && diff > 0) {
-        isHigh = false;
-        pulses[i++] = (currentCycles + diff) / TO_CYCLES;
-        if (i >= (int)maxEntries - 1)
-          break;
-        currentCycles = 0;
-        currentTimeoutCycles = 0;
-      }
+      setLight(false);
+      waitMicroseconds(microseconds);
     }
   }
-  pulses[i] = LINK_IR_SIGNAL_END;
-  stopCount();
-
-  return true;
 }
+
+LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
+                                     u32 maxEntries,
+                                     u32 timeout,
+                                     u32 startTimeout) {
+  bool hasStarted = false;
+  bool isMark = false;
+
+  u32 pulseIndex = 0;
+  u32 lastTransitionTime = 0;
+  u32 initialTime = 0;
+
+  startCount();
+  initialTime = getCount();
+
+  while (true) {
+    // begin a fixed demodulation window
+    u32 windowStart = getCount();
+    u32 transitionsCount = 0;
+    bool previousRaw = isDetectingLight();
+
+    // sample for a fixed window duration
+    while (getCount() - windowStart < DEMODULATION_SAMPLE_WINDOW_CYCLES) {
+      bool currentRaw = isDetectingLight();
+      if (currentRaw != previousRaw) {
+        transitionsCount++;
+        previousRaw = currentRaw;
+      }
+    }
+
+    bool isCarrierPresent = transitionsCount >= DEMODULATION_MIN_TRANSITIONS;
+
+    // new transition?
+    if (isCarrierPresent != isMark) {
+      // estimate transition time as the middle of the current window
+      u32 estimatedNow = windowStart + DEMODULATION_SAMPLE_WINDOW_CYCLES / 2;
+      if (!hasStarted && isCarrierPresent) {
+        // first mark initializes the capture
+        hasStarted = true;
+        lastTransitionTime = estimatedNow;
+      } else if (hasStarted) {
+        // record the pulse duration in microseconds
+        if (pulseIndex >= maxEntries - 1)
+          break;
+        u32 pulseDuration =
+            (estimatedNow - lastTransitionTime) / CYCLES_PER_MICROSECOND;
+        pulses[pulseIndex++] = pulseDuration;
+        lastTransitionTime = estimatedNow;
+      }
+      isMark = isCarrierPresent;
+    }
+
+    // if we've started and we're in a space, check for overall timeout
+    if (hasStarted && !isMark &&
+        (getCount() - lastTransitionTime) / CYCLES_PER_MICROSECOND >= timeout)
+      break;
+
+    // if we haven't started and we've waited longer than startTimeout, then
+    // timeout too
+    if (!hasStarted &&
+        (getCount() - initialTime) / CYCLES_PER_MICROSECOND >= startTimeout)
+      break;
+  }
+
+  pulses[pulseIndex] = LINK_IR_SIGNAL_END;
+  stopCount();
+  return pulseIndex > 0;
+}
+
+// TODO: MOVE TO iwram_code folder

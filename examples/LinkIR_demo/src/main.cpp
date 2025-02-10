@@ -95,7 +95,7 @@ int main() {
       // u8 address, command;
       u16 pulses[3000] = {};
       Common::log("Receiving...");
-      if (linkIR->receive(pulses, 3000, 1000000)) {
+      if (linkIR->receive(pulses, 3000, 15000, 1000000)) {
         Common::log("Let's see");
         Common::waitForKey(KEY_DOWN);
         std::string recv;
