@@ -58,3 +58,56 @@ LINK_CODE_IWRAM void LinkIR::waitMicroseconds(u32 microseconds) {
       : "r"(microseconds)
       : "r1", "r2");
 }
+
+LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
+                                     u32 maxEntries,
+                                     u32 timeout) {
+  // u32 extraPeriod = (LINK_38KHZ_PERIOD * config.tolerancePercentage) / 100;
+
+  startCount();
+  bool isHigh = false;
+  u32 currentCycles = 0;
+  u32 currentTimeoutCycles = 0;
+  u32 totalCycles = 0;
+  int i = -1;
+
+  while (true) {
+    if (totalCycles >= timeout * TO_CYCLES)
+      break;
+
+    u32 elapsedCycles = stopCount();
+    startCount();
+    currentCycles += elapsedCycles;
+    currentTimeoutCycles += elapsedCycles;
+    if (i >= 0)
+      totalCycles += elapsedCycles;
+
+    if (getInputLight()) {
+      if (!isHigh) {
+        isHigh = true;
+        if (i >= 0)
+          pulses[i] = currentCycles / TO_CYCLES;
+        i++;
+        if (i >= (int)maxEntries - 1)
+          break;
+        currentCycles = 0;
+      }
+      currentTimeoutCycles = 0;
+    } else {
+      int diff = currentTimeoutCycles - /*LINK_38KHZ_PERIOD*/ 100 * TO_CYCLES;
+
+      if (isHigh && diff > 0) {
+        isHigh = false;
+        pulses[i++] = (currentCycles + diff) / TO_CYCLES;
+        if (i >= (int)maxEntries - 1)
+          break;
+        currentCycles = 0;
+        currentTimeoutCycles = 0;
+      }
+    }
+  }
+  pulses[i] = LINK_IR_SIGNAL_END;
+  stopCount();
+
+  return true;
+}

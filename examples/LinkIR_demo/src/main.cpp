@@ -30,16 +30,6 @@ int main() {
 
   bool a = true, b = true;
 
-  // linkIR->startCount();
-  // for (u32 i = 0; i < 60; i++) {
-  //   VBlankIntrWait();
-  // }
-  // u32 elapsedUs = linkIR->stopCount();
-  // linkIR->stopCount();
-  // Common::log(std::to_string(elapsedUs));
-  // while (true)
-  //   ;
-
   while (true) {
     std::string output = "LinkIR_demo (v8.0.0)\n\n";
 
@@ -102,8 +92,20 @@ int main() {
     }
 
     if (Common::didPress(KEY_B, b)) {
-      u8 address, command;
-      if (linkIR->receiveNEC(address, command)) {
+      // u8 address, command;
+      u16 pulses[3000] = {};
+      Common::log("Receiving...");
+      if (linkIR->receive(pulses, 3000, 1000000)) {
+        Common::log("Let's see");
+        Common::waitForKey(KEY_DOWN);
+        std::string recv;
+        u32 i = 0;
+        for (i = 0; pulses[i] != 0; i++) {
+          recv += std::to_string(pulses[i]) + ",";
+        }
+        recv = std::to_string(i) + " // " + recv;
+        Common::log(recv);
+        Common::waitForKey(KEY_RIGHT);
       } else {
         Common::log("Failed");
       }

@@ -37,6 +37,7 @@
 LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 #define LINK_IR_SIGNAL_END 0
+#define LINK_38KHZ_PERIOD (1000000 / 38000)
 #define LINK_IR_NEC_TOTAL_PULSES 68
 #define LINK_IR_NEC_LEADER_MARK 9000
 #define LINK_IR_NEC_LEADER_SPACE 4500
@@ -62,7 +63,7 @@ class LinkIR {
   using Direction = LinkGPIO::Direction;
 
   static constexpr int TIMEOUT_MICROSECONDS = 2500;
-  static constexpr int TO_TICKS = 17;
+  static constexpr int TO_CYCLES = 17;
 
  public:
   /**
@@ -110,9 +111,9 @@ class LinkIR {
     linkGPIO.writePin(Pin::SO, false);
     linkGPIO.setSIInterrupts(true);
 
-    turnLightOn();
+    setLight(true);
     waitMicroseconds(TIMEOUT_MICROSECONDS);
-    turnLightOff();
+    setLight(false);
     linkGPIO.setSIInterrupts(false);
 
     bool success = irq;
@@ -143,10 +144,11 @@ class LinkIR {
    * are *marks* (IR on), odd indices are *spaces* (IR off), and `0` ends the
    * signal.
    * \warning The carrier frequency is tied to the ASM code. To transmit in
-   * other frequencies, you'll have to bitbang the `SO` pin yourself.
+   * other frequencies, you'll have to bitbang the `SO` pin yourself with
+   * `setLight(...)`.
    */
   void send(u16* pulses) {
-    turnLightOff();
+    setLight(false);
 
     for (u32 i = 0; pulses[i] != 0; i++) {
       u32 microseconds = pulses[i];
@@ -155,7 +157,7 @@ class LinkIR {
       if (isMark) {
         generate38kHzSignal(microseconds);
       } else {
-        turnLightOff();
+        setLight(false);
         waitMicroseconds(microseconds);
       }
     }
@@ -166,22 +168,30 @@ class LinkIR {
     return false;
   }
 
-  bool receive(u16 pulses[], u32 maxEntries, u32 timeout) {
-    // TODO: IMPLEMENT
-    return false;
-  }
+  bool receive(u16 pulses[], u32 maxEntries, u32 timeout);  // IWRAM
 
   /**
-   * Turns the IR LED on.
-   * \warning The adapter won't keep it on for more than 10µs. Add some pauses
+   * Turns the output IR LED ON/OFF through the `SO` pin (HIGH = ON).
+   * @param on Whether the light should be ON.
+   * \warning The adapter won't keep it ON for more than 10µs. Add some pauses
    * after every 10µs.
    */
-  void turnLightOn() { linkGPIO.writePin(Pin::SO, true); }
+  void setLight(bool on) { linkGPIO.writePin(Pin::SO, on); }
 
   /**
-   * Turns the IR LED off.
+   * Returns whether the output IR LED is ON or OFF.
    */
-  void turnLightOff() { linkGPIO.writePin(Pin::SO, false); }
+  bool getOutputLight() {
+    return linkGPIO.readPin(Pin::SO);
+  }  // TODO: isEmittingLight()
+
+  /**
+   * Returns whether a remote light signal is detected through the `SI` pin
+   * (LOW = DETECTED) or not.
+   */
+  bool getInputLight() {
+    return !linkGPIO.readPin(Pin::SI);
+  }  // TODO: isDetectingLight()
 
   /**
    * @brief Deactivates the library.
@@ -245,13 +255,16 @@ class LinkIR {
         Link::_TM_ENABLE | Link::_TM_FREQ_1;
   }
 
+  u32 getCount() {
+    return (Link::_REG_TM[config.primaryTimerId].count |
+            (Link::_REG_TM[config.secondaryTimerId].count << 16));
+  }
+
   u32 stopCount() {
     Link::_REG_TM[config.primaryTimerId].cnt = 0;
     Link::_REG_TM[config.secondaryTimerId].cnt = 0;
 
-    return (Link::_REG_TM[config.primaryTimerId].count |
-            (Link::_REG_TM[config.secondaryTimerId].count << 16)) /
-           TO_TICKS;
+    return getCount();
   }
 };
 
