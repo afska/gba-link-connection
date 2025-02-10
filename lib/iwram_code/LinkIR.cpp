@@ -1,4 +1,4 @@
-#include "LinkIR.hpp"
+#include "../LinkIR.hpp"
 
 // To modulate a signal at 38kHz, we need to stay 13.15µs LOW and 13.15µs HIGH.
 //   38kHz signal => 38000/second =>
@@ -142,5 +142,3 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
   stopCount();
   return pulseIndex > 0;
 }
-
-// TODO: MOVE TO iwram_code folder

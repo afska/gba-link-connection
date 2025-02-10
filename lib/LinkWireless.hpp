@@ -97,9 +97,9 @@
  * @brief Put Interrupt Service Routines (ISR) in IWRAM (uncomment to enable).
  * This can significantly improve performance due to its faster access, but it's
  * disabled by default to conserve IWRAM space, which is limited.
- * \warning If you enable this, make sure that `LinkWireless.cpp` gets compiled!
- * For example, in a Makefile-based project, verify that the file is in your
- * `SRCDIRS` list.
+ * \warning If you enable this, make sure that `lib/iwram_code/LinkWireless.cpp`
+ * gets compiled! For example, in a Makefile-based project, verify that the
+ * directory is in your `SRCDIRS` list.
  */
 // #define LINK_WIRELESS_PUT_ISR_IN_IWRAM
 #endif

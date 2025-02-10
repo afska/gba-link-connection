@@ -310,7 +310,7 @@ You can update these values at any time without creating a new instance:
 - `LINK_WIRELESS_MAX_SERVER_TRANSFER_LENGTH` and `LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH`: to set the biggest allowed transfer per timer tick. Higher values will use the bandwidth more efficiently but also consume more CPU! These values must be in the range `[6;21]` for servers and `[2;4]` for clients. The default values are `11` and `4`, but you might want to set them a bit lower to reduce CPU usage.
   - This is measured in words (1 message = 1 halfword). One word is used as a header, so a max transfer length of 11 could transfer up to 20 messages.
 - `LINK_WIRELESS_PUT_ISR_IN_IWRAM`: to put critical functions in IWRAM, which can significantly improve performance due to its faster access. This is disabled by default to conserve IWRAM space, which is limited, but it's enabled in demos to showcase its performance benefits.
-  - If you enable this, make sure that `LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the file is in your `SRCDIRS` list.
+  - If you enable this, make sure that `lib/iwram_code/LinkWireless.cpp` gets compiled! For example, in a Makefile-based project, verify that the directory is in your `SRCDIRS` list.
   - Depending on how much IWRAM you have available, you might want to tweak these knobs:
     * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_SERIAL`: (default: `1`) Put the SERIAL ISR in IWRAM (recommended, since this handler runs ~20 times per frame)
     * `LINK_WIRELESS_PUT_ISR_IN_IWRAM_TIMER`: (default: `1`) Put the TIMER ISR in IWRAM (not that necessary)

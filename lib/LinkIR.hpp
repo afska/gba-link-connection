@@ -43,9 +43,9 @@ LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 /**
  * @brief A driver for the Infrared Adapter (AGB-006).
- * \warning If you enable this, make sure that `LinkIR.cpp` gets compiled!
- * For example, in a Makefile-based project, verify that the file is in your
- * `SRCDIRS` list.
+ * \warning If you enable this, make sure that `lib/iwram_code/LinkIR.cpp` gets
+ * compiled! For example, in a Makefile-based project, verify that the directory
+ * is in your `SRCDIRS` list.
  */
 class LinkIR {
  private:

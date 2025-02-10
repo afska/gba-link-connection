@@ -1,4 +1,4 @@
-#include "LinkWireless.hpp"
+#include "../LinkWireless.hpp"
 
 #ifdef LINK_WIRELESS_PUT_ISR_IN_IWRAM
 
