@@ -36,6 +36,11 @@
 LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 #define LINK_IR_SIGNAL_END 0
+#define LINK_IR_NEC_LEADER_MARK 9000
+#define LINK_IR_NEC_LEADER_SPACE 4500
+#define LINK_IR_NEC_PULSE 560
+#define LINK_IR_NEC_SPACE_1 1690
+#define LINK_IR_NEC_SPACE_0 560
 #define LINK_IR_DEFAULT_TOLERANCE_PERCENTAGE 15
 #define LINK_IR_DEFAULT_TIMER_ID 3
 
@@ -109,6 +114,22 @@ class LinkIR {
     return success;
   }
 
+  void sendNEC(u8 address, u8 command) {
+    u16 pulses[68];
+    u32 i = 0;
+
+    pulses[i++] = LINK_IR_NEC_LEADER_MARK;
+    pulses[i++] = LINK_IR_NEC_LEADER_SPACE;
+    addNECByte(pulses, i, address);
+    addNECByte(pulses, i, (u8)~address);
+    addNECByte(pulses, i, command);
+    addNECByte(pulses, i, (u8)~command);
+    pulses[i++] = LINK_IR_NEC_PULSE;
+    pulses[i++] = LINK_IR_SIGNAL_END;
+
+    send<true>(pulses);
+  }
+
   /**
    * Sends a generic IR signal.
    * @param pulses An array of u16 numbers describing the signal. Even indices
@@ -173,6 +194,14 @@ class LinkIR {
   LinkGPIO linkGPIO;
   volatile bool isEnabled = false;
   volatile bool irq = false;
+
+  void addNECByte(u16* pulses, u32& i, u8 value) {
+    for (u32 b = 0; b < 8; b++) {
+      pulses[i++] = LINK_IR_NEC_PULSE;
+      pulses[i++] =
+          (value >> b) & 1 ? LINK_IR_NEC_SPACE_1 : LINK_IR_NEC_SPACE_0;
+    }
+  }
 
   void generate38kHzSignal(u32 microseconds);  // defined in ASM (`LinkIR.cpp`)
   void waitMicroseconds(u32 microseconds);     // defined in ASM (`LinkIR.cpp`)
