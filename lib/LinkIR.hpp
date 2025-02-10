@@ -103,6 +103,8 @@ class LinkIR {
 
     linkGPIO.setMode(Pin::SC, Direction::OUTPUT);
     linkGPIO.writePin(Pin::SC, false);
+    linkGPIO.setMode(Pin::SD, Direction::OUTPUT);
+    linkGPIO.writePin(Pin::SD, true);
     linkGPIO.setMode(Pin::SO, Direction::OUTPUT);
     linkGPIO.writePin(Pin::SO, false);
     linkGPIO.setSIInterrupts(true);
@@ -166,10 +168,12 @@ class LinkIR {
 
   bool receiveNEC(u8& address, u8& command) {
     // TODO: IMPLEMENT
+    return false;
   }
 
   bool receive(u16 pulses[], u32 maxEntries, u32 timeout) {
     // TODO: IMPLEMENT
+    return false;
   }
 
   /**
