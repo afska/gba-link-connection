@@ -30,7 +30,6 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
 
   bool hasStarted = false;
   bool isMark = false;
-
   u32 pulseIndex = 0;
   u32 initialTime = 0;
   u32 lastTransitionTime = 0;
@@ -54,37 +53,35 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
     }
 
     bool isCarrierPresent = transitionsCount >= DEMODULATION_MIN_TRANSITIONS;
+    u32 transitionTime = getCount();
 
     // new transition?
     if (isCarrierPresent != isMark) {
-      // estimate transition time as the middle of the current window
-      u32 estimatedNow = windowStart + DEMODULATION_SAMPLE_WINDOW_CYCLES / 2;
       if (!hasStarted && isCarrierPresent) {
         // first mark initializes the capture
         hasStarted = true;
-        lastTransitionTime = estimatedNow;
+        lastTransitionTime = transitionTime;
       } else if (hasStarted) {
         // record the pulse duration in microseconds
         if (pulseIndex >= maxEntries - 1)
           break;
         u32 pulseDuration =
-            (estimatedNow - lastTransitionTime) / CYCLES_PER_MICROSECOND;
+            (transitionTime - lastTransitionTime) / CYCLES_PER_MICROSECOND;
         pulses[pulseIndex++] = pulseDuration;
-        lastTransitionTime = estimatedNow;
+        lastTransitionTime = transitionTime;
       }
       isMark = isCarrierPresent;
     }
 
-    // if we've started and we're in a space, check for `signalTimeout`
+    // if we've started and we're in a space, check for timeout
     if (hasStarted && !isMark &&
-        (getCount() - lastTransitionTime) / CYCLES_PER_MICROSECOND >=
-            signalTimeout)
+        ((getCount() - lastTransitionTime) / CYCLES_PER_MICROSECOND >=
+         signalTimeout))
       break;
 
-    // if we haven't started and we've waited longer than `startTimeout`, then
-    // timeout too
+    // if we haven't started and we've waited too long, timeout too
     if (!hasStarted &&
-        (getCount() - initialTime) / CYCLES_PER_MICROSECOND >= startTimeout)
+        ((getCount() - initialTime) / CYCLES_PER_MICROSECOND >= startTimeout))
       break;
   }
 
