@@ -122,6 +122,13 @@ class LinkPS2Mouse {
    * @param data The array to be filled with data.
    */
   void report(int (&data)[3]) {
+    if (!isEnabled) {
+      data[0] = 0;
+      data[1] = 0;
+      data[2] = 0;
+      return;
+    }
+
     write(0xEB);                       // send read data
     readByte();                        // read ack byte
     data[0] = readByte();              // status bit

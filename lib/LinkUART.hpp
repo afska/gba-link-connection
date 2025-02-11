@@ -153,6 +153,9 @@ class LinkUART {
    */
   template <typename F>
   void sendLine(const char* string, F cancel) {
+    if (!isEnabled)
+      return;
+
     for (u32 i = 0; string[i] != '\0'; i++) {
       while (!canSend())
         if (cancel())
@@ -188,6 +191,9 @@ class LinkUART {
    */
   template <typename F>
   bool readLine(char* string, F cancel, u32 limit = LINK_UART_QUEUE_SIZE) {
+    if (!isEnabled)
+      return false;
+
     u32 readBytes = 0;
     char lastChar = '\0';
     bool aborted = false;
@@ -214,6 +220,9 @@ class LinkUART {
    * @param offset The starting offset.
    */
   void send(const u8* buffer, u32 size, u32 offset = 0) {
+    if (!isEnabled)
+      return;
+
     for (u32 i = 0; i < size; i++)
       send(buffer[offset + i]);
   }
@@ -226,6 +235,9 @@ class LinkUART {
    * @param offset The offset from target buffer.
    */
   u32 read(u8* buffer, u32 size, u32 offset = 0) {
+    if (!isEnabled)
+      return 0;
+
     for (u32 i = 0; i < size; i++) {
       if (!canRead())
         return i;
@@ -267,7 +279,12 @@ class LinkUART {
    * @brief Sends a `data` byte.
    * @param data The value to be sent.
    */
-  void send(u8 data) { outgoingQueue.syncPush(data); }
+  void send(u8 data) {
+    if (!isEnabled)
+      return;
+
+    outgoingQueue.syncPush(data);
+  }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.

@@ -113,7 +113,12 @@ class LinkPS2Keyboard {
    * @brief This method is called by the VBLANK interrupt handler.
    * \warning This is internal API!
    */
-  void _onVBlank() { frameCounter++; }
+  void _onVBlank() {
+    if (!isEnabled)
+      return;
+
+    frameCounter++;
+  }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.

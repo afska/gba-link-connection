@@ -133,6 +133,9 @@ class LinkIR {
    * @param command An 8-bit command, to specify the action.
    */
   void sendNEC(u8 address, u8 command) {
+    if (!isEnabled)
+      return;
+
     u16 pulses[NEC_TOTAL_PULSES];
     u32 i = 0;
 

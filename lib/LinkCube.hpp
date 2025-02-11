@@ -117,6 +117,9 @@ class LinkCube {
    */
   template <typename F>
   bool wait(F cancel) {
+    if (!isEnabled)
+      return false;
+
     resetFlag = false;
 
     while (!resetFlag && !canRead() && !cancel())
@@ -148,7 +151,12 @@ class LinkCube {
    * \warning If the other end asks for data at the same time you call this
    * method, a `0x00000000` will be sent.
    */
-  void send(u32 data) { outgoingQueue.syncPush(data); }
+  void send(u32 data) {
+    if (!isEnabled)
+      return;
+
+    outgoingQueue.syncPush(data);
+  }
 
   /**
    * @brief Returns the number of pending outgoing transfers.

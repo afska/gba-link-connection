@@ -147,7 +147,7 @@ class LinkSPI {
                F cancel,
                bool _async = false,
                bool _customAck = false) {
-    if (asyncState != AsyncState::IDLE)
+    if (!isEnabled || asyncState != AsyncState::IDLE)
       return noData();
 
     setData(data);
@@ -252,7 +252,12 @@ class LinkSPI {
    * \warning `waitMode` is disabled by default.
    * \warning `MISO` means `SO` on the slave side and `SI` on the master side.
    */
-  void setWaitModeActive(bool isActive) { waitMode = isActive; }
+  void setWaitModeActive(bool isActive) {
+    if (!isEnabled)
+      return;
+
+    waitMode = isActive;
+  }
 
   /**
    * @brief Returns whether `waitMode` (*) is active or not.

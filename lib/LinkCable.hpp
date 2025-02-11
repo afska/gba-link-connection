@@ -207,6 +207,9 @@ class LinkCable {
    */
   template <typename F>
   bool waitFor(u8 playerId, F cancel) {
+    if (!isEnabled)
+      return false;
+
     sync();
 
     while (isConnected() && !canRead(playerId) && !cancel()) {
@@ -253,8 +256,8 @@ class LinkCable {
    * returned.
    */
   bool send(u16 data) {
-    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA ||
-        !canSend())
+    if (!isEnabled || data == LINK_CABLE_DISCONNECTED ||
+        data == LINK_CABLE_NO_DATA || !canSend())
       return false;
 
     _state.outgoingMessages.syncPush(data);

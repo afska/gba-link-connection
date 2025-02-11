@@ -142,7 +142,7 @@ class LinkRawCable {
    */
   template <typename F>
   Response transfer(u16 data, F cancel, bool _async = false) {
-    if (asyncState != AsyncState::IDLE)
+    if (!isEnabled || asyncState != AsyncState::IDLE)
       return EMPTY_RESPONSE;
 
     setData(data);

@@ -1,6 +1,9 @@
 #include "../LinkIR.hpp"
 
 LINK_CODE_IWRAM void LinkIR::send(u16 pulses[]) {
+  if (!isEnabled)
+    return;
+
   setLight(false);
 
   for (u32 i = 0; pulses[i] != 0; i++) {
@@ -22,6 +25,9 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
                                      u32 maxEntries,
                                      u32 timeout,
                                      u32 startTimeout) {
+  if (!isEnabled)
+    return false;
+
   bool hasStarted = false;
   bool isMark = false;
 

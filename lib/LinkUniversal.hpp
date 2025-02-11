@@ -309,6 +309,9 @@ class LinkUniversal {
    */
   template <typename F>
   bool waitFor(u8 playerId, F cancel) {
+    if (!isEnabled)
+      return false;
+
     sync();
 
     u8 timerId = mode == Mode::LINK_CABLE ? linkCable.config.sendTimerId
@@ -366,7 +369,8 @@ class LinkUniversal {
    * returned.
    */
   bool send(u16 data) {
-    if (data == LINK_CABLE_DISCONNECTED || data == LINK_CABLE_NO_DATA)
+    if (!isEnabled || data == LINK_CABLE_DISCONNECTED ||
+        data == LINK_CABLE_NO_DATA)
       return false;
 
     return mode == Mode::LINK_CABLE ? linkCable.send(data)
@@ -480,6 +484,9 @@ class LinkUniversal {
    * \warning This is internal API!
    */
   void _onVBlank() {
+    if (!isEnabled)
+      return;
+
     if (mode == Mode::LINK_CABLE)
       linkCable._onVBlank();
     else
@@ -491,6 +498,9 @@ class LinkUniversal {
    * \warning This is internal API!
    */
   void _onSerial() {
+    if (!isEnabled)
+      return;
+
     if (mode == Mode::LINK_CABLE)
       linkCable._onSerial();
     else
@@ -502,6 +512,9 @@ class LinkUniversal {
    * \warning This is internal API!
    */
   void _onTimer() {
+    if (!isEnabled)
+      return;
+
     if (mode == Mode::LINK_CABLE)
       linkCable._onTimer();
     else
