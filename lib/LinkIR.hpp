@@ -15,16 +15,17 @@
 // - 3) Initialize the library with:
 //       linkIR->activate();
 // - 4) Send NEC signals:
-//       linkIR->sendNec(0x04, 0x03);
+//       linkIR->sendNEC(0x04, 0x03);
 // - 5) Receive NEC signals:
-//       // TODO: IMPLEMENT
+//       u8 address, u8 command;
+//       linkIR->receiveNEC(address, command);
 // - 6) Send 38kHz signals:
 //       linkIR->send({9000, 4500, 560, 560, 560, 1690, 0});
 //                     // u16 array, numbers are microseconds
 //                     // even indices: marks (IR on)
 //                     // odd indices: spaces (IR off)
 //                     // 0 = EOS
-// - 7) Receive 38kHz signals;
+// - 7) Receive 38kHz signals:
 //       u16 pulses[2000];
 //       linkIR->receive(pulses, 2000);
 //       // out array, max entries, timeout (in microseconds)
