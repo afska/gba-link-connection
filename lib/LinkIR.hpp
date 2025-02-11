@@ -167,28 +167,37 @@ class LinkIR {
     if (!isEnabled)
       return false;
 
-    u16 pulses[NEC_TOTAL_PULSES];
-    if (!receive(pulses, NEC_TOTAL_PULSES, startTimeout))
+    u32 bufferSize = NEC_TOTAL_PULSES * 3;
+    u16 pulses[bufferSize];
+    if (!receive(pulses, bufferSize, startTimeout))
       return false;
 
-    if (!isWithinNECTolerance(pulses[0], NEC_LEADER_MARK))
+    u32 cursor = 0;
+    while (cursor < bufferSize &&
+           !isWithinNECTolerance(pulses[cursor], NEC_LEADER_MARK))
+      cursor++;
+
+    if (cursor + NEC_TOTAL_PULSES >= bufferSize)
       return false;
-    if (!isWithinNECTolerance(pulses[1], NEC_LEADER_SPACE))
+
+    if (!isWithinNECTolerance(pulses[cursor + 0], NEC_LEADER_MARK))
+      return false;
+    if (!isWithinNECTolerance(pulses[cursor + 1], NEC_LEADER_SPACE))
       return false;
 
     u32 data = 0;
     for (u32 bit = 0; bit < 32; bit++) {
       u32 markIndex = 2 + bit * 2;
       u32 spaceIndex = markIndex + 1;
-      if (!isWithinNECTolerance(pulses[markIndex], NEC_PULSE))
+      if (!isWithinNECTolerance(pulses[cursor + markIndex], NEC_PULSE))
         return false;
-      u16 space = pulses[spaceIndex];
+      u16 space = pulses[cursor + spaceIndex];
       if (isWithinNECTolerance(space, NEC_SPACE_1))
         data |= 1 << bit;
       else if (!isWithinNECTolerance(space, NEC_SPACE_0))
         return false;
     }
-    if (!isWithinNECTolerance(pulses[66], NEC_PULSE))
+    if (!isWithinNECTolerance(pulses[cursor + 66], NEC_PULSE))
       return false;
 
     u8 addr = data & 0xFF;
