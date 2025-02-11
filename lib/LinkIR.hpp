@@ -157,7 +157,7 @@ class LinkIR {
 
   /**
    * Receives a signal and returns whether it's a NEC signal or not. If it is,
-   * the `address` and `command` will be filled.
+   * the `address` and `command` will be filled. Returns `true` on success.
    * @param address The read 8-bit address, specifying the device.
    * @param command The read 8-bit command, specifying the action.
    * @param startTimeout Number of microseconds before the first *mark* to abort
@@ -167,37 +167,41 @@ class LinkIR {
     if (!isEnabled)
       return false;
 
-    u32 bufferSize = NEC_TOTAL_PULSES * 3;
-    u16 pulses[bufferSize];
-    if (!receive(pulses, bufferSize, startTimeout))
+    u16 pulses[NEC_TOTAL_PULSES];
+    if (!receive(pulses, NEC_TOTAL_PULSES, startTimeout))
       return false;
 
-    u32 cursor = 0;
-    while (cursor < bufferSize &&
-           !isWithinNECTolerance(pulses[cursor], NEC_LEADER_MARK))
-      cursor++;
+    return parseNEC(pulses, address, command);
+  }
 
-    if (cursor + NEC_TOTAL_PULSES >= bufferSize)
+  /**
+   * Tries to interpret an already received array of `pulses` as a NEC signal.
+   * @param pulses The pulses to interpret. Returns `true` on success.
+   * @param address The read 8-bit address, specifying the device.
+   * @param command The read 8-bit command, specifying the action.
+   */
+  bool parseNEC(u16 pulses[], u8& address, u8& command) {
+    if (!isEnabled)
       return false;
 
-    if (!isWithinNECTolerance(pulses[cursor + 0], NEC_LEADER_MARK))
+    if (!isWithinNECTolerance(pulses[0], NEC_LEADER_MARK))
       return false;
-    if (!isWithinNECTolerance(pulses[cursor + 1], NEC_LEADER_SPACE))
+    if (!isWithinNECTolerance(pulses[1], NEC_LEADER_SPACE))
       return false;
 
     u32 data = 0;
     for (u32 bit = 0; bit < 32; bit++) {
       u32 markIndex = 2 + bit * 2;
       u32 spaceIndex = markIndex + 1;
-      if (!isWithinNECTolerance(pulses[cursor + markIndex], NEC_PULSE))
+      if (!isWithinNECTolerance(pulses[markIndex], NEC_PULSE))
         return false;
-      u16 space = pulses[cursor + spaceIndex];
+      u16 space = pulses[spaceIndex];
       if (isWithinNECTolerance(space, NEC_SPACE_1))
         data |= 1 << bit;
       else if (!isWithinNECTolerance(space, NEC_SPACE_0))
         return false;
     }
-    if (!isWithinNECTolerance(pulses[cursor + 66], NEC_PULSE))
+    if (!isWithinNECTolerance(pulses[66], NEC_PULSE))
       return false;
 
     u8 addr = data & 0xFF;
@@ -301,6 +305,9 @@ class LinkIR {
   }
 
   bool isWithinNECTolerance(u16 measured, u16 expected) {
+    if (measured == 0)
+      return false;
+
     u32 tolerance = (expected * NEC_TOLERANCE_PERCENTAGE) / 100;
     return measured >= expected - tolerance && measured <= expected + tolerance;
   }

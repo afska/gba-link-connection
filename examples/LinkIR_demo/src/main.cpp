@@ -158,8 +158,10 @@ void receiveGeneric38kHzSignal() {
         received += ", ";
       received += std::to_string(pulses[i]);
     }
-    received =
-        "Press START to retransmit\n" + std::to_string(i) + " // " + received;
+    u8 address, command;
+    bool isNEC = linkIR->parseNEC(pulses, address, command);
+    received = "Press START to resend (NEC=" + std::to_string(isNEC) + ")\n" +
+               std::to_string(i) + " // " + received;
     Common::log(received);
   } else {
     Common::log("No signal detected!\n\nPress START");

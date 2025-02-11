@@ -54,7 +54,7 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
         u32 pulseDuration = (currentFirstLightTime - lastTransitionTime) /
                             CYCLES_PER_MICROSECOND;
         pulses[pulseIndex++] = pulseDuration;
-        if ((int)pulseIndex >= (int)maxEntries - 2)
+        if (pulseIndex >= maxEntries - 1)
           break;
       }
       isMark = true;
@@ -69,7 +69,7 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
       u32 pulseDuration =
           (currentLastLightTime - lastTransitionTime) / CYCLES_PER_MICROSECOND;
       pulses[pulseIndex++] = pulseDuration;
-      if ((int)pulseIndex >= (int)maxEntries - 2)
+      if (pulseIndex >= maxEntries - 1)
         break;
       isMark = false;
       lastTransitionTime = currentLastLightTime;
