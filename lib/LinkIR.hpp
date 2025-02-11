@@ -170,7 +170,37 @@ class LinkIR {
     if (!receive(pulses, NEC_TOTAL_PULSES, startTimeout))
       return false;
 
-    // TODO: IMPLEMENT
+    if (!isWithinNECTolerance(pulses[0], NEC_LEADER_MARK))
+      return false;
+    if (!isWithinNECTolerance(pulses[1], NEC_LEADER_SPACE))
+      return false;
+
+    u32 data = 0;
+    for (u32 bit = 0; bit < 32; bit++) {
+      u32 markIndex = 2 + bit * 2;
+      u32 spaceIndex = markIndex + 1;
+      if (!isWithinNECTolerance(pulses[markIndex], NEC_PULSE))
+        return false;
+      u16 space = pulses[spaceIndex];
+      if (isWithinNECTolerance(space, NEC_SPACE_1))
+        data |= 1 << bit;
+      else if (!isWithinNECTolerance(space, NEC_SPACE_0))
+        return false;
+    }
+    if (!isWithinNECTolerance(pulses[66], NEC_PULSE))
+      return false;
+
+    u8 addr = data & 0xFF;
+    u8 invAddr = (data >> 8) & 0xFF;
+    u8 cmd = (data >> 16) & 0xFF;
+    u8 invCmd = (data >> 24) & 0xFF;
+    if ((u8)~addr != invAddr || (u8)~cmd != invCmd)
+      return false;
+
+    address = addr;
+    command = cmd;
+
+    return true;
   }
 
   /**
@@ -261,6 +291,11 @@ class LinkIR {
       pulses[i++] = NEC_PULSE;
       pulses[i++] = (value >> b) & 1 ? NEC_SPACE_1 : NEC_SPACE_0;
     }
+  }
+
+  bool isWithinNECTolerance(u16 measured, u16 expected) {
+    u32 tolerance = (expected * NEC_TOLERANCE_PERCENTAGE) / 100;
+    return measured >= expected - tolerance && measured <= expected + tolerance;
   }
 
   void generate38kHzSignal(u32 microseconds);  // defined in ASM (`LinkIR.cpp`)

@@ -92,20 +92,29 @@ int main() {
     }
 
     if (Common::didPress(KEY_B, b)) {
-      // u8 address, command;
-      u16 pulses[3000] = {};
+      u8 address, command;
+
+      // u16 pulses[3000] = {};
       Common::log("Receiving...");
-      if (linkIR->receive(pulses, 3000, 1000000)) {
-        Common::log("Let's see");
+      // if (linkIR->receive(pulses, 3000, 1000000)) {
+      //   Common::log("Let's see");
+      //   Common::waitForKey(KEY_DOWN);
+      //   std::string recv;
+      //   u32 i = 0;
+      //   for (i = 0; pulses[i] != 0; i++) {
+      //     recv += std::to_string(pulses[i]) + ",";
+      //   }
+      //   recv = std::to_string(i) + " // " + recv;
+      //   Common::log(recv);
+      //   Common::waitForKey(KEY_RIGHT);
+      // } else {
+      //   Common::log("Failed");
+      // }
+
+      if (linkIR->receiveNEC(address, command, 1000000)) {
+        Common::log("addr: " + std::to_string(address) +
+                    ", cmd: " + std::to_string(command));
         Common::waitForKey(KEY_DOWN);
-        std::string recv;
-        u32 i = 0;
-        for (i = 0; pulses[i] != 0; i++) {
-          recv += std::to_string(pulses[i]) + ",";
-        }
-        recv = std::to_string(i) + " // " + recv;
-        Common::log(recv);
-        Common::waitForKey(KEY_RIGHT);
       } else {
         Common::log("Failed");
       }
