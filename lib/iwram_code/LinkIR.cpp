@@ -23,8 +23,8 @@ LINK_CODE_IWRAM void LinkIR::send(u16 pulses[]) {
 
 LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
                                      u32 maxEntries,
-                                     u32 timeout,
-                                     u32 startTimeout) {
+                                     u32 startTimeout,
+                                     u32 signalTimeout) {
   if (!isEnabled)
     return false;
 
@@ -32,8 +32,8 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
   bool isMark = false;
 
   u32 pulseIndex = 0;
-  u32 lastTransitionTime = 0;
   u32 initialTime = 0;
+  u32 lastTransitionTime = 0;
 
   startCount();
   initialTime = getCount();
@@ -75,12 +75,13 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
       isMark = isCarrierPresent;
     }
 
-    // if we've started and we're in a space, check for overall timeout
+    // if we've started and we're in a space, check for `signalTimeout`
     if (hasStarted && !isMark &&
-        (getCount() - lastTransitionTime) / CYCLES_PER_MICROSECOND >= timeout)
+        (getCount() - lastTransitionTime) / CYCLES_PER_MICROSECOND >=
+            signalTimeout)
       break;
 
-    // if we haven't started and we've waited longer than startTimeout, then
+    // if we haven't started and we've waited longer than `startTimeout`, then
     // timeout too
     if (!hasStarted &&
         (getCount() - initialTime) / CYCLES_PER_MICROSECOND >= startTimeout)

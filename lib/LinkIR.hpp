@@ -26,7 +26,7 @@
 //                     // 0 = EOS
 // - 7) Receive 38kHz signals;
 //       u16 pulses[2000];
-//       linkIR->receive(pulses, 2000, 30000);
+//       linkIR->receive(pulses, 2000);
 //       // out array, max entries, timeout (in microseconds)
 // - 8) Bitbang the LED manually:
 //       linkIR->setLight(true);
@@ -63,19 +63,22 @@ class LinkIR {
   using Direction = LinkGPIO::Direction;
 
   static constexpr int CYCLES_PER_MICROSECOND = 17;
-  static constexpr int TIMEOUT_MICROSECONDS = 2500;
+  static constexpr int DETECTION_TIMEOUT = 2500;
   static constexpr int DEMODULATION_38KHZ_PERIOD = 1000000 / 38000;
   static constexpr int DEMODULATION_WINDOW_FACTOR = 2;
   static constexpr int DEMODULATION_SAMPLE_WINDOW_CYCLES =
       DEMODULATION_38KHZ_PERIOD * DEMODULATION_WINDOW_FACTOR *
       CYCLES_PER_MICROSECOND;
   static constexpr int DEMODULATION_MIN_TRANSITIONS = 2;
+  static constexpr int NEC_TOLERANCE_PERCENTAGE = 15;
   static constexpr int NEC_TOTAL_PULSES = 68;
   static constexpr int NEC_LEADER_MARK = 9000;
   static constexpr int NEC_LEADER_SPACE = 4500;
   static constexpr int NEC_PULSE = 560;
   static constexpr int NEC_SPACE_1 = 1690;
   static constexpr int NEC_SPACE_0 = 560;
+  static constexpr int DEFAULT_RECEIVE_TIMEOUT = 15000;
+  static constexpr u32 NO_TIMEOUT = 0xFFFFFFFF;
 
  public:
   /**
@@ -120,7 +123,7 @@ class LinkIR {
     linkGPIO.setSIInterrupts(true);
 
     setLight(true);
-    waitMicroseconds(TIMEOUT_MICROSECONDS);
+    waitMicroseconds(DETECTION_TIMEOUT);
     setLight(false);
     linkGPIO.setSIInterrupts(false);
 
@@ -152,6 +155,25 @@ class LinkIR {
   }
 
   /**
+   * Receives a signal and returns whether it's a NEC signal or not. If it is,
+   * the `address` and `command` will be filled.
+   * @param address The read 8-bit address, specifying the device.
+   * @param command The read 8-bit command, specifying the action.
+   * @param startTimeout Number of microseconds before the first *mark* to abort
+   * the reception.
+   */
+  bool receiveNEC(u8& address, u8& command, u32 startTimeout = NO_TIMEOUT) {
+    if (!isEnabled)
+      return false;
+
+    u16 pulses[NEC_TOTAL_PULSES];
+    if (!receive(pulses, NEC_TOTAL_PULSES, startTimeout))
+      return false;
+
+    // TODO: IMPLEMENT
+  }
+
+  /**
    * Sends a generic IR signal, modulating at standard 38kHz.
    * @param pulses An array of u16 numbers describing the signal. Even indices
    * are *marks* (IR on), odd indices are *spaces* (IR off), and `0` ends the
@@ -168,15 +190,17 @@ class LinkIR {
    * Even indices are *marks* (IR on), odd indices are *spaces* (IR off), and
    * `0` ends the signal.
    * @param maxEntries Maximum capacity of the `pulses` array.
-   * @param timeout Number of microseconds inside a *space* after terminating
-   * the reception. It doesn't start to count until the first *mark*.
    * @param startTimeout Number of microseconds before the first *mark* to abort
    * the reception.
+   * @param signalTimeout Number of microseconds inside a *space* after
+   * terminating the reception. It doesn't start to count until the first
+   * *mark*.
    */
-  bool receive(u16 pulses[],
-               u32 maxEntries,
-               u32 timeout,
-               u32 startTimeout = 0xFFFFFFFF);  // defined in `LinkIR.cpp`
+  bool receive(
+      u16 pulses[],
+      u32 maxEntries,
+      u32 startTimeout = NO_TIMEOUT,
+      u32 signalTimeout = DEFAULT_RECEIVE_TIMEOUT);  // defined in `LinkIR.cpp`
 
   /**
    * Turns the output IR LED ON/OFF through the `SO` pin (HIGH = ON).
