@@ -8,7 +8,7 @@ void sendNECSignal();
 void receiveNECSignal();
 void sendGeneric38kHzSignal();
 void receiveGeneric38kHzSignal();
-void monitor();
+void monitor(bool& b);
 
 // (1) Create a LinkIR instance
 LinkIR* linkIR = new LinkIR();
@@ -55,7 +55,7 @@ int main() {
     if (Common::didPress(KEY_LEFT, left))
       receiveGeneric38kHzSignal();
     if (Common::didPress(KEY_SELECT, select))
-      monitor();
+      monitor(b);
 
     VBlankIntrWait();
     Common::log(output);
@@ -174,7 +174,7 @@ void receiveGeneric38kHzSignal() {
   }
 }
 
-void monitor() {
+void monitor(bool& b) {
   const u32 WIDTH = 29;
   const u32 SPEED = 3;
   const u8 ADDR = 0x04;
@@ -185,7 +185,6 @@ void monitor() {
   int direction = 1;
   std::string output = "";
   u32 count = 0;
-  bool b = true;
 
   while (true) {
     if (Common::didPress(KEY_B, b))

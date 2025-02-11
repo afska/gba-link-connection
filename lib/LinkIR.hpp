@@ -60,17 +60,17 @@ class LinkIR {
   using u32 = Link::u32;
   using u16 = Link::u16;
   using u8 = Link::u8;
+  using vu32 = Link::vu32;
   using Pin = LinkGPIO::Pin;
   using Direction = LinkGPIO::Direction;
 
   static constexpr int CYCLES_PER_MICROSECOND = 17;
   static constexpr int DETECTION_TIMEOUT = 2500;
+  static constexpr int DEMODULATION_MARK_MIN_TRANSITIONS = 3;
   static constexpr int DEMODULATION_38KHZ_PERIOD = 1000000 / 38000;
-  static constexpr int DEMODULATION_WINDOW_FACTOR = 2;
-  static constexpr int DEMODULATION_SAMPLE_WINDOW_CYCLES =
-      DEMODULATION_38KHZ_PERIOD * DEMODULATION_WINDOW_FACTOR *
-      CYCLES_PER_MICROSECOND;
-  static constexpr int DEMODULATION_MIN_TRANSITIONS = 2;
+  static constexpr int DEMODULATION_SPACE_PERIODS = 3;
+  static constexpr int DEMODULATION_SPACE_THRESHOLD =
+      DEMODULATION_38KHZ_PERIOD * DEMODULATION_SPACE_PERIODS;
   static constexpr int NEC_TOLERANCE_PERCENTAGE = 15;
   static constexpr int NEC_TOTAL_PULSES = 68;
   static constexpr int NEC_LEADER_MARK = 9000;
@@ -245,8 +245,7 @@ class LinkIR {
   /**
    * Turns the output IR LED ON/OFF through the `SO` pin (HIGH = ON).
    * @param on Whether the light should be ON.
-   * \warning The adapter won't keep it ON for more than 10µs. Add some pauses
-   * after every 10µs.
+   * \warning Add some pauses after every 10µs.
    */
   void setLight(bool on) { linkGPIO.writePin(Pin::SO, on); }
 
@@ -273,12 +272,7 @@ class LinkIR {
    * @brief This method is called by the SERIAL interrupt handler.
    * \warning This is internal API!
    */
-  void _onSerial() {
-    if (!isEnabled)
-      return;
-
-    detected = true;
-  }
+  void _onSerial();  // defined in `LinkIR.cpp`
 
   struct Config {
     u8 primaryTimerId;
@@ -295,6 +289,9 @@ class LinkIR {
   LinkGPIO linkGPIO;
   volatile bool isEnabled = false;
   volatile bool detected = false;
+  vu32 firstLightTime = 0;
+  vu32 lastLightTime = 0;
+  vu32 transitionCount = 0;
 
   void addNECByte(u16 pulses[], u32& i, u8 value) {
     for (u32 b = 0; b < 8; b++) {
@@ -311,7 +308,12 @@ class LinkIR {
   void generate38kHzSignal(u32 microseconds);  // defined in ASM (`LinkIR.cpp`)
   void waitMicroseconds(u32 microseconds);     // defined in ASM (`LinkIR.cpp`)
 
-  void resetState() { detected = false; }
+  void resetState() {
+    detected = false;
+    firstLightTime = 0;
+    lastLightTime = 0;
+    transitionCount = 0;
+  }
 
   void startCount() {
     Link::_REG_TM[config.primaryTimerId].start = 0;
@@ -326,7 +328,7 @@ class LinkIR {
         Link::_TM_ENABLE | Link::_TM_FREQ_1;
   }
 
-  u32 getCount() {
+  LINK_INLINE u32 getCount() {
     return (Link::_REG_TM[config.primaryTimerId].count |
             (Link::_REG_TM[config.secondaryTimerId].count << 16));
   }
@@ -349,5 +351,6 @@ inline void LINK_IR_ISR_SERIAL() {
 }
 
 // TODO: C BINDINGS
+// TODO: DOCUMENTATION (README)
 
 #endif  // LINK_IR_H

@@ -31,63 +31,82 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
   bool hasStarted = false;
   bool isMark = false;
   u32 pulseIndex = 0;
-  u32 initialTime = 0;
   u32 lastTransitionTime = 0;
 
+  firstLightTime = 0;
+  lastLightTime = 0;
+  transitionCount = 0;
   startCount();
-  initialTime = getCount();
+  u32 initialTime = getCount();
+  linkGPIO.setSIInterrupts(true);
 
   while (true) {
-    // begin a fixed demodulation window
-    u32 windowStart = getCount();
-    u32 transitionsCount = 0;
-    bool previousRaw = isDetectingLight();
+    u32 currentLastLightTime = lastLightTime;    // (mutated via interrupts)
+    u32 currentFirstLightTime = firstLightTime;  // (mutated via interrupts)
+    u32 now = getCount();
+    u32 timeSinceLastLight = now - currentLastLightTime;
 
-    // sample for a fixed window duration
-    while (getCount() - windowStart < DEMODULATION_SAMPLE_WINDOW_CYCLES) {
-      bool currentRaw = isDetectingLight();
-      if (currentRaw != previousRaw) {
-        transitionsCount++;
-        previousRaw = currentRaw;
-      }
-    }
+    // Transitions
 
-    bool isCarrierPresent = transitionsCount >= DEMODULATION_MIN_TRANSITIONS;
-    u32 transitionTime = getCount();
-
-    // new transition?
-    if (isCarrierPresent != isMark) {
-      if (!hasStarted && isCarrierPresent) {
-        // first mark initializes the capture
-        hasStarted = true;
-        lastTransitionTime = transitionTime;
-      } else if (hasStarted) {
-        // record the pulse duration in microseconds
-        if (pulseIndex >= maxEntries - 1)
-          break;
-        u32 pulseDuration =
-            (transitionTime - lastTransitionTime) / CYCLES_PER_MICROSECOND;
+    if (!isMark && transitionCount > DEMODULATION_MARK_MIN_TRANSITIONS) {
+      // [space ->] mark
+      if (hasStarted) {
+        u32 pulseDuration = (currentFirstLightTime - lastTransitionTime) /
+                            CYCLES_PER_MICROSECOND;
         pulses[pulseIndex++] = pulseDuration;
-        lastTransitionTime = transitionTime;
+        if ((int)pulseIndex >= (int)maxEntries - 2)
+          break;
       }
-      isMark = isCarrierPresent;
+      isMark = true;
+      lastTransitionTime = currentFirstLightTime;
+      hasStarted = true;
     }
+
+    if (hasStarted && isMark &&
+        timeSinceLastLight >=
+            DEMODULATION_SPACE_THRESHOLD * CYCLES_PER_MICROSECOND) {
+      // mark -> space
+      u32 pulseDuration =
+          (currentLastLightTime - lastTransitionTime) / CYCLES_PER_MICROSECOND;
+      pulses[pulseIndex++] = pulseDuration;
+      if ((int)pulseIndex >= (int)maxEntries - 2)
+        break;
+      isMark = false;
+      lastTransitionTime = currentLastLightTime;
+      transitionCount = 0;
+    }
+
+    // Timeouts
+
+    u32 timeSinceLastTransition = now - lastTransitionTime;
+    u32 timeSinceInitialization = now - initialTime;
 
     // if we've started and we're in a space, check for timeout
     if (hasStarted && !isMark &&
-        ((getCount() - lastTransitionTime) / CYCLES_PER_MICROSECOND >=
-         signalTimeout))
+        timeSinceLastTransition >= signalTimeout * CYCLES_PER_MICROSECOND)
       break;
 
     // if we haven't started and we've waited too long, timeout too
     if (!hasStarted &&
-        ((getCount() - initialTime) / CYCLES_PER_MICROSECOND >= startTimeout))
+        timeSinceInitialization >= startTimeout * CYCLES_PER_MICROSECOND)
       break;
   }
 
   pulses[pulseIndex] = LINK_IR_SIGNAL_END;
   stopCount();
+  linkGPIO.setSIInterrupts(false);
   return pulseIndex > 0;
+}
+
+LINK_CODE_IWRAM void LinkIR::_onSerial() {
+  if (!isEnabled)
+    return;
+
+  detected = true;
+  lastLightTime = getCount();
+  if (transitionCount == 0)
+    firstLightTime = lastLightTime;
+  transitionCount++;
 }
 
 /**
