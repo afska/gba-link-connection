@@ -71,6 +71,7 @@ class LinkIR {
   static constexpr int DEMODULATION_SPACE_PERIODS = 3;
   static constexpr int DEMODULATION_SPACE_THRESHOLD =
       DEMODULATION_38KHZ_PERIOD * DEMODULATION_SPACE_PERIODS;
+  static constexpr int DEMODULATION_HYSTERESIS_DELAY = 10;
   static constexpr int NEC_TOLERANCE_PERCENTAGE = 15;
   static constexpr int NEC_TOTAL_PULSES = 68;
   static constexpr int NEC_LEADER_MARK = 9000;

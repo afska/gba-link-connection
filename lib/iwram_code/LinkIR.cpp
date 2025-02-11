@@ -33,6 +33,9 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
   u32 pulseIndex = 0;
   u32 lastTransitionTime = 0;
 
+  bool candidateTransitionActive = false;
+  u32 candidateTransitionStart = 0;
+
   firstLightTime = 0;
   lastLightTime = 0;
   transitionCount = 0;
@@ -62,18 +65,29 @@ LINK_CODE_IWRAM bool LinkIR::receive(u16 pulses[],
       hasStarted = true;
     }
 
-    if (hasStarted && isMark &&
-        timeSinceLastLight >=
-            DEMODULATION_SPACE_THRESHOLD * CYCLES_PER_MICROSECOND) {
-      // mark -> space
-      u32 pulseDuration =
-          (currentLastLightTime - lastTransitionTime) / CYCLES_PER_MICROSECOND;
-      pulses[pulseIndex++] = pulseDuration;
-      if (pulseIndex >= maxEntries - 1)
-        break;
-      isMark = false;
-      lastTransitionTime = currentLastLightTime;
-      transitionCount = 0;
+    if (hasStarted && isMark) {
+      if (timeSinceLastLight >=
+          DEMODULATION_SPACE_THRESHOLD * CYCLES_PER_MICROSECOND) {
+        // mark -> space?
+        if (!candidateTransitionActive) {
+          candidateTransitionActive = true;
+          candidateTransitionStart = now;
+        } else if (now - candidateTransitionStart >=
+                   DEMODULATION_HYSTERESIS_DELAY * CYCLES_PER_MICROSECOND) {
+          // mark -> space (confirmed after hysteresis delay)
+          u32 pulseDuration = (currentLastLightTime - lastTransitionTime) /
+                              CYCLES_PER_MICROSECOND;
+          pulses[pulseIndex++] = pulseDuration;
+          if (pulseIndex >= maxEntries - 1)
+            break;
+          isMark = false;
+          lastTransitionTime = currentLastLightTime;
+          transitionCount = 0;
+          candidateTransitionActive = false;
+        }
+      } else {
+        candidateTransitionActive = false;
+      }
     }
 
     // Timeouts
