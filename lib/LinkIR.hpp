@@ -366,7 +366,4 @@ inline void LINK_IR_ISR_SERIAL() {
   linkIR->_onSerial();
 }
 
-// TODO: C BINDINGS
-// TODO: DOCUMENTATION (README)
-
 #endif  // LINK_IR_H
