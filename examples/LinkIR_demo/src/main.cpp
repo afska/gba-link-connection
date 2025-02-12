@@ -8,7 +8,6 @@ void sendNECSignal();
 void receiveNECSignal();
 void sendGeneric38kHzSignal();
 void receiveGeneric38kHzSignal();
-void monitor(bool& b);
 
 // (1) Create a LinkIR instance
 LinkIR* linkIR = new LinkIR();
@@ -32,7 +31,7 @@ void init() {
 int main() {
   init();
 
-  bool a = true, b = true, left = true, right = true, select = true;
+  bool a = true, b = true, left = true, right = true;
 
   while (true) {
     std::string output = "LinkIR_demo (v8.0.0)\n\n";
@@ -44,7 +43,6 @@ int main() {
     output += "\nB = Receive NEC signal";
     output += "\n\nRIGHT = Send 38kHz signal";
     output += "\nLEFT = Receive 38kHz / copy";
-    output += "\n\nSELECT = monitor";
 
     if (Common::didPress(KEY_A, a))
       sendNECSignal();
@@ -54,8 +52,6 @@ int main() {
       sendGeneric38kHzSignal();
     if (Common::didPress(KEY_LEFT, left))
       receiveGeneric38kHzSignal();
-    if (Common::didPress(KEY_SELECT, select))
-      monitor(b);
 
     VBlankIntrWait();
     Common::log(output);
@@ -173,54 +169,5 @@ void receiveGeneric38kHzSignal() {
     linkIR->send(pulses);
     Common::log("Sent!\n\nPress DOWN");
     Common::waitForKey(KEY_DOWN);
-  }
-}
-
-void monitor(bool& b) {
-  const u32 WIDTH = 29;
-  const u32 SPEED = 3;
-  const u8 ADDR = 0x04;
-  const u8 CMD_LEFT = 0x07;
-  const u8 CMD_RIGHT = 0x06;
-
-  int x = 0;
-  int direction = 1;
-  std::string output = "";
-  u32 count = 0;
-
-  while (true) {
-    if (Common::didPress(KEY_B, b))
-      return;
-
-    u8 address = 0, command = 0;
-    if (linkIR->receiveNEC(address, command, 10000) && address == ADDR) {
-      if (command == CMD_LEFT) {
-        count = 0;
-        direction = -1;
-      }
-      if (command == CMD_RIGHT) {
-        count = 0;
-        direction = 1;
-      }
-    }
-
-    output = "";
-
-    count++;
-    if (count > SPEED) {
-      x += direction;
-      if (x > (int)WIDTH)
-        x = WIDTH;
-      if (x < 0)
-        x = 0;
-      count = 0;
-    }
-
-    for (int i = 0; i < x; i++)
-      output += " ";
-    output += "x";
-
-    VBlankIntrWait();
-    Common::log(output);
   }
 }
