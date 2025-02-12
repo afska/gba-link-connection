@@ -31,10 +31,22 @@ compile() {
   cp LinkCable_stress$suffix.gba ../$folder/
   cd ..
 
+  # LinkCube_demo
+  cd LinkCube_demo/
+  make rebuild $args
+  cp LinkCube_demo$suffix.gba ../$folder/
+  cd ..
+
   # LinkGPIO_demo
   cd LinkGPIO_demo/
   make rebuild $args
   cp LinkGPIO_demo$suffix.gba ../$folder/
+  cd ..
+
+  # LinkIR_demo
+  cd LinkIR_demo/
+  make rebuild $args
+  cp LinkIR_demo$suffix.gba ../$folder/
   cd ..
 
   # LinkMobile_demo
