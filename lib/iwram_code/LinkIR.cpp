@@ -151,7 +151,7 @@ LINK_CODE_IWRAM void LinkIR::generate38kHzSignal(u32 microseconds) {
                                    // [1 cycle]
       "bne    2b              \n"  // repeat inner loop if needed
                                    // [taken: ~3 cycles, final: ~1 cycles]
-      // (*) the we need to wait ~220 cycles between <main loop> iterations:
+      // (*) we need to wait ~220 cycles between <main loop> iterations:
       //     [first 53 iterations (branch taken): 53 * ~4 cycles = ~212 cycles]
       //     [final iteration (branch not taken): ~2 cycles]
       //     [overhead: ~6 cycles]
