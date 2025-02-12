@@ -575,7 +575,7 @@ _(aka UART Mode)_
 
 [⬆️](#gba-link-connection) This is the GBA's implementation of UART. You can use this to interact with a PC using a _USB to UART cable_.
 
-![photo](https://github.com/afska/gba-link-connection/assets/1631752/2ca8abb8-1a38-40bb-bf7d-bf29a0f880cd)
+![photo](https://github.com/user-attachments/assets/250be0a8-c981-42cc-8c8c-92076f70c6d7)
 
 ## Methods
 
