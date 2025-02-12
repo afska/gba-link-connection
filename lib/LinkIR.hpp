@@ -54,7 +54,7 @@ LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
 
 /**
  * @brief A driver for the Infrared Adapter (AGB-006).
- * \warning To use this, make sure that `lib/iwram_code/LinkIR.cpp` gets
+ * \warning To use this library, make sure that `lib/iwram_code/LinkIR.cpp` gets
  * compiled! For example, in a Makefile-based project, verify that the directory
  * is in your `SRCDIRS` list.
  */
@@ -69,8 +69,8 @@ class LinkIR {
 
   static constexpr int CYCLES_PER_MICROSECOND = 17;
   static constexpr int DETECTION_TIMEOUT = 1000;
-  static constexpr int DEMODULATION_MARK_MIN_TRANSITIONS = 3;
   static constexpr int DEMODULATION_38KHZ_PERIOD = 1000000 / 38000;
+  static constexpr int DEMODULATION_MARK_MIN_TRANSITIONS = 3;
   static constexpr int DEMODULATION_SPACE_PERIODS = 3;
   static constexpr int DEMODULATION_SPACE_THRESHOLD =
       DEMODULATION_38KHZ_PERIOD * DEMODULATION_SPACE_PERIODS;
@@ -88,8 +88,8 @@ class LinkIR {
  public:
   /**
    * @brief Constructs a new LinkIR object.
-   * @param primaryTimerId `(0~3)` GBA Timer to use for counting time (1/2).
-   * @param secondaryTimerId `(0~3)` GBA Timer to use for counting time (2/2).
+   * @param primaryTimerId `(0~3)` GBA Timer to use for measuring time (1/2).
+   * @param secondaryTimerId `(0~3)` GBA Timer to use for measuring time (2/2).
    */
   explicit LinkIR(u8 primaryTimerId = LINK_IR_DEFAULT_PRIMARY_TIMER_ID,
                   u8 secondaryTimerId = LINK_IR_DEFAULT_SECONDARY_TIMER_ID) {

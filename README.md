@@ -713,23 +713,24 @@ You can update these values at any time without creating a new instance:
 
 # 📺 LinkIR
 
-_(aka Infrared Adapter or AGB-006)_
+_(aka Infrared Adapter)_
 
-[⬆️](#gba-link-connection) The Infrared adapter was only used in one commercial game: _Cyber Drive Zoids: Kiju no Senshi Hyuu_, but we can now give it a better use with homebrew!
+[⬆️](#gba-link-connection) The Infrared Adapter was only used in one commercial game: _Cyber Drive Zoids: Kiju no Senshi Hyuu_, but we can now give it a better use with homebrew!
 
 This library lets you control the IR LED directly via bitbanging, send/receive modulated 38kHz signals, and send/receive pulses in the standard NEC protocol.
 
-// TODO: VIDEO
-![screenshot](https://github.com/user-attachments/assets/fcc1488b-4955-4a1b-8ffa-dd660175a45c)
+![photo](https://github.com/user-attachments/assets/25d483af-6f32-43fa-8a46-bbb66ce3ee2c)
 
 ## Constructor
 
+To use this library, make sure that `lib/iwram_code/LinkIR.cpp` gets compiled! For example, in a Makefile-based project, verify that the directory is in your `SRCDIRS` list.
+
 `new LinkIR(...)` accepts these **optional** parameters:
 
-| Name               | Type           | Default | Description                               |
-| ------------------ | -------------- | ------- | ----------------------------------------- |
-| `primaryTimerId`   | **u8** _(0~3)_ | `2`     | GBA Timer to use for counting time (1/2). |
-| `secondaryTimerId` | **u8** _(0~3)_ | `3`     | GBA Timer to use for counting time (2/2). |
+| Name               | Type           | Default | Description                                |
+| ------------------ | -------------- | ------- | ------------------------------------------ |
+| `primaryTimerId`   | **u8** _(0~3)_ | `2`     | GBA Timer to use for measuring time (1/2). |
+| `secondaryTimerId` | **u8** _(0~3)_ | `3`     | GBA Timer to use for measuring time (2/2). |
 
 You can update these values at any time without creating a new instance:
 

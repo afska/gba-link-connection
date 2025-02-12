@@ -38,7 +38,7 @@ int main() {
     // Commands
     u16 keys = ~REG_KEYS & KEY_ANY;
 
-    // (3) Set modes
+    // (3/4) Set modes
     if (Common::didPress(KEY_LEFT, left))
       linkGPIO->setMode(
           LinkGPIO::Pin::SI,
@@ -66,7 +66,7 @@ int main() {
     if (linkGPIO->getMode(LinkGPIO::Pin::SC) == LinkGPIO::Direction::OUTPUT)
       linkGPIO->writePin(LinkGPIO::Pin::SC, keys & KEY_A);
 
-    // (4) Subscribe to SI falling
+    // (5) Subscribe to SI falling
     if (Common::didPress(KEY_START, start))
       linkGPIO->setSIInterrupts(!linkGPIO->getSIInterrupts());
     if (Common::didPress(KEY_SELECT, select))
@@ -117,6 +117,7 @@ std::string mode(std::string name, LinkGPIO::Pin pin) {
 std::string value(std::string name, LinkGPIO::Pin pin) {
   auto title = name + ": ";
 
+  // (4) Read pins
   return (linkGPIO->getMode(pin) == LinkGPIO::Direction::INPUT ? "< " : "> ") +
          title + std::to_string(linkGPIO->readPin(pin)) + "\n";
 }
