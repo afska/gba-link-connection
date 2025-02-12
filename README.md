@@ -495,7 +495,7 @@ _(aka General Purpose Mode)_
 
 [⬆️](#gba-link-connection) This is the default Link Port mode, and it allows users to manipulate pins `SI`, `SO`, `SD` and `SC` directly.
 
-![photo](https://github.com/afska/gba-link-connection/assets/1631752/b53ddc3d-46c5-441b-9036-489150d9de9f)
+![photo](https://github.com/user-attachments/assets/4b3944a2-6369-4382-a9cf-0c3f65ed8deb)
 
 ## Methods
 
