@@ -354,8 +354,8 @@ class LinkUniversal {
   }
 
   /**
-   * @brief Returns if a `send(...)` call would fail due to the queue being
-   * full.
+   * @brief Returns whether a `send(...)` call would fail due to the queue being
+   * full or not.
    */
   bool canSend() {
     return mode == Mode::LINK_CABLE ? linkCable.canSend()

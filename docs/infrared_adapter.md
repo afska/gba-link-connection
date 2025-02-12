@@ -13,10 +13,10 @@
 
 The AGB-006 is an accessory released in conjunction with Cyber Drive Zoids: Kiju no Senshi Hyuu on July 18, 2003. It serves as an infrared adapter, coming as a bundle with each game. Using IR signals, players can turn their GBAs into remote controls to pilot three toy model Zoids. Although the GBA removed the GBC's IR port, the AGB-006 officially restored that functionality as an add-on. Unfortunately Cyber Drive Zoids was the only game to take adavantage of the AGB-006.
 
-*   The AGB-006 is a small attachment that fits into the GBA serial port providing IR functionalities
-*   Has 2 IR diodes, one for receiving and one for transmitting
-*   Very similar in size and shape to the connecting end of a DOL-011 (Gamecube-to-GBA cable)
-*   Compatible with CDZ-01 Diablotiger, CDZ-02 Cyclops, and CDZ-EX Diablotiger B
+- The AGB-006 is a small attachment that fits into the GBA serial port providing IR functionalities
+- Has 2 IR diodes, one for receiving and one for transmitting
+- Very similar in size and shape to the connecting end of a DOL-011 (Gamecube-to-GBA cable)
+- Compatible with CDZ-01 Diablotiger, CDZ-02 Cyclops, and CDZ-EX Diablotiger B
 
 ## \[AGB-006\] : Device Detection
 
@@ -140,20 +140,20 @@ For Misc. Actions
 0x0		If Motion Type == 1 -> Fire
 0x1		If Motion Type == 1 -> Fire
 
-0x2		If Motion Type == 0 -> Jump 
-		If Motion Type == 3 -> Sync ID1, Boost Level 0 
+0x2		If Motion Type == 0 -> Jump
+		If Motion Type == 3 -> Sync ID1, Boost Level 0
 		If Motion Type == 5 -> Intimidate
 
 
 0x3		If Motion Type == 0 -> Jump
 		If Motion Type == 3 -> Sync ID2, Boost Level 0
-		If Motion Type == 5 -> Intimidate		
+		If Motion Type == 5 -> Intimidate
 
-0x4		If Motion Type == 3 -> Sync ID1, Boost Level 1 
-		If Motion Type == 5 -> Swing Hips	
+0x4		If Motion Type == 3 -> Sync ID1, Boost Level 1
+		If Motion Type == 5 -> Swing Hips
 
 
-0x5		If Motion Type == 3 -> Sync ID2, Boost Level 1 
+0x5		If Motion Type == 3 -> Sync ID2, Boost Level 1
 		If Motion Type == 5 -> Swing Hips
 
 0xA		War Cry

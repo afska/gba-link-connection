@@ -34,6 +34,9 @@
 // - 9) Receive manually:
 //       bool ledOn = linkIR->isDetectingLight();
 // --------------------------------------------------------------------------
+// considerations:
+// - wait at least 1 microsecond before `send(...)` and `receive(...)` calls!
+// --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
 #pragma GCC system_header
@@ -100,7 +103,8 @@ class LinkIR {
   [[nodiscard]] bool isActive() { return isEnabled; }
 
   /**
-   * @brief Activates the library. Returns if the adapter is connected or not.
+   * @brief Activates the library. Returns whether the adapter is connected or
+   * not.
    */
   bool activate() {
     LINK_READ_TAG(LINK_IR_VERSION);
@@ -131,6 +135,14 @@ class LinkIR {
     linkGPIO.setSIInterrupts(false);
 
     return detected;
+  }
+
+  /**
+   * @brief Deactivates the library.
+   */
+  void deactivate() {
+    isEnabled = false;
+    linkGPIO.reset();
   }
 
   /**
@@ -178,6 +190,8 @@ class LinkIR {
 
   /**
    * Tries to interpret an already received array of `pulses` as a NEC signal.
+   * On success, returns `true` and fills the `address` and `command` 
+   * parameters.
    * @param pulses The pulses to interpret. Returns `true` on success.
    * @param address The read 8-bit address, specifying the device.
    * @param command The read 8-bit command, specifying the action.
@@ -231,7 +245,8 @@ class LinkIR {
   void send(u16 pulses[]);  // defined in `LinkIR.cpp`
 
   /**
-   * Receives a generic IR signal modulated at standard 38kHz.
+   * Receives a generic IR signal modulated at standard 38kHz. Returns whether
+   * something was received or not.
    * @param pulses An array to be filled with u16 numbers describing the signal.
    * Even indices are *marks* (IR on), odd indices are *spaces* (IR off), and
    * `0` ends the signal.
@@ -251,7 +266,7 @@ class LinkIR {
   /**
    * Turns the output IR LED ON/OFF through the `SO` pin (HIGH = ON).
    * @param on Whether the light should be ON.
-   * \warning Add some pauses after every 10µs.
+   * \warning Add some pauses after every 10µs!
    */
   void setLight(bool on) { linkGPIO.writePin(Pin::SO, on); }
 
@@ -265,14 +280,6 @@ class LinkIR {
    * (LOW = DETECTED) or not.
    */
   bool isDetectingLight() { return !linkGPIO.readPin(Pin::SI); }
-
-  /**
-   * @brief Deactivates the library.
-   */
-  void deactivate() {
-    isEnabled = false;
-    linkGPIO.reset();
-  }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.
