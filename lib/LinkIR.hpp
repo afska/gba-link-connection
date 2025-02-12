@@ -65,7 +65,7 @@ class LinkIR {
   using Direction = LinkGPIO::Direction;
 
   static constexpr int CYCLES_PER_MICROSECOND = 17;
-  static constexpr int DETECTION_TIMEOUT = 2500;
+  static constexpr int DETECTION_TIMEOUT = 1000;
   static constexpr int DEMODULATION_MARK_MIN_TRANSITIONS = 3;
   static constexpr int DEMODULATION_38KHZ_PERIOD = 1000000 / 38000;
   static constexpr int DEMODULATION_SPACE_PERIODS = 3;
@@ -124,6 +124,7 @@ class LinkIR {
     linkGPIO.writePin(Pin::SO, false);
     linkGPIO.setSIInterrupts(true);
 
+    waitMicroseconds(DETECTION_TIMEOUT);
     setLight(true);
     waitMicroseconds(DETECTION_TIMEOUT);
     setLight(false);
