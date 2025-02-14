@@ -451,7 +451,6 @@ class LinkCable {
     volatile bool isResetTimeoutPending = false;
   };
 
-  LinkRawCable linkRawCable;
   ExternalState state;
   InternalState _state;
   volatile bool isEnabled = false;
@@ -506,12 +505,12 @@ class LinkCable {
 
   void stop() {
     stopTimer();
-    linkRawCable.deactivate();
+    LinkRawCable::setGeneralPurposeMode();
   }
 
   void start() {
     startTimer();
-    linkRawCable.activate(config.baudRate);
+    LinkRawCable::setMultiPlayMode(config.baudRate);
     LinkRawCable::setInterruptsOn();
   }
 
