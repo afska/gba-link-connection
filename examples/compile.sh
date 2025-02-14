@@ -31,6 +31,12 @@ compile() {
   cp LinkCable_stress$suffix.gba ../$folder/
   cd ..
 
+  # LinkCard_demo
+  cd LinkCard_demo/
+  make rebuild $args
+  cp LinkCard_demo$suffix.gba ../$folder/
+  cd ..
+
   # LinkCube_demo
   cd LinkCube_demo/
   make rebuild $args
