@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include "../../lib/_link_common.hpp"
+
 /**
  * @brief This namespace contains shared code between all the examples.
  */
