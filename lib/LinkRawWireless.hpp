@@ -1514,7 +1514,8 @@ class LinkRawWireless {
     }
 
     Link::wait(MICRO_WAIT);  // this wait is VERY important to avoid desyncs!
-    // wait at least 40us; monitoring VCOUNT to avoid requiring a timer
+    // wait at least 40us; monitoring VCOUNT to avoid requiring a timer or
+    // putting some wait code in IWRAM
 
     // (normally, this occurs on the next linkSPI.transfer(...) call)
     if (isLastPart) {

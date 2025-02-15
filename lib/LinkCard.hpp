@@ -51,6 +51,7 @@ class LinkCard {
   static constexpr int DEVICE_LOADER = 0xFBFB;
   static constexpr int TRANSFER_SUCCESS = 0x1;
   static constexpr int MODE_SWITCH_WAIT = 228;
+  static constexpr int PRE_TRANSFER_WAIT = 2;
 
  public:
   enum class SendResult {
@@ -86,7 +87,7 @@ class LinkCard {
       return ConnectedDevice::WRONG_CONNECTION;
     u16 remoteValues[3];
     for (u32 i = 0; i < 3; i++) {
-      remoteValues[i] = linkRawCable.transfer(0).data[1];
+      remoteValues[i] = transferMulti(0);
       if (i > 0 && remoteValues[i] != remoteValues[i - 1])
         return ConnectedDevice::UNKNOWN_DEVICE;
     }
@@ -116,37 +117,38 @@ class LinkCard {
       return SendResult::WRONG_DEVICE;
 
     linkRawCable.activate();
+    Link::wait(MODE_SWITCH_WAIT);
 
   retry:
-    linkRawCable.transfer(HANDSHAKE_SEND);
-    if (linkRawCable.transfer(HANDSHAKE_SEND).data[1] != DEVICE_E_READER)
+    transferMulti(HANDSHAKE_SEND);
+    if (transferMulti(HANDSHAKE_SEND) != DEVICE_E_READER)
       goto retry;
-    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
+    if (transferMulti(DEVICE_E_READER) != DEVICE_E_READER)
       goto retry;
 
     linkRawCable.deactivate();
     linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
     Link::wait(MODE_SWITCH_WAIT);
 
-    linkSPI.transfer(loaderSize);  // cancel?
+    transferNormal(loaderSize);  // cancel?
 
     u32* dataOut = (u32*)loader;
     for (u32 i = 0; i < loaderSize / 4; i++) {
-      linkSPI.transfer(dataOut[i]);
+      transferNormal(dataOut[i]);
       // cancel?
     }
 
-    linkSPI.transfer(0);
-    linkSPI.transfer(0x5b8bc897);  // TODO: HARDCODED CHECKSUM
-    linkSPI.transfer(0x5b8bc897);
+    transferNormal(0);
+    transferNormal(0x5b8bc897);  // TODO: HARDCODED CHECKSUM
+    transferNormal(0x5b8bc897);
 
     linkSPI.deactivate();
     linkRawCable.activate();
     Link::wait(MODE_SWITCH_WAIT);
 
-    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
+    if (transferMulti(DEVICE_E_READER) != DEVICE_E_READER)
       return SendResult::FAILURE_DURING_TRANSFER;
-    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != TRANSFER_SUCCESS)
+    if (transferMulti(DEVICE_E_READER) != TRANSFER_SUCCESS)
       return SendResult::FAILURE_DURING_TRANSFER;
 
     return SendResult::SUCCESS;
@@ -164,6 +166,16 @@ class LinkCard {
  private:
   LinkRawCable linkRawCable;
   LinkSPI linkSPI;
+
+  u16 transferMulti(u16 value) {
+    Link::wait(PRE_TRANSFER_WAIT);
+    return linkRawCable.transfer(value).data[1];
+  }
+
+  void transferNormal(u32 value) {
+    Link::wait(PRE_TRANSFER_WAIT);
+    linkSPI.transfer(value);
+  }
 };
 
 extern LinkCard* linkCard;
