@@ -11,7 +11,7 @@
 //       LinkCableMultiboot::Result result = linkCableMultiboot->sendRom(
 //         romBytes, // for current ROM, use: ((const u8*)MEM_EWRAM)
 //                   // ^ must be 4-byte aligned
-//         romLength, // in bytes, should be multiple of 0x10
+//         romLength, // in bytes, should be multiple of 16
 //         []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
@@ -600,7 +600,7 @@ class LinkCableMultiboot {
         return 0;
 
       return Link::_min(
-          dynamicData.currentRomPart * 100 / (fixedData.romSize >> 2), 100);
+          dynamicData.currentRomPart * 100 / (fixedData.romSize / 4), 100);
     }
 
     /**
@@ -721,7 +721,7 @@ class LinkCableMultiboot {
           dynamicData.wait++;
           if (dynamicData.wait >= dynamicData.waitFrames) {
             state = State::CALCULATING_CRCB;
-            transferAsync((fixedData.romSize - 0x190) >> 2);
+            transferAsync((fixedData.romSize - 0x190) / 4);
           }
           break;
         }
@@ -859,7 +859,7 @@ class LinkCableMultiboot {
           dynamicData.crcC = fixedData.transferMode == TransferMode::MULTI_PLAY
                                  ? CRCC_MULTI_START
                                  : CRCC_NORMAL_START;
-          dynamicData.currentRomPart = HEADER_SIZE >> 2;
+          dynamicData.currentRomPart = HEADER_SIZE / 4;
           sendRomPart();
           break;
         }
@@ -969,7 +969,7 @@ class LinkCableMultiboot {
     void sendRomPart() {
       u32* dataOut = (u32*)fixedData.rom;
       u32 i = dynamicData.currentRomPart;
-      if (i >= fixedData.romSize >> 2) {
+      if (i >= fixedData.romSize / 4) {
         dynamicData.crcC &= 0xFFFF;
         calculateCRCData(dynamicData.crcB);
 

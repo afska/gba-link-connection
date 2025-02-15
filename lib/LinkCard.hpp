@@ -44,11 +44,19 @@ class LinkCard {
   using u8 = Link::u8;
   using vu32 = Link::vu32;
 
+  static constexpr int MIN_LOADER_SIZE = 0x34 + 4;
+  static constexpr int MAX_LOADER_SIZE = 0xEFFF + 1;
   static constexpr int DEVICE_E_READER = 0xCCC0;
   static constexpr int DEVICE_LOADER = 0xFBFB;
 
  public:
-  enum class SendResult { SUCCESS, UNALIGNED, FAILURE_DURING_TRANSFER };
+  enum class SendResult {
+    SUCCESS,
+    UNALIGNED,
+    INVALID_SIZE,
+    WRONG_DEVICE,
+    FAILURE_DURING_TRANSFER
+  };
   enum class ConnectedDevice {
     E_READER_LOADER_NEEDED,
     DLC_LOADER,
@@ -68,8 +76,6 @@ class LinkCard {
    * protocol.
    */
   ConnectedDevice getConnectedDevice() {
-    LINK_READ_TAG(LINK_CARD_VERSION);
-
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
@@ -92,29 +98,52 @@ class LinkCard {
    * Sends the loader card.
    * @param loader A pointer to a e-Reader program that sends
    * the scanned cards to the game. Must be 4-byte aligned.
-   * @param loaderSize Size of the loader program in bytes.
+   * @param loaderSize Size of the loader program in bytes. Must be a multiple
+   * of 32.
    */
   SendResult sendLoader(const u8* loader, u32 loaderSize) {
     if ((u32)loader % 4 != 0)
       return SendResult::UNALIGNED;
+    if (loaderSize < MIN_LOADER_SIZE || loaderSize > MAX_LOADER_SIZE ||
+        (loaderSize % 0x20) != 0)
+      return SendResult::INVALID_SIZE;
 
-    stop();
+    auto device = getConnectedDevice();
+    if (device != ConnectedDevice::E_READER_LOADER_NEEDED)
+      return SendResult::WRONG_DEVICE;
+
+    linkRawCable.activate();
+    u16 handshake = 0;
+    while (handshake != DEVICE_E_READER) {
+      handshake = linkRawCable.transfer(DEVICE_E_READER).data[1];
+      // cancel?
+    }
+    linkRawCable.deactivate();
+
+    linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
+    linkSPI.transfer(loaderSize);  // cancel?
+
+    u32* dataOut = (u32*)loader;
+    for (u32 i = 0; i < loaderSize / 4; i++) {
+      linkSPI.transfer(dataOut[i]);
+      // cancel?
+    }
+
+    while (true) {
+    }
 
     return SendResult::SUCCESS;
+  }
+
+  bool receiveCard() {
+    LINK_READ_TAG(LINK_CARD_VERSION);
+    // TODO: IMPLEMENT
+    return true;
   }
 
  private:
   LinkRawCable linkRawCable;
   LinkSPI linkSPI;
-
-  void start() {
-    // TODO: IMPLEMENT
-  }
-
-  void stop() {
-    linkRawCable.deactivate();
-    linkSPI.deactivate();
-  }
 };
 
 extern LinkCard* linkCard;

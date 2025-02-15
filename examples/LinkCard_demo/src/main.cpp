@@ -44,12 +44,9 @@ int main() {
     switch (device) {
       case LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED: {
         output += "e-Reader\n\nPress A to send the loader.";
-        break;
-      }
-      case LinkCard::ConnectedDevice::DLC_LOADER: {
-        output += "DLC Loader";
 
         if (Common::didPress(KEY_A, a)) {
+          Common::log("Sending...\n\nPress B to cancel");
           u32 loaderSize;
           const u8* loader =
               (const u8*)gbfs_get_nth_obj(fs, 0, NULL, &loaderSize);
@@ -58,6 +55,10 @@ int main() {
           Common::waitForKey(KEY_DOWN);
         }
 
+        break;
+      }
+      case LinkCard::ConnectedDevice::DLC_LOADER: {
+        output += "DLC Loader";
         break;
       }
       default: {
