@@ -97,9 +97,9 @@ class LinkRawCable {
   /**
    * @brief Activates the library in a specific `baudRate`.
    * @param baudRate One of the enum values from `LinkRawCable::BaudRate`.
-   * Defaults to `LinkRawCable::BaudRate::BAUD_RATE_1` (38400 bps).
+   * Defaults to `LinkRawCable::BaudRate::BAUD_RATE_3` (115200 bps).
    */
-  void activate(BaudRate baudRate = BaudRate::BAUD_RATE_1) {
+  void activate(BaudRate baudRate = BaudRate::BAUD_RATE_3) {
     LINK_READ_TAG(LINK_RAW_CABLE_VERSION);
 
     this->baudRate = baudRate;
