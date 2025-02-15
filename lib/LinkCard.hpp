@@ -46,16 +46,19 @@ class LinkCard {
 
   static constexpr int MIN_LOADER_SIZE = 0x34 + 4;
   static constexpr int MAX_LOADER_SIZE = 0xEFFF + 1;
+  static constexpr int HANDSHAKE_SEND = 0xFEFE;
   static constexpr int DEVICE_E_READER = 0xCCC0;
   static constexpr int DEVICE_LOADER = 0xFBFB;
+  static constexpr int TRANSFER_SUCCESS = 0x1;
+  static constexpr int MODE_SWITCH_WAIT = 228;
 
  public:
   enum class SendResult {
-    SUCCESS = 991,
-    UNALIGNED = 992,
-    INVALID_SIZE = 993,
-    WRONG_DEVICE = 994,
-    FAILURE_DURING_TRANSFER = 995  // TODO: REMOVE
+    SUCCESS,
+    UNALIGNED,
+    INVALID_SIZE,
+    WRONG_DEVICE,
+    FAILURE_DURING_TRANSFER
   };
   enum class ConnectedDevice {
     E_READER_LOADER_NEEDED,
@@ -101,72 +104,60 @@ class LinkCard {
    * @param loaderSize Size of the loader program in bytes. Must be a multiple
    * of 32.
    */
-  u32 sendLoader(const u8* loader, u32 loaderSize) {
+  SendResult sendLoader(const u8* loader, u32 loaderSize) {
     if ((u32)loader % 4 != 0)
-      return (int)SendResult::UNALIGNED;
+      return SendResult::UNALIGNED;
     if (loaderSize < MIN_LOADER_SIZE || loaderSize > MAX_LOADER_SIZE ||
         (loaderSize % 0x20) != 0)
-      return (int)SendResult::INVALID_SIZE;
+      return SendResult::INVALID_SIZE;
 
-    // auto device = getConnectedDevice();
-    // if (device != ConnectedDevice::E_READER_LOADER_NEEDED)
-    //   return SendResult::WRONG_DEVICE;
+    auto device = getConnectedDevice();
+    if (device != ConnectedDevice::E_READER_LOADER_NEEDED)
+      return SendResult::WRONG_DEVICE;
 
     linkRawCable.activate();
-    u16 handshake = 0;
-  // while (handshake != DEVICE_E_READER) {
-  //   Link::wait(100);
-  //   handshake = linkRawCable.transfer(0xFEFE).data[1];
-  //   // cancel?
-  // }
-  retry:
 
-    Link::wait(228 * 3);
-    if (linkRawCable.transfer(0xFEFE).data[1] != 0)
+  retry:
+    linkRawCable.transfer(HANDSHAKE_SEND);
+    if (linkRawCable.transfer(HANDSHAKE_SEND).data[1] != DEVICE_E_READER)
       goto retry;
-    Link::wait(100);
-    if (linkRawCable.transfer(0xFEFE).data[1] != DEVICE_E_READER)
-      goto retry;
-    Link::wait(100);
     if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
       goto retry;
 
-    // linkRawCable.deactivate();
-
+    linkRawCable.deactivate();
     linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
-    Link::wait(228 * 3);
+    Link::wait(MODE_SWITCH_WAIT);
+
     linkSPI.transfer(loaderSize);  // cancel?
-    Link::wait(50);
 
     u32* dataOut = (u32*)loader;
     for (u32 i = 0; i < loaderSize / 4; i++) {
-      Link::wait(100);
       linkSPI.transfer(dataOut[i]);
       // cancel?
     }
 
-    Link::wait(100);
     linkSPI.transfer(0);
-    Link::wait(100);
     linkSPI.transfer(0x5b8bc897);  // TODO: HARDCODED CHECKSUM
-    Link::wait(100);
     linkSPI.transfer(0x5b8bc897);
-    // linkSPI.deactivate();
 
+    linkSPI.deactivate();
     linkRawCable.activate();
-    Link::wait(228 * 3);
-    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
-      return 123;
-    Link::wait(100);
-    return linkRawCable.transfer(DEVICE_E_READER).data[1];
-    // return linkRawCable.transfer(DEVICE_E_READER).data[1];  // expect 0x1
+    Link::wait(MODE_SWITCH_WAIT);
 
-    // return SendResult::SUCCESS;
+    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
+      return SendResult::FAILURE_DURING_TRANSFER;
+    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != TRANSFER_SUCCESS)
+      return SendResult::FAILURE_DURING_TRANSFER;
+
+    return SendResult::SUCCESS;
   }
 
   bool receiveCard() {
     LINK_READ_TAG(LINK_CARD_VERSION);
     // TODO: IMPLEMENT
+    // TODO: FIND OUT JAPANESE PROTOCOL
+    // ^^^ JAPAN is 0xCCD0
+    // TODO: DEBUG - Only works the second time on hw
     return true;
   }
 

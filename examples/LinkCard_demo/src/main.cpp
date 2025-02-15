@@ -40,10 +40,21 @@ int main() {
     std::string output = "LinkCard_demo (v8.0.0)\n\n";
     output += "Device: ";
 
-    // auto device = linkCard->getConnectedDevice();
-    switch (LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED) {
+    auto device = linkCard->getConnectedDevice();
+    switch (device) {
       case LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED: {
         output += "e-Reader\n\nPress A to send the loader.";
+
+        if (Common::didPress(KEY_A, a)) {
+          Common::log("Sending...\n\nPress B to cancel");
+          u32 loaderSize;
+          const u8* loader =
+              (const u8*)gbfs_get_nth_obj(fs, 0, NULL, &loaderSize);
+          auto res = linkCard->sendLoader(loader, loaderSize);
+          Common::log(std::to_string((int)res));
+          Common::waitForKey(KEY_DOWN);
+        }
+
         break;
       }
       case LinkCard::ConnectedDevice::DLC_LOADER: {
@@ -57,15 +68,6 @@ int main() {
             "\"Communication\"\n- Choose \"To Game Boy Advance\"\n- Press A";
         break;
       }
-    }
-
-    if (Common::didPress(KEY_A, a)) {
-      Common::log("Sending...\n\nPress B to cancel");
-      u32 loaderSize;
-      const u8* loader = (const u8*)gbfs_get_nth_obj(fs, 0, NULL, &loaderSize);
-      auto res = linkCard->sendLoader(loader, loaderSize);
-      Common::log(std::to_string((int)res));
-      Common::waitForKey(KEY_DOWN);
     }
 
     VBlankIntrWait();
