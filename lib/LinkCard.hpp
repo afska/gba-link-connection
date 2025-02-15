@@ -51,11 +51,11 @@ class LinkCard {
 
  public:
   enum class SendResult {
-    SUCCESS,
-    UNALIGNED,
-    INVALID_SIZE,
-    WRONG_DEVICE,
-    FAILURE_DURING_TRANSFER
+    SUCCESS = 991,
+    UNALIGNED = 992,
+    INVALID_SIZE = 993,
+    WRONG_DEVICE = 994,
+    FAILURE_DURING_TRANSFER = 995  // TODO: REMOVE
   };
   enum class ConnectedDevice {
     E_READER_LOADER_NEEDED,
@@ -101,38 +101,67 @@ class LinkCard {
    * @param loaderSize Size of the loader program in bytes. Must be a multiple
    * of 32.
    */
-  SendResult sendLoader(const u8* loader, u32 loaderSize) {
+  u32 sendLoader(const u8* loader, u32 loaderSize) {
     if ((u32)loader % 4 != 0)
-      return SendResult::UNALIGNED;
+      return (int)SendResult::UNALIGNED;
     if (loaderSize < MIN_LOADER_SIZE || loaderSize > MAX_LOADER_SIZE ||
         (loaderSize % 0x20) != 0)
-      return SendResult::INVALID_SIZE;
+      return (int)SendResult::INVALID_SIZE;
 
-    auto device = getConnectedDevice();
-    if (device != ConnectedDevice::E_READER_LOADER_NEEDED)
-      return SendResult::WRONG_DEVICE;
+    // auto device = getConnectedDevice();
+    // if (device != ConnectedDevice::E_READER_LOADER_NEEDED)
+    //   return SendResult::WRONG_DEVICE;
 
     linkRawCable.activate();
     u16 handshake = 0;
-    while (handshake != DEVICE_E_READER) {
-      handshake = linkRawCable.transfer(DEVICE_E_READER).data[1];
-      // cancel?
-    }
-    linkRawCable.deactivate();
+  // while (handshake != DEVICE_E_READER) {
+  //   Link::wait(100);
+  //   handshake = linkRawCable.transfer(0xFEFE).data[1];
+  //   // cancel?
+  // }
+  retry:
+
+    Link::wait(228 * 3);
+    if (linkRawCable.transfer(0xFEFE).data[1] != 0)
+      goto retry;
+    Link::wait(100);
+    if (linkRawCable.transfer(0xFEFE).data[1] != DEVICE_E_READER)
+      goto retry;
+    Link::wait(100);
+    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
+      goto retry;
+
+    // linkRawCable.deactivate();
 
     linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
+    Link::wait(228 * 3);
     linkSPI.transfer(loaderSize);  // cancel?
+    Link::wait(50);
 
     u32* dataOut = (u32*)loader;
     for (u32 i = 0; i < loaderSize / 4; i++) {
+      Link::wait(100);
       linkSPI.transfer(dataOut[i]);
       // cancel?
     }
 
-    while (true) {
-    }
+    Link::wait(100);
+    linkSPI.transfer(0);
+    Link::wait(100);
+    linkSPI.transfer(0x5b8bc897);  // TODO: HARDCODED CHECKSUM
+    Link::wait(100);
+    linkSPI.transfer(0x5b8bc897);
+    // linkSPI.deactivate();
 
-    return SendResult::SUCCESS;
+    linkRawCable.activate();
+    Link::wait(228 * 3);
+    if (linkRawCable.transfer(DEVICE_E_READER).data[1] != DEVICE_E_READER)
+      return 123;
+    Link::wait(100);
+    return linkRawCable.transfer(DEVICE_E_READER).data[1];
+    // return linkRawCable.transfer(DEVICE_E_READER).data[1];  // expect 0x1
+
+    // return SendResult::SUCCESS;
   }
 
   bool receiveCard() {
