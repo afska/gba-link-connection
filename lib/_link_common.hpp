@@ -244,6 +244,13 @@ static inline void intToStr5(char* buf, int num) {
   buf[j] = '\0';
 }
 
+template <typename Func>
+struct ScopeGuard {
+  Func f;
+  ScopeGuard(Func f) : f(f) {}
+  ~ScopeGuard() { f(); }
+};
+
 // Interfaces
 
 class AsyncMultiboot {

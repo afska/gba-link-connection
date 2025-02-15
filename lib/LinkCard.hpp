@@ -9,9 +9,9 @@
 //       LinkCard* linkCard = new LinkCard();
 // - 2) Probe the connected device:
 //       auto device = getConnectedDevice();
-// - 2) Send the loader program:
+// - 2) Send the DLC loader program:
 //       if (device == LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED)
-//         linkCard->sendLoader(loader);
+//         LinkCard::SendResult result = linkCard->sendLoader(loader);
 // - 3) Receive scanned cards:
 //       if (device == LinkCard::ConnectedDevice::CARD_SCANNER) {
 //         u8 card[2076]
@@ -68,10 +68,13 @@ class LinkCard {
    * protocol.
    */
   ConnectedDevice getConnectedDevice() {
+    LINK_READ_TAG(LINK_CARD_VERSION);
+
     linkRawCable.activate();
+    auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+
     if (linkRawCable.transfer(0).playerId != 0)
       return ConnectedDevice::WRONG_CONNECTION;
-
     u16 remoteValues[3];
     for (u32 i = 0; i < 3; i++) {
       remoteValues[i] = linkRawCable.transfer(0).data[1];
@@ -87,12 +90,11 @@ class LinkCard {
 
   /**
    * Sends the loader card.
-   * @param loader A pointer to a 2112-byte e-Reader program that sends
+   * @param loader A pointer to a e-Reader program that sends
    * the scanned cards to the game. Must be 4-byte aligned.
+   * @param loaderSize Size of the loader program in bytes.
    */
-  SendResult sendLoader(const u8* loader) {
-    LINK_READ_TAG(LINK_CARD_VERSION);
-
+  SendResult sendLoader(const u8* loader, u32 loaderSize) {
     if ((u32)loader % 4 != 0)
       return SendResult::UNALIGNED;
 

@@ -4,6 +4,12 @@
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
+extern "C" {
+#include "../../_lib/libgbfs/gbfs.h"
+}
+
+static const GBFS_FILE* fs = find_first_gbfs_file(0);
+
 // (1) Create a LinkCard instance
 LinkCard* linkCard = new LinkCard();
 
@@ -17,7 +23,18 @@ void init() {
 int main() {
   init();
 
-  // bool a = true;
+  // Ensure there are GBFS files
+  if (fs == NULL) {
+    Common::log("! GBFS file not found");
+    while (true)
+      ;
+  } else if (gbfs_get_nth_obj(fs, 0, NULL, NULL) == NULL) {
+    Common::log("! No files found (GBFS)");
+    while (true)
+      ;
+  }
+
+  bool a = true;
 
   while (true) {
     std::string output = "LinkCard_demo (v8.0.0)\n\n";
@@ -26,11 +43,21 @@ int main() {
     auto device = linkCard->getConnectedDevice();
     switch (device) {
       case LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED: {
-        output += "e-Reader";
+        output += "e-Reader\n\nPress A to send the loader.";
         break;
       }
       case LinkCard::ConnectedDevice::DLC_LOADER: {
         output += "DLC Loader";
+
+        if (Common::didPress(KEY_A, a)) {
+          u32 loaderSize;
+          const u8* loader =
+              (const u8*)gbfs_get_nth_obj(fs, 0, NULL, &loaderSize);
+          auto res = linkCard->sendLoader(loader, loaderSize);
+          Common::log(std::to_string((int)res));
+          Common::waitForKey(KEY_DOWN);
+        }
+
         break;
       }
       default: {
@@ -41,17 +68,6 @@ int main() {
         break;
       }
     }
-
-    // output += "Press A to send the loader";
-
-    // if (Common::didPress(KEY_A, a)) {
-    //   LinkRawCable lrc;
-    //   lrc.activate();
-    //   auto bb = lrc.transfer(0);
-    //   Common::log(std::to_string(bb.data[1]));
-    //   Common::waitForKey(KEY_DOWN);
-    //   // linkCard->sendLoader()
-    // }
 
     VBlankIntrWait();
     Common::log(output);

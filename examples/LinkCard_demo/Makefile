@@ -134,7 +134,7 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib ../../lib ../../lib/iwram_code
+SRCDIRS		:= src ../_lib ../../lib ../../lib/iwram_code ../_lib/libgbfs
 DATADIRS	:= data
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba
@@ -279,10 +279,14 @@ endif		# End BUILD switch
 
 .PHONY: clean rebuild start
 
-rebuild: clean $(BUILD)
+rebuild: clean $(BUILD) package
 
-start:
-	start "$(TARGET).gba"
+package: $(BUILD)
+	cd gbfs_files/ && gbfs loader.gbfs * && mv loader.gbfs .. && cd ..
+	../gbfs.sh "$(TARGET).gba" loader.gbfs "$(TARGET).out.gba"
+
+start: package
+	start "$(TARGET).out.gba"
 
 restart: rebuild start
 
