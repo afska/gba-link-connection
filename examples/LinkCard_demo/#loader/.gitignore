@@ -1,0 +1,12 @@
+.vscode
+*.bin
+*.bmp
+*.elf
+*.gba
+*.lnk
+*.o
+*.raw
+*.sa1
+*.sav
+*.vpk
+*.loader

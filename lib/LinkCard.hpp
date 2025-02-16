@@ -172,9 +172,6 @@ class LinkCard {
   bool receiveCard() {
     LINK_READ_TAG(LINK_CARD_VERSION);
     // TODO: IMPLEMENT
-    // TODO: FIND OUT JAPANESE PROTOCOL
-    // ^^^ JAPAN is 0xCCD0
-    // TODO: DOCUMENT PROTOCOL AND HOW TO PACK LOADERS
     return true;
   }
 
