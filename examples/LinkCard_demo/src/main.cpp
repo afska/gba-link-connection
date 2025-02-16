@@ -8,6 +8,9 @@ extern "C" {
 #include "../../_lib/libgbfs/gbfs.h"
 }
 
+#define USA_LOADER "usa.loader"
+#define JAP_LOADER "jap.loader"
+
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
 
 // (1) Create a LinkCard instance
@@ -28,8 +31,12 @@ int main() {
     Common::log("! GBFS file not found");
     while (true)
       ;
-  } else if (gbfs_get_nth_obj(fs, 0, NULL, NULL) == NULL) {
-    Common::log("! No files found (GBFS)");
+  } else if (gbfs_get_obj(fs, USA_LOADER, NULL) == NULL) {
+    Common::log("! usa.loader not found (GBFS)");
+    while (true)
+      ;
+  } else if (gbfs_get_obj(fs, JAP_LOADER, NULL) == NULL) {
+    Common::log("! jap.loader not found (GBFS)");
     while (true)
       ;
   }

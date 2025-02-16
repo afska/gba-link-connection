@@ -24,7 +24,7 @@ reliably.
 Here's how games transfer their _custom e-Reader dotcode scanner_ (aka _"DLC Loader"_):
 
 - Goes to MULTI mode and sends `0xFEFE`
-- Sends 0xFEFE again and expects `0xCCC0` (*)
+- Sends `0xFEFE` again and expects `0xCCC0`
   * On the Japanese e-Reader, every `0xCCC0` becomes `0xCCD0`
 - Sends `0xCCC0` and expects `0xCCC0`
 - Switches to NORMAL32, waits 1 frame, and sends the card length as a 32-bit number (hi part is probably always `0x0000`, since there's not enough flash memory in the e-Reader)
@@ -34,7 +34,7 @@ Here's how games transfer their _custom e-Reader dotcode scanner_ (aka _"DLC Loa
 - Switches to MULTI mode again, waits 1 frame
 - Sends `0xCCC0` and expects `0xCCC0`
 - Sends `0xCCC0` and expects `0x1`
-- All sends need a small wait or otherwise it'll work on mGBA but not on hardware (waiting for two VCOUNT changes work, but it's probably just 36μs)
+- All sends need a small wait or otherwise it'll work on mGBA but not on hardware (waiting for two VCOUNT changes works, but it's probably just 36μs)
 
 ## Card scanning protocol
 
