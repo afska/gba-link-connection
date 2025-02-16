@@ -47,7 +47,8 @@ class LinkCard {
   static constexpr int MIN_LOADER_SIZE = 0x34 + 4;
   static constexpr int MAX_LOADER_SIZE = 0xEFFF + 1;
   static constexpr int HANDSHAKE_SEND = 0xFEFE;
-  static constexpr int DEVICE_E_READER = 0xCCC0;
+  static constexpr int DEVICE_E_READER_USA = 0xCCC0;
+  static constexpr int DEVICE_E_READER_JAP = 0xCCD0;
   static constexpr int DEVICE_LOADER = 0xFBFB;
   static constexpr int TRANSFER_SUCCESS = 0x1;
   static constexpr int MODE_SWITCH_WAIT = 228;
@@ -62,7 +63,8 @@ class LinkCard {
     FAILURE_DURING_TRANSFER
   };
   enum class ConnectedDevice {
-    E_READER_LOADER_NEEDED,
+    E_READER_USA,
+    E_READER_JAP,
     DLC_LOADER,
     WRONG_CONNECTION,
     UNKNOWN_DEVICE
@@ -70,14 +72,13 @@ class LinkCard {
 
   /**
    * Returns the connected device.
-   * If it returns `E_READER_LOADER_NEEDED`, you should send the loader with
-   * `sendLoader(...)`.
+   * If it returns `E_READER_USA` or `E_READER_JAP`, you should send the loader
+   * with `sendLoader(...)`.
    * If it returns `DLC_LOADER`, you should receive scanned cards with
    * `receiveCard(...)`.
-   * If it returns `WRONG_CONNECTION`, the console is
-   * connected with the wrong end (it has to use the 1P end, aka playerId=0).
-   * If it returns `UNKNOWN_DEVICE`, the connected console uses another
-   * protocol.
+   * If it returns `WRONG_CONNECTION`, the console is connected with the wrong
+   * end (it has to use the 1P end, aka playerId=0). If it returns
+   * `UNKNOWN_DEVICE`, the connected console uses another protocol.
    */
   ConnectedDevice getConnectedDevice() {
     linkRawCable.activate();
@@ -92,8 +93,10 @@ class LinkCard {
         return ConnectedDevice::UNKNOWN_DEVICE;
     }
 
-    return remoteValues[0] == DEVICE_E_READER
-               ? ConnectedDevice::E_READER_LOADER_NEEDED
+    return remoteValues[0] == DEVICE_E_READER_USA
+               ? ConnectedDevice::E_READER_USA
+           : remoteValues[0] == DEVICE_E_READER_JAP
+               ? ConnectedDevice::E_READER_JAP
            : remoteValues[0] == DEVICE_LOADER ? ConnectedDevice::DLC_LOADER
                                               : ConnectedDevice::UNKNOWN_DEVICE;
   }
@@ -113,17 +116,22 @@ class LinkCard {
       return SendResult::INVALID_SIZE;
 
     auto device = getConnectedDevice();
-    if (device != ConnectedDevice::E_READER_LOADER_NEEDED)
+    if (device != ConnectedDevice::E_READER_USA &&
+        device != ConnectedDevice::E_READER_JAP)
       return SendResult::WRONG_DEVICE;
+
+    auto deviceId = device == ConnectedDevice::E_READER_USA
+                        ? DEVICE_E_READER_USA
+                        : DEVICE_E_READER_JAP;
 
     linkRawCable.activate();
     Link::wait(MODE_SWITCH_WAIT);
 
   retry:
     transferMulti(HANDSHAKE_SEND);
-    if (transferMulti(HANDSHAKE_SEND) != DEVICE_E_READER)
+    if (transferMulti(HANDSHAKE_SEND) != deviceId)
       goto retry;
-    if (transferMulti(DEVICE_E_READER) != DEVICE_E_READER)
+    if (transferMulti(deviceId) != deviceId)
       goto retry;
 
     linkRawCable.deactivate();
@@ -150,8 +158,8 @@ class LinkCard {
     linkRawCable.activate();
     Link::wait(MODE_SWITCH_WAIT);
 
-    if (transferMulti(DEVICE_E_READER) != DEVICE_E_READER ||
-        transferMulti(DEVICE_E_READER) != TRANSFER_SUCCESS) {
+    if (transferMulti(deviceId) != deviceId ||
+        transferMulti(deviceId) != TRANSFER_SUCCESS) {
       linkRawCable.deactivate();
       return SendResult::FAILURE_DURING_TRANSFER;
     }
@@ -166,7 +174,7 @@ class LinkCard {
     // TODO: IMPLEMENT
     // TODO: FIND OUT JAPANESE PROTOCOL
     // ^^^ JAPAN is 0xCCD0
-    // TODO: DEBUG - Only works the second time on hw
+    // TODO: DOCUMENT PROTOCOL AND HOW TO PACK LOADERS
     return true;
   }
 

@@ -42,7 +42,8 @@ int main() {
 
     auto device = linkCard->getConnectedDevice();
     switch (device) {
-      case LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED: {
+      case LinkCard::ConnectedDevice::E_READER_JAP:
+      case LinkCard::ConnectedDevice::E_READER_USA: {
         output += "e-Reader\n\nPress A to send the loader.";
 
         if (Common::didPress(KEY_A, a)) {
