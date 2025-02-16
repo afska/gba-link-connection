@@ -132,24 +132,31 @@ class LinkCard {
 
     transferNormal(loaderSize);  // cancel?
 
+    u32 checksum = 0;
+
     u32* dataOut = (u32*)loader;
     for (u32 i = 0; i < loaderSize / 4; i++) {
-      transferNormal(dataOut[i]);
+      u32 data = dataOut[i];
+      checksum += data;
+      transferNormal(data);
       // cancel?
     }
 
     transferNormal(0);
-    transferNormal(0x5b8bc897);  // TODO: HARDCODED CHECKSUM
-    transferNormal(0x5b8bc897);
+    transferNormal(checksum);
+    transferNormal(checksum);
 
     linkSPI.deactivate();
     linkRawCable.activate();
     Link::wait(MODE_SWITCH_WAIT);
 
-    if (transferMulti(DEVICE_E_READER) != DEVICE_E_READER)
+    if (transferMulti(DEVICE_E_READER) != DEVICE_E_READER ||
+        transferMulti(DEVICE_E_READER) != TRANSFER_SUCCESS) {
+      linkRawCable.deactivate();
       return SendResult::FAILURE_DURING_TRANSFER;
-    if (transferMulti(DEVICE_E_READER) != TRANSFER_SUCCESS)
-      return SendResult::FAILURE_DURING_TRANSFER;
+    }
+
+    linkRawCable.deactivate();
 
     return SendResult::SUCCESS;
   }
