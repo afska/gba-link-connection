@@ -1,16 +1,15 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#include "def.h"
-
 // This protocol is only meant to be used by homebrew games using
 // gba-link-connection's LinkCard library and its loader. It's highly inspired
-// by `4-e`, but not compatible with it since SMA4 sends the cards from offset
-// `0x72`, and this sends them from offset `0x4E` (no-individual-titles format).
-// That said, you could make it compatible by changing `CARD_OFFSET` and
-// `CARD_SIZE` to the commented values.
+// by `4-e`, but not compatible with it since SMA4 cards start from offset
+// `0x72`, while cards generated with `nedcmake v1.4` start from offset `0x4e`.
+// Both card formats are valid, though. That said, you could make it compatible
+// by changing `CARD_OFFSET` and `CARD_SIZE` to the commented values, or by just
+// recompiling `4-e` to skip 0x4e bytes (no pun intended) instead of 0x72.
 
-#define CARD_OFFSET /*0x72*/ 0x4E
+#define CARD_OFFSET /*0x72*/ 0x4e
 #define CARD_SIZE /*2112*/ 2076
 
 #define HANDSHAKE_1 0xfbfb
