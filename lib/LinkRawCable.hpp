@@ -235,6 +235,17 @@ class LinkRawCable {
   // -------------
   // Low-level API
   // -------------
+  static void setMultiPlayMode(BaudRate baudRate) {
+    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
+    Link::_REG_SIOCNT = 1 << BIT_MULTIPLAYER;
+    Link::_REG_SIOCNT |= (int)baudRate;
+    Link::_REG_SIOMLT_SEND = 0;
+  }
+  static void setGeneralPurposeMode() {
+    Link::_REG_SIOMLT_SEND = 0;
+    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
+                      (1 << BIT_GENERAL_PURPOSE_HIGH);
+  }
   static void setData(u16 data) { Link::_REG_SIOMLT_SEND = data; }
   [[nodiscard]] static Response getData() {
     Response response = EMPTY_RESPONSE;
@@ -247,25 +258,14 @@ class LinkRawCable {
 
     return response;
   }
-  [[nodiscard]] static bool isMasterNode() { return !isBitHigh(BIT_SLAVE); }
-  [[nodiscard]] static bool allReady() { return isBitHigh(BIT_READY); }
-  [[nodiscard]] static bool hasError() { return isBitHigh(BIT_ERROR); }
-  [[nodiscard]] static bool isSending() { return isBitHigh(BIT_START); }
   static void startTransfer() { setBitHigh(BIT_START); }
   static void stopTransfer() { setBitLow(BIT_START); }
   static void setInterruptsOn() { setBitHigh(BIT_IRQ); }
   static void setInterruptsOff() { setBitLow(BIT_IRQ); }
-  static void setMultiPlayMode(BaudRate baudRate) {
-    Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
-    Link::_REG_SIOCNT = 1 << BIT_MULTIPLAYER;
-    Link::_REG_SIOCNT |= (int)baudRate;
-    Link::_REG_SIOMLT_SEND = 0;
-  }
-  static void setGeneralPurposeMode() {
-    Link::_REG_SIOMLT_SEND = 0;
-    Link::_REG_RCNT = (Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_LOW)) |
-                      (1 << BIT_GENERAL_PURPOSE_HIGH);
-  }
+  [[nodiscard]] static bool isMasterNode() { return !isBitHigh(BIT_SLAVE); }
+  [[nodiscard]] static bool allReady() { return isBitHigh(BIT_READY); }
+  [[nodiscard]] static bool hasError() { return isBitHigh(BIT_ERROR); }
+  [[nodiscard]] static bool isSending() { return isBitHigh(BIT_START); }
   // -------------
 
  private:
