@@ -67,13 +67,13 @@ class LinkCard {
   static constexpr int GAME_READY = 0xF3F3;
   static constexpr int GAME_RECEIVE_READY = 0xFEFE;
   static constexpr int EREADER_ANIMATING = 0xF2F2;
-  static constexpr int EREADER_READY = 0xECEC;
+  static constexpr int EREADER_READY = 0xF1F1;
   static constexpr int EREADER_SEND_READY = 0xF9F9;
   static constexpr int EREADER_SEND_START = 0xFDFD;
   static constexpr int EREADER_SEND_END = 0xFCFC;
   static constexpr int EREADER_CANCEL = 0xF7F7;
   static constexpr int CMD_LINKCARD_RESET = 0;
-  static constexpr int MODE_SWITCH_WAIT = 228;
+  static constexpr int ONE_FRAME_WAIT = 228;
   static constexpr int PRE_TRANSFER_WAIT = 2;
 
  public:
@@ -126,6 +126,7 @@ class LinkCard {
   ConnectedDevice getConnectedDevice(F cancel) {
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+    // TODO: REMOVE GUARDS
 
     if (linkRawCable.transfer(CMD_LINKCARD_RESET, cancel).playerId != 0)
       return ConnectedDevice::WRONG_CONNECTION;
@@ -176,18 +177,20 @@ class LinkCard {
       linkRawCable.activate();
       auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
-      Link::wait(MODE_SWITCH_WAIT);
+      Link::wait(ONE_FRAME_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
-    retry:
-      if (cancel())
-        return SendResult::CANCELED;
-      transferMulti(HANDSHAKE_SEND, cancel);
-      if (transferMulti(HANDSHAKE_SEND, cancel) != deviceId)
-        goto retry;
-      if (transferMulti(deviceId, cancel) != deviceId)
-        goto retry;
+      while (true) {
+        if (cancel())
+          return SendResult::CANCELED;
+        transferMulti(HANDSHAKE_SEND, cancel);
+        if (transferMulti(HANDSHAKE_SEND, cancel) != deviceId)
+          continue;
+        if (transferMulti(deviceId, cancel) != deviceId)
+          continue;
+        break;
+      }
     }
 
     // main transfer
@@ -195,7 +198,7 @@ class LinkCard {
       linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
       auto guard = Link::ScopeGuard([&]() { linkSPI.deactivate(); });
 
-      Link::wait(MODE_SWITCH_WAIT);
+      Link::wait(ONE_FRAME_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -219,7 +222,7 @@ class LinkCard {
       linkRawCable.activate();
       auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
-      Link::wait(MODE_SWITCH_WAIT);
+      Link::wait(ONE_FRAME_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -258,6 +261,8 @@ class LinkCard {
     if (!transferMultiAndExpect(HANDSHAKE_RECV_3, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
 
+    Link::wait(ONE_FRAME_WAIT);
+
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
@@ -266,15 +271,15 @@ class LinkCard {
     if (!transferMultiAndExpect(EREADER_ANIMATING, EREADER_ANIMATING, cancel))
       return ReceiveResult::CANCELED;
 
-  waitCard:
-
     // wait for card
-    int received = 0;
-    if ((received = transferMultiAndExpectOneOf(
-             GAME_READY, EREADER_READY, EREADER_SEND_READY, cancel)) == -1)
-      return ReceiveResult::CANCELED;
-    if (received == EREADER_READY)
-      goto waitCard;
+    while (true) {
+      int received = 0;
+      if ((received = transferMultiAndExpectOneOf(
+               GAME_READY, EREADER_READY, EREADER_SEND_READY, cancel)) == -1)
+        return ReceiveResult::CANCELED;
+      if (received == EREADER_SEND_READY)
+        break;
+    }
 
     // start card reception
     if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_READY, cancel))

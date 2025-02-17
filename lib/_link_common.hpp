@@ -248,7 +248,10 @@ template <typename Func>
 struct ScopeGuard {
   Func f;
   ScopeGuard(Func f) : f(f) {}
-  ~ScopeGuard() { f(); }
+  LINK_NOINLINE ~ScopeGuard() {
+    LINK_BARRIER;
+    f();
+  }
 };
 
 // Interfaces
