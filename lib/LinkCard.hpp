@@ -79,7 +79,8 @@ class LinkCard {
   static constexpr int EREADER_SIO_END = 0xF3F3;
   static constexpr int EREADER_CANCEL = 0xF7F7;
   static constexpr int CMD_LINKCARD_RESET = 0;
-  static constexpr int ONE_FRAME_WAIT = 228;
+  static constexpr int SLAVE_REACTION_WAIT = 228;
+  static constexpr int DEACTIVATION_WAIT = 50;
   static constexpr int PRE_TRANSFER_WAIT = 2;
 
  public:
@@ -131,7 +132,7 @@ class LinkCard {
   template <typename F>
   ConnectedDevice getConnectedDevice(F cancel) {
     linkRawCable.activate();
-    auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+    auto guard = Link::ScopeGuard([&]() { disableMulti(); });
 
     if (linkRawCable.transfer(CMD_LINKCARD_RESET, cancel).playerId != 0)
       return ConnectedDevice::WRONG_CONNECTION;
@@ -180,9 +181,9 @@ class LinkCard {
     // handshake
     {
       linkRawCable.activate();
-      auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+      auto guard = Link::ScopeGuard([&]() { disableMulti(); });
 
-      Link::wait(ONE_FRAME_WAIT);
+      Link::wait(SLAVE_REACTION_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -201,9 +202,9 @@ class LinkCard {
     // main transfer
     {
       linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
-      auto guard = Link::ScopeGuard([&]() { linkSPI.deactivate(); });
+      auto guard = Link::ScopeGuard([&]() { disableNormal(); });
 
-      Link::wait(ONE_FRAME_WAIT);
+      Link::wait(SLAVE_REACTION_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -225,9 +226,9 @@ class LinkCard {
     // confirmation
     {
       linkRawCable.activate();
-      auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+      auto guard = Link::ScopeGuard([&]() { disableMulti(); });
 
-      Link::wait(ONE_FRAME_WAIT);
+      Link::wait(SLAVE_REACTION_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -256,7 +257,7 @@ class LinkCard {
       return ReceiveResult::WRONG_DEVICE;
 
     linkRawCable.activate();
-    auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+    auto guard = Link::ScopeGuard([&]() { disableMulti(); });
 
     // handshake
     if (!transferMultiAndExpect(HANDSHAKE_RECV_1, HANDSHAKE_RECV_1, cancel))
@@ -266,7 +267,7 @@ class LinkCard {
     if (!transferMultiAndExpect(HANDSHAKE_RECV_3, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
 
-    Link::wait(ONE_FRAME_WAIT);  // TODO: REMOVE?
+    Link::wait(SLAVE_REACTION_WAIT);  // TODO: REMOVE?
 
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
@@ -290,7 +291,7 @@ class LinkCard {
 
     if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_READY)
       return ReceiveResult::FAILURE_BAD_CHECKSUM;
-    Link::wait(ONE_FRAME_WAIT);  // TODO: REMOVE
+    Link::wait(SLAVE_REACTION_WAIT);  // TODO: REMOVE
     if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_START)
       return ReceiveResult::FAILURE_BAD_CHECKSUM;
 
@@ -366,6 +367,16 @@ class LinkCard {
   void transferNormal(u32 value, F cancel) {
     Link::wait(PRE_TRANSFER_WAIT);
     linkSPI.transfer(value, cancel);
+  }
+
+  void disableMulti() {
+    Link::wait(DEACTIVATION_WAIT);
+    linkRawCable.deactivate();
+  }
+
+  void disableNormal() {
+    Link::wait(DEACTIVATION_WAIT);
+    linkSPI.deactivate();
   }
 };
 
