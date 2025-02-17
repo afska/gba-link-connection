@@ -94,13 +94,14 @@ const char* MSG_PRESS_A_TRY_AGAIN = "Press A to try again";
 const char* MSG_PRESS_B_CANCEL = "Press B to cancel";
 #endif
 
+#define CARD_BUFFER_SIZE 2100
 #define SCAN_SUCCESS 6
 #define POST_TRANSFER_WAIT 60
 
 extern int __end[];
 
 ERAPI_HANDLE_REGION region;
-u8 card[2100];
+vu8 card[CARD_BUFFER_SIZE];
 const u16 palette[] = {0x0000, 0xFFFF};
 
 void print(const char* text);
@@ -253,4 +254,6 @@ void reset() {
   setGeneralPurposeMode();
   setMultiPlayMode(3);  // 3 = 115200 bps
   setInterruptsOn();
+  for (u32 i = 0; i < CARD_BUFFER_SIZE; i++)
+    card[i] = 0;
 }
