@@ -59,6 +59,16 @@ class LinkCard {
   static constexpr int DEVICE_E_READER_JAP = 0xCCD0;
   static constexpr int DEVICE_LOADER = 0xFBFB;
   static constexpr int TRANSFER_SUCCESS = 0x1;
+  static constexpr int HANDSHAKE_RECV_1 = 0xFBFB;
+  static constexpr int HANDSHAKE_RECV_2 = 0x5841;
+  static constexpr int HANDSHAKE_RECV_3 = 0x4534;
+  static constexpr int GAME_ANIMATING = 0xF3F3;
+  static constexpr int GAME_REQUEST = 0xECEC;
+  static constexpr int GAME_READY = 0xF3F3;
+  static constexpr int GAME_RECEIVE_READY = 0xFEFE;
+  static constexpr int EREADER_ANIMATING = 0xF2F2;
+  static constexpr int EREADER_READY = 0xECEC;
+  static constexpr int EREADER_SEND_READY = 0xF9F9;
   static constexpr int MODE_SWITCH_WAIT = 228;
   static constexpr int PRE_TRANSFER_WAIT = 2;
 
@@ -150,6 +160,7 @@ class LinkCard {
                         ? DEVICE_E_READER_USA
                         : DEVICE_E_READER_JAP;
 
+    // handshake
     {
       linkRawCable.activate();
       auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
@@ -159,6 +170,8 @@ class LinkCard {
         return SendResult::CANCELED;
 
     retry:
+      if (cancel())
+        return SendResult::CANCELED;
       transferMulti(HANDSHAKE_SEND, cancel);
       if (transferMulti(HANDSHAKE_SEND, cancel) != deviceId)
         goto retry;
@@ -166,6 +179,7 @@ class LinkCard {
         goto retry;
     }
 
+    // main transfer
     {
       linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
       auto guard = Link::ScopeGuard([&]() { linkSPI.deactivate(); });
@@ -189,6 +203,7 @@ class LinkCard {
       transferNormal(checksum, cancel);
     }
 
+    // confirmation
     {
       linkRawCable.activate();
       auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
@@ -216,13 +231,78 @@ class LinkCard {
   template <typename F>
   bool receiveCard(u8* card, F cancel) {
     LINK_READ_TAG(LINK_CARD_VERSION);
-    // TODO: IMPLEMENT
+
+    linkRawCable.activate();
+    auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+
+    // handshake
+  retry:
+    if (cancel())
+      return false;
+    if (transferMulti(HANDSHAKE_RECV_1, cancel) != HANDSHAKE_RECV_1)
+      goto retry;
+    if (transferMulti(HANDSHAKE_RECV_2, cancel) != HANDSHAKE_RECV_2)
+      goto retry;
+    if (transferMulti(HANDSHAKE_RECV_3, cancel) != HANDSHAKE_RECV_3)
+      goto retry;
+
+    if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
+      return false;
+
+    if (!transferMultiAndExpect(EREADER_ANIMATING, GAME_ANIMATING, cancel))
+      return false;
+
+    if (!transferMultiAndExpect(EREADER_ANIMATING, EREADER_ANIMATING, cancel))
+      return false;
+
+  waitCard:
+    int received = 0;
+    if ((received = transferMultiAndExpectOneOf(
+             GAME_READY, EREADER_READY, EREADER_SEND_READY, cancel)) == -1)
+      return false;
+    if (received == EREADER_READY)
+      goto waitCard;
+
+    if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_READY, cancel))
+      return false;
+
+    // TODO: FINISH, transfer and cancel protocol? F7F7
+
     return true;
   }
 
  private:
   LinkRawCable linkRawCable;
   LinkSPI linkSPI;
+
+  template <typename F>
+  int transferMultiAndExpectOneOf(u16 value,
+                                  u16 expected1,
+                                  u16 expected2,
+                                  F cancel) {
+    u16 received;
+    do {
+      Link::wait(PRE_TRANSFER_WAIT);
+      received = linkRawCable.transfer(value, cancel).data[1];
+      if (cancel())
+        return -1;
+    } while (received != expected1 && received != expected2);
+
+    return received;
+  }
+
+  template <typename F>
+  bool transferMultiAndExpect(u16 value, u16 expected, F cancel) {
+    u16 received;
+    do {
+      Link::wait(PRE_TRANSFER_WAIT);
+      received = linkRawCable.transfer(value, cancel).data[1];
+      if (cancel())
+        return false;
+    } while (received != expected);
+
+    return true;
+  }
 
   template <typename F>
   u16 transferMulti(u16 value, F cancel) {
