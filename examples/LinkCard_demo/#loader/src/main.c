@@ -175,14 +175,15 @@ int main() {
         goto error;
     }
 
-    // transfer
+    // transfer start
     print(MSG_STARTING_TRANSFER);
     if (!sendAndExpect(EREADER_SEND_READY, GAME_RECEIVE_READY, cancel))
       goto error;
-
     print(MSG_SENDING_BYTES);
     if (!send(EREADER_SEND_START, cancel))
       goto error;
+
+    // transfer
     u32 checksum = 0;
     for (u32 o = CARD_OFFSET; o < CARD_SIZE; o += 2) {
       u16 block = *(u16*)(card + o);
@@ -216,12 +217,12 @@ int main() {
     ERAPI_DrawText(region, 0, 16, MSG_PRESS_A_TRY_AGAIN);
     ERAPI_RenderFrame(1);
 
+    while (!tryAgain())
+      ERAPI_RenderFrame(1);
+
     send(EREADER_CANCEL, cancel);
     send(EREADER_ANIMATING, cancel);
     send(EREADER_SIO_END, cancel);
-
-    while (!tryAgain())
-      ERAPI_RenderFrame(1);
   }
 
   setGeneralPurposeMode();

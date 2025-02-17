@@ -79,7 +79,8 @@ class LinkCard {
   static constexpr int EREADER_SIO_END = 0xF3F3;
   static constexpr int EREADER_CANCEL = 0xF7F7;
   static constexpr int CMD_LINKCARD_RESET = 0;
-  static constexpr int SLAVE_REACTION_WAIT = 228;
+  static constexpr int SLAVE_HIGH_WAIT = 228;
+  static constexpr int SLAVE_LOW_WAIT = 5;
   static constexpr int DEACTIVATION_WAIT = 50;
   static constexpr int PRE_TRANSFER_WAIT = 2;
 
@@ -96,8 +97,8 @@ class LinkCard {
     SUCCESS,
     CANCELED,
     WRONG_DEVICE,
-    FAILURE_BAD_CHECKSUM,
-    FAILURE_UNEXPECTED_END
+    BAD_CHECKSUM,
+    UNEXPECTED_FAILURE,
   };
   enum class ConnectedDevice {
     E_READER_USA,
@@ -183,7 +184,7 @@ class LinkCard {
       linkRawCable.activate();
       auto guard = Link::ScopeGuard([&]() { disableMulti(); });
 
-      Link::wait(SLAVE_REACTION_WAIT);
+      Link::wait(SLAVE_HIGH_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -204,7 +205,7 @@ class LinkCard {
       linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
       auto guard = Link::ScopeGuard([&]() { disableNormal(); });
 
-      Link::wait(SLAVE_REACTION_WAIT);
+      Link::wait(SLAVE_HIGH_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -228,7 +229,7 @@ class LinkCard {
       linkRawCable.activate();
       auto guard = Link::ScopeGuard([&]() { disableMulti(); });
 
-      Link::wait(SLAVE_REACTION_WAIT);
+      Link::wait(SLAVE_HIGH_WAIT);
       if (cancel())
         return SendResult::CANCELED;
 
@@ -267,7 +268,7 @@ class LinkCard {
     if (!transferMultiAndExpect(HANDSHAKE_RECV_3, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
 
-    Link::wait(SLAVE_REACTION_WAIT);  // TODO: REMOVE?
+    Link::wait(SLAVE_HIGH_WAIT);
 
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
@@ -289,11 +290,12 @@ class LinkCard {
         break;
     }
 
+    // start signal
     if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_READY)
-      return ReceiveResult::FAILURE_BAD_CHECKSUM;
-    Link::wait(SLAVE_REACTION_WAIT);  // TODO: REMOVE
-    if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_START)
-      return ReceiveResult::FAILURE_BAD_CHECKSUM;
+      return ReceiveResult::UNEXPECTED_FAILURE;
+    Link::wait(SLAVE_HIGH_WAIT);
+    if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_START, cancel))
+      return ReceiveResult::CANCELED;
 
     // main transfer
     u32 checksum = 0;
@@ -305,17 +307,20 @@ class LinkCard {
       card[i] = Link::lsB16(block);
       card[i + 1] = Link::msB16(block);
       checksum += block;
+      Link::wait(SLAVE_LOW_WAIT);
     }
 
     // checksum
     if (transferMulti(GAME_RECEIVE_READY, cancel) != Link::lsB32(checksum))
-      return ReceiveResult::FAILURE_BAD_CHECKSUM;
+      return ReceiveResult::BAD_CHECKSUM;
+    Link::wait(SLAVE_LOW_WAIT);
     if (transferMulti(GAME_RECEIVE_READY, cancel) != Link::msB32(checksum))
-      return ReceiveResult::FAILURE_BAD_CHECKSUM;
+      return ReceiveResult::BAD_CHECKSUM;
+    Link::wait(SLAVE_LOW_WAIT);
 
     // end
     if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_END)
-      return ReceiveResult::FAILURE_UNEXPECTED_END;
+      return ReceiveResult::UNEXPECTED_FAILURE;
 
 #if LINK_CARD_USE_SHUTDOWN_PROTOCOL == 1
     if (!transferMultiAndExpect(GAME_RECEIVE_OK, EREADER_SIO_END, cancel))
