@@ -125,7 +125,7 @@ class LinkCard {
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
-    if (linkRawCable.transfer(0).playerId != 0)
+    if (linkRawCable.transfer(0, cancel).playerId != 0)
       return ConnectedDevice::WRONG_CONNECTION;
     u16 remoteValues[3];
     for (u32 i = 0; i < 3; i++) {

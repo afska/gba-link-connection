@@ -41,7 +41,7 @@ int main() {
       ;
   }
 
-  bool a = true, b = true;
+  bool a = true;
 
   while (true) {
     std::string output = "LinkCard_demo (v8.0.0)\n\n";
@@ -61,8 +61,9 @@ int main() {
 
           u32 loaderSize;
           const u8* loader = (const u8*)gbfs_get_obj(fs, fileName, &loaderSize);
-          auto result = linkCard->sendLoader(loader, loaderSize, [&b]() {
-            return Common::didPress(KEY_B, b);
+          auto result = linkCard->sendLoader(loader, loaderSize, []() {
+            u16 keys = ~REG_KEYS & KEY_ANY;
+            return keys & KEY_B;
           });
 
           if (result == LinkCard::SendResult::SUCCESS)
@@ -83,8 +84,10 @@ int main() {
           Common::log("Receiving...\n\nPress B to cancel");
 
           u8 card[LINK_CARD_SIZE + 1];
-          auto result = linkCard->receiveCard(
-              card, [&b]() { return Common::didPress(KEY_B, b); });
+          auto result = linkCard->receiveCard(card, []() {
+            u16 keys = ~REG_KEYS & KEY_ANY;
+            return keys & KEY_B;
+          });
 
           if (result == LinkCard::ReceiveResult::SUCCESS) {
             card[LINK_CARD_SIZE] = '\0';
