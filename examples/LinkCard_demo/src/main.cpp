@@ -65,6 +65,8 @@ int main() {
 
           u32 loaderSize;
           const u8* loader = (const u8*)gbfs_get_obj(fs, fileName, &loaderSize);
+
+          // (2) Send the DLC loader program
           auto result = linkCard->sendLoader(loader, loaderSize, []() {
             u16 keys = ~REG_KEYS & KEY_ANY;
             return keys & KEY_B;
@@ -87,7 +89,8 @@ int main() {
         if (Common::didPress(KEY_A, a)) {
           Common::log("Receiving...\n\nPress B to cancel");
 
-          u8 card[LINK_CARD_SIZE + 1];
+          // (3) Receive scanned cards
+          u8 card[LINK_CARD_SIZE + 1];  // +1 to interpret contents as a string
           auto result = linkCard->receiveCard(card, []() {
             u16 keys = ~REG_KEYS & KEY_ANY;
             return keys & KEY_B;

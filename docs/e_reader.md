@@ -23,11 +23,19 @@ reliably.
 
 Here's how games transfer their _custom e-Reader dotcode scanner_ (aka _"DLC Loader"_):
 
+### User
+
+- Connects the 1P end of the Link Cable into the game
+- Connects the 2P end of the Link Cable into the e-Reader
+- On the e-Reader menu, goes to "Communication" -> "To Game Boy Advance" and press A
+
+### Game
+
 - Goes to MULTI mode and sends `0xFEFE`
 - Sends `0xFEFE` again and expects `0xCCC0`
   * On the Japanese e-Reader, every `0xCCC0` becomes `0xCCD0`
 - Sends `0xCCC0` and expects `0xCCC0`
-- Switches to NORMAL32, waits 1 frame, and sends the card length as a 32-bit number (hi part is probably always `0x0000`, since there's not enough flash memory in the e-Reader)
+- Switches to NORMAL32, waits 1 frame, and sends the program length in bytes as a 32-bit number (hi part is probably always `0x0000`, since there's not enough flash memory in the e-Reader)
 - Sends the loader bytes in 4-byte chunks in a _fire and forget_ way
 - Sends `0x00000000`
 - Sends a 32-bit checksum, which is the sum of all previous 32-bit values
