@@ -72,6 +72,7 @@ class LinkCard {
   static constexpr int EREADER_SEND_START = 0xFDFD;
   static constexpr int EREADER_SEND_END = 0xFCFC;
   static constexpr int EREADER_CANCEL = 0xF7F7;
+  static constexpr int CMD_LINKCARD_RESET = 0;
   static constexpr int MODE_SWITCH_WAIT = 228;
   static constexpr int PRE_TRANSFER_WAIT = 2;
 
@@ -87,6 +88,7 @@ class LinkCard {
   enum class ReceiveResult {
     SUCCESS,
     CANCELED,
+    WRONG_DEVICE,
     FAILURE_BAD_CHECKSUM,
     FAILURE_UNEXPECTED_END
   };
@@ -125,11 +127,11 @@ class LinkCard {
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
-    if (linkRawCable.transfer(0, cancel).playerId != 0)
+    if (linkRawCable.transfer(CMD_LINKCARD_RESET, cancel).playerId != 0)
       return ConnectedDevice::WRONG_CONNECTION;
     u16 remoteValues[3];
     for (u32 i = 0; i < 3; i++) {
-      remoteValues[i] = transferMulti(0, cancel);
+      remoteValues[i] = transferMulti(CMD_LINKCARD_RESET, cancel);
       if (i > 0 && remoteValues[i] != remoteValues[i - 1])
         return ConnectedDevice::UNKNOWN_DEVICE;
     }
@@ -241,19 +243,20 @@ class LinkCard {
   ReceiveResult receiveCard(u8* card, F cancel) {
     LINK_READ_TAG(LINK_CARD_VERSION);
 
+    auto device = getConnectedDevice(cancel);
+    if (device != ConnectedDevice::DLC_LOADER)
+      return ReceiveResult::WRONG_DEVICE;
+
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
     // handshake
-  retry:
-    if (cancel())
+    if (!transferMultiAndExpect(HANDSHAKE_RECV_1, HANDSHAKE_RECV_1, cancel))
       return ReceiveResult::CANCELED;
-    if (transferMulti(HANDSHAKE_RECV_1, cancel) != HANDSHAKE_RECV_1)
-      goto retry;
-    if (transferMulti(HANDSHAKE_RECV_2, cancel) != HANDSHAKE_RECV_2)
-      goto retry;
-    if (transferMulti(HANDSHAKE_RECV_3, cancel) != HANDSHAKE_RECV_3)
-      goto retry;
+    if (!transferMultiAndExpect(HANDSHAKE_RECV_2, HANDSHAKE_RECV_2, cancel))
+      return ReceiveResult::CANCELED;
+    if (!transferMultiAndExpect(HANDSHAKE_RECV_3, HANDSHAKE_RECV_3, cancel))
+      return ReceiveResult::CANCELED;
 
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))

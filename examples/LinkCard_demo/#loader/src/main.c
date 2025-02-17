@@ -6,12 +6,6 @@
 // Japanese strings are encoded as Shift-JIS byte arrays.
 
 #ifdef LANGUAGE_JAP
-/* "ネットワークを待っています..." */
-const u8 MSG_WAITING_NETWORK[] = {
-    0x83, 0x6c, 0x83, 0x62, 0x83, 0x67, 0x83, 0x8f, 0x81, 0x5b,
-    0x83, 0x4e, 0x82, 0xf0, 0x91, 0xd2, 0x82, 0xc1, 0x82, 0xc4,
-    0x82, 0xa2, 0x82, 0xdc, 0x82, 0xb7, 0x2e, 0x2e, 0x2e, 0x00};
-
 /* "ゲームを待っています..." */
 const u8 MSG_WAITING_GAME[] = {0x83, 0x51, 0x81, 0x5b, 0x83, 0x80, 0x82, 0xf0,
                                0x91, 0xd2, 0x82, 0xc1, 0x82, 0xc4, 0x82, 0xa2,
@@ -79,7 +73,6 @@ const u8 MSG_PRESS_B_CANCEL[] = {0x82, 0x61, 0x83, 0x7b, 0x83, 0x5e, 0x83,
                                  0x82, 0xc4, 0x83, 0x4c, 0x83, 0x83, 0x83,
                                  0x93, 0x83, 0x5a, 0x83, 0x8b, 0x00};
 #else
-const char* MSG_WAITING_NETWORK = "Waiting for network...";
 const char* MSG_WAITING_GAME = "Waiting for game...";
 const char* MSG_HANDSHAKE1 = "Performing handshake (1/2)...";
 const char* MSG_HANDSHAKE2 = "Performing handshake (2/2)...";
@@ -101,7 +94,7 @@ const char* MSG_PRESS_B_CANCEL = "Press B to cancel";
 extern int __end[];
 
 ERAPI_HANDLE_REGION region;
-vu8 card[CARD_BUFFER_SIZE];
+u8 card[CARD_BUFFER_SIZE];
 const u16 palette[] = {0x0000, 0xFFFF};
 
 void print(const char* text);
@@ -136,11 +129,6 @@ int main() {
     // init loader
     reset();
 
-    // wait for playerId == 1
-    print(MSG_WAITING_NETWORK);
-    if (!waitForPlayerAssignment(cancel))
-      continue;
-
     // handshake with game
     print(MSG_WAITING_GAME);
     if (!sendAndExpect(HANDSHAKE_1, HANDSHAKE_1, cancel))
@@ -156,7 +144,7 @@ int main() {
     print(MSG_REQUESTING_CARD);
     u16 cardRequest = sendAndReceiveExcept(HANDSHAKE_3, HANDSHAKE_3, cancel);
     if (cardRequest != GAME_REQUEST)
-      continue;
+      goto error;
 
     // confirm card request
     print(MSG_CONFIRMING_REQUEST1);
@@ -256,6 +244,7 @@ void reset() {
   setGeneralPurposeMode();
   setMultiPlayMode(3);  // 3 = 115200 bps
   setInterruptsOn();
+
   for (u32 i = 0; i < CARD_BUFFER_SIZE; i++)
-    card[i] = 0;
+    ((vu8*)card)[i] = 0;
 }

@@ -14,7 +14,7 @@ function toFullWidth(str) {
 }
 
 const data = {
-  "MSG_WAITING_NETWORK": "ネットワークを待っています..."
+  "MSG_WAITING_GAME": "ゲームを待っています..."
 };
 
 for (const key in data) {

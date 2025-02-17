@@ -71,24 +71,15 @@ inline void acknowledgeSerialInterrupt() {
 
 // ---
 
-bool waitForPlayerAssignment(CancelCallback cancel) {
-  do {
-    while (!didSerialInterruptOccur()) {
-      if (cancel())
-        return false;
-    }
-    acknowledgeSerialInterrupt();
-  } while (assignedPlayerId() != 1);
-
-  return true;
-}
-
 bool send(u16 data, CancelCallback cancel) {
   while (!didSerialInterruptOccur()) {
     if (cancel())
       return false;
   }
   acknowledgeSerialInterrupt();
+  if (assignedPlayerId() != 1)
+    return false;
+
   setData(data);
 
   return true;
@@ -101,6 +92,9 @@ bool sendAndExpect(u16 data, u16 expect, CancelCallback cancel) {
       return false;
 
     received = getDataFromPlayer0();
+    bool isReset = received == 0 && expect != 0xFBFB;
+    if (isReset)
+      return false;
   } while (received != expect);
 
   return true;
