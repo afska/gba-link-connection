@@ -132,7 +132,6 @@ class LinkCard {
   ConnectedDevice getConnectedDevice(F cancel) {
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
-    // TODO: REMOVE GUARDS
 
     if (linkRawCable.transfer(CMD_LINKCARD_RESET, cancel).playerId != 0)
       return ConnectedDevice::WRONG_CONNECTION;
@@ -267,7 +266,7 @@ class LinkCard {
     if (!transferMultiAndExpect(HANDSHAKE_RECV_3, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
 
-    Link::wait(ONE_FRAME_WAIT);
+    Link::wait(ONE_FRAME_WAIT);  // TODO: REMOVE?
 
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
@@ -289,11 +288,11 @@ class LinkCard {
         break;
     }
 
-    // start card reception
-    if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_READY, cancel))
-      return ReceiveResult::CANCELED;
-    if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_START, cancel))
-      return ReceiveResult::CANCELED;
+    if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_READY)
+      return ReceiveResult::FAILURE_BAD_CHECKSUM;
+    Link::wait(ONE_FRAME_WAIT);  // TODO: REMOVE
+    if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_START)
+      return ReceiveResult::FAILURE_BAD_CHECKSUM;
 
     // main transfer
     u32 checksum = 0;
