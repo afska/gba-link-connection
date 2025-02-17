@@ -229,6 +229,8 @@ int main() {
       ERAPI_RenderFrame(1);
   }
 
+  setGeneralPurposeMode();
+
   // exit
   return ERAPI_EXIT_TO_MENU;
 }

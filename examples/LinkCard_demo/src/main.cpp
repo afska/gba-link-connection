@@ -47,7 +47,11 @@ int main() {
     std::string output = "LinkCard_demo (v8.0.0)\n\n";
     output += "Device: ";
 
-    auto device = linkCard->getConnectedDevice([]() { return false; });
+    u32 initialVCount = REG_VCOUNT;
+    auto device = linkCard->getConnectedDevice([&initialVCount]() {
+      u32 elapsed = (REG_VCOUNT - initialVCount + 228) % 228;
+      return elapsed > 30;
+    });
     switch (device) {
       case LinkCard::ConnectedDevice::E_READER_JAP:
       case LinkCard::ConnectedDevice::E_READER_USA: {
