@@ -64,7 +64,7 @@ class LinkCard {
   static constexpr int HANDSHAKE_RECV_3 = 0x4534;
   static constexpr int GAME_ANIMATING = 0xF3F3;
   static constexpr int GAME_REQUEST = 0xECEC;
-  static constexpr int GAME_READY = 0xF3F3;
+  static constexpr int GAME_READY = 0xEFEF;
   static constexpr int GAME_RECEIVE_READY = 0xFEFE;
   static constexpr int EREADER_ANIMATING = 0xF2F2;
   static constexpr int EREADER_READY = 0xF1F1;
@@ -266,9 +266,11 @@ class LinkCard {
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
-    if (!transferMultiAndExpect(EREADER_ANIMATING, GAME_ANIMATING, cancel))
+    if (!transferMultiAndExpectOneOf(EREADER_ANIMATING, GAME_ANIMATING,
+                                     EREADER_READY, cancel))
       return ReceiveResult::CANCELED;
-    if (!transferMultiAndExpect(EREADER_ANIMATING, EREADER_ANIMATING, cancel))
+    if (transferMultiAndExpectOneOf(EREADER_ANIMATING, EREADER_ANIMATING,
+                                    EREADER_READY, cancel) == -1)
       return ReceiveResult::CANCELED;
 
     // wait for card
@@ -323,8 +325,7 @@ class LinkCard {
                                   F cancel) {
     u16 received;
     do {
-      Link::wait(PRE_TRANSFER_WAIT);
-      received = linkRawCable.transfer(value, cancel).data[1];
+      received = transferMulti(value, cancel);
       if (cancel() || received == EREADER_CANCEL)
         return -1;
     } while (received != expected1 && received != expected2);
@@ -336,8 +337,7 @@ class LinkCard {
   bool transferMultiAndExpect(u16 value, u16 expected, F cancel) {
     u16 received;
     do {
-      Link::wait(PRE_TRANSFER_WAIT);
-      received = linkRawCable.transfer(value, cancel).data[1];
+      received = transferMulti(value, cancel);
       if (cancel() || received == EREADER_CANCEL)
         return false;
     } while (received != expected);

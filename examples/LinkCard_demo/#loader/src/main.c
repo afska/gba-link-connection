@@ -25,10 +25,10 @@ const u8 MSG_HANDSHAKE2[] = {0x83, 0x6e, 0x83, 0x93, 0x83, 0x68, 0x83, 0x56,
                              0x6a, 0x20, 0x82, 0xf0, 0x8e, 0xc0, 0x8d, 0x73,
                              0x92, 0x86, 0x2e, 0x2e, 0x2e, 0x00};
 
-/* "カードを要求中..." */
-const u8 MSG_REQUESTING_CARD[] = {0x83, 0x4a, 0x81, 0x5b, 0x83, 0x68,
-                                  0x82, 0xf0, 0x97, 0x76, 0x8b, 0x81,
-                                  0x92, 0x86, 0x2e, 0x2e, 0x2e, 0x00};
+/* "コマンドを要求中..." */
+const u8 MSG_REQUESTING_COMMAND[] = {0x83, 0x52, 0x83, 0x7d, 0x83, 0x93, 0x83,
+                                     0x68, 0x82, 0xf0, 0x97, 0x76, 0x8b, 0x81,
+                                     0x92, 0x86, 0x2e, 0x2e, 0x2e, 0x00};
 
 /* "要求の確認 （１／２）..." */
 const u8 MSG_CONFIRMING_REQUEST1[] = {0x97, 0x76, 0x8b, 0x81, 0x82, 0xcc, 0x8a,
@@ -53,6 +53,11 @@ const u8 MSG_STARTING_TRANSFER[] = {0x93, 0x5d, 0x91, 0x97, 0x82, 0xf0,
                                     0x8a, 0x4a, 0x8e, 0x6e, 0x92, 0x86,
                                     0x2e, 0x2e, 0x2e, 0x00};
 
+/* "バイトを送信中..." */
+const u8 MSG_SENDING_BYTES[] = {0x83, 0x6f, 0x83, 0x43, 0x83, 0x67,
+                                0x82, 0xf0, 0x91, 0x97, 0x90, 0x4d,
+                                0x92, 0x86, 0x2e, 0x2e, 0x2e, 0x00};
+
 /* "カードが送信されました！" */
 const u8 MSG_CARD_SENT[] = {0x83, 0x4a, 0x81, 0x5b, 0x83, 0x68, 0x82,
                             0xaa, 0x91, 0x97, 0x90, 0x4d, 0x82, 0xb3,
@@ -76,11 +81,12 @@ const u8 MSG_PRESS_B_CANCEL[] = {0x82, 0x61, 0x83, 0x7b, 0x83, 0x5e, 0x83,
 const char* MSG_WAITING_GAME = "Waiting for game...";
 const char* MSG_HANDSHAKE1 = "Performing handshake (1/2)...";
 const char* MSG_HANDSHAKE2 = "Performing handshake (2/2)...";
-const char* MSG_REQUESTING_CARD = "Requesting card...";
+const char* MSG_REQUESTING_COMMAND = "Requesting command...";
 const char* MSG_CONFIRMING_REQUEST1 = "Confirming request (1/2)...";
 const char* MSG_CONFIRMING_REQUEST2 = "Confirming request (2/2)...";
 const char* MSG_SCAN_CARD = "Scan a card!";
 const char* MSG_STARTING_TRANSFER = "Starting transfer...";
+const char* MSG_SENDING_BYTES = "Sending bytes...";
 const char* MSG_CARD_SENT = "Card sent!";
 const char* MSG_ERROR = "Error!";
 const char* MSG_PRESS_A_TRY_AGAIN = "Press A to try again";
@@ -141,7 +147,7 @@ int main() {
       continue;
 
     // wait for card request
-    print(MSG_REQUESTING_CARD);
+    print(MSG_REQUESTING_COMMAND);
     u16 cardRequest = sendAndReceiveExcept(HANDSHAKE_3, HANDSHAKE_3, cancel);
     if (cardRequest != GAME_REQUEST)
       goto error;
@@ -174,6 +180,7 @@ int main() {
     if (!sendAndExpect(EREADER_SEND_READY, GAME_RECEIVE_READY, cancel))
       goto error;
 
+    print(MSG_SENDING_BYTES);
     if (!send(EREADER_SEND_START, cancel))
       goto error;
     u32 checksum = 0;
