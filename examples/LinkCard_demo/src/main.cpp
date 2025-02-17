@@ -61,14 +61,15 @@ int main() {
 
           u32 loaderSize;
           const u8* loader = (const u8*)gbfs_get_obj(fs, fileName, &loaderSize);
-          auto res = linkCard->sendLoader(loader, loaderSize, [&b]() {
+          auto result = linkCard->sendLoader(loader, loaderSize, [&b]() {
             return Common::didPress(KEY_B, b);
           });
 
-          if (res == LinkCard::SendResult::SUCCESS)
+          if (result == LinkCard::SendResult::SUCCESS)
             Common::log("Success! Press DOWN");
           else
-            Common::log("Error " + std::to_string((int)res) + "! Press DOWN");
+            Common::log("Error " + std::to_string((int)result) +
+                        "! Press DOWN");
 
           Common::waitForKey(KEY_DOWN);
         }
@@ -76,7 +77,25 @@ int main() {
         break;
       }
       case LinkCard::ConnectedDevice::DLC_LOADER: {
-        output += "DLC Loader";
+        output += "DLC Loader\n\nPress A to receive a card.";
+
+        if (Common::didPress(KEY_A, a)) {
+          Common::log("Receiving...\n\nPress B to cancel");
+
+          u8 card[LINK_CARD_SIZE + 1];
+          auto result = linkCard->receiveCard(
+              card, [&b]() { return Common::didPress(KEY_B, b); });
+
+          if (result == LinkCard::ReceiveResult::SUCCESS) {
+            card[LINK_CARD_SIZE] = '\0';
+            Common::log("Success! Press DOWN\n\n" + std::string((char*)card));
+          } else
+            Common::log("Error " + std::to_string((int)result) +
+                        "! Press DOWN");
+
+          Common::waitForKey(KEY_DOWN);
+        }
+
         break;
       }
       default: {

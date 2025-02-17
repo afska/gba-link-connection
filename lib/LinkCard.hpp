@@ -17,7 +17,7 @@
 //         }));
 // - 3) Receive scanned cards:
 //       if (device == LinkCard::ConnectedDevice::CARD_SCANNER) {
-//         u8 card[1998];
+//         u8 card[LINK_CARD_CARD_SIZE];
 //         bool received = linkCard->receiveCard(card, []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
@@ -40,7 +40,7 @@
 
 LINK_VERSION_TAG LINK_CARD_VERSION = "vLinkCard/v8.0.0";
 
-#define LINK_CARD_MAX_CARD_SIZE 2112
+#define LINK_CARD_SIZE 1998
 
 /**
  * @brief A library to receive DLCs from a second GBA using the e-Reader.
@@ -69,6 +69,9 @@ class LinkCard {
   static constexpr int EREADER_ANIMATING = 0xF2F2;
   static constexpr int EREADER_READY = 0xECEC;
   static constexpr int EREADER_SEND_READY = 0xF9F9;
+  static constexpr int EREADER_SEND_START = 0xFDFD;
+  static constexpr int EREADER_SEND_END = 0xFCFC;
+  static constexpr int EREADER_CANCEL = 0xF7F7;
   static constexpr int MODE_SWITCH_WAIT = 228;
   static constexpr int PRE_TRANSFER_WAIT = 2;
 
@@ -80,6 +83,12 @@ class LinkCard {
     CANCELED,
     WRONG_DEVICE,
     FAILURE_DURING_TRANSFER
+  };
+  enum class ReceiveResult {
+    SUCCESS,
+    CANCELED,
+    FAILURE_BAD_CHECKSUM,
+    FAILURE_UNEXPECTED_END
   };
   enum class ConnectedDevice {
     E_READER_USA,
@@ -120,7 +129,7 @@ class LinkCard {
       return ConnectedDevice::WRONG_CONNECTION;
     u16 remoteValues[3];
     for (u32 i = 0; i < 3; i++) {
-      remoteValues[i] = transferMulti(0, []() { return false; });
+      remoteValues[i] = transferMulti(0, cancel);
       if (i > 0 && remoteValues[i] != remoteValues[i - 1])
         return ConnectedDevice::UNKNOWN_DEVICE;
     }
@@ -134,7 +143,7 @@ class LinkCard {
   }
 
   /**
-   * Sends the loader card.
+   * Sends the loader card and returns a `SendResult`.
    * @param loader A pointer to a e-Reader program that sends
    * the scanned cards to the game. Must be 4-byte aligned.
    * @param loaderSize Size of the loader program in bytes. Must be a multiple
@@ -221,15 +230,15 @@ class LinkCard {
   }
 
   /**
-   * Receives a 1998-byte `card` from the DLC Loader and returns `true` if it
-   * worked correctly.
+   * Receives a 1998-byte `card` from the DLC Loader and returns a
+   * `ReceiveResult`.
    * @param card A pointer to fill the card bytes.
    * @param cancel A function that will be continuously invoked. If it returns
    * `true`, the transfer will be aborted.
    * \warning Blocks the system until completion or cancellation.
    */
   template <typename F>
-  bool receiveCard(u8* card, F cancel) {
+  ReceiveResult receiveCard(u8* card, F cancel) {
     LINK_READ_TAG(LINK_CARD_VERSION);
 
     linkRawCable.activate();
@@ -238,7 +247,7 @@ class LinkCard {
     // handshake
   retry:
     if (cancel())
-      return false;
+      return ReceiveResult::CANCELED;
     if (transferMulti(HANDSHAKE_RECV_1, cancel) != HANDSHAKE_RECV_1)
       goto retry;
     if (transferMulti(HANDSHAKE_RECV_2, cancel) != HANDSHAKE_RECV_2)
@@ -246,29 +255,53 @@ class LinkCard {
     if (transferMulti(HANDSHAKE_RECV_3, cancel) != HANDSHAKE_RECV_3)
       goto retry;
 
+    // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
-      return false;
-
+      return ReceiveResult::CANCELED;
     if (!transferMultiAndExpect(EREADER_ANIMATING, GAME_ANIMATING, cancel))
-      return false;
-
+      return ReceiveResult::CANCELED;
     if (!transferMultiAndExpect(EREADER_ANIMATING, EREADER_ANIMATING, cancel))
-      return false;
+      return ReceiveResult::CANCELED;
 
   waitCard:
+
+    // wait for card
     int received = 0;
     if ((received = transferMultiAndExpectOneOf(
              GAME_READY, EREADER_READY, EREADER_SEND_READY, cancel)) == -1)
-      return false;
+      return ReceiveResult::CANCELED;
     if (received == EREADER_READY)
       goto waitCard;
 
+    // start card reception
     if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_READY, cancel))
-      return false;
+      return ReceiveResult::CANCELED;
+    if (!transferMultiAndExpect(GAME_RECEIVE_READY, EREADER_SEND_START, cancel))
+      return ReceiveResult::CANCELED;
 
-    // TODO: FINISH, transfer and cancel protocol? F7F7
+    // main transfer
+    u32 checksum = 0;
+    for (u32 i = 0; i < LINK_CARD_SIZE; i += 2) {
+      if (cancel())
+        return ReceiveResult::CANCELED;
 
-    return true;
+      u16 block = transferMulti(GAME_RECEIVE_READY, cancel);
+      card[i] = Link::lsB16(block);
+      card[i + 1] = Link::msB16(block);
+      checksum += block;
+    }
+
+    // checksum
+    if (transferMulti(GAME_RECEIVE_READY, cancel) != Link::lsB32(checksum))
+      return ReceiveResult::FAILURE_BAD_CHECKSUM;
+    if (transferMulti(GAME_RECEIVE_READY, cancel) != Link::msB32(checksum))
+      return ReceiveResult::FAILURE_BAD_CHECKSUM;
+
+    // end
+    if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_END)
+      return ReceiveResult::FAILURE_UNEXPECTED_END;
+
+    return ReceiveResult::SUCCESS;
   }
 
  private:
@@ -284,7 +317,7 @@ class LinkCard {
     do {
       Link::wait(PRE_TRANSFER_WAIT);
       received = linkRawCable.transfer(value, cancel).data[1];
-      if (cancel())
+      if (cancel() || received == EREADER_CANCEL)
         return -1;
     } while (received != expected1 && received != expected2);
 
@@ -297,7 +330,7 @@ class LinkCard {
     do {
       Link::wait(PRE_TRANSFER_WAIT);
       received = linkRawCable.transfer(value, cancel).data[1];
-      if (cancel())
+      if (cancel() || received == EREADER_CANCEL)
         return false;
     } while (received != expected);
 
