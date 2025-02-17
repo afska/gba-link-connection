@@ -42,6 +42,9 @@ LINK_VERSION_TAG LINK_CARD_VERSION = "vLinkCard/v8.0.0";
 
 #define LINK_CARD_SIZE 1998
 
+#define LINK_CARD_USE_SHUTDOWN_PROTOCOL 0
+// ^^^ for compatibility with official loaders, `DLC Loader` doesn't use it!
+
 /**
  * @brief A library to receive DLCs from a second GBA using the e-Reader.
  */
@@ -66,11 +69,14 @@ class LinkCard {
   static constexpr int GAME_REQUEST = 0xECEC;
   static constexpr int GAME_READY = 0xEFEF;
   static constexpr int GAME_RECEIVE_READY = 0xFEFE;
+  static constexpr int GAME_RECEIVE_OK = 0xF5F5;
+  static constexpr int GAME_SIO_END = 0xF1F1;
   static constexpr int EREADER_ANIMATING = 0xF2F2;
   static constexpr int EREADER_READY = 0xF1F1;
   static constexpr int EREADER_SEND_READY = 0xF9F9;
   static constexpr int EREADER_SEND_START = 0xFDFD;
   static constexpr int EREADER_SEND_END = 0xFCFC;
+  static constexpr int EREADER_SIO_END = 0xF3F3;
   static constexpr int EREADER_CANCEL = 0xF7F7;
   static constexpr int CMD_LINKCARD_RESET = 0;
   static constexpr int ONE_FRAME_WAIT = 228;
@@ -310,6 +316,12 @@ class LinkCard {
     // end
     if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_END)
       return ReceiveResult::FAILURE_UNEXPECTED_END;
+
+#if LINK_CARD_USE_SHUTDOWN_PROTOCOL == 1
+    if (!transferMultiAndExpect(GAME_RECEIVE_OK, EREADER_SIO_END, cancel))
+      return ReceiveResult::CANCELED;
+    transferMulti(GAME_SIO_END, cancel);
+#endif
 
     return ReceiveResult::SUCCESS;
   }
