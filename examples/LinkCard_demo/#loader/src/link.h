@@ -72,6 +72,8 @@ inline void acknowledgeSerialInterrupt() {
 // ---
 
 bool send(u16 data, CancelCallback cancel) {
+  setData(data);
+
   while (!didSerialInterruptOccur()) {
     if (cancel())
       return false;
@@ -79,8 +81,6 @@ bool send(u16 data, CancelCallback cancel) {
   acknowledgeSerialInterrupt();
   if (assignedPlayerId() != 1)
     return false;
-
-  setData(data);
 
   return true;
 }
