@@ -170,9 +170,9 @@ int main() {
     // scan card
     while (true) {
       if (cancel())
-        goto next;
+        goto abort;
       if (!sendAndExpect(EREADER_READY, GAME_READY, cancel))
-        goto next;
+        goto abort;
       u32 resultCode = ERAPI_ScanDotCode((u32)card);
       if (resultCode == SCAN_SUCCESS) {
         break;
@@ -206,7 +206,12 @@ int main() {
     for (u32 i = 0; i < POST_TRANSFER_WAIT; i++)
       ERAPI_RenderFrame(1);
 
-  next:
+    continue;
+
+  abort:
+    send(EREADER_CANCEL, cancel);
+    send(EREADER_ANIMATING, cancel);
+    send(EREADER_SIO_END, cancel);
     continue;
 
   error:
@@ -214,6 +219,10 @@ int main() {
     ERAPI_DrawText(region, 0, 0, MSG_ERROR);
     ERAPI_DrawText(region, 0, 16, MSG_PRESS_A_TRY_AGAIN);
     ERAPI_RenderFrame(1);
+
+    send(EREADER_CANCEL, cancel);
+    send(EREADER_ANIMATING, cancel);
+    send(EREADER_SIO_END, cancel);
 
     while (!tryAgain())
       ERAPI_RenderFrame(1);
