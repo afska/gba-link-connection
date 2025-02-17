@@ -10,13 +10,21 @@
 // - 2) Probe the connected device:
 //       auto device = getConnectedDevice();
 // - 2) Send the DLC loader program:
-//       if (device == LinkCard::ConnectedDevice::E_READER_LOADER_NEEDED)
-//         LinkCard::SendResult result = linkCard->sendLoader(loader);
+//       if (device == LinkCard::ConnectedDevice::E_READER_USA)
+//         LinkCard::SendResult result = linkCard->sendLoader(loader, []() {
+//           u16 keys = ~REG_KEYS & KEY_ANY;
+//           return keys & KEY_START;
+//         }));
 // - 3) Receive scanned cards:
 //       if (device == LinkCard::ConnectedDevice::CARD_SCANNER) {
-//         u8 card[2076]
-//         if (linkCard->receiveCard(card)) {
-//           // use card as DLC
+//         u8 card[1998];
+//         bool received = linkCard->receiveCard(card, []() {
+//           u16 keys = ~REG_KEYS & KEY_ANY;
+//           return keys & KEY_START;
+//         }));
+//
+//         if (received) {
+//           // use `card` as DLC
 //         }
 //       }
 // --------------------------------------------------------------------------
@@ -59,6 +67,7 @@ class LinkCard {
     SUCCESS,
     UNALIGNED,
     INVALID_SIZE,
+    CANCELED,
     WRONG_DEVICE,
     FAILURE_DURING_TRANSFER
   };
@@ -76,11 +85,24 @@ class LinkCard {
    * with `sendLoader(...)`.
    * If it returns `DLC_LOADER`, you should receive scanned cards with
    * `receiveCard(...)`.
-   * If it returns `WRONG_CONNECTION`, the console is connected with the wrong
-   * end (it has to use the 1P end, aka playerId=0). If it returns
-   * `UNKNOWN_DEVICE`, the connected console uses another protocol.
+   * \warning Blocks the system until completion.
    */
   ConnectedDevice getConnectedDevice() {
+    return getConnectedDevice([]() { return false; });
+  }
+
+  /**
+   * Returns the connected device.
+   * If it returns `E_READER_USA` or `E_READER_JAP`, you should send the loader
+   * with `sendLoader(...)`.
+   * If it returns `DLC_LOADER`, you should receive scanned cards with
+   * `receiveCard(...)`.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
+   */
+  template <typename F>
+  ConnectedDevice getConnectedDevice(F cancel) {
     linkRawCable.activate();
     auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
@@ -88,7 +110,7 @@ class LinkCard {
       return ConnectedDevice::WRONG_CONNECTION;
     u16 remoteValues[3];
     for (u32 i = 0; i < 3; i++) {
-      remoteValues[i] = transferMulti(0);
+      remoteValues[i] = transferMulti(0, []() { return false; });
       if (i > 0 && remoteValues[i] != remoteValues[i - 1])
         return ConnectedDevice::UNKNOWN_DEVICE;
     }
@@ -107,15 +129,19 @@ class LinkCard {
    * the scanned cards to the game. Must be 4-byte aligned.
    * @param loaderSize Size of the loader program in bytes. Must be a multiple
    * of 32.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
    */
-  SendResult sendLoader(const u8* loader, u32 loaderSize) {
+  template <typename F>
+  SendResult sendLoader(const u8* loader, u32 loaderSize, F cancel) {
     if ((u32)loader % 4 != 0)
       return SendResult::UNALIGNED;
     if (loaderSize < MIN_LOADER_SIZE || loaderSize > MAX_LOADER_SIZE ||
         (loaderSize % 0x20) != 0)
       return SendResult::INVALID_SIZE;
 
-    auto device = getConnectedDevice();
+    auto device = getConnectedDevice(cancel);
     if (device != ConnectedDevice::E_READER_USA &&
         device != ConnectedDevice::E_READER_JAP)
       return SendResult::WRONG_DEVICE;
@@ -124,52 +150,71 @@ class LinkCard {
                         ? DEVICE_E_READER_USA
                         : DEVICE_E_READER_JAP;
 
-    linkRawCable.activate();
-    Link::wait(MODE_SWITCH_WAIT);
+    {
+      linkRawCable.activate();
+      auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
 
-  retry:
-    transferMulti(HANDSHAKE_SEND);
-    if (transferMulti(HANDSHAKE_SEND) != deviceId)
-      goto retry;
-    if (transferMulti(deviceId) != deviceId)
-      goto retry;
+      Link::wait(MODE_SWITCH_WAIT);
+      if (cancel())
+        return SendResult::CANCELED;
 
-    linkRawCable.deactivate();
-    linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
-    Link::wait(MODE_SWITCH_WAIT);
-
-    transferNormal(loaderSize);  // cancel?
-
-    u32 checksum = 0;
-
-    u32* dataOut = (u32*)loader;
-    for (u32 i = 0; i < loaderSize / 4; i++) {
-      u32 data = dataOut[i];
-      checksum += data;
-      transferNormal(data);
-      // cancel?
+    retry:
+      transferMulti(HANDSHAKE_SEND, cancel);
+      if (transferMulti(HANDSHAKE_SEND, cancel) != deviceId)
+        goto retry;
+      if (transferMulti(deviceId, cancel) != deviceId)
+        goto retry;
     }
 
-    transferNormal(0);
-    transferNormal(checksum);
-    transferNormal(checksum);
+    {
+      linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS);
+      auto guard = Link::ScopeGuard([&]() { linkSPI.deactivate(); });
 
-    linkSPI.deactivate();
-    linkRawCable.activate();
-    Link::wait(MODE_SWITCH_WAIT);
+      Link::wait(MODE_SWITCH_WAIT);
+      if (cancel())
+        return SendResult::CANCELED;
 
-    if (transferMulti(deviceId) != deviceId ||
-        transferMulti(deviceId) != TRANSFER_SUCCESS) {
-      linkRawCable.deactivate();
-      return SendResult::FAILURE_DURING_TRANSFER;
+      transferNormal(loaderSize, cancel);
+
+      u32 checksum = 0;
+      u32* dataOut = (u32*)loader;
+      for (u32 i = 0; i < loaderSize / 4; i++) {
+        u32 data = dataOut[i];
+        checksum += data;
+        transferNormal(data, cancel);
+      }
+
+      transferNormal(0, cancel);
+      transferNormal(checksum, cancel);
+      transferNormal(checksum, cancel);
     }
 
-    linkRawCable.deactivate();
+    {
+      linkRawCable.activate();
+      auto guard = Link::ScopeGuard([&]() { linkRawCable.deactivate(); });
+
+      Link::wait(MODE_SWITCH_WAIT);
+      if (cancel())
+        return SendResult::CANCELED;
+
+      if (transferMulti(deviceId, cancel) != deviceId ||
+          transferMulti(deviceId, cancel) != TRANSFER_SUCCESS)
+        return SendResult::FAILURE_DURING_TRANSFER;
+    }
 
     return SendResult::SUCCESS;
   }
 
-  bool receiveCard() {
+  /**
+   * Receives a 1998-byte `card` from the DLC Loader and returns `true` if it
+   * worked correctly.
+   * @param card A pointer to fill the card bytes.
+   * @param cancel A function that will be continuously invoked. If it returns
+   * `true`, the transfer will be aborted.
+   * \warning Blocks the system until completion or cancellation.
+   */
+  template <typename F>
+  bool receiveCard(u8* card, F cancel) {
     LINK_READ_TAG(LINK_CARD_VERSION);
     // TODO: IMPLEMENT
     return true;
@@ -179,14 +224,16 @@ class LinkCard {
   LinkRawCable linkRawCable;
   LinkSPI linkSPI;
 
-  u16 transferMulti(u16 value) {
+  template <typename F>
+  u16 transferMulti(u16 value, F cancel) {
     Link::wait(PRE_TRANSFER_WAIT);
-    return linkRawCable.transfer(value).data[1];
+    return linkRawCable.transfer(value, cancel).data[1];
   }
 
-  void transferNormal(u32 value) {
+  template <typename F>
+  void transferNormal(u32 value, F cancel) {
     Link::wait(PRE_TRANSFER_WAIT);
-    linkSPI.transfer(value);
+    linkSPI.transfer(value, cancel);
   }
 };
 

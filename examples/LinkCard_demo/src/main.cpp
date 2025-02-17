@@ -41,13 +41,13 @@ int main() {
       ;
   }
 
-  bool a = true;
+  bool a = true, b = true;
 
   while (true) {
     std::string output = "LinkCard_demo (v8.0.0)\n\n";
     output += "Device: ";
 
-    auto device = linkCard->getConnectedDevice();
+    auto device = linkCard->getConnectedDevice([]() { return false; });
     switch (device) {
       case LinkCard::ConnectedDevice::E_READER_JAP:
       case LinkCard::ConnectedDevice::E_READER_USA: {
@@ -55,11 +55,21 @@ int main() {
 
         if (Common::didPress(KEY_A, a)) {
           Common::log("Sending...\n\nPress B to cancel");
+          auto fileName = device == LinkCard::ConnectedDevice::E_READER_JAP
+                              ? JAP_LOADER
+                              : USA_LOADER;
+
           u32 loaderSize;
-          const u8* loader =
-              (const u8*)gbfs_get_nth_obj(fs, 0, NULL, &loaderSize);
-          auto res = linkCard->sendLoader(loader, loaderSize);
-          Common::log(std::to_string((int)res));
+          const u8* loader = (const u8*)gbfs_get_obj(fs, fileName, &loaderSize);
+          auto res = linkCard->sendLoader(loader, loaderSize, [&b]() {
+            return Common::didPress(KEY_B, b);
+          });
+
+          if (res == LinkCard::SendResult::SUCCESS)
+            Common::log("Success! Press DOWN");
+          else
+            Common::log("Error " + std::to_string((int)res) + "! Press DOWN");
+
           Common::waitForKey(KEY_DOWN);
         }
 
