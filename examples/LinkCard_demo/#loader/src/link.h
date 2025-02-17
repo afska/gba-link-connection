@@ -10,9 +10,6 @@
 #define REG_SIOMLT_RECV *(vu16*)(REG_BASE + 0x0120)
 #define REG_SIOMLT_SEND *(vu16*)(REG_BASE + 0x012A)
 #define REG_SIOMULTI0 *(vu16*)(REG_BASE + 0x0120)
-#define REG_IME *(vu16*)(REG_BASE + 0x0208)
-#define REG_IF *(vu16*)(REG_BASE + 0x0202)
-#define IRQ_SERIAL 0x0080
 
 #define BITS_PLAYER_ID 4
 #define BIT_READY 3
@@ -47,8 +44,12 @@ inline void startTransfer() {
   REG_SIOCNT |= 1 << BIT_START;
 }
 
-static void setInterruptsOn() {
-  REG_SIOCNT |= 1 << BIT_IRQ;
+static void stopTransfer() {
+  REG_SIOCNT &= ~(1 << BIT_START);
+}
+
+inline bool isSending() {
+  return (REG_SIOCNT >> BIT_START) & 1;
 }
 
 inline bool wasTransferOk() {
@@ -61,25 +62,21 @@ inline u32 assignedPlayerId() {
   return (REG_SIOCNT & (0b11 << BITS_PLAYER_ID)) >> BITS_PLAYER_ID;
 }
 
-inline bool didSerialInterruptOccur() {
-  return REG_IF & IRQ_SERIAL;
-}
-
-inline void acknowledgeSerialInterrupt() {
-  REG_IF = IRQ_SERIAL;
-}
-
 // ---
 
 bool send(u16 data, CancelCallback cancel) {
-  while (!didSerialInterruptOccur()) {
-    if (cancel())
-      return false;
-  }
-  acknowledgeSerialInterrupt();
-  if (assignedPlayerId() != 1)
-    return false;
   setData(data);
+  startTransfer();
+
+  while (isSending()) {
+    if (cancel()) {
+      stopTransfer();
+      return false;
+    }
+  }
+
+  if (!wasTransferOk() || assignedPlayerId() != 1)
+    return false;
 
   return true;
 }

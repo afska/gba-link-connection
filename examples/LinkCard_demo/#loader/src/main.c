@@ -6,25 +6,10 @@
 // Japanese strings are encoded as Shift-JIS byte arrays.
 
 #ifdef LANGUAGE_JAP
-/* "ネットワークを待っています" */
-const u8 MSG_WAITING_NETWORK[] = {0x83, 0x6c, 0x83, 0x62, 0x83, 0x67, 0x83,
-                                  0x8f, 0x81, 0x5b, 0x83, 0x4e, 0x82, 0xf0,
-                                  0x91, 0xd2, 0x82, 0xc1, 0x82, 0xc4, 0x82,
-                                  0xa2, 0x82, 0xdc, 0x82, 0xb7, 0x00};
-
-/* "ハンドシェイクを実行中" */
-const u8 MSG_HANDSHAKE[] = {0x83, 0x6e, 0x83, 0x93, 0x83, 0x68, 0x83, 0x56,
-                            0x83, 0x46, 0x83, 0x43, 0x83, 0x4e, 0x82, 0xf0,
-                            0x8e, 0xc0, 0x8d, 0x73, 0x92, 0x86, 0x00};
-
-/* "コマンドを要求中" */
-const u8 MSG_REQUESTING_COMMAND[] = {0x83, 0x52, 0x83, 0x7d, 0x83, 0x93,
-                                     0x83, 0x68, 0x82, 0xf0, 0x97, 0x76,
-                                     0x8b, 0x81, 0x92, 0x86, 0x00};
-
-/* "要求の確認" */
-const u8 MSG_CONFIRMING_REQUEST[] = {0x97, 0x76, 0x8b, 0x81, 0x82, 0xcc,
-                                     0x8a, 0x6d, 0x94, 0x46, 0x00};
+/* "ゲームを待っています" */
+const u8 MSG_WAITING_GAME[] = {0x83, 0x51, 0x81, 0x5b, 0x83, 0x80, 0x82,
+                               0xf0, 0x91, 0xd2, 0x82, 0xc1, 0x82, 0xc4,
+                               0x82, 0xa2, 0x82, 0xdc, 0x82, 0xb7, 0x00};
 
 /* "カードをスキャンしてください" */
 const u8 MSG_SCAN_CARD[] = {0x83, 0x4a, 0x81, 0x5b, 0x83, 0x68, 0x82, 0xf0,
@@ -32,18 +17,12 @@ const u8 MSG_SCAN_CARD[] = {0x83, 0x4a, 0x81, 0x5b, 0x83, 0x68, 0x82, 0xf0,
                             0x82, 0xb5, 0x82, 0xc4, 0x82, 0xad, 0x82, 0xbe,
                             0x82, 0xb3, 0x82, 0xa2, 0x00};
 
-/* "転送を開始中" */
-const u8 MSG_STARTING_TRANSFER[] = {0x93, 0x5d, 0x91, 0x97, 0x82, 0xf0, 0x8a,
-                                    0x4a, 0x8e, 0x6e, 0x92, 0x86, 0x00};
+/* "転送中" */
+const u8 MSG_TRANSFERRING[] = {0x93, 0x5d, 0x91, 0x97, 0x92, 0x86, 0x00};
 
-/* "バイトを送信中" */
-const u8 MSG_SENDING_BYTES[] = {0x83, 0x6f, 0x83, 0x43, 0x83, 0x67, 0x82, 0xf0,
-                                0x91, 0x97, 0x90, 0x4d, 0x92, 0x86, 0x00};
-
-/* "カードが送信されました" */
-const u8 MSG_CARD_SENT[] = {0x83, 0x4a, 0x81, 0x5b, 0x83, 0x68, 0x82, 0xaa,
-                            0x91, 0x97, 0x90, 0x4d, 0x82, 0xb3, 0x82, 0xea,
-                            0x82, 0xdc, 0x82, 0xb5, 0x82, 0xbd, 0x00};
+/* "カード送信済み" */
+const u8 MSG_CARD_SENT[] = {0x83, 0x4a, 0x81, 0x5b, 0x83, 0x68, 0x91, 0x97,
+                            0x90, 0x4d, 0x8d, 0xcf, 0x82, 0xdd, 0x00};
 
 /* "エラー" */
 const u8 MSG_ERROR[] = {0x83, 0x47, 0x83, 0x89, 0x81, 0x5b, 0x00};
@@ -58,13 +37,9 @@ const u8 MSG_PRESS_B_CANCEL[] = {0x83, 0x72, 0x81, 0x5b, 0x82, 0xf0, 0x89, 0x9f,
                                  0x82, 0xb5, 0x82, 0xc4, 0x83, 0x4c, 0x83, 0x83,
                                  0x83, 0x93, 0x83, 0x5a, 0x83, 0x8b, 0x00};
 #else
-const char* MSG_WAITING_NETWORK = "Waiting for network...";
-const char* MSG_HANDSHAKE = "Performing handshake...";
-const char* MSG_REQUESTING_COMMAND = "Requesting command...";
-const char* MSG_CONFIRMING_REQUEST = "Confirming request...";
+const char* MSG_WAITING_GAME = "Waiting for game...";
 const char* MSG_SCAN_CARD = "Scan a card!";
-const char* MSG_STARTING_TRANSFER = "Starting transfer...";
-const char* MSG_SENDING_BYTES = "Sending bytes...";
+const char* MSG_TRANSFERRING = "Transferring...";
 const char* MSG_CARD_SENT = "Card sent!";
 const char* MSG_ERROR = "Error!";
 const char* MSG_PRESS_A_TRY_AGAIN = "Press A to try again";
@@ -102,9 +77,6 @@ int main() {
   // background
   ERAPI_LoadBackgroundSystem(3, 20);
 
-  // enable interrupts
-  REG_IME = 1;
-
   // loop
   while (1) {
     if (cancel())
@@ -113,29 +85,29 @@ int main() {
     // init loader
     reset();
 
+    // "Waiting for game..."
+    print(MSG_WAITING_GAME);
+
     // handshake with game
-    print(MSG_WAITING_NETWORK);
     if (!sendAndExpect(HANDSHAKE_1, HANDSHAKE_1, cancel))
       continue;
-    print(MSG_HANDSHAKE);
     if (!sendAndExpect(HANDSHAKE_2, HANDSHAKE_2, cancel))
       continue;
     if (!sendAndExpect(HANDSHAKE_3, HANDSHAKE_3, cancel))
       continue;
 
     // wait for card request
-    print(MSG_REQUESTING_COMMAND);
     u16 cardRequest = sendAndReceiveExcept(HANDSHAKE_3, HANDSHAKE_3, cancel);
     if (cardRequest != GAME_REQUEST)
       goto error;
 
     // confirm card request
-    print(MSG_CONFIRMING_REQUEST);
     if (!sendAndExpect(GAME_ANIMATING, EREADER_ANIMATING, cancel))
       continue;
     if (!send(EREADER_ANIMATING, cancel))
       continue;
 
+    // "Scan a card!"
     print(MSG_SCAN_CARD);
 
     // scan card
@@ -151,11 +123,12 @@ int main() {
         goto error;
     }
 
+    // "Transferring..."
+    print(MSG_TRANSFERRING);
+
     // transfer start
-    print(MSG_STARTING_TRANSFER);
     if (!sendAndExpect(EREADER_SEND_READY, GAME_RECEIVE_READY, cancel))
       goto error;
-    print(MSG_SENDING_BYTES);
     if (!send(EREADER_SEND_START, cancel))
       goto error;
 
@@ -174,7 +147,7 @@ int main() {
     if (!send(EREADER_SEND_END, cancel))
       goto error;
 
-    // print success message
+    // "Card sent!"
     print(MSG_CARD_SENT);
     for (u32 i = 0; i < POST_TRANSFER_WAIT; i++)
       ERAPI_RenderFrame(1);
@@ -188,6 +161,7 @@ int main() {
     continue;
 
   error:
+    // "Error!"
     ERAPI_ClearRegion(region);
     ERAPI_DrawText(region, 0, 0, MSG_ERROR);
     ERAPI_DrawText(region, 0, 16, MSG_PRESS_A_TRY_AGAIN);
@@ -227,7 +201,6 @@ bool tryAgain() {
 void reset() {
   setGeneralPurposeMode();
   setMultiPlayMode(3);  // 3 = 115200 bps
-  setInterruptsOn();
 
   for (u32 i = 0; i < CARD_BUFFER_SIZE; i++)
     ((vu8*)card)[i] = 0;

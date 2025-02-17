@@ -1,14 +1,10 @@
 const iconv = require('iconv-lite'); // "^0.6.3"
 
 const data = {
-  "MSG_WAITING_NETWORK": "ネットワークを待っています",
-  "MSG_HANDSHAKE": "ハンドシェイクを実行中",
-  "MSG_REQUESTING_COMMAND": "コマンドを要求中",
-  "MSG_CONFIRMING_REQUEST": "要求の確認",
+  "MSG_WAITING_GAME": "ゲームを待っています",
   "MSG_SCAN_CARD": "カードをスキャンしてください",
-  "MSG_STARTING_TRANSFER": "転送を開始中",
-  "MSG_SENDING_BYTES": "バイトを送信中",
-  "MSG_CARD_SENT": "カードが送信されました",
+  "MSG_TRANSFERRING": "転送中",
+  "MSG_CARD_SENT": "カード送信済み",
   "MSG_ERROR": "エラー",
   "MSG_PRESS_A_TRY_AGAIN": "エーを押して再試行",
   "MSG_PRESS_B_CANCEL": "ビーを押してキャンセル"
