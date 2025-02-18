@@ -192,6 +192,7 @@ class LinkUniversal {
 
   /**
    * @brief Returns `true` if there are at least 2 connected players.
+   * \warning Stays frozen between `sync()` calls.
    */
   [[nodiscard]] bool isConnected() { return state == State::CONNECTED; }
 
@@ -445,17 +446,26 @@ class LinkUniversal {
   [[nodiscard]] Protocol getProtocol() { return this->config.protocol; }
 
   /**
+   * @brief Sets the active `protocol`.
+   * @param protocol One of the enum values from `LinkUniversal::Protocol`.
+   */
+  void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
+
+  /**
+   * @brief Returns `true` if there are at least 2 connected players.
+   * \warning Can change between `sync()` calls.
+   */
+  [[nodiscard]] bool isConnectedNow() {
+    return mode == Mode::LINK_CABLE ? linkCable.isConnected()
+                                    : linkWireless.isConnected();
+  }
+
+  /**
    * @brief Returns the wireless state (same as `LinkWireless::getState()`).
    */
   [[nodiscard]] LinkWireless::State getWirelessState() {
     return linkWireless.getState();
   }
-
-  /**
-   * @brief Sets the active `protocol`.
-   * @param protocol One of the enum values from `LinkUniversal::Protocol`.
-   */
-  void setProtocol(Protocol protocol) { this->config.protocol = protocol; }
 
   /**
    * @brief Returns the internal `LinkCable` instance (for advanced usage).

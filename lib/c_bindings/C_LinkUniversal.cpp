@@ -124,6 +124,16 @@ void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
       static_cast<LinkUniversal::Protocol>(protocol));
 }
 
+bool C_LinkUniversal_isConnectedNow(C_LinkUniversalHandle handle) {
+  return static_cast<LinkUniversal*>(handle)->isConnectedNow();
+}
+
+C_LinkWireless_State C_LinkUniversal_getWirelessState(
+    C_LinkUniversalHandle handle) {
+  return static_cast<C_LinkWireless_State>(
+      static_cast<LinkUniversal*>(handle)->getWirelessState());
+}
+
 C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->getLinkCable();
 }

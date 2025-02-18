@@ -87,11 +87,15 @@ void C_LinkUniversal_resetTimer(C_LinkUniversalHandle handle);
 
 C_LinkUniversal_State C_LinkUniversal_getState(C_LinkUniversalHandle handle);
 C_LinkUniversal_Mode C_LinkUniversal_getMode(C_LinkUniversalHandle handle);
+
 C_LinkUniversal_Protocol C_LinkUniversal_getProtocol(
     C_LinkUniversalHandle handle);
-
 void C_LinkUniversal_setProtocol(C_LinkUniversalHandle handle,
                                  C_LinkUniversal_Protocol protocol);
+
+bool C_LinkUniversal_isConnectedNow(C_LinkUniversalHandle handle);
+C_LinkWireless_State C_LinkUniversal_getWirelessState(
+    C_LinkUniversalHandle handle);
 
 C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle);
 C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
