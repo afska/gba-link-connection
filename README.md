@@ -652,6 +652,8 @@ _(aka e-Reader)_
 
 [⬆️](#gba-link-connection) The e-Reader accessory enables games to receive _DLC cards_ from a second GBA via Link Cable. It's region-locked, but both USA and JAP adapters are supported.
 
+Check out the [#testcards](examples/LinkCard_demo/%23testcards) folder and [this README](examples/LinkCard_demo/%23loader/README.md) learn how to create your cards.
+
 ![screenshot](https://github.com/user-attachments/assets/1194552e-dd88-4425-a4bc-29aa60ffdaba)
 
 ## Methods
