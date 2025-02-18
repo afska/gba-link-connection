@@ -120,7 +120,7 @@ LINK_CODE_IWRAM void LinkIR::_onSerial() {
   lastLightTime = getCount();
   if (transitionCount == 0)
     firstLightTime = lastLightTime;
-  transitionCount++;
+  transitionCount = transitionCount + 1;
 }
 
 /**
