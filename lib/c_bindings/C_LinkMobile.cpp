@@ -2,7 +2,6 @@
 #include "../LinkMobile.hpp"
 
 extern "C" {
-
 C_LinkMobileHandle C_LinkMobile_createDefault() {
   return new LinkMobile();
 }

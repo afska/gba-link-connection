@@ -2,7 +2,6 @@
 #include "../LinkUniversal.hpp"
 
 extern "C" {
-
 C_LinkUniversalHandle C_LinkUniversal_createDefault() {
   return new LinkUniversal();
 }

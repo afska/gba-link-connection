@@ -2,7 +2,6 @@
 #include "../LinkWirelessMultiboot.hpp"
 
 extern "C" {
-
 C_LinkWirelessMultibootHandle C_LinkWirelessMultiboot_create() {
   return new LinkWirelessMultiboot();
 }

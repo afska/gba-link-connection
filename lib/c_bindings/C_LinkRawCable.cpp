@@ -2,7 +2,6 @@
 #include "../LinkRawCable.hpp"
 
 extern "C" {
-
 C_LinkRawCableHandle C_LinkRawCable_create() {
   return new LinkRawCable();
 }

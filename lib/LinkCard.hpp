@@ -43,7 +43,7 @@ LINK_VERSION_TAG LINK_CARD_VERSION = "vLinkCard/v8.0.0";
 #define LINK_CARD_SIZE 1998
 
 #define LINK_CARD_USE_SHUTDOWN_PROTOCOL 0
-// ^^^ for compatibility with official loaders, `DLC Loader` doesn't use it!
+// ^^^ just for testing with official loaders, `DLC Loader` doesn't use it!
 
 /**
  * @brief A library to receive DLCs from a second GBA using the e-Reader.
@@ -315,6 +315,7 @@ class LinkCard {
     if (transferMulti(GAME_RECEIVE_READY, cancel) != EREADER_SEND_END)
       return ReceiveResult::UNEXPECTED_FAILURE;
 
+    // shutdown protocol (not needed, just for testing with official loaders)
 #if LINK_CARD_USE_SHUTDOWN_PROTOCOL == 1
     if (!transferMultiAndExpect(GAME_RECEIVE_OK, EREADER_SIO_END, cancel))
       return ReceiveResult::CANCELED;

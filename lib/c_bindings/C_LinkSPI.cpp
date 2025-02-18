@@ -2,7 +2,6 @@
 #include "../LinkSPI.hpp"
 
 extern "C" {
-
 C_LinkSPIHandle C_LinkSPI_create() {
   return new LinkSPI();
 }

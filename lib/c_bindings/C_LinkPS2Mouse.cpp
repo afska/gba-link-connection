@@ -2,7 +2,6 @@
 #include "../LinkPS2Mouse.hpp"
 
 extern "C" {
-
 C_LinkPS2MouseHandle C_LinkPS2Mouse_create(u8 waitTimerId) {
   return new LinkPS2Mouse(waitTimerId);
 }

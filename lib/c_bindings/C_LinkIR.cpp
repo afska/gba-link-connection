@@ -2,7 +2,6 @@
 #include "../LinkIR.hpp"
 
 extern "C" {
-
 C_LinkIRHandle C_LinkIR_createDefault() {
   return new LinkIR();
 }

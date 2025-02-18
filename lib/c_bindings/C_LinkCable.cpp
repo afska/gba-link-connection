@@ -2,7 +2,6 @@
 #include "../LinkCable.hpp"
 
 extern "C" {
-
 C_LinkCableHandle C_LinkCable_createDefault() {
   return new LinkCable();
 }

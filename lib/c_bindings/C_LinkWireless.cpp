@@ -2,7 +2,6 @@
 #include "../LinkWireless.hpp"
 
 extern "C" {
-
 C_LinkWirelessHandle C_LinkWireless_createDefault() {
   return new LinkWireless();
 }

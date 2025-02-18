@@ -2,7 +2,6 @@
 #include "../LinkCube.hpp"
 
 extern "C" {
-
 C_LinkCubeHandle C_LinkCube_create() {
   return new LinkCube();
 }

@@ -2,7 +2,6 @@
 #include "../LinkCableMultiboot.hpp"
 
 extern "C" {
-
 C_LinkCableMultibootHandle C_LinkCableMultiboot_create() {
   return new LinkCableMultiboot();
 }

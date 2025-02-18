@@ -2,7 +2,6 @@
 #include "../LinkGPIO.hpp"
 
 extern "C" {
-
 C_LinkGPIOHandle C_LinkGPIO_create() {
   return new LinkGPIO();
 }

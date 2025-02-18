@@ -2,7 +2,6 @@
 #include "../LinkUART.hpp"
 
 extern "C" {
-
 C_LinkUARTHandle C_LinkUART_create() {
   return new LinkUART();
 }

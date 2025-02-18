@@ -650,7 +650,7 @@ _(aka JOYBUS Mode)_
 
 _(aka e-Reader)_
 
-[⬆️](#gba-link-connection) The e-Reader accessory enables games to receive _DLC cards_ from a second GBA via Link Cable. It's region-locked, but USA and JAP adapters are supported.
+[⬆️](#gba-link-connection) The e-Reader accessory enables games to receive _DLC cards_ from a second GBA via Link Cable. It's region-locked, but both USA and JAP adapters are supported.
 
 ![screenshot](https://github.com/user-attachments/assets/1194552e-dd88-4425-a4bc-29aa60ffdaba)
 
