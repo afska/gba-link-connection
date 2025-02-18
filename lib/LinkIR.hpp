@@ -35,7 +35,7 @@
 //       bool ledOn = linkIR->isDetectingLight();
 // --------------------------------------------------------------------------
 // considerations:
-// - wait at least 1 microsecond before `send(...)` and `receive(...)` calls!
+// - wait at least 1 microsecond between `send(...)` and `receive(...)` calls!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT

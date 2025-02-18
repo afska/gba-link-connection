@@ -652,7 +652,7 @@ _(aka e-Reader)_
 
 [⬆️](#gba-link-connection) The e-Reader accessory enables games to receive _DLC cards_ from a second GBA via Link Cable. It's region-locked, but both USA and JAP adapters are supported.
 
-Check out the [#testcards](examples/LinkCard_demo/%23testcards) folder and [this README](examples/LinkCard_demo/%23loader/README.md) learn how to create your cards.
+Check out the [#testcards](examples/LinkCard_demo/%23testcards) folder and [this README](examples/LinkCard_demo/%23loader/README.md) to learn how to create your cards.
 
 ![screenshot](https://github.com/user-attachments/assets/1194552e-dd88-4425-a4bc-29aa60ffdaba)
 
@@ -774,7 +774,7 @@ You can update these values at any time without creating a new instance:
 | `isEmittingLight()`                                            | **bool**    | Returns whether the output IR LED is ON or OFF.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `isDetectingLight()`                                           | **bool**    | Returns whether a remote light signal is detected through the `SI` pin (LOW = DETECTED) or not.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
-⚠️ wait at least 1 microsecond before `send(...)` and `receive(...)` calls!
+⚠️ wait at least 1 microsecond between `send(...)` and `receive(...)` calls!
 
 # 🖱️ LinkPS2Mouse
 
