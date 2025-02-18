@@ -36,7 +36,7 @@ _(click on the emojis for documentation)_
   - **Compiled ROMs are available** in [Releases](https://github.com/afska/gba-link-connection/releases).
   - The example code uses [libtonc](https://github.com/gbadev-org/libtonc) (and [libugba](https://github.com/AntonioND/libugba) for interrupts), but any library can be used.
   - The examples can be tested on real GBAs or using emulators.
-  - The [LinkUniversal_real](https://github.com/afska/gba-link-universal-test) ROM tests a more real scenario using an audio player, a background video, text and sprites.
+  - The [LinkUniversal_real](https://github.com/afska/gba-link-universal-real) ROM tests a more real scenario using an audio player, a background video, text and sprites.
   - The `LinkCableMultiboot_demo` and `LinkWirelessMultiboot_demo` examples can bootstrap all other examples, allowing you to test with multiple units even if you only have one flashcart.
 
 > The files use some compiler extensions, so using **GCC** is required.
