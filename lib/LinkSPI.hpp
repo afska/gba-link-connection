@@ -147,7 +147,7 @@ class LinkSPI {
                F cancel,
                bool _async = false,
                bool _customAck = false) {
-    if (!isEnabled || asyncState != AsyncState::IDLE)
+    if ((!_customAck && !isEnabled) || asyncState != AsyncState::IDLE)
       return noData();
 
     setData(data);

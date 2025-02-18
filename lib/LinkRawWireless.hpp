@@ -1121,7 +1121,7 @@ class LinkRawWireless {
                         u16 length = 0,
                         bool invertsClock = false,
                         bool _fromIRQ = false) {
-    if (!isEnabled || asyncState != AsyncState::IDLE)
+    if ((!_fromIRQ && !isEnabled) || asyncState != AsyncState::IDLE)
       return false;
 
     asyncCommand.type = type;
