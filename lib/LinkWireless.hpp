@@ -296,14 +296,17 @@ class LinkWireless {
     static_assert(LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH >= 2 &&
                   LINK_WIRELESS_MAX_CLIENT_TRANSFER_LENGTH <= 4);
 
-    lastError = Error::NONE;
+    LINK_BARRIER;
     isEnabled = false;
-
     LINK_BARRIER;
+
+    lastError = Error::NONE;
     bool success = reset();
+
+    LINK_BARRIER;
+    isEnabled = true;
     LINK_BARRIER;
 
-    isEnabled = true;
     return success;
   }
 
@@ -316,7 +319,9 @@ class LinkWireless {
    * \warning This should be used as a replacement for `activate()`.
    */
   bool restoreExistingConnection() {
+    LINK_BARRIER;
     isEnabled = false;
+    LINK_BARRIER;
 
     resetState();
     stopTimer();
@@ -328,7 +333,10 @@ class LinkWireless {
       return false;
     }
 
+    LINK_BARRIER;
     isEnabled = true;
+    LINK_BARRIER;
+
     return true;
   }
 

@@ -229,11 +229,16 @@ class LinkRawWireless {
   bool activate(bool _stopFirst = true) {
     LINK_READ_TAG(LINK_RAW_WIRELESS_VERSION);
 
+    LINK_BARRIER;
     isEnabled = false;
+    LINK_BARRIER;
 
     bool success = reset(_stopFirst);
 
+    LINK_BARRIER;
     isEnabled = true;
+    LINK_BARRIER;
+
     return success;
   }
 
@@ -246,9 +251,15 @@ class LinkRawWireless {
    * \warning This should be used as a replacement for `activate()`.
    */
   bool restoreExistingConnection() {
+    LINK_BARRIER;
     isEnabled = false;
+    LINK_BARRIER;
 
     _resetState();
+
+    LINK_BARRIER;
+    isEnabled = true;
+    LINK_BARRIER;
 
     _LRWLOG_("setting SPI to 2Mbps");
     linkSPI.activate(LinkSPI::Mode::MASTER_2MBPS);
@@ -286,7 +297,6 @@ class LinkRawWireless {
 
     _LRWLOG_("restored ok!");
 
-    isEnabled = true;
     return true;
   }
 
