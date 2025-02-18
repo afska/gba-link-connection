@@ -1,0 +1,44 @@
+Licenses for each *.bmp file in the graphics/ directory.
+
+-----------------------------
+start_3dhorse.bmp
+-----------------------------
+
+by Lu
+
+CC BY-NC 4.0
+
+---------------------------
+explosion.bmp
+---------------------------
+
+by Afska
+
+CC0
+
+------------------------------------
+common_fixed_8x16_font.bmp
+common_fixed_8x16_font_accent.bmp
+common_variable_8x16_font.bmp
+common_variable_8x16_font_accent.bmp
+------------------------------------
+
+by Sparklin Labs by Pixel-boy: https://twitter.com/2pblog1
+
+CC0
+
+Their creation is funded by your support on Patreon (http://patreon.com/SparklinLabs) and through donations (http://sparklinlabs.itch.io/superpowers) Thanks!
+
+Attribution/Licensing:
+  Creative Commons Zero: http://creativecommons.org/publicdomain/zero/1.0/
+  Attribution is not required but appreciated. Placing a link to http://superpowers-html5.com/ somewhere would be awesome :)
+
+------------------------------------------
+output_00001.bmp to output_00150.bmp
+------------------------------------------
+
+by RoyaltyFreeTube
+
+CC BY 4.0
+
+https://www.youtube.com/watch?v=1eHwlmn_Mps

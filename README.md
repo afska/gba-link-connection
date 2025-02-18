@@ -776,7 +776,7 @@ You can update these values at any time without creating a new instance:
 
 # 🖱️ LinkPS2Mouse
 
-[⬆️](#gba-link-connection) A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games. It's a straight port from [this library](https://github.com/kristopher/PS2-Mouse-Arduino).
+[⬆️](#gba-link-connection) A PS/2 mouse driver for the GBA. Use it to add mouse support to your homebrew games.
 
 ![photo](https://github.com/afska/gba-link-connection/assets/1631752/6856ff0d-0f06-4a9d-8ded-280052e02b8d)
 
@@ -836,3 +836,12 @@ You can update these values at any time without creating a new instance:
 |VCC ---> VCC|
 |GND ---> GND|
 ```
+
+## Open-source libraries
+
+- [libugba](https://github.com/AntonioND/libugba): Low level library to develop GBA games that can also be built for PC. All the examples here work thanks to its interrupt handler.
+- [gba-sprite-engine](https://github.com/wgroeneveld/gba-sprite-engine): An object-oriented GBA sprite engine concept. Some examples here use [a fork](https://github.com/afska/gba-sprite-engine) of it.
+- [butano](https://github.com/GValiente/butano): Modern C++ high level GBA engine. The `LinkUniversal_real` example uses it.
+- [gba_mem_viewer](https://github.com/Lorenzooone/gba_mem_viewer): Memory viewer for the GBA, with manual Multiboot handling without the SWI call. `LinkCableMultiboot::Async` is based on it.
+- [4-e](https://github.com/mattieb/4-e): Tool to send e-Card bins to Super Mario Advance 4 over a Link Cable. `LinkCard` is based on it.
+- [PS2-Mouse-Arduino](https://github.com/kristopher/PS2-Mouse-Arduino): PS/2 mouse driver for Arduino. `LinkPS2Mouse` is based on it.

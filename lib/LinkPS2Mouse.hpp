@@ -3,7 +3,6 @@
 
 // --------------------------------------------------------------------------
 // A PS/2 Mouse Adapter for the GBA.
-// (Based on https://github.com/kristopher/PS2-Mouse-Arduino, MIT license)
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
