@@ -959,9 +959,6 @@ class LinkRawWireless {
     u32 command = buildCommand(type, length);
     u32 r;
 
-    if (!isEnabled)
-      return result;
-
     _LRWLOG_("sending command 0x" + toHex(command));
     if ((r = transfer(command)) != DATA_REQUEST_VALUE) {
       logExpectedButReceived(DATA_REQUEST_VALUE, r);
