@@ -9,15 +9,15 @@
 //       LinkCard* linkCard = new LinkCard();
 // - 2) Probe the connected device:
 //       auto device = getConnectedDevice();
-// - 2) Send the DLC loader program:
+// - 3) Send the DLC loader program:
 //       if (device == LinkCard::ConnectedDevice::E_READER_USA)
 //         LinkCard::SendResult result = linkCard->sendLoader(loader, []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
 //         }));
-// - 3) Receive scanned cards:
-//       if (device == LinkCard::ConnectedDevice::CARD_SCANNER) {
-//         u8 card[LINK_CARD_CARD_SIZE];
+// - 4) Receive scanned cards:
+//       if (device == LinkCard::ConnectedDevice::DLC_LOADER) {
+//         u8 card[LINK_CARD_SIZE];
 //         bool received = linkCard->receiveCard(card, []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
@@ -84,6 +84,14 @@ class LinkCard {
   static constexpr int PRE_TRANSFER_WAIT = 2 + 1;
 
  public:
+  enum class ConnectedDevice {
+    E_READER_USA,
+    E_READER_JAP,
+    DLC_LOADER,
+    WRONG_CONNECTION,
+    UNKNOWN_DEVICE
+  };
+
   enum class SendResult {
     SUCCESS,
     UNALIGNED,
@@ -92,19 +100,13 @@ class LinkCard {
     WRONG_DEVICE,
     FAILURE_DURING_TRANSFER
   };
+
   enum class ReceiveResult {
     SUCCESS,
     CANCELED,
     WRONG_DEVICE,
     BAD_CHECKSUM,
     UNEXPECTED_FAILURE,
-  };
-  enum class ConnectedDevice {
-    E_READER_USA,
-    E_READER_JAP,
-    DLC_LOADER,
-    WRONG_CONNECTION,
-    UNKNOWN_DEVICE
   };
 
   /**
