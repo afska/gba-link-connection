@@ -839,9 +839,16 @@ You can update these values at any time without creating a new instance:
 
 ## Open-source libraries
 
-- [libugba](https://github.com/AntonioND/libugba): Low level library to develop GBA games that can also be built for PC. All the examples here work thanks to its interrupt handler.
-- [gba-sprite-engine](https://github.com/wgroeneveld/gba-sprite-engine): An object-oriented GBA sprite engine concept. Some examples here use [a fork](https://github.com/afska/gba-sprite-engine) of it.
-- [butano](https://github.com/GValiente/butano): Modern C++ high level GBA engine. The `LinkUniversal_real` example uses it.
+### Library
+
+- [gba-hpp](https://github.com/felixjones/gba-hpp): C++ header-only library for GBA development. The `_link_common.hpp` file uses part of it.
 - [gba_mem_viewer](https://github.com/Lorenzooone/gba_mem_viewer): Memory viewer for the GBA, with manual Multiboot handling without the SWI call. `LinkCableMultiboot::Async` is based on it.
 - [4-e](https://github.com/mattieb/4-e): Tool to send e-Card bins to Super Mario Advance 4 over a Link Cable. `LinkCard` is based on it.
 - [PS2-Mouse-Arduino](https://github.com/kristopher/PS2-Mouse-Arduino): PS/2 mouse driver for Arduino. `LinkPS2Mouse` is based on it.
+
+### Examples
+
+- [libtonc](https://github.com/gbadev-org/libtonc): Low level library for GBA hardware access. All the examples here use it.
+- [libugba](https://github.com/AntonioND/libugba): Low level library to develop GBA games that can also be built for PC. All the examples here work thanks to its interrupt handler.
+- [gba-sprite-engine](https://github.com/wgroeneveld/gba-sprite-engine): An object-oriented GBA sprite engine concept. Some examples here use [a fork](https://github.com/afska/gba-sprite-engine) of it.
+- [butano](https://github.com/GValiente/butano): Modern C++ high level GBA engine. The `LinkUniversal_real` example uses it.
