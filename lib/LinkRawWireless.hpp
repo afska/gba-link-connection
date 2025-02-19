@@ -105,7 +105,8 @@ class LinkRawWireless {
 #endif
   static constexpr int MAX_TRANSFER_BYTES_SERVER = 87;
   static constexpr int MAX_TRANSFER_BYTES_CLIENT = 16;
-  static constexpr int LOGIN_STEPS = 9;
+  static constexpr int LOGIN_STEPS = 10;
+  static constexpr int LOGIN_JUNK_STEPS = 2;
   static constexpr int COMMAND_HEADER_VALUE = 0x9966;
   static constexpr int RESPONSE_ACK = 0x80;
   static constexpr u32 DATA_REQUEST_VALUE = 0x80000000;
@@ -136,8 +137,8 @@ class LinkRawWireless {
   static constexpr int EVENT_DATA_AVAILABLE = 0x28;
   static constexpr int EVENT_DISCONNECTED = 0x29;
 
-  static constexpr u16 LOGIN_PARTS[] = {0x494E, 0x494E, 0x544E, 0x544E, 0x4E45,
-                                        0x4E45, 0x4F44, 0x4F44, 0x8001};
+  static constexpr u16 LOGIN_PARTS[] = {0x494E, 0x494E, 0x494E, 0x544E, 0x544E,
+                                        0x4E45, 0x4E45, 0x4F44, 0x4F44, 0x8001};
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   typedef void (*Logger)(std::string);
@@ -1306,7 +1307,7 @@ class LinkRawWireless {
  private:
   struct LoginMemory {
     u16 previousGBAData = 0xFFFF;
-    u16 previousAdapterData = 0xFFFF;
+    u16 previousAdapterData = 0x8000;
   };
 
   struct AsyncCommand {
@@ -1417,14 +1418,12 @@ class LinkRawWireless {
   bool login() {
     LoginMemory memory;
 
-    _LRWLOG_("sending initial login packet");
-    if (!exchangeLoginPacket(LOGIN_PARTS[0], 0, memory))
-      return false;
-
     for (u32 i = 0; i < LOGIN_STEPS; i++) {
       _LRWLOG_("sending login packet " + std::to_string(i + 1) + "/" +
                std::to_string(LOGIN_STEPS));
-      if (!exchangeLoginPacket(LOGIN_PARTS[i], LOGIN_PARTS[i], memory))
+      if (!exchangeLoginPacket(LOGIN_PARTS[i],
+                               i < LOGIN_JUNK_STEPS ? 0 : LOGIN_PARTS[i],
+                               memory))
         return false;
     }
 
@@ -1436,9 +1435,11 @@ class LinkRawWireless {
                            LoginMemory& memory) {
     u32 packet = Link::buildU32(~memory.previousAdapterData, data);
     u32 response = transfer(packet, false);
+    u32 adapterData = Link::msB32(response);
 
-    if (Link::msB32(response) != expectedResponse ||
-        Link::lsB32(response) != (u16)~memory.previousGBAData) {
+    if (expectedResponse != 0 &&
+        (adapterData != expectedResponse ||
+         Link::lsB32(response) != (u16)~memory.previousGBAData)) {
       logExpectedButReceived(
           Link::buildU32(expectedResponse, (u16)~memory.previousGBAData),
           response);
@@ -1446,7 +1447,7 @@ class LinkRawWireless {
     }
 
     memory.previousGBAData = data;
-    memory.previousAdapterData = expectedResponse;
+    memory.previousAdapterData = adapterData;
 
     return true;
   }
