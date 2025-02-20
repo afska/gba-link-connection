@@ -9,10 +9,10 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkMobile* linkMobile = new LinkMobile();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_MOBILE_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_MOBILE_ISR_SERIAL);
-//       irq_add(II_TIMER3, LINK_MOBILE_ISR_TIMER);
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_MOBILE_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_MOBILE_ISR_SERIAL);
+//       interrupt_add(INTR_TIMER3, LINK_MOBILE_ISR_TIMER);
 // - 3) Initialize the library with:
 //       linkMobile->activate();
 //       // (do something until `linkMobile->isSessionActive()` returns `true`)
@@ -62,7 +62,6 @@
 
 #include "_link_common.hpp"
 
-#include <cstring>
 #include "LinkGPIO.hpp"
 #include "LinkSPI.hpp"
 
@@ -76,7 +75,7 @@
 #define LINK_MOBILE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.3";
+LINK_VERSION_TAG LINK_MOBILE_VERSION = "vLinkMobile/v8.0.0";
 
 #define LINK_MOBILE_MAX_USER_TRANSFER_LENGTH 254
 #define LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH 255
@@ -88,7 +87,6 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.3";
   (LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH + 4)
 #define LINK_MOBILE_DEFAULT_TIMEOUT (60 * 10)
 #define LINK_MOBILE_DEFAULT_TIMER_ID 3
-#define LINK_MOBILE_BARRIER asm volatile("" ::: "memory")
 
 #if LINK_ENABLE_DEBUG_LOGS != 0
 #define _LMLOG_(...) Link::log(__VA_ARGS__)
@@ -101,26 +99,26 @@ static volatile char LINK_MOBILE_VERSION[] = "LinkMobile/v7.0.3";
  */
 class LinkMobile {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
 
   static constexpr auto BASE_FREQUENCY = Link::_TM_FREQ_1024;
   static constexpr int INIT_WAIT_FRAMES = 7;
   static constexpr int INIT_TIMEOUT_FRAMES = 60 * 3;
   static constexpr int PING_FREQUENCY_FRAMES = 60;
-  static constexpr int ADAPTER_WAITING = 0xd2;
-  static constexpr u32 ADAPTER_WAITING_32BIT = 0xd2d2d2d2;
-  static constexpr int GBA_WAITING = 0x4b;
-  static constexpr u32 GBA_WAITING_32BIT = 0x4b4b4b4b;
+  static constexpr int ADAPTER_WAITING = 0xD2;
+  static constexpr u32 ADAPTER_WAITING_32BIT = 0xD2D2D2D2;
+  static constexpr int GBA_WAITING = 0x4B;
+  static constexpr u32 GBA_WAITING_32BIT = 0x4B4B4B4B;
   static constexpr int OR_VALUE = 0x80;
   static constexpr int COMMAND_MAGIC_VALUE1 = 0x99;
   static constexpr int COMMAND_MAGIC_VALUE2 = 0x66;
   static constexpr int DEVICE_GBA = 0x1;
   static constexpr int DEVICE_ADAPTER_BLUE = 0x8;
   static constexpr int DEVICE_ADAPTER_YELLOW = 0x9;
-  static constexpr int DEVICE_ADAPTER_GREEN = 0xa;
-  static constexpr int DEVICE_ADAPTER_RED = 0xb;
+  static constexpr int DEVICE_ADAPTER_GREEN = 0xA;
+  static constexpr int DEVICE_ADAPTER_RED = 0xB;
   static constexpr int ACK_SENDER = 0;
   static constexpr int CONFIGURATION_DATA_SIZE = 192;
   static constexpr int CONFIGURATION_DATA_CHUNK = CONFIGURATION_DATA_SIZE / 2;
@@ -142,12 +140,12 @@ class LinkMobile {
   static constexpr int COMMAND_OPEN_UDP_CONNECTION = 0x25;
   static constexpr int COMMAND_CLOSE_UDP_CONNECTION = 0x26;
   static constexpr int COMMAND_DNS_QUERY = 0x28;
-  static constexpr int COMMAND_CONNECTION_CLOSED = 0x1f;
-  static constexpr int COMMAND_ERROR_STATUS = 0x6e | OR_VALUE;
+  static constexpr int COMMAND_CONNECTION_CLOSED = 0x1F;
+  static constexpr int COMMAND_ERROR_STATUS = 0x6E | OR_VALUE;
   static constexpr u8 WAIT_TICKS[] = {4, 8};
   static constexpr int LOGIN_PARTS_SIZE = 8;
-  static constexpr u8 LOGIN_PARTS[] = {0x4e, 0x49, 0x4e, 0x54,
-                                       0x45, 0x4e, 0x44, 0x4f};
+  static constexpr u8 LOGIN_PARTS[] = {0x4E, 0x49, 0x4E, 0x54,
+                                       0x45, 0x4E, 0x44, 0x4F};
   static constexpr int SUPPORTED_DEVICES_SIZE = 4;
   static constexpr u8 SUPPORTED_DEVICES[] = {
       DEVICE_ADAPTER_BLUE, DEVICE_ADAPTER_YELLOW, DEVICE_ADAPTER_GREEN,
@@ -155,7 +153,7 @@ class LinkMobile {
   static constexpr u8 DIAL_PHONE_FIRST_BYTE[] = {0, 2, 1, 1};
 
  public:
-  enum State {
+  enum class State {
     NEEDS_RESET = 0,
     PINGING = 1,
     WAITING_TO_START = 2,
@@ -177,9 +175,9 @@ class LinkMobile {
     SHUTDOWN = 18
   };
 
-  enum Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
+  enum class Role { NO_P2P_CONNECTION, CALLER, RECEIVER };
 
-  enum ConnectionType { TCP, UDP };
+  enum class ConnectionType { TCP, UDP };
 
   struct ConfigurationData {
     char magic[2];
@@ -201,7 +199,7 @@ class LinkMobile {
     u8 checksumLow;
 
     char _ispNumber1[16 + 1];  // (parsed from `configurationSlot1`)
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct AsyncRequest {
     volatile bool completed = false;
@@ -229,7 +227,7 @@ class LinkMobile {
     u8 size = 0;
   };
 
-  enum CommandResult {
+  enum class CommandResult {
     PENDING,
     SUCCESS,
     INVALID_DEVICE_ID,
@@ -242,7 +240,7 @@ class LinkMobile {
   };
 
   struct Error {
-    enum Type {
+    enum class Type {
       NONE,
       ADAPTER_NOT_CONNECTED,
       PPP_LOGIN_FAILED,
@@ -265,12 +263,12 @@ class LinkMobile {
    * @brief Constructs a new LinkMobile object.
    * @param timeout Number of *frames* without completing a request to reset a
    * connection. Defaults to 600 (10 seconds).
-   * @param timerId GBA Timer to use for waiting.
+   * @param timerId `(0~3)` GBA Timer to use for waiting.
    */
   explicit LinkMobile(u32 timeout = LINK_MOBILE_DEFAULT_TIMEOUT,
                       u8 timerId = LINK_MOBILE_DEFAULT_TIMER_ID) {
-    this->config.timeout = timeout;
-    this->config.timerId = timerId;
+    config.timeout = timeout;
+    config.timerId = timerId;
   }
 
   /**
@@ -284,18 +282,21 @@ class LinkMobile {
    * `NEEDS_RESET`, and you can retrieve the error with `getError()`.
    */
   void activate() {
+    LINK_READ_TAG(LINK_MOBILE_VERSION);
+    static_assert(LINK_MOBILE_QUEUE_SIZE >= 1);
+
     error = {};
 
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
 
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_MOBILE_BARRIER;
+    LINK_BARRIER;
 
     start();
   }
@@ -338,7 +339,7 @@ class LinkMobile {
    * active session or available request slots.
    */
   bool call(const char* phoneNumber) {
-    if (state != SESSION_ACTIVE || userRequests.isFull())
+    if (state != State::SESSION_ACTIVE || userRequests.isFull())
       return false;
 
     auto request = UserRequest{.type = UserRequest::Type::CALL};
@@ -363,13 +364,13 @@ class LinkMobile {
    * if there's no active session, no available request slots, or no login ID.
    */
   bool callISP(const char* password, const char* loginId = "") {
-    if (state != SESSION_ACTIVE || userRequests.isFull())
+    if (state != State::SESSION_ACTIVE || userRequests.isFull())
       return false;
 
     auto request = UserRequest{.type = UserRequest::Type::PPP_LOGIN};
     copyString(request.password, password, LINK_MOBILE_MAX_PASSWORD_LENGTH);
 
-    if (std::strlen(loginId) > 0)
+    if (Link::strlen(loginId) > 0)
       copyString(request.loginId, loginId, LINK_MOBILE_MAX_LOGIN_ID_LENGTH);
     else if (adapterConfiguration.isValid())
       copyString(request.loginId, adapterConfiguration.fields._ispNumber1,
@@ -394,12 +395,12 @@ class LinkMobile {
    * active PPP session or available request slots.
    */
   bool dnsQuery(const char* domainName, DNSQuery* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull())
+    if (state != State::PPP_ACTIVE || userRequests.isFull())
       return result->fail();
 
     result->completed = false;
     result->success = false;
-    u32 size = std::strlen(domainName);
+    u32 size = Link::strlen(domainName);
     if (size > LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH)
       size = LINK_MOBILE_MAX_DOMAIN_NAME_LENGTH;
 
@@ -435,7 +436,7 @@ class LinkMobile {
                       u16 port,
                       ConnectionType type,
                       OpenConn* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull())
+    if (state != State::PPP_ACTIVE || userRequests.isFull())
       return result->fail();
 
     result->completed = false;
@@ -467,7 +468,7 @@ class LinkMobile {
   bool closeConnection(u8 connectionId,
                        ConnectionType type,
                        CloseConn* result) {
-    if (state != PPP_ACTIVE || userRequests.isFull())
+    if (state != State::PPP_ACTIVE || userRequests.isFull())
       return result->fail();
 
     result->completed = false;
@@ -494,13 +495,14 @@ class LinkMobile {
    * reuse the struct. When the transfer is completed, the `completed` field
    * will be `true`. If the transfer was successful, the `success` field will be
    * `true`.
+   * @param connectionId The ID of the connection (or `0xFF` for P2P).
    * \warning Non-blocking. Returns `true` immediately, or `false` if
    * there's no active call or available request slots.
    */
   bool transfer(DataTransfer dataToSend,
                 DataTransfer* result,
-                u8 connectionId = 0xff) {
-    if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
+                u8 connectionId = 0xFF) {
+    if ((state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) ||
         userRequests.isFull())
       return result->fail();
 
@@ -540,7 +542,7 @@ class LinkMobile {
    * active call or available request slots.
    */
   bool hangUp() {
-    if ((state != CALL_ESTABLISHED && state != PPP_ACTIVE) ||
+    if ((state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) ||
         userRequests.isFull())
       return false;
 
@@ -591,19 +593,21 @@ class LinkMobile {
    * @brief Returns `true` if a P2P call is established (the state is
    * `CALL_ESTABLISHED`).
    */
-  [[nodiscard]] bool isConnectedP2P() { return state == CALL_ESTABLISHED; }
+  [[nodiscard]] bool isConnectedP2P() {
+    return state == State::CALL_ESTABLISHED;
+  }
 
   /**
    * @brief Returns `true` if a PPP session is active (the state is
    * `PPP_ACTIVE`).
    */
-  [[nodiscard]] bool isConnectedPPP() { return state == PPP_ACTIVE; }
+  [[nodiscard]] bool isConnectedPPP() { return state == State::PPP_ACTIVE; }
 
   /**
    * @brief Returns `true` if the session is active.
    */
   [[nodiscard]] bool isSessionActive() {
-    return state >= SESSION_ACTIVE && state <= SHUTDOWN_REQUESTED;
+    return state >= State::SESSION_ACTIVE && state <= State::SHUTDOWN_REQUESTED;
   }
 
   /**
@@ -611,14 +615,14 @@ class LinkMobile {
    * shutdown requests.
    */
   [[nodiscard]] bool canShutdown() {
-    return isSessionActive() && state != SHUTDOWN_REQUESTED;
+    return isSessionActive() && state != State::SHUTDOWN_REQUESTED;
   }
 
   /**
    * @brief Returns the current operation mode (`LinkSPI::DataSize`).
    */
   [[nodiscard]] LinkSPI::DataSize getDataSize() {
-    return linkSPI->getDataSize();
+    return linkSPI.getDataSize();
   }
 
   /**
@@ -626,8 +630,6 @@ class LinkMobile {
    * be aborted.
    */
   [[nodiscard]] Error getError() { return error; }
-
-  ~LinkMobile() { delete linkSPI; }
 
   /**
    * @brief This method is called by the VBLANK interrupt handler.
@@ -662,10 +664,10 @@ class LinkMobile {
     if (!isEnabled)
       return;
 
-    linkSPI->_onSerial();
-    u32 newData = linkSPI->getAsyncData();
+    linkSPI._onSerial();
+    u32 newData = linkSPI.getAsyncData();
 
-    if (state == NEEDS_RESET)
+    if (state == State::NEEDS_RESET)
       return;
 
     if (asyncCommand.isActive) {
@@ -700,14 +702,14 @@ class LinkMobile {
     if (!isEnabled || !hasPendingTransfer)
       return;
 
-    linkSPI->transferAsync(pendingTransfer);
+    linkSPI.transferAsync(pendingTransfer);
     stopTimer();
     hasPendingTransfer = false;
   }
 
   struct Config {
     u32 timeout;
-    u32 timerId;
+    u8 timerId;
   };
 
   /**
@@ -717,10 +719,10 @@ class LinkMobile {
   Config config;
 
  private:
-  enum AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
+  enum class AdapterType { BLUE, YELLOW, GREEN, RED, UNKNOWN };
 
   struct UserRequest {
-    enum Type {
+    enum class Type {
       CALL,
       PPP_LOGIN,
       DNS_QUERY,
@@ -751,11 +753,12 @@ class LinkMobile {
     void cleanup() {
       if (finished)
         return;
-      AsyncRequest* metadata = type == DNS_QUERY          ? (AsyncRequest*)dns
-                               : type == OPEN_CONNECTION  ? (AsyncRequest*)open
-                               : type == CLOSE_CONNECTION ? (AsyncRequest*)close
-                               : type == TRANSFER ? (AsyncRequest*)receive
-                                                  : nullptr;
+      AsyncRequest* metadata =
+          type == UserRequest::Type::DNS_QUERY          ? (AsyncRequest*)dns
+          : type == UserRequest::Type::OPEN_CONNECTION  ? (AsyncRequest*)open
+          : type == UserRequest::Type::CLOSE_CONNECTION ? (AsyncRequest*)close
+          : type == UserRequest::Type::TRANSFER         ? (AsyncRequest*)receive
+                                                        : nullptr;
       if (metadata != nullptr) {
         metadata->success = false;
         metadata->completed = true;
@@ -781,18 +784,18 @@ class LinkMobile {
     }
 
     u16 reportedChecksum() {
-      return buildU16(fields.checksumHigh, fields.checksumLow);
+      return Link::buildU16(fields.checksumHigh, fields.checksumLow);
     }
   };
 
   struct MagicBytes {
     u8 magic1 = COMMAND_MAGIC_VALUE1;
     u8 magic2 = COMMAND_MAGIC_VALUE2;
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct PacketData {
     u8 bytes[LINK_MOBILE_COMMAND_TRANSFER_BUFFER] = {};
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct PacketHeader {
     u8 commandId = 0;
@@ -802,12 +805,12 @@ class LinkMobile {
 
     u16 sum() { return commandId + _unused_ + _unusedSizeHigh_ + size; }
     u8 pureCommandId() { return commandId & (~OR_VALUE); }
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct PacketChecksum {
     u8 high = 0;
     u8 low = 0;
-  } __attribute__((packed));
+  } LINK_PACKED;
 
   struct Command {
     MagicBytes magicBytes;
@@ -822,8 +825,8 @@ class LinkMobile {
   };
 
   struct AsyncCommand {
-    enum State { PENDING, COMPLETED };
-    enum Direction { SENDING, RECEIVING };
+    enum class State { PENDING, COMPLETED };
+    enum class Direction { SENDING, RECEIVING };
 
     State state;
     CommandResult result;
@@ -885,17 +888,17 @@ class LinkMobile {
       sizeof(MagicBytes) + sizeof(PacketHeader);
   static constexpr u32 CHECKSUM_SIZE = sizeof(PacketChecksum);
 
-  using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE, false>;
+  using RequestQueue = Link::Queue<UserRequest, LINK_MOBILE_QUEUE_SIZE>;
 
+  LinkSPI linkSPI;
   RequestQueue userRequests;
   AdapterConfiguration adapterConfiguration;
   AsyncCommand asyncCommand;
   u32 waitFrames = 0;
   u32 timeoutStateFrames = 0;
   u32 pingFrameCount = 0;
-  Role role = Role::NO_P2P_CONNECTION;
-  LinkSPI* linkSPI = new LinkSPI();
-  State state = NEEDS_RESET;
+  volatile Role role = Role::NO_P2P_CONNECTION;
+  volatile State state = State::NEEDS_RESET;
   PacketData nextCommandData;
   u32 nextCommandDataSize = 0;
   bool hasPendingTransfer = false;
@@ -925,31 +928,31 @@ class LinkMobile {
 
     switch (request.type) {
       case UserRequest::Type::CALL: {
-        if (state != SESSION_ACTIVE && state != CALL_REQUESTED) {
+        if (state != State::SESSION_ACTIVE && state != State::CALL_REQUESTED) {
           popRequest();
           return;
         }
-        if (state != CALL_REQUESTED)
-          setState(CALL_REQUESTED);
+        if (state != State::CALL_REQUESTED)
+          setState(State::CALL_REQUESTED);
 
         if (!asyncCommand.isActive) {
-          setState(CALLING);
+          setState(State::CALLING);
           cmdDialTelephone(request.phoneNumber);
           popRequest();
         }
         break;
       }
       case UserRequest::Type::PPP_LOGIN: {
-        if (state != SESSION_ACTIVE && state != ISP_CALL_REQUESTED &&
-            state != ISP_CALLING) {
+        if (state != State::SESSION_ACTIVE &&
+            state != State::ISP_CALL_REQUESTED && state != State::ISP_CALLING) {
           popRequest();
           return;
         }
-        if (state == SESSION_ACTIVE)
-          setState(ISP_CALL_REQUESTED);
+        if (state == State::SESSION_ACTIVE)
+          setState(State::ISP_CALL_REQUESTED);
 
-        if (!asyncCommand.isActive && state == ISP_CALL_REQUESTED) {
-          setState(ISP_CALLING);
+        if (!asyncCommand.isActive && state == State::ISP_CALL_REQUESTED) {
+          setState(State::ISP_CALLING);
           cmdDialTelephone(adapterConfiguration.isValid()
                                ? adapterConfiguration.fields._ispNumber1
                                : FALLBACK_ISP_NUMBER);
@@ -957,7 +960,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::DNS_QUERY: {
-        if (state != PPP_ACTIVE) {
+        if (state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -969,7 +972,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::OPEN_CONNECTION: {
-        if (state != PPP_ACTIVE) {
+        if (state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -984,7 +987,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::CLOSE_CONNECTION: {
-        if (state != PPP_ACTIVE) {
+        if (state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -999,7 +1002,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::TRANSFER: {
-        if (state != CALL_ESTABLISHED && state != PPP_ACTIVE) {
+        if (state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -1012,7 +1015,7 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::HANG_UP: {
-        if (state != CALL_ESTABLISHED && state != PPP_ACTIVE) {
+        if (state != State::CALL_ESTABLISHED && state != State::PPP_ACTIVE) {
           popRequest();
           return;
         }
@@ -1021,11 +1024,11 @@ class LinkMobile {
         break;
       }
       case UserRequest::Type::SHUTDOWN: {
-        if (state != SHUTDOWN_REQUESTED)
-          setState(SHUTDOWN_REQUESTED);
+        if (state != State::SHUTDOWN_REQUESTED)
+          setState(State::SHUTDOWN_REQUESTED);
 
         if (!asyncCommand.isActive) {
-          setState(ENDING_SESSION);
+          setState(State::ENDING_SESSION);
           cmdEndSession();
           popRequest();
         }
@@ -1038,36 +1041,36 @@ class LinkMobile {
 
   void processNewFrame() {
     switch (state) {
-      case WAITING_TO_START: {
+      case State::WAITING_TO_START: {
         waitFrames--;
 
         if (waitFrames == 0) {
-          setState(STARTING_SESSION);
+          setState(State::STARTING_SESSION);
           cmdBeginSession();
         }
         break;
       }
-      case WAITING_32BIT_SWITCH: {
+      case State::WAITING_32BIT_SWITCH: {
         waitFrames--;
 
         if (waitFrames == 0) {
-          setState(READING_CONFIGURATION);
+          setState(State::READING_CONFIGURATION);
           cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
         }
         break;
       }
-      case SESSION_ACTIVE: {
+      case State::SESSION_ACTIVE: {
         if (!asyncCommand.isActive)
           cmdWaitForTelephoneCall();
 
         break;
       }
-      case WAITING_8BIT_SWITCH: {
+      case State::WAITING_8BIT_SWITCH: {
         waitFrames--;
 
         if (waitFrames == 0) {
           error = {};
-          setState(SHUTDOWN);
+          setState(State::SHUTDOWN);
         }
         break;
       }
@@ -1098,17 +1101,17 @@ class LinkMobile {
     if (asyncCommand.respondsTo(COMMAND_TELEPHONE_STATUS)) {
       if (asyncCommand.cmd.header.size != 3)
         return abort(Error::Type::WEIRD_RESPONSE);
-      if (state == CALL_ESTABLISHED) {
+      if (state == State::CALL_ESTABLISHED) {
         if (!isBitHigh(asyncCommand.cmd.data.bytes[0], 2)) {
           // (call terminated)
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
       }
       return;
     }
 
     switch (state) {
-      case STARTING_SESSION: {
+      case State::STARTING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_BEGIN_SESSION))
           return;
         if (asyncCommand.cmd.header.size != LOGIN_PARTS_SIZE)
@@ -1119,29 +1122,29 @@ class LinkMobile {
             return abort(Error::Type::WEIRD_RESPONSE);
         }
 
-        setState(ACTIVATING_SIO32);
+        setState(State::ACTIVATING_SIO32);
         cmdSIO32(true);
         break;
       }
-      case ACTIVATING_SIO32: {
+      case State::ACTIVATING_SIO32: {
         if (asyncCommand.respondsTo(COMMAND_RESET)) {
           // If the adapter responds to a 0x16 instead of 0x18,
           // it's libmobile telling us that SIO32 is not supported.
           // In that case, we continue using SIO8.
-          setState(READING_CONFIGURATION);
+          setState(State::READING_CONFIGURATION);
           cmdReadConfigurationData(0, CONFIGURATION_DATA_CHUNK);
           return;
         }
         if (!asyncCommand.respondsTo(COMMAND_SIO32))
           return;
 
-        setState(WAITING_32BIT_SWITCH);
+        setState(State::WAITING_32BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
-        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                          LinkSPI::DataSize::SIZE_32BIT);
+        linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
+                         LinkSPI::DataSize::SIZE_32BIT);
         break;
       }
-      case READING_CONFIGURATION: {
+      case State::READING_CONFIGURATION: {
         if (!asyncCommand.respondsTo(COMMAND_READ_CONFIGURATION_DATA))
           return;
 
@@ -1161,38 +1164,38 @@ class LinkMobile {
                                    CONFIGURATION_DATA_CHUNK);
         } else {
           setISPNumber();
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
         break;
       }
-      case SESSION_ACTIVE: {
+      case State::SESSION_ACTIVE: {
         if (!asyncCommand.respondsTo(COMMAND_WAIT_FOR_TELEPHONE_CALL))
           return;
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(CALL_ESTABLISHED);
+          setState(State::CALL_ESTABLISHED);
           role = Role::RECEIVER;
         } else {
           // (no call received)
         }
         break;
       }
-      case CALLING: {
+      case State::CALLING: {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
           return;
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(CALL_ESTABLISHED);
+          setState(State::CALL_ESTABLISHED);
           role = Role::CALLER;
         } else {
           // (call failed)
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
         break;
       }
-      case CALL_ESTABLISHED: {
+      case State::CALL_ESTABLISHED: {
         if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
           return;
         }
         if (!asyncCommand.respondsTo(COMMAND_TRANSFER_DATA))
@@ -1205,38 +1208,38 @@ class LinkMobile {
 
         break;
       }
-      case ISP_CALLING: {
+      case State::ISP_CALLING: {
         if (!asyncCommand.respondsTo(COMMAND_DIAL_TELEPHONE))
           return;
         if (userRequests.isEmpty())
           return abort(Error::Type::WTF);
         auto request = userRequests.peekRef();
-        if (request->type != UserRequest::PPP_LOGIN)
+        if (request->type != UserRequest::Type::PPP_LOGIN)
           return abort(Error::Type::WTF);
 
         if (asyncCommand.result == CommandResult::SUCCESS) {
-          setState(PPP_LOGIN);
+          setState(State::PPP_LOGIN);
           cmdISPLogin(request->loginId, request->password);
         } else {
           // (ISP call failed)
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
         }
         request->finished = true;
 
         break;
       }
-      case PPP_LOGIN: {
+      case State::PPP_LOGIN: {
         if (!asyncCommand.respondsTo(COMMAND_ISP_LOGIN))
           return;
         if (asyncCommand.result != CommandResult::SUCCESS)
           return abort(Error::Type::PPP_LOGIN_FAILED);
 
-        setState(PPP_ACTIVE);
+        setState(State::PPP_ACTIVE);
         break;
       }
-      case PPP_ACTIVE: {
+      case State::PPP_ACTIVE: {
         if (asyncCommand.respondsTo(COMMAND_HANG_UP_TELEPHONE)) {
-          setState(SESSION_ACTIVE);
+          setState(State::SESSION_ACTIVE);
           return;
         }
 
@@ -1245,7 +1248,7 @@ class LinkMobile {
         auto request = userRequests.peekRef();
 
         if (asyncCommand.respondsTo(COMMAND_DNS_QUERY)) {
-          if (request->type != UserRequest::DNS_QUERY)
+          if (request->type != UserRequest::Type::DNS_QUERY)
             return abort(Error::Type::WTF);
 
           if (asyncCommand.result == CommandResult::SUCCESS) {
@@ -1262,7 +1265,7 @@ class LinkMobile {
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_OPEN_TCP_CONNECTION) ||
                    asyncCommand.respondsTo(COMMAND_OPEN_UDP_CONNECTION)) {
-          if (request->type != UserRequest::OPEN_CONNECTION)
+          if (request->type != UserRequest::Type::OPEN_CONNECTION)
             return abort(Error::Type::WTF);
 
           if (asyncCommand.result == CommandResult::SUCCESS) {
@@ -1278,7 +1281,7 @@ class LinkMobile {
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_CLOSE_TCP_CONNECTION) ||
                    asyncCommand.respondsTo(COMMAND_CLOSE_UDP_CONNECTION)) {
-          if (request->type != UserRequest::CLOSE_CONNECTION)
+          if (request->type != UserRequest::Type::CLOSE_CONNECTION)
             return abort(Error::Type::WTF);
 
           request->close->success =
@@ -1286,12 +1289,12 @@ class LinkMobile {
           request->close->completed = true;
           request->finished = true;
         } else if (asyncCommand.respondsTo(COMMAND_TRANSFER_DATA)) {
-          if (request->type != UserRequest::TRANSFER)
+          if (request->type != UserRequest::Type::TRANSFER)
             return abort(Error::Type::WTF);
 
           handleTransferDataResponse(request);
         } else if (asyncCommand.respondsTo(COMMAND_CONNECTION_CLOSED)) {
-          if (request->type != UserRequest::TRANSFER)
+          if (request->type != UserRequest::Type::TRANSFER)
             return abort(Error::Type::WTF);
 
           // (connection closed)
@@ -1301,14 +1304,14 @@ class LinkMobile {
         }
         break;
       }
-      case ENDING_SESSION: {
+      case State::ENDING_SESSION: {
         if (!asyncCommand.respondsTo(COMMAND_END_SESSION))
           return;
 
-        setState(WAITING_8BIT_SWITCH);
+        setState(State::WAITING_8BIT_SWITCH);
         waitFrames = INIT_WAIT_FRAMES;
-        linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                          LinkSPI::DataSize::SIZE_8BIT);
+        linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
+                         LinkSPI::DataSize::SIZE_8BIT);
         break;
       }
       default: {
@@ -1317,7 +1320,7 @@ class LinkMobile {
   }
 
   void handleTransferDataResponse(UserRequest* request) {
-    if (request->type != UserRequest::TRANSFER)
+    if (request->type != UserRequest::Type::TRANSFER)
       return abort(Error::Type::WTF);
 
     if (asyncCommand.result == CommandResult::SUCCESS) {
@@ -1343,8 +1346,8 @@ class LinkMobile {
 
   void processLoosePacket(u32 newData) {
     switch (state) {
-      case PINGING: {
-        setState(WAITING_TO_START);
+      case State::PINGING: {
+        setState(State::WAITING_TO_START);
         waitFrames = INIT_WAIT_FRAMES;
         break;
       }
@@ -1362,8 +1365,8 @@ class LinkMobile {
   void cmdEndSession() { sendCommandAsync(buildCommand(COMMAND_END_SESSION)); }
 
   void cmdDialTelephone(const char* phoneNumber) {
-    addData(DIAL_PHONE_FIRST_BYTE[adapterType], true);
-    for (u32 i = 0; i < std::strlen(phoneNumber); i++)
+    addData(DIAL_PHONE_FIRST_BYTE[(int)adapterType], true);
+    for (u32 i = 0; i < Link::strlen(phoneNumber); i++)
       addData(phoneNumber[i]);
     sendCommandAsync(buildCommand(COMMAND_DIAL_TELEPHONE, true));
   }
@@ -1399,12 +1402,12 @@ class LinkMobile {
   }
 
   void cmdISPLogin(const char* loginId, const char* password) {
-    u32 loginIdLength = std::strlen(loginId);
+    u32 loginIdLength = Link::strlen(loginId);
     addData(loginIdLength, true);
     for (u32 i = 0; i < loginIdLength; i++)
       addData(loginId[i]);
 
-    u32 passwordLength = std::strlen(password);
+    u32 passwordLength = Link::strlen(password);
     addData(passwordLength);
     for (u32 i = 0; i < passwordLength; i++)
       addData(password[i]);
@@ -1421,8 +1424,8 @@ class LinkMobile {
   void cmdOpenTCPConnection(const u8* ip, u16 port) {
     for (u32 i = 0; i < 4; i++)
       addData(ip[i], i == 0);
-    addData(msB16(port));
-    addData(lsB16(port));
+    addData(Link::msB16(port));
+    addData(Link::lsB16(port));
     sendCommandAsync(buildCommand(COMMAND_OPEN_TCP_CONNECTION, true));
   }
 
@@ -1434,8 +1437,8 @@ class LinkMobile {
   void cmdOpenUDPConnection(const u8* ip, u16 port) {
     for (u32 i = 0; i < 4; i++)
       addData(ip[i], i == 0);
-    addData(msB16(port));
-    addData(lsB16(port));
+    addData(Link::msB16(port));
+    addData(Link::lsB16(port));
     sendCommandAsync(buildCommand(COMMAND_OPEN_UDP_CONNECTION, true));
   }
 
@@ -1445,7 +1448,7 @@ class LinkMobile {
   }
 
   void cmdDNSQuery(const u8* data, u8 size) {
-    for (int i = 0; i < size; i++)
+    for (u32 i = 0; i < size; i++)
       addData(data[i], i == 0);
     sendCommandAsync(buildCommand(COMMAND_DNS_QUERY, true));
   }
@@ -1474,7 +1477,7 @@ class LinkMobile {
   }
 
   bool shouldAbortOnStateTimeout() {
-    return state > NEEDS_RESET && state < SESSION_ACTIVE;
+    return state > State::NEEDS_RESET && state < State::SESSION_ACTIVE;
   }
 
   bool shouldAbortOnRequestTimeout() { return true; }
@@ -1505,7 +1508,7 @@ class LinkMobile {
   }
 
   void copyString(char* target, const char* source, u32 length) {
-    u32 len = std::strlen(source);
+    u32 len = Link::strlen(source);
 
     for (u32 i = 0; i < length + 1; i++)
       if (i < len)
@@ -1534,7 +1537,7 @@ class LinkMobile {
         .cmdIsSending =
             asyncCommand.direction == AsyncCommand::Direction::SENDING,
 
-        .reqType = userRequests.isEmpty() ? -1 : userRequests.peek().type};
+        .reqType = userRequests.isEmpty() ? -1 : (int)userRequests.peek().type};
 
     _LMLOG_(
         "!! %s:\n  error: %d\n  cmdId: %s$%X\n  cmdResult: %d\n  "
@@ -1558,32 +1561,34 @@ class LinkMobile {
   }
 
   void resetState() {
-    setState(NEEDS_RESET);
+    LINK_BARRIER;
+    setState(State::NEEDS_RESET);
 
-    this->adapterConfiguration = AdapterConfiguration{};
-    this->userRequests.clear();
-    this->asyncCommand.reset();
-    this->waitFrames = 0;
-    this->timeoutStateFrames = 0;
-    this->role = Role::NO_P2P_CONNECTION;
-    this->nextCommandDataSize = 0;
-    this->hasPendingTransfer = false;
-    this->pendingTransfer = 0;
-    this->adapterType = AdapterType::UNKNOWN;
+    adapterConfiguration = AdapterConfiguration{};
+    userRequests.clear();
+    asyncCommand.reset();
+    waitFrames = 0;
+    timeoutStateFrames = 0;
+    role = Role::NO_P2P_CONNECTION;
+    nextCommandDataSize = 0;
+    hasPendingTransfer = false;
+    pendingTransfer = 0;
+    adapterType = AdapterType::UNKNOWN;
 
     userRequests.syncClear();
+    LINK_BARRIER;
   }
 
   void stop() {
     stopTimer();
-    linkSPI->deactivate();
+    linkSPI.deactivate();
   }
 
   void start() {
-    linkSPI->activate(LinkSPI::Mode::MASTER_256KBPS,
-                      LinkSPI::DataSize::SIZE_8BIT);
+    linkSPI.activate(LinkSPI::Mode::MASTER_256KBPS,
+                     LinkSPI::DataSize::SIZE_8BIT);
 
-    setState(PINGING);
+    setState(State::PINGING);
     transferAsync(0);
   }
 
@@ -1605,7 +1610,8 @@ class LinkMobile {
     asyncCommand.isActive = true;
 
     if (isSIO32Mode())  // Magic+Header
-      advance32(buildU32(command.magicBytes.magic1, command.magicBytes.magic2,
+      advance32(
+          Link::buildU32(command.magicBytes.magic1, command.magicBytes.magic2,
                          command.header.commandId, command.header._unused_));
     else  // Magic Bytes (1)
       advance8(command.magicBytes.magic1);
@@ -1659,37 +1665,39 @@ class LinkMobile {
     if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
       advance32(dataSize > 0
-                    ? buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
-                               asyncCommand.cmd.header.size,
-                               asyncCommand.cmd.data.bytes[0],
-                               asyncCommand.cmd.data.bytes[1])
-                    : buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
-                               asyncCommand.cmd.header.size,
-                               asyncCommand.cmd.checksum.high,
-                               asyncCommand.cmd.checksum.low));
+                    ? Link::buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
+                                     asyncCommand.cmd.header.size,
+                                     asyncCommand.cmd.data.bytes[0],
+                                     asyncCommand.cmd.data.bytes[1])
+                    : Link::buildU32(asyncCommand.cmd.header._unusedSizeHigh_,
+                                     asyncCommand.cmd.header.size,
+                                     asyncCommand.cmd.checksum.high,
+                                     asyncCommand.cmd.checksum.low));
     } else if (asyncCommand.transferred < mainSize) {
       // Data || Data+Checksum
       u32 transferredDataCount = asyncCommand.transferred - PREAMBLE_SIZE;
       u32 pendingDataCount = (dataSize + padding) - transferredDataCount;
-      advance32(
-          pendingDataCount > 2
-              ? buildU32(asyncCommand.cmd.data.bytes[transferredDataCount],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 1],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 2],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 3])
-              : buildU32(asyncCommand.cmd.data.bytes[transferredDataCount],
-                         asyncCommand.cmd.data.bytes[transferredDataCount + 1],
-                         asyncCommand.cmd.checksum.high,
-                         asyncCommand.cmd.checksum.low));
+      advance32(pendingDataCount > 2
+                    ? Link::buildU32(
+                          asyncCommand.cmd.data.bytes[transferredDataCount],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 1],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 2],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 3])
+                    : Link::buildU32(
+                          asyncCommand.cmd.data.bytes[transferredDataCount],
+                          asyncCommand.cmd.data.bytes[transferredDataCount + 1],
+                          asyncCommand.cmd.checksum.high,
+                          asyncCommand.cmd.checksum.low));
     } else if (asyncCommand.transferred < mainSize + 4) {
       // Acknowledgement Signal (1)
-      advance32(buildU32(DEVICE_GBA | OR_VALUE, ACK_SENDER, 0, 0));
+      advance32(Link::buildU32(DEVICE_GBA | OR_VALUE, ACK_SENDER, 0, 0));
     } else {
       // Acknowledgement Signal (2)
-      u16 ackData = msB32(newData);
-      if (!isSupportedAdapter(msB16(ackData)))
+      u16 ackData = Link::msB32(newData);
+      if (!isSupportedAdapter(Link::msB16(ackData)))
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
-      if (lsB16(ackData) != (asyncCommand.cmd.header.commandId ^ OR_VALUE))
+      if (Link::lsB16(ackData) !=
+          (asyncCommand.cmd.header.commandId ^ OR_VALUE))
         return asyncCommand.fail(CommandResult::INVALID_COMMAND_ACK);
       asyncCommand.finish();
     }
@@ -1728,12 +1736,12 @@ class LinkMobile {
       advance8(GBA_WAITING);
     } else if (asyncCommand.transferred == mainSize) {
       // Packet Checksum (1)
-      if (newData != msB16(asyncCommand.expectedChecksum))
+      if (newData != Link::msB16(asyncCommand.expectedChecksum))
         return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
       advance8(GBA_WAITING);
     } else if (asyncCommand.transferred == mainSize + 1) {
       // Packet Checksum (2)
-      if (newData != lsB16(asyncCommand.expectedChecksum))
+      if (newData != Link::lsB16(asyncCommand.expectedChecksum))
         return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
       advance8(DEVICE_GBA | OR_VALUE);
     } else if (asyncCommand.transferred == mainSize + CHECKSUM_SIZE) {
@@ -1759,36 +1767,36 @@ class LinkMobile {
       // Magic+Header
       if (newData == ADAPTER_WAITING || newData == ADAPTER_WAITING_32BIT)
         return transferAsync(GBA_WAITING_32BIT);
-      u16 magic = msB32(newData);
-      u16 firstHalfHeader = lsB32(newData);
-      if (msB16(magic) != COMMAND_MAGIC_VALUE1 ||
-          lsB16(magic) != COMMAND_MAGIC_VALUE2)
+      u16 magic = Link::msB32(newData);
+      u16 firstHalfHeader = Link::lsB32(newData);
+      if (Link::msB16(magic) != COMMAND_MAGIC_VALUE1 ||
+          Link::lsB16(magic) != COMMAND_MAGIC_VALUE2)
         return asyncCommand.fail(CommandResult::INVALID_MAGIC_BYTES);
-      asyncCommand.cmd.header.commandId = msB16(firstHalfHeader);
-      asyncCommand.cmd.header._unused_ = lsB16(firstHalfHeader);
+      asyncCommand.cmd.header.commandId = Link::msB16(firstHalfHeader);
+      asyncCommand.cmd.header._unused_ = Link::lsB16(firstHalfHeader);
       advance32(GBA_WAITING_32BIT);
     } else if (asyncCommand.transferred == 4) {
       // Header+Data || Header+Checksum
-      u16 secondHalfHeader = msB32(newData);
-      asyncCommand.cmd.header._unusedSizeHigh_ = msB16(secondHalfHeader);
-      asyncCommand.cmd.header.size = lsB16(secondHalfHeader);
+      u16 secondHalfHeader = Link::msB32(newData);
+      asyncCommand.cmd.header._unusedSizeHigh_ = Link::msB16(secondHalfHeader);
+      asyncCommand.cmd.header.size = Link::lsB16(secondHalfHeader);
       if (asyncCommand.cmd.header._unusedSizeHigh_ != 0 ||
           asyncCommand.cmd.header.size >
               LINK_MOBILE_MAX_COMMAND_TRANSFER_LENGTH)
         return asyncCommand.fail(CommandResult::WEIRD_DATA_SIZE);
       asyncCommand.expectedChecksum = asyncCommand.cmd.header.sum();
       if (asyncCommand.cmd.header.size > 0) {
-        u16 firstData = lsB32(newData);
-        u8 b0 = msB16(firstData), b1 = lsB16(firstData);
+        u16 firstData = Link::lsB32(newData);
+        u8 b0 = Link::msB16(firstData), b1 = Link::lsB16(firstData);
         asyncCommand.cmd.data.bytes[0] = b0;
         asyncCommand.cmd.data.bytes[1] = b1;
         asyncCommand.expectedChecksum += b0 + b1;
       } else {
-        u16 checksum = lsB32(newData);
+        u16 checksum = Link::lsB32(newData);
         if (checksum != asyncCommand.expectedChecksum)
           return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
-        asyncCommand.cmd.checksum.high = msB16(checksum);
-        asyncCommand.cmd.checksum.low = lsB16(checksum);
+        asyncCommand.cmd.checksum.high = Link::msB16(checksum);
+        asyncCommand.cmd.checksum.low = Link::lsB16(checksum);
       }
       advance32(GBA_WAITING_32BIT);
     } else if (asyncCommand.transferred < mainSize) {
@@ -1796,10 +1804,10 @@ class LinkMobile {
       u32 transferredDataCount = asyncCommand.transferred - PREAMBLE_SIZE;
       u32 pendingDataCount = (dataSize + padding) - transferredDataCount;
       if (pendingDataCount > 2) {
-        u16 dataHigh = msB32(newData);
-        u16 dataLow = lsB32(newData);
-        u8 b0 = msB16(dataHigh), b1 = lsB16(dataHigh), b2 = msB16(dataLow),
-           b3 = lsB16(dataLow);
+        u16 dataHigh = Link::msB32(newData);
+        u16 dataLow = Link::lsB32(newData);
+        u8 b0 = Link::msB16(dataHigh), b1 = Link::lsB16(dataHigh),
+           b2 = Link::msB16(dataLow), b3 = Link::lsB16(dataLow);
         asyncCommand.cmd.data.bytes[transferredDataCount] = b0;
         asyncCommand.cmd.data.bytes[transferredDataCount + 1] = b1;
         asyncCommand.cmd.data.bytes[transferredDataCount + 2] = b2;
@@ -1807,23 +1815,25 @@ class LinkMobile {
         asyncCommand.expectedChecksum += b0 + b1 + b2 + b3;
         advance32(GBA_WAITING_32BIT);
       } else {
-        u16 lastData = msB32(newData);
-        u8 b0 = msB16(lastData), b1 = lsB16(lastData);
+        u16 lastData = Link::msB32(newData);
+        u8 b0 = Link::msB16(lastData), b1 = Link::lsB16(lastData);
         asyncCommand.cmd.data.bytes[transferredDataCount] = b0;
         asyncCommand.cmd.data.bytes[transferredDataCount + 1] = b1;
         asyncCommand.expectedChecksum += b0 + b1;
-        u16 checksum = lsB32(newData);
+        u16 checksum = Link::lsB32(newData);
         if (checksum != asyncCommand.expectedChecksum)
           return asyncCommand.fail(CommandResult::WRONG_CHECKSUM);
-        asyncCommand.cmd.checksum.high = msB16(checksum);
-        asyncCommand.cmd.checksum.low = lsB16(checksum);
-        advance32(buildU32(DEVICE_GBA | OR_VALUE,
-                           asyncCommand.cmd.header.commandId ^ OR_VALUE, 0, 0));
+        asyncCommand.cmd.checksum.high = Link::msB16(checksum);
+        asyncCommand.cmd.checksum.low = Link::lsB16(checksum);
+        advance32(Link::buildU32(DEVICE_GBA | OR_VALUE,
+                                 asyncCommand.cmd.header.commandId ^ OR_VALUE,
+                                 0, 0));
       }
     } else {
       // Acknowledgement Signal
-      u32 ackData = msB32(newData);
-      if (!isSupportedAdapter(msB16(ackData)) || lsB16(ackData) != ACK_SENDER)
+      u32 ackData = Link::msB32(newData);
+      if (!isSupportedAdapter(Link::msB16(ackData)) ||
+          Link::lsB16(ackData) != ACK_SENDER)
         return asyncCommand.fail(CommandResult::INVALID_DEVICE_ID);
       asyncCommand.finish();
     }
@@ -1853,8 +1863,8 @@ class LinkMobile {
     u16 checksum = command.header.sum();
     for (u32 i = 0; i < command.header.size; i++)
       checksum += command.data.bytes[i];
-    command.checksum.high = msB16(checksum);
-    command.checksum.low = lsB16(checksum);
+    command.checksum.high = Link::msB16(checksum);
+    command.checksum.low = Link::lsB16(checksum);
 
     return command;
   }
@@ -1876,18 +1886,9 @@ class LinkMobile {
   }
 
   bool isSIO32Mode() {
-    return linkSPI->getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
+    return linkSPI.getDataSize() == LinkSPI::DataSize::SIZE_32BIT;
   }
 
-  static u32 buildU32(u8 msB, u8 byte2, u8 byte3, u8 lsB) {
-    return ((msB & 0xFF) << 24) | ((byte2 & 0xFF) << 16) |
-           ((byte3 & 0xFF) << 8) | (lsB & 0xFF);
-  }
-  static u16 buildU16(u8 msB, u8 lsB) { return (msB << 8) | lsB; }
-  static u16 msB32(u32 value) { return value >> 16; }
-  static u16 lsB32(u32 value) { return value & 0xffff; }
-  static u8 msB16(u16 value) { return value >> 8; }
-  static u8 lsB16(u16 value) { return value & 0xff; }
   bool isBitHigh(u8 byte, u8 bit) { return (byte >> bit) & 1; }
 };
 

@@ -2,7 +2,6 @@
 #include "../LinkPS2Mouse.hpp"
 
 extern "C" {
-
 C_LinkPS2MouseHandle C_LinkPS2Mouse_create(u8 waitTimerId) {
   return new LinkPS2Mouse(waitTimerId);
 }
@@ -26,8 +25,7 @@ void C_LinkPS2Mouse_deactivate(C_LinkPS2MouseHandle handle) {
 void C_LinkPS2Mouse_report(C_LinkPS2MouseHandle handle, int data[3]) {
   int d[3];
   static_cast<LinkPS2Mouse*>(handle)->report(d);
-  for (u32 i = 0; i < 3; i++) {
+  for (u32 i = 0; i < 3; i++)
     data[i] = d[i];
-  }
 }
 }

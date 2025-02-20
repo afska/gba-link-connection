@@ -21,7 +21,7 @@
 // --------------------------------------------------------------------------
 // considerations:
 // - always set the SI terminal to an input!
-// - call reset() when you finish doing GPIO stuff!
+// - call `reset()` when you finish doing GPIO stuff!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -30,24 +30,27 @@
 
 #include "_link_common.hpp"
 
+LINK_VERSION_TAG LINK_GPIO_VERSION = "vLinkGPIO/v8.0.0";
+
 /**
  * @brief A General Purpose Input-Output handler for the Link Port.
  */
 class LinkGPIO {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
+  using vu16 = Link::vu16;
 
-  static constexpr int RCNT_GENERAL_PURPOSE = (1 << 15);
+  static constexpr int RCNT_GENERAL_PURPOSE = 1 << 15;
   static constexpr int SIOCNT_GENERAL_PURPOSE = 0;
   static constexpr int BIT_SI_INTERRUPT = 8;
   static constexpr u8 DATA_BITS[] = {2, 3, 1, 0};
   static constexpr u8 DIRECTION_BITS[] = {6, 7, 5, 4};
 
  public:
-  enum Pin { SI, SO, SD, SC };
-  enum Direction { INPUT, OUTPUT };
+  enum class Pin { SI, SO, SD, SC };
+  enum class Direction { INPUT, OUTPUT };
 
   /**
    * @brief Resets communication mode to General Purpose (same as
@@ -55,6 +58,8 @@ class LinkGPIO {
    * \warning Required to initialize the library!
    */
   void reset() {
+    LINK_READ_TAG(LINK_GPIO_VERSION);
+
     Link::_REG_RCNT = RCNT_GENERAL_PURPOSE;
     Link::_REG_SIOCNT = SIOCNT_GENERAL_PURPOSE;
   }
@@ -65,7 +70,7 @@ class LinkGPIO {
    * @param direction One of the enum values from `LinkGPIO::Direction`.
    */
   void setMode(Pin pin, Direction direction) {
-    setBit(Link::_REG_RCNT, DIRECTION_BITS[pin],
+    setBit(Link::_REG_RCNT, DIRECTION_BITS[(int)pin],
            direction == Direction::OUTPUT);
   }
 
@@ -73,7 +78,7 @@ class LinkGPIO {
    * @brief Returns the direction set at `pin`.
    */
   [[nodiscard]] Direction getMode(Pin pin) {
-    return Direction(getBit(Link::_REG_RCNT, DIRECTION_BITS[pin]));
+    return Direction(getBit(Link::_REG_RCNT, DIRECTION_BITS[(int)pin]));
   }
 
   /**
@@ -81,7 +86,7 @@ class LinkGPIO {
    * @param pin One of the enum values from `LinkGPIO::Pin`.
    */
   [[nodiscard]] bool readPin(Pin pin) {
-    return (Link::_REG_RCNT & (1 << DATA_BITS[pin])) != 0;
+    return (Link::_REG_RCNT & (1 << DATA_BITS[(int)pin])) != 0;
   }
 
   /**
@@ -90,7 +95,7 @@ class LinkGPIO {
    * @param isHigh `true` = HIGH, `false` = LOW.
    */
   void writePin(Pin pin, bool isHigh) {
-    setBit(Link::_REG_RCNT, DATA_BITS[pin], isHigh);
+    setBit(Link::_REG_RCNT, DATA_BITS[(int)pin], isHigh);
   }
 
   /**
@@ -102,10 +107,15 @@ class LinkGPIO {
     setBit(Link::_REG_RCNT, BIT_SI_INTERRUPT, isEnabled);
   }
 
+  /**
+   * @brief Returns whether SI-falling interrupts are enabled or not.
+   */
+  bool getSIInterrupts() { return getBit(Link::_REG_RCNT, BIT_SI_INTERRUPT); }
+
  private:
   int getBit(u16 reg, int bit) { return (reg >> bit) & 1; }
 
-  void setBit(volatile u16& reg, int bit, bool data) {
+  void setBit(vu16& reg, int bit, bool data) {
     if (data)
       reg |= 1 << bit;
     else

@@ -9,8 +9,8 @@ extern "C" {
 
 typedef void* C_LinkSPIHandle;
 
-#define C_LINK_SPI_NO_DATA_32 0xffffffff
-#define C_LINK_SPI_NO_DATA_8 0xff
+#define C_LINK_SPI_NO_DATA_32 0xFFFFFFFF
+#define C_LINK_SPI_NO_DATA_8 0xFF
 #define C_LINK_SPI_NO_DATA LINK_SPI_NO_DATA_32
 
 typedef enum {

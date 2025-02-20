@@ -5,6 +5,7 @@ node_modules/
 
 # Files
 examples/multiboot
+loader.gbfs
 .DS_Store
 *.elf
 *.gba

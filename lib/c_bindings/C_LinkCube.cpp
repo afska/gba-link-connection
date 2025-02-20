@@ -2,7 +2,6 @@
 #include "../LinkCube.hpp"
 
 extern "C" {
-
 C_LinkCubeHandle C_LinkCube_create() {
   return new LinkCube();
 }
@@ -49,6 +48,10 @@ void C_LinkCube_send(C_LinkCubeHandle handle, u32 data) {
 
 u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle) {
   return static_cast<LinkCube*>(handle)->pendingCount();
+}
+
+bool C_LinkCube_didQueueOverflow(C_LinkCubeHandle handle, bool clear) {
+  return static_cast<LinkCube*>(handle)->didQueueOverflow(clear);
 }
 
 bool C_LinkCube_didReset(C_LinkCubeHandle handle, bool clear) {

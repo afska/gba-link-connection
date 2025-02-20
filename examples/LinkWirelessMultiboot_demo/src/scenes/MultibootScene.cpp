@@ -4,15 +4,13 @@
 #include "MultibootScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
-#include <string.h>
-#include <tonc.h>
+#include <cstring>
 #include <functional>
-
-#include "utils/InputHandler.h"
-#include "utils/SceneUtils.h"
+#include "../../../_lib/common.h"
+#include "../../../_lib/libgba-sprite-engine/scene.h"
 
 extern "C" {
-#include "../../_lib/libgbfs/gbfs.h"
+#include "../../../_lib/libgbfs/gbfs.h"
 }
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
@@ -157,7 +155,7 @@ void launchROM() {
       (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
 
   void* EWRAM = (void*)0x02000000;
-  memcpy(EWRAM, romToSend, fileLength);
+  std::memcpy(EWRAM, romToSend, fileLength);
 
   asm volatile(
       "mov r0, %0\n"
@@ -188,14 +186,12 @@ void MultibootScene::load() {
 #endif
 
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
-  linkWirelessMultiboot->linkRawWireless->logger = [](std::string string) {
-    log(string);
-  };
+  linkWirelessMultiboot->_setLogger([](std::string string) { log(string); });
 #endif
 
   log("---");
-  log("LinkWirelessMultiboot demo");
-  log("  (v7.0.3)");
+  log("LinkWirelessMultiboot_demo");
+  log("  (v8.0.0)");
   log("");
   if (fs == NULL) {
     log("! GBFS file not found");
@@ -260,13 +256,25 @@ void MultibootScene::processButtons() {
     printFile();
 
     // (2) Send the ROM
+    u32 percentage = 0;
     auto result = linkWirelessMultiboot->sendRom(
-        romToSend, fileLength, "Multiboot", "Test", 0xffff, players,
-        [](LinkWirelessMultiboot::MultibootProgress progress) {
+        romToSend, fileLength, "Multiboot", "Test", 0xFFFF, players,
+        [&percentage](LinkWirelessMultiboot::MultibootProgress progress) {
+          // Show progress
+          if (percentage != progress.percentage) {
+            percentage = progress.percentage;
+            log("-> " + std::to_string(percentage));
+          }
+
           u16 keys = ~REG_KEYS & KEY_ANY;
+          if (keys & KEY_SELECT) {
+            // SELECT = Start transfer before the player count is reached
+            *progress.ready = true;
+          }
           return (keys & KEY_L) && (keys & KEY_R);
-        });
-    log("-> result: " + std::to_string(result));
+        },
+        true);
+    log("-> result: " + std::to_string((int)result));
     print();
   }
 

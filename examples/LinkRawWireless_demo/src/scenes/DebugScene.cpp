@@ -1,14 +1,14 @@
+#define LINK_RAW_WIRELESS_ENABLE_LOGGING
+
 #include "../../../../lib/LinkRawWireless.hpp"
 
 #include "DebugScene.h"
 
 #include <libgba-sprite-engine/background/text_stream.h>
-#include <tonc.h>
 #include <algorithm>
 #include <functional>
-
-#include "utils/InputHandler.h"
-#include "utils/SceneUtils.h"
+#include "../../../_lib/common.h"
+#include "../../../_lib/libgba-sprite-engine/scene.h"
 
 DebugScene::DebugScene(std::shared_ptr<GBAEngine> engine) : Scene(engine) {}
 
@@ -27,6 +27,8 @@ static std::unique_ptr<InputHandler> rHandler =
 static std::unique_ptr<InputHandler> selectHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 static std::unique_ptr<InputHandler> startHandler =
+    std::unique_ptr<InputHandler>(new InputHandler());
+static std::unique_ptr<InputHandler> rightHandler =
     std::unique_ptr<InputHandler>(new InputHandler());
 
 static std::vector<std::string> logLines;
@@ -112,12 +114,8 @@ void log(std::string string) {
   scrollPageDown();
 }
 
-std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> toArray(
-    std::vector<u32> vector) {
-  std::array<u32, LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH> array;
-  for (u32 i = 0; i < vector.size(); i++)
-    array[i] = vector[i];
-  return array;
+const u32* toArray(std::vector<u32> vector) {
+  return vector.data();
 }
 
 std::vector<Background*> DebugScene::backgrounds() {
@@ -139,10 +137,11 @@ void DebugScene::load() {
   };
 
   log("---");
-  log("LinkRawWireless demo");
-  log("  (v7.0.3)");
+  log("LinkRawWireless_demo");
+  log("  (v8.0.0)");
   log("");
   log("START: reset wireless adapter");
+  log("RIGHT: restore from multiboot");
   log("A: send command");
   log("B: toggle log level");
   log("UP/DOWN: scroll up/down");
@@ -214,19 +213,19 @@ void DebugScene::addCommandMenuOptions() {
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x19 (StartHost)", .command = 0x19});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1a (AcceptConnections)", .command = 0x1a});
+      CommandMenuOption{.name = "0x1A (PollConnections)", .command = 0x1A});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1b (EndHost)", .command = 0x1b});
+      CommandMenuOption{.name = "0x1B (EndHost)", .command = 0x1B});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1c (BroadcastRead1)", .command = 0x1c});
+      CommandMenuOption{.name = "0x1C (BroadcastReadStart)", .command = 0x1C});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1d (BroadcastRead2)", .command = 0x1d});
+      CommandMenuOption{.name = "0x1D (BroadcastReadPoll)", .command = 0x1D});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1e (BroadcastRead3)", .command = 0x1e});
+      CommandMenuOption{.name = "0x1E (BroadcastReadEnd)", .command = 0x1E});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x1f (Connect)", .command = 0x1f});
-  commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x20 (IsFinishedConnect)", .command = 0x20});
+      CommandMenuOption{.name = "0x1F (Connect)", .command = 0x1F});
+  commandMenuOptions.push_back(CommandMenuOption{
+      .name = "0x20 (IsConnectionComplete)", .command = 0x20});
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x21 (FinishConnection)", .command = 0x21});
   commandMenuOptions.push_back(
@@ -254,7 +253,7 @@ void DebugScene::addCommandMenuOptions() {
   commandMenuOptions.push_back(
       CommandMenuOption{.name = "0x39 (?)", .command = 0x39});
   commandMenuOptions.push_back(
-      CommandMenuOption{.name = "0x3d (Bye)", .command = 0x3d});
+      CommandMenuOption{.name = "0x3D (Bye)", .command = 0x3D});
 }
 
 void DebugScene::processKeys(u16 keys) {
@@ -266,6 +265,7 @@ void DebugScene::processKeys(u16 keys) {
   rHandler->setIsPressed(keys & KEY_R);
   selectHandler->setIsPressed(keys & KEY_SELECT);
   startHandler->setIsPressed(keys & KEY_START);
+  rightHandler->setIsPressed(keys & KEY_RIGHT);
 }
 
 void DebugScene::processButtons() {
@@ -314,6 +314,9 @@ void DebugScene::processButtons() {
 
   if (startHandler->hasBeenPressedNow())
     resetAdapter();
+
+  if (rightHandler->hasBeenPressedNow())
+    restoreExistingConnection();
 }
 
 void DebugScene::toggleLogLevel() {
@@ -426,9 +429,9 @@ again2:
   if (byte3 == -1)
     goto again2;
 
-  u16 numberLow = linkRawWireless->buildU16((u8)byte1, (u8)byte0);
-  u16 numberHigh = linkRawWireless->buildU16((u8)byte3, (u8)byte2);
-  u32 number = linkRawWireless->buildU32(numberHigh, numberLow);
+  u16 numberLow = Link::buildU16((u8)byte1, (u8)byte0);
+  u16 numberHigh = Link::buildU16((u8)byte3, (u8)byte2);
+  u32 number = Link::buildU32(numberHigh, numberLow);
   if (selectOption(">> 0x" + linkRawWireless->toHex(number, 8) + "?",
                    std::vector<std::string>{"yes", "no"}) == 1)
     goto again0;
@@ -445,7 +448,7 @@ again:
   if (msB == -1)
     goto again;
 
-  u16 number = linkRawWireless->buildU16((u8)msB, (u8)lsB);
+  u16 number = Link::buildU16((u8)msB, (u8)lsB);
   if (selectOption(">> 0x" + linkRawWireless->toHex(number, 4) + "?",
                    std::vector<std::string>{"yes", "no"}) == 1)
     goto again;
@@ -471,9 +474,37 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
   switch (command) {
     case 0x10:
     case 0x11:
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::SignalLevelResponse response;
+        bool success = linkRawWireless->getSignalLevel(response);
+
+        if (success) {
+          log("< [levelH] " + std::to_string(response.signalLevels[0]));
+          log("< [levelC0] " + std::to_string(response.signalLevels[1]));
+          log("< [levelC1] " + std::to_string(response.signalLevels[2]));
+          log("< [levelC2] " + std::to_string(response.signalLevels[3]));
+          log("< [levelC3] " + std::to_string(response.signalLevels[4]));
+        }
+
+        return success;
+      });
     case 0x12:
-    case 0x13:
       goto simple;
+    case 0x13: {
+      return logOperation("sending " + name, []() {
+        LinkRawWireless::SystemStatusResponse response;
+        bool success = linkRawWireless->getSystemStatus(response);
+
+        if (success) {
+          log("< [device id] " + linkRawWireless->toHex(response.deviceId, 4));
+          log("< [player id] " + std::to_string(response.currentPlayerId));
+          log("< [state] " + std::to_string((int)response.adapterState));
+          log("< [closed] " + std::to_string(response.isServerClosed));
+        }
+
+        return success;
+      });
+    }
     case 0x14: {
       return logOperation("sending " + name, []() {
         LinkRawWireless::SlotStatusResponse response;
@@ -551,10 +582,10 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       return logOperation("sending " + name,
                           []() { return linkRawWireless->startHost(); });
     }
-    case 0x1a: {
+    case 0x1A: {
       return logOperation("sending " + name, []() {
-        LinkRawWireless::AcceptConnectionsResponse response;
-        bool success = linkRawWireless->acceptConnections(response);
+        LinkRawWireless::PollConnectionsResponse response;
+        bool success = linkRawWireless->pollConnections(response);
 
         if (success) {
           for (u32 i = 0; i < response.connectedClientsSize; i++) {
@@ -569,9 +600,9 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
-    case 0x1b: {
+    case 0x1B: {
       return logOperation("sending " + name, []() {
-        LinkRawWireless::AcceptConnectionsResponse response;
+        LinkRawWireless::PollConnectionsResponse response;
         bool success = linkRawWireless->endHost(response);
 
         if (success) {
@@ -587,17 +618,17 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         return success;
       });
     }
-    case 0x1c: {
+    case 0x1C: {
       return logOperation("sending " + name, []() {
         bool success = linkRawWireless->broadcastReadStart();
 
         if (success)
-          log("NOW CALL 0x1d!");
+          log("NOW CALL 0x1D!");
 
         return success;
       });
     }
-    case 0x1d: {
+    case 0x1D: {
       return logOperation("sending " + name, [this]() {
         LinkRawWireless::BroadcastReadPollResponse response;
         bool success = linkRawWireless->broadcastReadPoll(response);
@@ -620,25 +651,25 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
           }
 
           if (response.serversSize > 0)
-            log("NOW CALL 0x1e!");
+            log("NOW CALL 0x1E!");
           else
-            log("No rooms? NOW CALL 0x1e!");
+            log("No rooms? NOW CALL 0x1E!");
         }
 
         return success;
       });
     }
-    case 0x1e: {
+    case 0x1E: {
       return logOperation("sending " + name, []() {
         bool success = linkRawWireless->broadcastReadEnd();
 
         if (success)
-          log("NOW CALL 0x1f!");
+          log("NOW CALL 0x1F!");
 
         return success;
       });
     }
-    case 0x1f: {
+    case 0x1F: {
       u16 serverId = selectServerId();
       if (serverId == -1)
         return;
@@ -660,9 +691,13 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
         bool success = linkRawWireless->keepConnecting(response);
 
         if (success) {
-          log(std::string("< [phase] ") + (response.phase == 0   ? "CONNECTING"
-                                           : response.phase == 1 ? "ERROR"
-                                                                 : "SUCCESS"));
+          log(std::string("< [phase] ") +
+              (response.phase ==
+                       LinkRawWireless::ConnectionPhase::STILL_CONNECTING
+                   ? "CONNECTING"
+               : response.phase == LinkRawWireless::ConnectionPhase::ERROR
+                   ? "ERROR"
+                   : "SUCCESS"));
           if (response.phase == LinkRawWireless::ConnectionPhase::SUCCESS)
             log("< [slot] " + std::to_string(response.assignedClientNumber));
 
@@ -691,24 +726,56 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       auto data = selectDataToSend();
       if (data.empty())
         return;
-      u32 bytes = data[0];
-      data.erase(data.begin());
 
-      return logOperation("sending " + name, [&data, bytes]() {
-        LinkRawWireless::RemoteCommand remoteCommand;
-        bool success = linkRawWireless->sendDataAndWait(
-            toArray(data), data.size(), remoteCommand, bytes);
+      if (selectOption("What mode?",
+                       std::vector<std::string>{"sync", "async"}) == 1) {
+        return logOperation("sending " + name, [&data]() {
+          u32 bytes = data[0];
+          data[0] = linkRawWireless->getSendDataHeaderFor(bytes);
 
-        if (success) {
-          log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
-          for (u32 i = 0; i < remoteCommand.paramsSize; i++) {
-            log("< [param" + std::to_string(i) + "] " +
-                linkRawWireless->toHex(remoteCommand.params[i]));
+          bool success = linkRawWireless->sendCommandAsync(0x25, toArray(data),
+                                                           data.size(), true);
+          if (!success) {
+            log("! not now");
+            return false;
           }
-        }
 
-        return success;
-      });
+          while (linkRawWireless->getAsyncState() ==
+                 LinkRawWireless::AsyncState::WORKING)
+            ;
+
+          auto result = linkRawWireless->getAsyncCommandResult();
+
+          if (result.success) {
+            log("< [notif] " + linkRawWireless->toHex(result.commandId));
+            for (u32 i = 0; i < result.dataSize; i++) {
+              log("< [param" + std::to_string(i) + "] " +
+                  linkRawWireless->toHex(result.data[i]));
+            }
+          }
+
+          return success;
+        });
+      } else {
+        u32 bytes = data[0];
+        data.erase(data.begin());
+
+        return logOperation("sending " + name, [&data, bytes]() {
+          LinkRawWireless::CommandResult remoteCommand;
+          bool success = linkRawWireless->sendDataAndWait(
+              toArray(data), data.size(), remoteCommand, bytes);
+
+          if (success) {
+            log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
+            for (u32 i = 0; i < remoteCommand.dataSize; i++) {
+              log("< [param" + std::to_string(i) + "] " +
+                  linkRawWireless->toHex(remoteCommand.data[i]));
+            }
+          }
+
+          return success;
+        });
+      }
     }
     case 0x26: {
       return logOperation("sending " + name, []() {
@@ -732,21 +799,39 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     }
     case 0x27: {
       return logOperation("sending " + name, []() {
-        LinkRawWireless::RemoteCommand remoteCommand;
+        LinkRawWireless::CommandResult remoteCommand;
         bool success = linkRawWireless->wait(remoteCommand);
 
         if (success) {
           log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
-          for (u32 i = 0; i < remoteCommand.paramsSize; i++) {
+          for (u32 i = 0; i < remoteCommand.dataSize; i++) {
             log("< [param" + std::to_string(i) + "] " +
-                linkRawWireless->toHex(remoteCommand.params[i]));
+                linkRawWireless->toHex(remoteCommand.data[i]));
           }
         }
 
         return success;
       });
     }
-    case 0x30:
+    case 0x30: {
+      bool client0 = selectOption("Disconnect client 0?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+      bool client1 = selectOption("Disconnect client 1?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+      bool client2 = selectOption("Disconnect client 2?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+      bool client3 = selectOption("Disconnect client 3?",
+                                  std::vector<std::string>{"yes", "no"}) == 0;
+
+      return logOperation("sending " + name,
+                          [client0, client1, client2, client3]() {
+                            bool success = linkRawWireless->disconnectClient(
+                                client0, client1, client2, client3);
+                            if (success)
+                              log("DISCONNECTED!");
+                            return success;
+                          });
+    }
     case 0x32:
     case 0x33:
     case 0x34:
@@ -757,7 +842,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
     case 0x38:
     case 0x39:
       goto generic;
-    case 0x3d:
+    case 0x3D:
       goto simple;
     default:
       return;
@@ -810,13 +895,13 @@ int DebugScene::selectGameId() {
       "GameID?",
       std::vector<std::string>{"0x7FFF", "0x1234", "<random>", "<pick>"})) {
     case 0: {
-      return 0x7fff;
+      return 0x7FFF;
     }
     case 1: {
       return 0x1234;
     }
     case 2: {
-      return linkRawWireless->buildU16(qran_range(0, 256), qran_range(0, 256));
+      return Link::buildU16(qran_range(0, 256), qran_range(0, 256));
     }
     default: {
       return selectU16();
@@ -847,6 +932,10 @@ std::vector<u32> DebugScene::selectDataToSend() {
     return data;
 
   data.push_back(bytes);
+
+  if (selectOption(">> Include data?", std::vector<std::string>{"yes", "no"}) ==
+      1)
+    return data;
 
   u32 words = (bytes + 3) / 4;
   for (u32 i = 0; i < (u32)words; i++) {
@@ -898,9 +987,9 @@ void DebugScene::logGenericWaitCommand(std::string name, u32 id) {
   return logOperation("sending " + name, [id, &data]() {
     auto result =
         linkRawWireless->sendCommand(id, toArray(data), data.size(), true);
-    for (u32 i = 0; i < result.responsesSize; i++) {
+    for (u32 i = 0; i < result.dataSize; i++) {
       log("< [response" + std::to_string(i) + "] " +
-          linkRawWireless->toHex(result.responses[i]));
+          linkRawWireless->toHex(result.data[i]));
     }
 
     if (!result.success)
@@ -908,14 +997,14 @@ void DebugScene::logGenericWaitCommand(std::string name, u32 id) {
 
     log("Now WAITING...");
 
-    LinkRawWireless::RemoteCommand remoteCommand =
+    LinkRawWireless::CommandResult remoteCommand =
         linkRawWireless->receiveCommandFromAdapter();
 
     if (remoteCommand.success) {
       log("< [notif] " + linkRawWireless->toHex(remoteCommand.commandId));
-      for (u32 i = 0; i < remoteCommand.paramsSize; i++) {
+      for (u32 i = 0; i < remoteCommand.dataSize; i++) {
         log("< [param" + std::to_string(i) + "] " +
-            linkRawWireless->toHex(remoteCommand.params[i]));
+            linkRawWireless->toHex(remoteCommand.data[i]));
       }
     }
 
@@ -934,9 +1023,9 @@ void DebugScene::logSimpleCommand(std::string name,
   logOperation("sending " + name, [id, &params]() {
     auto result =
         linkRawWireless->sendCommand(id, toArray(params), params.size());
-    for (u32 i = 0; i < result.responsesSize; i++) {
+    for (u32 i = 0; i < result.dataSize; i++) {
       log("< [response" + std::to_string(i) + "] " +
-          linkRawWireless->toHex(result.responses[i]));
+          linkRawWireless->toHex(result.data[i]));
     }
     return result.success;
   });
@@ -953,4 +1042,9 @@ void DebugScene::logOperation(std::string name,
 void DebugScene::resetAdapter() {
   logOperation("resetting adapter",
                []() { return linkRawWireless->activate(); });
+}
+
+void DebugScene::restoreExistingConnection() {
+  logOperation("restoring from multiboot",
+               []() { return linkRawWireless->restoreExistingConnection(); });
 }

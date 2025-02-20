@@ -13,15 +13,15 @@
 
 The Mobile Adapter GB was an accessory designed to allow the Game Boy Color, and later the Game Boy Advance, to connect online via cellular networks in Japan. Released on January 27, 2001, it supported a limited number of games before service was shutdown on December 14, 2002. Many of the compatible games supported features such on mail clients, downloadable bonus content, player-versus-player modes, and even online tournaments. It represented Nintendo's first official attempt at online gaming for its handhelds.
 
-*   The Mobile Adapter is a small device that essentially allows a Japanese phone to connect to the Game Boy's link port
-*   Model number is CGB-005
-*   Officially released with 3 different versions of the Mobile Adapter. Each featured distinct colors to work with different type of phones
-*   Each Mobile Adapter came packaged with a cartridge called the Mobile Trainer to help configure and setup the device
-*   Servers were formally hosted at gameboy.datacenter.ne.jp
+- The Mobile Adapter is a small device that essentially allows a Japanese phone to connect to the Game Boy's link port
+- Model number is CGB-005
+- Officially released with 3 different versions of the Mobile Adapter. Each featured distinct colors to work with different type of phones
+- Each Mobile Adapter came packaged with a cartridge called the Mobile Trainer to help configure and setup the device
+- Servers were formally hosted at gameboy.datacenter.ne.jp
 
 Below, the Mobile Adapter variants are explained in further detail:
 
-Blue  -> Used to connect PDC phones.
+Blue -> Used to connect PDC phones.
 Yellow -> Used to connect cdmaOne phones.
 Red -> Used to connect DDI phones.
 Green -> Would have been used to connect PHS phones, but this version was never released.
@@ -32,31 +32,31 @@ There are currently 22 known games that are compatible with the Mobile Adapter:
 
 Game Boy Color : 6 Total
 
-*   Game Boy Wars 3
-*   Hello Kitty: Happy House
-*   Mobile Golf
-*   Mobile Trainer
-*   Net de Get Minigames @ 100
-*   Pocket Monsters Crystal Version
+- Game Boy Wars 3
+- Hello Kitty: Happy House
+- Mobile Golf
+- Mobile Trainer
+- Net de Get Minigames @ 100
+- Pocket Monsters Crystal Version
 
 Game Boy Advance : 16 Total
 
-*   All-Japan GT Championship
-*   Daisenryaku For Game Boy Advance
-*   Doraemon: Midori no Wakusei Doki Doki Daikyuushuutsu!
-*   Exciting Bass
-*   EX Monopoly
-*   JGTO Licensed: Golfmaster Mobile
-*   Kinniku Banzuke ~Kongou-kun no Daibouken!~
-*   Mail de Cute
-*   Mario Kart Advance
-*   Mobile Pro Baseball: Control Baton
-*   Monster Guardians
-*   Morita Shougi Advance
-*   Napoleon
-*   Play Novel: Silent Hill
-*   Starcom: Star Communicator
-*   Zero-Tours
+- All-Japan GT Championship
+- Daisenryaku For Game Boy Advance
+- Doraemon: Midori no Wakusei Doki Doki Daikyuushuutsu!
+- Exciting Bass
+- EX Monopoly
+- JGTO Licensed: Golfmaster Mobile
+- Kinniku Banzuke ~Kongou-kun no Daibouken!~
+- Mail de Cute
+- Mario Kart Advance
+- Mobile Pro Baseball: Control Baton
+- Monster Guardians
+- Morita Shougi Advance
+- Napoleon
+- Play Novel: Silent Hill
+- Starcom: Star Communicator
+- Zero-Tours
 
 Two games were planned but later cancelled: **beatmaniaGB Net Jam** for the GBC and **Horse Racing Creating Derby** for the GBA.
 
@@ -68,7 +68,7 @@ On the GBC, the Mobile Adapter operates using the fastest available setting (64K
 
 ```
 -------------------------------------------------
-Section   | Length  
+Section   | Length
 -------------------------------------------------
 Magic Bytes : 0x99 0x66 | 2 bytes
 Packet Header  | 4 bytes
@@ -96,7 +96,7 @@ Bytes 0-254  | Arbitrary data
 
 
 -------------------------------------------------
-Packet Checksum 
+Packet Checksum
 -------------------------------------------------
 Byte 1   | High byte of 16-bit sum
 Byte 2   | Low byte of 16-bit sum
@@ -144,14 +144,15 @@ Even though the protocol effectively enables 2-way communication between the Gam
 
 It is up to the game software itself to handle secondary protocols (such as HTTP, POP3, or SMTP) which involve one side specifically acting as the sender or receiver. For example, after opening a TCP connection to an HTTP server and issuing the 0x15 command (Data Transfer), the software will determine whether the Game Boy is acting as a sender (making an HTTP request) or a receiver (receiving an HTTP response). Generally, this goes back and forth. The Game Boy sends information via its Packet Data, while the Mobile Adapter responds with 0xD2 "wait" bytes until the Game Boy finishes its TCP transfer. When the Game Boy's TCP transfer is done, the adapter sends any information from the server in its Packet Data while the Game Boy responds with 0x4B "wait" bytes. The chart below illustrates this concept and details what bytes are transferred by each side depending on their current role:
 
-Device | Role | Magic Bytes | Packet Header | Packet Checksum | Packet Data | Acknowledgement Signal
---- | --- | --- | --- | --- | --- | ---
-Game Boy | Sender | 0x96 0x66 | Arbitrary | Arbitrary  | Arbitrary | Device ID OR 0x80 + 0x00
-Mobile Adapter | Receiver | 0xD2 0xD2 | 0xD2 0xD2 ... | 0xD2 0xD2 ... ... ... | 0xD2 0xD2 ... | Device ID OR 0x80 + Command ID XOR 0x80
---- | --- | --- | --- | --- | --- | ---
-Game Boy | Receiver | 0x4B 0x4B | 0x4B 0x4B ... | 0x4B 0x4B ... ... ... | 0x4B 0x4B ... | Device ID OR 0x80 + Command ID XOR 0x80
-Mobile Adapter | Sender | 0x96 0x66 | Arbitrary | Arbitrary  | Arbitrary | Device ID OR 0x80 + 0x00
--------------------------------------------------------------------------------------------------------------------------------------------------
+| Device         | Role     | Magic Bytes | Packet Header | Packet Checksum       | Packet Data   | Acknowledgement Signal                  |
+| -------------- | -------- | ----------- | ------------- | --------------------- | ------------- | --------------------------------------- |
+| Game Boy       | Sender   | 0x96 0x66   | Arbitrary     | Arbitrary             | Arbitrary     | Device ID OR 0x80 + 0x00                |
+| Mobile Adapter | Receiver | 0xD2 0xD2   | 0xD2 0xD2 ... | 0xD2 0xD2 ... ... ... | 0xD2 0xD2 ... | Device ID OR 0x80 + Command ID XOR 0x80 |
+| ---            | ---      | ---         | ---           | ---                   | ---           | ---                                     |
+| Game Boy       | Receiver | 0x4B 0x4B   | 0x4B 0x4B ... | 0x4B 0x4B ... ... ... | 0x4B 0x4B ... | Device ID OR 0x80 + Command ID XOR 0x80 |
+| Mobile Adapter | Sender   | 0x96 0x66   | Arbitrary     | Arbitrary             | Arbitrary     | Device ID OR 0x80 + 0x00                |
+
+---
 
 When beginning communications with the Mobile Adapter, the Game Boy typically assumes the role of sender first.
 
@@ -343,7 +344,7 @@ Data Sent: Domain Name
 
 Data Received: 4 bytes for IP Address
 
-Looks up the IP address for a domain name, using the DNS server addresses sent in Command 0x21. This command also accepts an ASCII IPv4 address (as parsed by the inet\_addr(3) function of POSIX), converting it into a 4-byte IPv4 address instead of querying the DNS server. The domain name is in ASCII and may contain zeroes, which truncate the name.
+Looks up the IP address for a domain name, using the DNS server addresses sent in Command 0x21. This command also accepts an ASCII IPv4 address (as parsed by the inet_addr(3) function of POSIX), converting it into a 4-byte IPv4 address instead of querying the DNS server. The domain name is in ASCII and may contain zeroes, which truncate the name.
 
 **Command 0x3F - Firmware Version**
 

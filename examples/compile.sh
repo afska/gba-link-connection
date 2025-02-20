@@ -31,10 +31,28 @@ compile() {
   cp LinkCable_stress$suffix.gba ../$folder/
   cd ..
 
+  # LinkCard_demo
+  cd LinkCard_demo/
+  make rebuild $args
+  cp LinkCard_demo$suffix.out.gba ../$folder/LinkCard_demo$suffix.gba
+  cd ..
+
+  # LinkCube_demo
+  cd LinkCube_demo/
+  make rebuild $args
+  cp LinkCube_demo$suffix.gba ../$folder/
+  cd ..
+
   # LinkGPIO_demo
   cd LinkGPIO_demo/
   make rebuild $args
   cp LinkGPIO_demo$suffix.gba ../$folder/
+  cd ..
+
+  # LinkIR_demo
+  cd LinkIR_demo/
+  make rebuild $args
+  cp LinkIR_demo$suffix.gba ../$folder/
   cd ..
 
   # LinkMobile_demo
@@ -63,7 +81,7 @@ compile() {
 
   # LinkRawWireless_demo
   cd LinkRawWireless_demo/
-  make rebuild $args USERFLAGS="-DLINK_RAW_WIRELESS_ENABLE_LOGGING=1"
+  make rebuild $args
   cp LinkRawWireless_demo$suffix.gba ../$folder/
   cd ..
 
@@ -87,43 +105,41 @@ compile() {
 
   # LinkUniversal_full
   cd LinkCable_full/
-  mv LinkCable_full$suffix.gba backup.gba
+  mv LinkCable_full$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DUSE_LINK_UNIVERSAL=1 -DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkCable_full$suffix.gba ../$folder/LinkUniversal_full$suffix.gba
-  mv backup.gba LinkCable_full$suffix.gba
+  mv backup.gba LinkCable_full$suffix.gba || :
   cd ..
 
   # LinkUniversal_stress
   cd LinkCable_stress/
-  mv LinkCable_stress$suffix.gba backup.gba
+  mv LinkCable_stress$suffix.gba backup.gba || :
   make rebuild $args USERFLAGS="-DUSE_LINK_UNIVERSAL=1 -DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkCable_stress$suffix.gba ../$folder/LinkUniversal_stress$suffix.gba
-  mv backup.gba LinkCable_stress$suffix.gba
+  mv backup.gba LinkCable_stress$suffix.gba || :
   cd ..
 
   # LinkWireless_demo
   cd LinkWireless_demo/
-  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1"
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1"
   cp LinkWireless_demo$suffix.gba ../$folder/
   cd ..
 
-  # LinkWireless_demo_2players
+  # LinkWireless_prof_code_iwram
   cd LinkWireless_demo/
-  mv LinkWireless_demo$suffix.gba backup.gba
-  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_ENABLE_NESTED_IRQ=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DLINK_WIRELESS_TWO_PLAYERS_ONLY=1"
-  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_demo_2players$suffix.gba
-  mv backup.gba LinkWireless_demo$suffix.gba
+  mv LinkWireless_demo$suffix.gba backup.gba || :
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_PROFILING_ENABLED=1"
+  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_prof_code_iwram$suffix.gba
+  mv backup.gba LinkWireless_demo$suffix.gba || :
   cd ..
 
-  # LinkWireless_demo_profiler
-  if [ "$1" != "multiboot" ]; then
-    cd LinkWireless_demo/
-    mv LinkWireless_demo.gba backup.gba
-    make rebuild USERFLAGS="-DLINK_WIRELESS_PUT_ISR_IN_IWRAM=1 -DLINK_WIRELESS_USE_SEND_RECEIVE_LATCH=1 -DPROFILING_ENABLED=1"
-    cp LinkWireless_demo.gba ../LinkWireless_demo_profiler.gba
-    mv backup.gba LinkWireless_demo.gba
-    cd ..
-  fi
+  # LinkWireless_prof_code_rom
+  cd LinkWireless_demo/
+  mv LinkWireless_demo$suffix.gba backup.gba || :
+  make rebuild $args USERFLAGS="-DLINK_WIRELESS_PROFILING_ENABLED=1"
+  cp LinkWireless_demo$suffix.gba ../$folder/LinkWireless_prof_code_rom$suffix.gba
+  mv backup.gba LinkWireless_demo$suffix.gba || :
+  cd ..
 }
 
 # Cleanup
@@ -140,7 +156,14 @@ rm hello.gbfs
 for file in *.gba; do
   ../pad16.sh "$file"
 done
+mv Hello.gba _hello.gba
+for file in Link*.gba; do
+  mv "$file" "${file#Link}"
+done
 gbfs roms.gbfs *
+for file in *.gba; do
+  mv "$file" "Link$file"
+done
 cd ..
 
 # Bundle all multiboot ROMs in the multiboot launchers

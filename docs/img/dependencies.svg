@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="511pt" height="332pt" viewBox="0.00 0.00 511.00 332.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 328)">
+<title>finite_state_machine</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-328 507,-328 507,4 -4,4"/>
+<!-- LinkCable -->
+<g id="node1" class="node">
+<title>LinkCable</title>
+<ellipse fill="lightgray" stroke="black" cx="27" cy="-207" rx="27" ry="27"/>
+<text text-anchor="middle" x="27" y="-202.8" font-family="Courier New" font-size="14.00">👾</text>
+</g>
+<!-- LinkRawCable -->
+<g id="node3" class="node">
+<title>LinkRawCable</title>
+<ellipse fill="lightgray" stroke="black" cx="50" cy="-27" rx="27" ry="27"/>
+<text text-anchor="middle" x="50" y="-22.8" font-family="Courier New" font-size="14.00">🔧👾</text>
+</g>
+<!-- LinkCable&#45;&gt;LinkRawCable -->
+<g id="edge1" class="edge">
+<title>LinkCable-&gt;LinkRawCable</title>
+<path fill="none" stroke="black" d="M18.96,-181.16C12.49,-157.39 5.73,-120.72 14,-90 16.93,-79.12 22.29,-68.18 28,-58.58"/>
+<polygon fill="black" stroke="black" points="30.78,-60.73 33.17,-50.4 24.87,-56.98 30.78,-60.73"/>
+</g>
+<!-- LinkCableMultiboot -->
+<g id="node2" class="node">
+<title>LinkCableMultiboot</title>
+<ellipse fill="lightgray" stroke="black" cx="50" cy="-117" rx="27" ry="27"/>
+<text text-anchor="middle" x="50" y="-112.8" font-family="Courier New" font-size="14.00">💻</text>
+</g>
+<!-- LinkCableMultiboot&#45;&gt;LinkRawCable -->
+<g id="edge2" class="edge">
+<title>LinkCableMultiboot-&gt;LinkRawCable</title>
+<path fill="none" stroke="black" d="M50,-89.6C50,-82.11 50,-73.82 50,-65.8"/>
+<polygon fill="black" stroke="black" points="53.5,-65.9 50,-55.9 46.5,-65.9 53.5,-65.9"/>
+</g>
+<!-- LinkSPI -->
+<g id="node10" class="node">
+<title>LinkSPI</title>
+<ellipse fill="lightgray" stroke="black" cx="158" cy="-27" rx="27" ry="27"/>
+<text text-anchor="middle" x="158" y="-22.8" font-family="Courier New" font-size="14.00">🔗</text>
+</g>
+<!-- LinkCableMultiboot&#45;&gt;LinkSPI -->
+<g id="edge3" class="edge">
+<title>LinkCableMultiboot-&gt;LinkSPI</title>
+<path fill="none" stroke="black" d="M70.57,-99.24C87.01,-85.85 110.26,-66.9 128.66,-51.91"/>
+<polygon fill="black" stroke="black" points="130.79,-54.68 136.34,-45.65 126.37,-49.26 130.79,-54.68"/>
+</g>
+<!-- LinkWireless -->
+<g id="node4" class="node">
+<title>LinkWireless</title>
+<ellipse fill="lightgray" stroke="black" cx="107" cy="-207" rx="27" ry="27"/>
+<text text-anchor="middle" x="107" y="-202.8" font-family="Courier New" font-size="14.00">📻</text>
+</g>
+<!-- LinkRawWireless -->
+<g id="node6" class="node">
+<title>LinkRawWireless</title>
+<ellipse fill="lightgray" stroke="black" cx="194" cy="-117" rx="27" ry="27"/>
+<text text-anchor="middle" x="194" y="-112.8" font-family="Courier New" font-size="14.00">🔧📻</text>
+</g>
+<!-- LinkWireless&#45;&gt;LinkRawWireless -->
+<g id="edge4" class="edge">
+<title>LinkWireless-&gt;LinkRawWireless</title>
+<path fill="none" stroke="black" d="M125.45,-187.34C137.59,-175.05 153.69,-158.77 167.23,-145.08"/>
+<polygon fill="black" stroke="black" points="169.67,-147.59 174.21,-138.02 164.69,-142.67 169.67,-147.59"/>
+</g>
+<!-- LinkWirelessMultiboot -->
+<g id="node5" class="node">
+<title>LinkWirelessMultiboot</title>
+<ellipse fill="lightgray" stroke="black" cx="188" cy="-297" rx="27" ry="27"/>
+<text text-anchor="middle" x="188" y="-292.8" font-family="Courier New" font-size="14.00">📡</text>
+</g>
+<!-- LinkWirelessMultiboot&#45;&gt;LinkRawWireless -->
+<g id="edge5" class="edge">
+<title>LinkWirelessMultiboot-&gt;LinkRawWireless</title>
+<path fill="none" stroke="black" d="M185.86,-269.71C184.29,-246.17 182.78,-210.74 185,-180 185.59,-171.89 186.6,-163.23 187.74,-155.03"/>
+<polygon fill="black" stroke="black" points="191.17,-155.76 189.18,-145.35 184.24,-154.73 191.17,-155.76"/>
+</g>
+<!-- LinkWirelessOpenSDK -->
+<g id="node7" class="node">
+<title>LinkWirelessOpenSDK</title>
+<ellipse fill="lightgray" stroke="black" cx="221" cy="-207" rx="27" ry="27"/>
+<text text-anchor="middle" x="221" y="-202.8" font-family="Courier New" font-size="14.00">🔧🏛</text>
+</g>
+<!-- LinkWirelessMultiboot&#45;&gt;LinkWirelessOpenSDK -->
+<g id="edge6" class="edge">
+<title>LinkWirelessMultiboot-&gt;LinkWirelessOpenSDK</title>
+<path fill="none" stroke="black" d="M197.19,-271.49C200.45,-262.79 204.19,-252.81 207.73,-243.39"/>
+<polygon fill="black" stroke="black" points="210.98,-244.7 211.21,-234.1 204.42,-242.24 210.98,-244.7"/>
+</g>
+<!-- LinkGPIO -->
+<g id="node9" class="node">
+<title>LinkGPIO</title>
+<ellipse fill="lightgray" stroke="black" cx="266" cy="-27" rx="27" ry="27"/>
+<text text-anchor="middle" x="266" y="-22.8" font-family="Courier New" font-size="14.00">🔌</text>
+</g>
+<!-- LinkRawWireless&#45;&gt;LinkGPIO -->
+<g id="edge7" class="edge">
+<title>LinkRawWireless-&gt;LinkGPIO</title>
+<path fill="none" stroke="black" d="M210.7,-95.59C219.99,-84.23 231.72,-69.9 241.98,-57.35"/>
+<polygon fill="black" stroke="black" points="244.56,-59.73 248.18,-49.78 239.14,-55.3 244.56,-59.73"/>
+</g>
+<!-- LinkRawWireless&#45;&gt;LinkSPI -->
+<g id="edge8" class="edge">
+<title>LinkRawWireless-&gt;LinkSPI</title>
+<path fill="none" stroke="black" d="M183.97,-91.49C180.34,-82.62 176.17,-72.43 172.25,-62.84"/>
+<polygon fill="black" stroke="black" points="175.57,-61.71 168.55,-53.78 169.09,-64.36 175.57,-61.71"/>
+</g>
+<!-- LinkWirelessOpenSDK&#45;&gt;LinkRawWireless -->
+<g id="edge9" class="edge">
+<title>LinkWirelessOpenSDK-&gt;LinkRawWireless</title>
+<path fill="none" stroke="black" d="M213.34,-181.02C210.76,-172.64 207.84,-163.12 205.06,-154.06"/>
+<polygon fill="black" stroke="black" points="208.5,-153.33 202.22,-144.8 201.81,-155.38 208.5,-153.33"/>
+</g>
+<!-- LinkUniversal -->
+<g id="node8" class="node">
+<title>LinkUniversal</title>
+<ellipse fill="lightgray" stroke="black" cx="89" cy="-297" rx="27" ry="27"/>
+<text text-anchor="middle" x="89" y="-292.8" font-family="Courier New" font-size="14.00">🌎</text>
+</g>
+<!-- LinkUniversal&#45;&gt;LinkCable -->
+<g id="edge10" class="edge">
+<title>LinkUniversal-&gt;LinkCable</title>
+<path fill="none" stroke="black" d="M73.67,-274.25C66.22,-263.67 57.13,-250.77 48.96,-239.17"/>
+<polygon fill="black" stroke="black" points="51.86,-237.2 43.24,-231.04 46.13,-241.24 51.86,-237.2"/>
+</g>
+<!-- LinkUniversal&#45;&gt;LinkWireless -->
+<g id="edge11" class="edge">
+<title>LinkUniversal-&gt;LinkWireless</title>
+<path fill="none" stroke="black" d="M94.3,-270.07C95.91,-262.2 97.72,-253.38 99.45,-244.93"/>
+<polygon fill="black" stroke="black" points="102.86,-245.72 101.43,-235.22 96,-244.32 102.86,-245.72"/>
+</g>
+<!-- LinkUART -->
+<g id="node11" class="node">
+<title>LinkUART</title>
+<ellipse fill="lightgray" stroke="black" cx="260" cy="-297" rx="27" ry="27"/>
+<text text-anchor="middle" x="260" y="-292.8" font-family="Courier New" font-size="14.00">⏱</text>
+</g>
+<!-- LinkCube -->
+<g id="node12" class="node">
+<title>LinkCube</title>
+<ellipse fill="lightgray" stroke="black" cx="332" cy="-297" rx="27" ry="27"/>
+<text text-anchor="middle" x="332" y="-292.8" font-family="Courier New" font-size="14.00">🟪</text>
+</g>
+<!-- LinkCard -->
+<g id="node13" class="node">
+<title>LinkCard</title>
+<ellipse fill="lightgray" stroke="black" cx="122" cy="-117" rx="27" ry="27"/>
+<text text-anchor="middle" x="122" y="-112.8" font-family="Courier New" font-size="14.00">💳</text>
+</g>
+<!-- LinkCard&#45;&gt;LinkRawCable -->
+<g id="edge12" class="edge">
+<title>LinkCard-&gt;LinkRawCable</title>
+<path fill="none" stroke="black" d="M105.3,-95.59C96.01,-84.23 84.28,-69.9 74.02,-57.35"/>
+<polygon fill="black" stroke="black" points="76.86,-55.3 67.82,-49.78 71.44,-59.73 76.86,-55.3"/>
+</g>
+<!-- LinkCard&#45;&gt;LinkSPI -->
+<g id="edge13" class="edge">
+<title>LinkCard-&gt;LinkSPI</title>
+<path fill="none" stroke="black" d="M132.03,-91.49C135.66,-82.62 139.83,-72.43 143.75,-62.84"/>
+<polygon fill="black" stroke="black" points="146.91,-64.36 147.45,-53.78 140.43,-61.71 146.91,-64.36"/>
+</g>
+<!-- LinkMobile -->
+<g id="node14" class="node">
+<title>LinkMobile</title>
+<ellipse fill="lightgray" stroke="black" cx="266" cy="-117" rx="27" ry="27"/>
+<text text-anchor="middle" x="266" y="-112.8" font-family="Courier New" font-size="14.00">📱</text>
+</g>
+<!-- LinkMobile&#45;&gt;LinkGPIO -->
+<g id="edge14" class="edge">
+<title>LinkMobile-&gt;LinkGPIO</title>
+<path fill="none" stroke="black" d="M266,-89.6C266,-82.11 266,-73.82 266,-65.8"/>
+<polygon fill="black" stroke="black" points="269.5,-65.9 266,-55.9 262.5,-65.9 269.5,-65.9"/>
+</g>
+<!-- LinkMobile&#45;&gt;LinkSPI -->
+<g id="edge15" class="edge">
+<title>LinkMobile-&gt;LinkSPI</title>
+<path fill="none" stroke="black" d="M245.43,-99.24C228.99,-85.85 205.74,-66.9 187.34,-51.91"/>
+<polygon fill="black" stroke="black" points="189.63,-49.26 179.66,-45.65 185.21,-54.68 189.63,-49.26"/>
+</g>
+<!-- LinkIR -->
+<g id="node15" class="node">
+<title>LinkIR</title>
+<ellipse fill="lightgray" stroke="black" cx="338" cy="-117" rx="27" ry="27"/>
+<text text-anchor="middle" x="338" y="-112.8" font-family="Courier New" font-size="14.00">📺</text>
+</g>
+<!-- LinkIR&#45;&gt;LinkGPIO -->
+<g id="edge16" class="edge">
+<title>LinkIR-&gt;LinkGPIO</title>
+<path fill="none" stroke="black" d="M321.3,-95.59C312.01,-84.23 300.28,-69.9 290.02,-57.35"/>
+<polygon fill="black" stroke="black" points="292.86,-55.3 283.82,-49.78 287.44,-59.73 292.86,-55.3"/>
+</g>
+<!-- LinkPS2Mouse -->
+<g id="node16" class="node">
+<title>LinkPS2Mouse</title>
+<ellipse fill="lightgray" stroke="black" cx="404" cy="-297" rx="27" ry="27"/>
+<text text-anchor="middle" x="404" y="-292.8" font-family="Courier New" font-size="14.00">🖱️</text>
+</g>
+<!-- LinkPS2Keyboard -->
+<g id="node17" class="node">
+<title>LinkPS2Keyboard</title>
+<ellipse fill="lightgray" stroke="black" cx="476" cy="-297" rx="27" ry="27"/>
+<text text-anchor="middle" x="476" y="-292.8" font-family="Courier New" font-size="14.00">⌨️</text>
+</g>
+</g>
+</svg>

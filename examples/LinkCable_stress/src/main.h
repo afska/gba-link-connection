@@ -9,7 +9,7 @@
 #include "../../../lib/LinkUniversal.hpp"
 #endif
 
-#include <tonc.h>
+#include "../../_lib/common.h"
 
 #ifndef USE_LINK_UNIVERSAL
 extern LinkCable* linkConnection;

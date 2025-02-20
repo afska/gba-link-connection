@@ -13,7 +13,7 @@ typedef void* C_LinkCableHandle;
 #define C_LINK_CABLE_DEFAULT_TIMEOUT 3
 #define C_LINK_CABLE_DEFAULT_INTERVAL 50
 #define C_LINK_CABLE_DEFAULT_SEND_TIMER_ID 3
-#define C_LINK_CABLE_DISCONNECTED 0xffff
+#define C_LINK_CABLE_DISCONNECTED 0xFFFF
 #define C_LINK_CABLE_NO_DATA 0x0
 
 typedef enum {
@@ -22,6 +22,13 @@ typedef enum {
   C_LINK_CABLE_BAUD_RATE_2,  // 57600 bps
   C_LINK_CABLE_BAUD_RATE_3   // 115200 bps
 } C_LinkCable_BaudRate;
+
+typedef struct {
+  C_LinkCable_BaudRate baudRate;
+  u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
+  u16 interval;  // can be changed in realtime, but call `resetTimer()`
+  u8 sendTimerId;
+} C_LinkCable_Config;
 
 C_LinkCableHandle C_LinkCable_createDefault();
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,
@@ -48,7 +55,16 @@ bool C_LinkCable_canRead(C_LinkCableHandle handle, u8 playerId);
 u16 C_LinkCable_read(C_LinkCableHandle handle, u8 playerId);
 u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
 
-void C_LinkCable_send(C_LinkCableHandle handle, u16 data);
+bool C_LinkCable_canSend(C_LinkCableHandle handle);
+bool C_LinkCable_send(C_LinkCableHandle handle, u16 data);
+
+bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear);
+
+void C_LinkCable_resetTimeout(C_LinkCableHandle handle);
+void C_LinkCable_resetTimer(C_LinkCableHandle handle);
+
+C_LinkCable_Config C_LinkCable_getConfig(C_LinkCableHandle handle);
+void C_LinkCable_setConfig(C_LinkCableHandle handle, C_LinkCable_Config config);
 
 void C_LinkCable_onVBlank(C_LinkCableHandle handle);
 void C_LinkCable_onSerial(C_LinkCableHandle handle);

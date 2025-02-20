@@ -1,9 +1,9 @@
 // (0) Include the header
 #include "../../../lib/LinkCableMultiboot.hpp"
 
-#include <string.h>
-#include <tonc.h>
-#include <string>
+#include <cstring>
+#include "../../_lib/common.h"
+#include "../../_lib/interrupt.h"
 
 extern "C" {
 #include "../../_lib/libgbfs/gbfs.h"
@@ -12,10 +12,6 @@ extern "C" {
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
 static u32 selectedFile = 0;
 static bool spi = false;
-
-void log(std::string text);
-void waitFor(u16 key);
-bool didPress(u16 key, bool& pressed);
 
 // (1) Create a LinkCableMultiboot instance
 LinkCableMultiboot* linkCableMultiboot = new LinkCableMultiboot();
@@ -33,11 +29,10 @@ void selectRight() {
 }
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
-  irq_init(NULL);
-  irq_add(II_VBLANK, NULL);
+  interrupt_init();
+  interrupt_add(INTR_VBLANK, []() {});
 }
 
 int main() {
@@ -45,16 +40,16 @@ int main() {
 
   // Ensure there are GBFS files
   if (fs == NULL) {
-    log("! GBFS file not found");
+    Common::log("! GBFS file not found");
     while (true)
       ;
   } else if (gbfs_get_nth_obj(fs, 0, NULL, NULL) == NULL) {
-    log("! No files found (GBFS)");
+    Common::log("! No files found (GBFS)");
     while (true)
       ;
   }
 
-  bool left = false, right = false, a = false, b = false, l = false;
+  bool left = true, right = true, a = true, b = true, l = true;
 
   while (true) {
     // Get selected ROM name
@@ -70,17 +65,18 @@ int main() {
     }
 
     // Toggle mode
-    if (didPress(KEY_L, l))
+    if (Common::didPress(KEY_L, l))
       spi = !spi;
 
     // Select ROM
-    if (didPress(KEY_LEFT, left))
+    if (Common::didPress(KEY_LEFT, left))
       selectLeft();
-    if (didPress(KEY_RIGHT, right))
+    if (Common::didPress(KEY_RIGHT, right))
       selectRight();
 
     // Menu
-    log("LinkCableMultiboot_demo\n  (v7.0.3)\n\n"
+    Common::log(
+        "LinkCableMultiboot_demo\n  (v8.0.0)\n\n"
         "Press A to send the ROM...\n"
         "Press B to launch the ROM...\nLEFT/RIGHT: select ROM\nL: toggle "
         "mode\n\nSelected ROM:\n  " +
@@ -88,8 +84,8 @@ int main() {
         std::string(spi ? "SPI (GBC cable)" : "MULTI_PLAY (GBA cable)"));
 
     // Send ROM
-    if (didPress(KEY_A, a)) {
-      log("Sending... (SELECT to cancel)");
+    if (Common::didPress(KEY_A, a)) {
+      Common::log("Sending... (SELECT to cancel)");
 
       // (2) Send the ROM
       auto result = linkCableMultiboot->sendRom(
@@ -102,14 +98,14 @@ int main() {
               : LinkCableMultiboot::TransferMode::MULTI_PLAY);
 
       // Print results and wait
-      log("Result: " + std::to_string(result) + "\n" +
-          "Press DOWN to continue...");
-      waitFor(KEY_DOWN);
+      Common::log("Result: " + std::to_string((int)result) + "\n" +
+                  "Press DOWN to continue...");
+      Common::waitForKey(KEY_DOWN);
     }
 
     // Launch ROM
-    if (didPress(KEY_B, b)) {
-      log("Launching...");
+    if (Common::didPress(KEY_B, b)) {
+      Common::log("Launching...");
       VBlankIntrWait();
 
       REG_IME = 0;
@@ -119,7 +115,7 @@ int main() {
           (const u8*)gbfs_get_nth_obj(fs, selectedFile, NULL, &fileLength);
 
       void* EWRAM = (void*)0x02000000;
-      memcpy(EWRAM, romToSend, fileLength);
+      std::memcpy(EWRAM, romToSend, fileLength);
 
       asm volatile(
           "mov r0, %0\n"
@@ -136,29 +132,4 @@ int main() {
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-void waitFor(u16 key) {
-  u16 keys;
-  do {
-    keys = ~REG_KEYS & KEY_ANY;
-  } while (!(keys & key));
-}
-
-bool didPress(u16 key, bool& pressed) {
-  u16 keys = ~REG_KEYS & KEY_ANY;
-  bool isPressedNow = false;
-  if ((keys & key) && !pressed) {
-    pressed = true;
-    isPressedNow = true;
-  }
-  if (pressed && !(keys & key))
-    pressed = false;
-  return isPressedNow;
 }

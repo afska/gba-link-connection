@@ -2,7 +2,6 @@
 #include "../LinkWireless.hpp"
 
 extern "C" {
-
 C_LinkWirelessHandle C_LinkWireless_createDefault() {
   return new LinkWireless();
 }
@@ -25,6 +24,10 @@ bool C_LinkWireless_activate(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->activate();
 }
 
+bool C_LinkWireless_restoreExistingConnection(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->restoreExistingConnection();
+}
+
 bool C_LinkWireless_deactivate(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->deactivate();
 }
@@ -40,20 +43,37 @@ bool C_LinkWireless_serve(C_LinkWirelessHandle handle,
   return static_cast<LinkWireless*>(handle)->serve(gameName, userName, gameId);
 }
 
+bool C_LinkWireless_closeServer(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->closeServer();
+}
+
+bool C_LinkWireless_getSignalLevel(
+    C_LinkWirelessHandle handle,
+    C_LinkWireless_SignalLevelResponse* response) {
+  LinkWireless::SignalLevelResponse cppResponse;
+  bool success =
+      static_cast<LinkWireless*>(handle)->getSignalLevel(cppResponse);
+  for (u32 i = 0; i < LINK_WIRELESS_MAX_PLAYERS; i++)
+    response->signalLevels[i] = cppResponse.signalLevels[i];
+  return success;
+}
+
 bool C_LinkWireless_getServers(C_LinkWirelessHandle handle,
-                               C_LinkWireless_Server servers[]) {
+                               C_LinkWireless_Server servers[],
+                               u32* serverCount) {
   LinkWireless::Server cppServers[C_LINK_WIRELESS_MAX_SERVERS];
-  bool result = static_cast<LinkWireless*>(handle)->getServers(cppServers);
+  u32 count;
+  bool result =
+      static_cast<LinkWireless*>(handle)->getServers(cppServers, count);
+  *serverCount = count;
 
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_SERVERS; i++) {
     servers[i].id = cppServers[i].id;
     servers[i].gameId = cppServers[i].gameId;
-    strncpy(servers[i].gameName, cppServers[i].gameName,
-            C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH);
-    servers[i].gameName[C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH] = '\0';
-    strncpy(servers[i].userName, cppServers[i].userName,
-            C_LINK_WIRELESS_MAX_USER_NAME_LENGTH);
-    servers[i].userName[C_LINK_WIRELESS_MAX_USER_NAME_LENGTH] = '\0';
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1; j++)
+      servers[i].gameName[j] = cppServers[i].gameName[j];
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1; j++)
+      servers[i].userName[j] = cppServers[i].userName[j];
     servers[i].currentPlayerCount = cppServers[i].currentPlayerCount;
   }
 
@@ -65,20 +85,21 @@ bool C_LinkWireless_getServersAsyncStart(C_LinkWirelessHandle handle) {
 }
 
 bool C_LinkWireless_getServersAsyncEnd(C_LinkWirelessHandle handle,
-                                       C_LinkWireless_Server servers[]) {
+                                       C_LinkWireless_Server servers[],
+                                       u32* serverCount) {
   LinkWireless::Server cppServers[C_LINK_WIRELESS_MAX_SERVERS];
+  u32 count;
   bool result =
-      static_cast<LinkWireless*>(handle)->getServersAsyncEnd(cppServers);
+      static_cast<LinkWireless*>(handle)->getServersAsyncEnd(cppServers, count);
+  *serverCount = count;
 
   for (u32 i = 0; i < C_LINK_WIRELESS_MAX_SERVERS; i++) {
     servers[i].id = cppServers[i].id;
     servers[i].gameId = cppServers[i].gameId;
-    strncpy(servers[i].gameName, cppServers[i].gameName,
-            C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH);
-    servers[i].gameName[C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH] = '\0';
-    strncpy(servers[i].userName, cppServers[i].userName,
-            C_LINK_WIRELESS_MAX_USER_NAME_LENGTH);
-    servers[i].userName[C_LINK_WIRELESS_MAX_USER_NAME_LENGTH] = '\0';
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_GAME_NAME_LENGTH + 1; j++)
+      servers[i].gameName[j] = cppServers[i].gameName[j];
+    for (u32 j = 0; j < C_LINK_WIRELESS_MAX_USER_NAME_LENGTH + 1; j++)
+      servers[i].userName[j] = cppServers[i].userName[j];
     servers[i].currentPlayerCount = cppServers[i].currentPlayerCount;
   }
 
@@ -93,16 +114,23 @@ bool C_LinkWireless_keepConnecting(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->keepConnecting();
 }
 
+bool C_LinkWireless_canSend(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->canSend();
+}
+
 bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data) {
   return static_cast<LinkWireless*>(handle)->send(data);
 }
 
 bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
-                            C_LinkWireless_Message messages[]) {
+                            C_LinkWireless_Message messages[],
+                            u32* receivedCount) {
   LinkWireless::Message cppMessages[C_LINK_WIRELESS_MAX_PLAYERS];
-  bool result = static_cast<LinkWireless*>(handle)->receive(cppMessages);
+  u32 count;
+  bool result = static_cast<LinkWireless*>(handle)->receive(cppMessages, count);
+  *receivedCount = count;
 
-  for (int i = 0; i < C_LINK_WIRELESS_MAX_PLAYERS; i++) {
+  for (u32 i = 0; i < C_LINK_WIRELESS_MAX_PLAYERS; i++) {
     messages[i].packetId = cppMessages[i].packetId;
     messages[i].data = cppMessages[i].data;
     messages[i].playerId = cppMessages[i].playerId;
@@ -124,6 +152,10 @@ bool C_LinkWireless_isSessionActive(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->isSessionActive();
 }
 
+bool C_LinkWireless_isServerClosed(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->isServerClosed();
+}
+
 u8 C_LinkWireless_playerCount(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->playerCount();
 }
@@ -132,46 +164,45 @@ u8 C_LinkWireless_currentPlayerId(C_LinkWirelessHandle handle) {
   return static_cast<LinkWireless*>(handle)->currentPlayerId();
 }
 
+bool C_LinkWireless_didQueueOverflow(C_LinkWirelessHandle handle, bool clear) {
+  return static_cast<LinkWireless*>(handle)->didQueueOverflow(clear);
+}
+
+void C_LinkWireless_resetTimeout(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->resetTimeout();
+}
+
+void C_LinkWireless_resetTimer(C_LinkWirelessHandle handle) {
+  return static_cast<LinkWireless*>(handle)->resetTimer();
+}
+
 C_LinkWireless_Error C_LinkWireless_getLastError(C_LinkWirelessHandle handle,
                                                  bool clear) {
   return static_cast<C_LinkWireless_Error>(
       static_cast<LinkWireless*>(handle)->getLastError(clear));
 }
 
-bool C_LinkWireless_hasActiveAsyncCommand(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_hasActiveAsyncCommand();
+C_LinkWireless_Config C_LinkWireless_getConfig(C_LinkWirelessHandle handle) {
+  C_LinkWireless_Config config;
+  auto instance = static_cast<LinkWireless*>(handle);
+  config.forwarding = instance->config.forwarding;
+  config.retransmission = instance->config.retransmission;
+  config.maxPlayers = instance->config.maxPlayers;
+  config.timeout = instance->config.timeout;
+  config.interval = instance->config.interval;
+  config.sendTimerId = instance->config.sendTimerId;
+  return config;
 }
 
-bool C_LinkWireless_canSend(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_canSend();
-}
-
-u32 C_LinkWireless_getPendingCount(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_getPendingCount();
-}
-
-u32 C_LinkWireless_lastPacketId(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastPacketId();
-}
-
-u32 C_LinkWireless_lastConfirmationFromClient1(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastConfirmationFromClient1();
-}
-
-u32 C_LinkWireless_lastPacketIdFromClient1(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastPacketIdFromClient1();
-}
-
-u32 C_LinkWireless_lastConfirmationFromServer(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastConfirmationFromServer();
-}
-
-u32 C_LinkWireless_lastPacketIdFromServer(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_lastPacketIdFromServer();
-}
-
-u32 C_LinkWireless_nextPendingPacketId(C_LinkWirelessHandle handle) {
-  return static_cast<LinkWireless*>(handle)->_nextPendingPacketId();
+void C_LinkWireless_setConfig(C_LinkWirelessHandle handle,
+                              C_LinkWireless_Config config) {
+  auto instance = static_cast<LinkWireless*>(handle);
+  instance->config.forwarding = config.forwarding;
+  instance->config.retransmission = config.retransmission;
+  instance->config.maxPlayers = config.maxPlayers;
+  instance->config.timeout = config.timeout;
+  instance->config.interval = config.interval;
+  instance->config.sendTimerId = config.sendTimerId;
 }
 
 void C_LinkWireless_onVBlank(C_LinkWirelessHandle handle) {

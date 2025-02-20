@@ -23,7 +23,7 @@ _You can make this screen display any game_
 
 When I started, I used the following resources to start being able to talk with the wireless adapter:
 
-- [This Gist contains some details](wireless.txt)
+- [This Gist contains some details](https://gist.github.com/iracigt/50b3a857e4d82c2c11d0dd5f84ecac6b)
 - [GBATEK has a section on the wireless adapter](gbatek.md)
 
 ## Pinout
@@ -254,20 +254,27 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Send length: 0, response length: 0
 - This uses the broadcast data given by the broadcast command and actually does the broadcasting.
 
+⏲ After calling this command, wait some time (~15 scanlines) before calling `PollConnections` or it will fail!.
+
 #### EndHost - `0x1b`
 
 - Send length: 0, response length: 2+
-- This command stops host broadcast. This allows to "close" the session and stop allowing new clients, but also **keeping the existing connections alive**. Sends and Receives still work, but:
+- This command stops host broadcast. This allows to "close" the room and stop allowing new clients, but also **keeping the existing connections alive**. Sends and Receives still work, but:
   - Clients cannot connect, even if they already know the host ID (`FinishConnection` will fail).
-  - Calls to `AcceptConnections` on the host side will fail, unless `StartHost` is called again.
+  - Calls to `PollConnections` on the host side will fail, unless `StartHost` is called again.
 
 #### BroadcastRead - `0x1c`, `0x1d` and `0x1e`
 
 [![Image without alt text or caption](img/wireless/0x1d.png)](img/wireless/0x1d.png)
 
-- Send length: 0, response length: 7 \* number of broadcasts (maximum: 4)
+Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEnd`.
+
+- Send length: 0
+- Response length:
+  - `0x1c`: 0
+  - `0x1d` and `0x1e`: and 7 \* number of broadcasts (maximum: 4)
 - All currently broadcasting devices are returned here along with a word of **metadata** (the metadata word first, then 6 words with broadcast data).
-- The metadata contains:
+- The metadata word contains:
   - First 2 bytes: Server ID. IDs have 16 bits.
   - 3rd byte: Next available slot. This can be used to check whether a player can join a room or not.
     - `0b00`: If you join this room, your `clientNumber` will be 0.
@@ -281,19 +288,23 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 🆔 IDs are randomly generated. Each time you broadcast or connect, the adapter assigns you a new ID.
 
-✅ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly), and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here). If you don't send that last `0x1e`, the next command will fail.
+✅ Reading broadcasts is a three-step process: First, you send `0x1c` (you will get an ACK instantly and no data) to put the adapter in 'broadcast reading' mode, and start waiting until the adapter retrieves data (games usually wait 1 full second). Then, send a `0x1d` and it will return what's described above. Lastly, send a `0x1e` to finish the process (you can ignore what the adapter returns here), which exits broadcast reading mode. If you don't send that last `0x1e`, the next command will fail.
 
 ⌚ Although games wait 1 full second, small waits (like ~160ms) also work.
 
+⚙️ Calling `0x1d` repeatedly will provide an updated list of up to 4 hosts, always in the same order within each call. If more than 4 hosts are available, the game must track the IDs found and loop through the `0x1c`, `0x1d`, and `0x1e` sequence to discover additional hosts. Each iteration of this sequence provides up to 4 hosts in the order they are discovered by the wireless adapter.
+
 ⏳ If a client sends a `0x1c` and then starts a `0x1d` loop (1 command per frame), and a console that was broadcasting is turned off, it disappears after 3 seconds.
 
-#### AcceptConnections - `0x1a`
+#### PollConnections - `0x1a`
 
 - Send length: 0, response length: 0+
-- Accepts new connections and returns a list with the connected adapters. The length of the response is zero if there are no connected adapters.
-- It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsFinishedConnect](#isfinishedconnect---0x20)) and the least significant byte is the ID.
+- Polls new connections and returns a list with the connected adapters. The length of the response is zero if there are no connected adapters.
+- It includes one value per connected client, in which the most significant byte is the `clientNumber` (see [IsConnectionComplete](#isconnectioncomplete---0x20)) and the least significant byte is the ID.
 
 🔗 If this command reports 3 connected consoles, after turning off one of them, it will still report 3 consoles. Servers need to detect timeouts in another way.
+
+❗ `0x19`, `0x1a` and `0x1b` behave like the 3 broadcast reading commands (`0x1c`, `0x1d` and `0x1e`), in the sense that `StartHost` puts the adapter in 'open host' mode, `PollConnections` polls new connections and `EndHost` exits the open host mode.
 
 #### Connect - `0x1f`
 
@@ -302,7 +313,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Send length: 1, response length: 0
 - Send the ID of the adapter you want to connect to from [BroadcastRead](#broadcastread---0x1c-0x1d-and-0x1e).
 
-#### IsFinishedConnect - `0x20`
+#### IsConnectionComplete - `0x20`
 
 [![Image without alt text or caption](img/wireless/0x20.png)](img/wireless/0x20.png)
 
@@ -318,7 +329,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 [![Image without alt text or caption](img/wireless/0x21.png)](img/wireless/0x21.png)
 
 - Send length: 0, response length: 1
-- Called after [IsFinishedConnect](#isfinishedconnect---0x20), responds with the final device ID (which tends to be equal to the ID from the previous command), the `clientNumber` in bits 16 and 17, and if all went well, zeros in its remaining bits.
+- Called after [IsConnectionComplete](#isconnectioncomplete---0x20), responds with the final device ID (which tends to be equal to the ID from the previous command), the `clientNumber` in bits 16 and 17, and if all went well, zeros in its remaining bits.
 
 #### SendData - `0x24`
 
@@ -329,7 +340,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 - For hosts: the number of `bytes` that come next. For example, if we want to send `0xaabbccdd` and `0x12345678` in the same command, we need to send:
   - `0x00000008`, `0xaabbccdd`, `0x12345678`.
-- For clients: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsFinishedConnect](#isfinishedconnect---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
+- For clients: `(bytes << (3 + (1+clientNumber) * 5))`. The `clientNumber` is what I described in [IsConnectionComplete](#isconnectioncomplete---0x20). For example, if we want to send a single 4-byte value (`0xaabbccdd`):
   - The first client should send: `0x400`, `0xaabbccdd`
   - The second client should send: `0x8000`, `0xaabbccdd`
   - The third client should send: `0x100000`, `0xaabbccdd`
@@ -367,7 +378,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
   - **Host**: `ReceiveData`
     - Receives `{rcvHeader}`, 20
 
-🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header) of the last packet. Until we have a better name, we'll call this **ghost sends**.
+🔁 This command can also be used with one header and **no data**. In this case, it will resend the last N bytes (based on the header), up to 4. This is probably just garbage that stays in the hardware buffer, but since clients cannot take initiative, some games send 1 byte and no data on the server side to let clients talk. Until we have a better name, we'll call this **ghost sends**.
 
 #### SendDataWait - `0x25`
 
@@ -412,7 +423,7 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 [![Image without alt text or caption](img/wireless/0x30.png)](img/wireless/0x30.png)
 
 - Send length 1, reponse length: 0
-- This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `AcceptConnection` calls and its `clientNumber` will be liberated, so other peers can connect.
+- This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `PollConnections` calls and its `clientNumber` will be liberated, so other peers can connect.
 
 ⚡ The clients also are able to disconnect themselves using this command, but they can only send its corresponding bit or `0xF`, other bits are ignored (they cannot disconnect other clients). Also, the host won't know if a client disconnects itself, so this feature is not very useful:
 
@@ -450,7 +461,8 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 * Bits `16-23`: A 4-bit array with slots. If the console is a client, it'll have a 1 in the position assigned to that slot (e.g. the one with `clientNumber` 3 will have `0100`). The host will always have `0000` here.
 * Bits `24-31`: A number indicating the state of the adapter
   - `0` = idle
-  - `1`/`2` = serving (host)
+  - `1` = serving (host), closed room
+  - `2` = serving (host), open room
   - `3` = searching
   - `4` = connecting
   - `5` = connected (client)
@@ -459,10 +471,10 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 
 - Send length: 0, Response length: 1+
 
-- It's returns a list of the connected adapters, similar to what `AcceptConnections` responds, but also:
+- It's returns a list of the connected adapters, similar to what `PollConnections` responds, but also:
 
   - `SlotStatus` has an extra word at the start of the response, indicating the `clientNumber` that the next connection will have (or `0xFF` if the room is not accepting new clients).
-  - `SlotStatus` can be called after `EndHost`, while `AcceptConnections` fails.
+  - `SlotStatus` can be called after `EndHost`, while `PollConnections` fails.
 
 #### ConfigStatus - `0x15`
 
@@ -515,7 +527,7 @@ If we analyze whether a command ID throws an 'invalid command' error (`0x996601e
 
 - The extra parameter has two bitarrays:
   - Bits `0-4`: The clients that _received_ data.
-  - Bits `8-11`: The clients marked as _inactive_. This depends on the # of maximum transmissions configured with the [Setup](#setup---0x17) command.
+  - Bits `8-11`: The clients marked as _inactive_. This depends on the # of maximum transmissions configured with the [Setup](#setup---0x17) command. It only marks them as inactive after 4 seconds.
 
 🔗 When the adapter is disconnected from the host, it sends a `0x99660029`.
 
@@ -527,12 +539,16 @@ If we analyze whether a command ID throws an 'invalid command' error (`0x996601e
 
 While the clock is inverted, the acknowledge procedure is 'standard' but with the inverted roles
 
-    1.  The adapter goes low as soon as it can.
-    2.  The GBA goes high.
-    3.  The adapter goes high.
-    4.  The GBA goes low _when it’s ready_.
-    5.  The adapter goes low when it's ready.
-    6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+[![during clock inversion](img/wireless/ack-inverted.png)](img/wireless/ack-inverted.png)
+
+1.  The adapter goes low as soon as it can.
+2.  The GBA goes high.
+3.  The adapter goes high.
+4.  The GBA goes low _when it’s ready_, but **wait at least 40us**! (\*)
+5.  The adapter goes low when it's ready.
+6.  The adapter starts a transfer, clock starts pulsing, and both sides exchange the next 32 bit value.
+
+> (\*) Clock inversion is _finicky_. If you don't wait enough time between transfers, the adapter will desync _forever_ (well, until you reset it with _SD=HIGH_). `LinkWireless` doesn't use wait commands and calls the regular `SendData` instead, it's less efficient but way more reliable.
 
 ## Wireless Multiboot
 
@@ -540,13 +556,15 @@ While the clock is inverted, the acknowledge procedure is 'standard' but with th
 
 To host a 'multiboot' room, a host sets the **multiboot flag** (bit 15) in its game ID (inside broadcast data) and starts serving.
 
-- 1. For each new client that connects, it runs a small handshake where the client sends their 'game name' and 'player name'. The bootloader always sends `RFU-MB-DL` as game name and `PLAYER A` (or `B`, `C`, `D`) as player name.
+1. For each new client that connects, it runs a small handshake where the client sends their 'game name' and 'player name'. The bootloader always sends `RFU-MB-DL` as game name and `PLAYER A` (or `B`, `C`, `D`) as player name.
 
-- 2. When the host player confirms that all players are ready, it sends a 'rom start' command.
+2. When the host player confirms that all players are ready, it sends a 'rom start' command.
 
-- 3. The host sends the rom bytes in 84-byte chunks.
+3. The host sends the rom bytes in 84-byte chunks.
 
-- 4. The host sends a 'rom end' command and the games boot.
+4. The host sends a 'rom end' command and the games boot.
+
+5. Since the adapter hardware is still connected, the games 'restore' the SDK state to preserve the session and avoid reconnecting clients. The `0x13` command returns whether we are a server or a client, as well as the client number.
 
 ### Valid header
 
@@ -633,19 +651,23 @@ enum CommState : unsigned int {
 - Server: ACKs the packet
 - Client: sends `0x424D08A6`, `0x004C442D`
   - Header: `0x08A6` (`size=6, n=1, ph=1, ack=0, commState=2`)
-  - Payload: `MB-DL`
+  - Payload: `0x4D`, `0x42`, `0x2D`, `0x44`, `0x4C`, `0x00`
+    - => `MB-DL`
 - Server: ACKs the packet
 - Client: sends `0x000008C6`, `0x50000000`
   - Header: `0x08C6` (`size=6, n=1, ph=2, ack=0, commState=2`)
-  - Payload: `P`
+  - Payload: `0x00`, `0x00`, `0x00`, `0x00`, `0x00`, `0x00`, `0x50`
+    - => `P`
 - Server: ACKs the packet
 - Client: sends `0x414C08E6`, `0x20524559`
   - Header: `0x08E6` (`size=6, n=1, ph=3, ack=0, commState=2`)
-  - Payload: `LAYER`
+  - Payload: `0x4C`, `0x41`, `0x59`, `0x45`, `0x52`, `0x20`
+    - => `LAYER `
 - Server: ACKs the packet
 - Client: sends `0x00410902`
   - Header: `0x0902` (`size=2, n=2, ph=0, ack=0, commState=2`)
-  - Payload: `A`
+  - Payload: `0x41`, `0x00`
+    - => `A`
 - Server: ACKs the packet
 - Client: sends `0x00000C00`
   - Header: `0x0C00` (`size=0, n=0, ph=0, ack=0, commState=3`) (`3 = ENDING`)
@@ -654,13 +676,15 @@ enum CommState : unsigned int {
 - Client: sends `0x00000080`
   - Header: `0x0080` (`size=0, n=1, ph=0, ack=0, commState=0`) (`0 = OFF`)
   - No payload
-- Server: ACKs the packet
+- Server: Ghost send _(OFF state doesn't expect an ack!)_
 
 ## (2) ROM start command
 
 - Server: sends `0x00044807`, `0x00000054`, `0x00000002`
   - Header: `0x044807` (`size=7, n=1, ph=0, ack=0, commState=1`) (`1 = STARTING`)
-  - Payload: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
+  - Payload: these 7 bytes depend on the game
+    - _No No No Puzzle Chailien_ sends: `0x00`, `0x54`, `0x00`, `0x00`, `0x00`, `0x02`, `0x00`
+    - _Super Mario Bros Famicom Mini_ sends: `0x00`, `0x54`, `0x00`, `0xFC`, `0x44`, `0x01`, `0x00`
 - Client: ACKs the packet (`size=0, n=1, ph=0, ack=1, commState=1`)
 
 ## (3) ROM bytes
@@ -676,6 +700,7 @@ After all ROM chunks are ACK'd, the last transfers are:
 
 - `size=0, n=0, ph=0, ack=0, commState=3` (`3 = ENDING`)
 - `size=0, n=1, ph=0, ack=0, commState=0` (`0 = OFF`)
+  - _OFF state, so this one is not acknowledged by the clients!_
 
 ## SPI config
 

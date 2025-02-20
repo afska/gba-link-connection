@@ -4,8 +4,8 @@
 // --------------------------------------------------------------------------
 // An open-source implementation of the "official" Wireless Adapter protocol.
 // --------------------------------------------------------------------------
-// - Advanced usage only!
-// - You only need this if you want to interact with N software.
+// - advanced usage only; you only need this if you want to interact with N
+// software!
 // --------------------------------------------------------------------------
 
 #ifndef LINK_DEVELOPMENT
@@ -16,24 +16,24 @@
 
 #include "LinkRawWireless.hpp"
 
-static volatile char VERSION[] = "LinkWirelessOpenSDK/v7.0.3";
+LINK_VERSION_TAG LINK_WIRELESS_OPEN_SDK_VERSION = "LinkWirelessOpenSDK/v8.0.0";
 
 /**
  * @brief An open-source implementation of the "official" Wireless Adapter
  * protocol.
- * \warning Advanced usage only!
- * \warning You only need this if you want to interact with N software.
  */
 class LinkWirelessOpenSDK {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
 
  public:
   static constexpr int MAX_TRANSFER_WORDS = 23;
-  static constexpr int MAX_TRANSFER_BYTES_SERVER = 87;
-  static constexpr int MAX_TRANSFER_BYTES_CLIENT = 16;
+  static constexpr int MAX_TRANSFER_BYTES_SERVER =
+      LinkRawWireless::MAX_TRANSFER_BYTES_SERVER;
+  static constexpr int MAX_TRANSFER_BYTES_CLIENT =
+      LinkRawWireless::MAX_TRANSFER_BYTES_CLIENT;
   static constexpr int HEADER_SIZE_SERVER = 3;
   static constexpr int HEADER_SIZE_CLIENT = 2;
   static constexpr int HEADER_MASK_SERVER = 0b1111111111111111111111;
@@ -51,12 +51,12 @@ class LinkWirelessOpenSDK {
   template <class T>
   struct SendBuffer {
     T header;
-    std::array<u32, MAX_TRANSFER_WORDS> data;
+    u32 data[MAX_TRANSFER_WORDS];
     u32 dataSize = 0;
     u32 totalByteCount = 0;
   };
 
-  enum CommState : unsigned int {
+  enum class CommState : unsigned int {
     OFF = 0,
     STARTING = 1,
     COMMUNICATING = 2,
@@ -67,18 +67,19 @@ class LinkWirelessOpenSDK {
   struct SequenceNumber {
     u32 n = 0;
     u32 phase = 0;
-    CommState commState = OFF;
+    CommState commState = CommState::OFF;
 
     static SequenceNumber fromPacketId(u32 packetId) {
       return SequenceNumber{.n = ((packetId + 4) / 4) % 4,
-                            packetId % 4,
-                            .commState = COMMUNICATING};
+                            .phase = packetId % 4,
+                            .commState = CommState::COMMUNICATING};
     }
 
     bool operator==(const SequenceNumber& other) {
       return n == other.n && phase == other.phase &&
              commState == other.commState;
     }
+    bool operator!=(const SequenceNumber& other) { return !(*this == other); }
   };
 
   struct ServerSDKHeader {
@@ -94,7 +95,7 @@ class LinkWirelessOpenSDK {
       return SequenceNumber{.n = n, .phase = phase, .commState = commState};
     }
   };
-  union ServerSDKHeaderSerializer {
+  union ServerSDKHeaderPacker {
     ServerSDKHeader asStruct;
     u32 asInt;
   };
@@ -121,7 +122,7 @@ class LinkWirelessOpenSDK {
       return SequenceNumber{.n = n, .phase = phase, .commState = commState};
     }
   };
-  union ClientSDKHeaderSerializer {
+  union ClientSDKHeaderPacker {
     ClientSDKHeader asStruct;
     u16 asInt;
   };
@@ -371,7 +372,7 @@ class LinkWirelessOpenSDK {
                                      u8 clientNumber) {
     ServerSDKHeader serverHeader;
     serverHeader.isACK = 1;
-    serverHeader.targetSlots = (1 << clientNumber);
+    serverHeader.targetSlots = 1 << clientNumber;
     serverHeader.payloadSize = 0;
     serverHeader.n = clientHeader.n;
     serverHeader.phase = clientHeader.phase;
@@ -395,31 +396,350 @@ class LinkWirelessOpenSDK {
 
   [[nodiscard]]
   ClientSDKHeader parseClientHeader(u32 clientHeaderInt) {
-    ClientSDKHeaderSerializer clientSerializer;
-    clientSerializer.asInt = clientHeaderInt & HEADER_MASK_CLIENT;
-    return clientSerializer.asStruct;
+    ClientSDKHeaderPacker clientPacker;
+    clientPacker.asInt = clientHeaderInt & HEADER_MASK_CLIENT;
+    return clientPacker.asStruct;
   }
 
   [[nodiscard]]
   u16 serializeClientHeader(ClientSDKHeader clientHeader) {
-    ClientSDKHeaderSerializer clientSerializer;
-    clientSerializer.asStruct = clientHeader;
-    return clientSerializer.asInt & HEADER_MASK_CLIENT;
+    ClientSDKHeaderPacker clientPacker;
+    clientPacker.asStruct = clientHeader;
+    return clientPacker.asInt & HEADER_MASK_CLIENT;
   }
 
   [[nodiscard]]
   ServerSDKHeader parseServerHeader(u32 serverHeaderInt) {
-    ServerSDKHeaderSerializer serverSerializer;
-    serverSerializer.asInt = serverHeaderInt & HEADER_MASK_SERVER;
-    return serverSerializer.asStruct;
+    ServerSDKHeaderPacker serverPacker;
+    serverPacker.asInt = serverHeaderInt & HEADER_MASK_SERVER;
+    return serverPacker.asStruct;
   }
 
   [[nodiscard]]
   u32 serializeServerHeader(ServerSDKHeader serverHeader) {
-    ServerSDKHeaderSerializer serverSerializer;
-    serverSerializer.asStruct = serverHeader;
-    return serverSerializer.asInt & HEADER_MASK_SERVER;
+    ServerSDKHeaderPacker serverPacker;
+    serverPacker.asStruct = serverHeader;
+    return serverPacker.asInt & HEADER_MASK_SERVER;
   }
+
+  template <u32 MaxInflightPackets>
+  struct Transfer {
+   private:
+    struct PendingTransfer {
+      u32 cursor;
+      bool ack;
+      bool isActive = false;
+
+      void reset() { isActive = false; }
+    };
+
+    struct PendingTransferList {
+      PendingTransfer transfers[MaxInflightPackets] = {};
+
+      void reset() {
+        for (u32 i = 0; i < MaxInflightPackets; i++)
+          transfers[i].reset();
+      }
+
+      [[nodiscard]]
+      PendingTransfer* max(bool ack = false) {
+        int maxCursor = -1;
+        int maxI = -1;
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive && (int)transfers[i].cursor > maxCursor &&
+              (!ack || transfers[i].ack)) {
+            maxCursor = transfers[i].cursor;
+            maxI = i;
+          }
+        }
+        return maxI > -1 ? &transfers[maxI] : nullptr;
+      }
+
+      [[nodiscard]]
+      PendingTransfer* minWithoutACK() {
+        u32 minCursor = 0xFFFFFFFF;
+        int minI = -1;
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive && transfers[i].cursor < minCursor &&
+              !transfers[i].ack) {
+            minCursor = transfers[i].cursor;
+            minI = i;
+          }
+        }
+        return minI > -1 ? &transfers[minI] : nullptr;
+      }
+
+      void addIfNeeded(u32 newCursor) {
+        auto maxTransfer = max();
+        if (maxTransfer != nullptr && newCursor <= maxTransfer->cursor)
+          return;
+
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (!transfers[i].isActive) {
+            transfers[i].cursor = newCursor;
+            transfers[i].ack = false;
+            transfers[i].isActive = true;
+            break;
+          }
+        }
+      }
+
+      int ack(SequenceNumber sequence) {
+        int index = findIndex(sequence);
+        if (index == -1)
+          return -1;
+
+        transfers[index].ack = true;
+
+        auto maxACKTransfer = max(true);
+        bool canUpdateCursor = maxACKTransfer != nullptr &&
+                               isACKCompleteUpTo(maxACKTransfer->cursor);
+
+        if (canUpdateCursor)
+          cleanup();
+
+        return canUpdateCursor ? maxACKTransfer->cursor + 1 : -1;
+      }
+
+      void cleanup() {
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive && transfers[i].ack)
+            transfers[i].isActive = false;
+        }
+      }
+
+      [[nodiscard]]
+      bool isFull() {
+        return size() == MaxInflightPackets;
+      }
+
+      [[nodiscard]]
+      u32 size() {
+        u32 size = 0;
+        for (u32 i = 0; i < MaxInflightPackets; i++)
+          if (transfers[i].isActive)
+            size++;
+        return size;
+      }
+
+     private:
+      [[nodiscard]]
+      bool isACKCompleteUpTo(u32 cursor) {
+        for (u32 i = 0; i < MaxInflightPackets; i++)
+          if (transfers[i].isActive && !transfers[i].ack &&
+              transfers[i].cursor < cursor)
+            return false;
+        return true;
+      }
+
+      [[nodiscard]]
+      int findIndex(SequenceNumber sequence) {
+        for (u32 i = 0; i < MaxInflightPackets; i++) {
+          if (transfers[i].isActive &&
+              SequenceNumber::fromPacketId(transfers[i].cursor) == sequence) {
+            return i;
+          }
+        }
+
+        return -1;
+      }
+    };
+
+   public:
+    u32 cursor = 0;
+    PendingTransferList pendingTransferList = {};
+
+    void reset() {
+      cursor = 0;
+      pendingTransferList.reset();
+    }
+
+    [[nodiscard]]
+    u32 nextCursor(bool canSendInflightPackets) {
+      u32 pendingCount = pendingTransferList.size();
+
+      if (canSendInflightPackets && pendingCount > 0 &&
+          pendingCount < MaxInflightPackets) {
+        auto max = pendingTransferList.max();
+        // (`max` is never null here! but the compiler complains...)
+        return max != nullptr ? max->cursor + 1 : 0;
+      } else {
+        auto minWithoutACK = pendingTransferList.minWithoutACK();
+        return minWithoutACK != nullptr ? minWithoutACK->cursor : cursor;
+      }
+    }
+
+    void addIfNeeded(u32 newCursor) {
+      if (newCursor >= cursor)
+        pendingTransferList.addIfNeeded(newCursor);
+    }
+
+    [[nodiscard]]
+    u32 transferred() {
+      return cursor * MAX_PAYLOAD_SERVER;
+    }
+
+    [[nodiscard]]
+    SequenceNumber sequence() {
+      return SequenceNumber::fromPacketId(cursor);
+    }
+  };
+
+ public:
+  /**
+   * @brief A file transfer from a host to N clients.
+   * @tparam MaxInflightPackets Maximum number of packets that can be sent
+   * without a confirmation.
+   */
+  template <u32 MaxInflightPackets>
+  class MultiTransfer {
+   public:
+    /**
+     * @brief Constructs a new MultiTransfer object.
+     * @param linkWirelessOpenSDK An pointer to a `LinkWirelessOpenSDK`.
+     */
+    explicit MultiTransfer(LinkWirelessOpenSDK* linkWirelessOpenSDK) {
+      this->linkWirelessOpenSDK = linkWirelessOpenSDK;
+    }
+
+    /**
+     * @brief Configures the file transfer and resets the state.
+     * @param fileSize Size of the file.
+     * @param connectedClients Number of clients.
+     */
+    void configure(u32 fileSize, u32 connectedClients) {
+      this->fileSize = fileSize;
+      this->connectedClients = connectedClients;
+      for (u32 i = 0; i < LINK_RAW_WIRELESS_MAX_PLAYERS - 1; i++)
+        transfers[i].reset();
+      this->finished = false;
+      this->cursor = 0;
+    }
+
+    /**
+     * @brief Returns whether the transfer has completed or not.
+     */
+    [[nodiscard]]
+    bool hasFinished() {
+      return finished;
+    }
+
+    /**
+     * @brief Returns the current cursor (packet number).
+     */
+    [[nodiscard]]
+    u32 getCursor() {
+      return cursor;
+    }
+
+    /**
+     * @brief Returns a `SendBuffer`, ready for use with
+     * `LinkRawWireless::sendData(...)` to send the next packet. The internal
+     * state is updated to keep track of the transfer.
+     * @param fileBytes The pointer to the file bytes. It should always be the
+     * same across all calls unless you're changing it on the fly.
+     */
+    [[nodiscard]]
+    SendBuffer<ServerSDKHeader> createNextSendBuffer(const u8* fileBytes) {
+      if (finished)
+        return SendBuffer<ServerSDKHeader>{};
+
+      u32 offset = cursor * LinkWirelessOpenSDK::MAX_PAYLOAD_SERVER;
+      auto sequence = SequenceNumber::fromPacketId(cursor);
+
+      auto sendBuffer = linkWirelessOpenSDK->createServerBuffer(
+          fileBytes, fileSize, sequence, 0b1111, offset);
+
+      for (u32 i = 0; i < connectedClients; i++)
+        transfers[i].addIfNeeded(cursor);
+
+      return sendBuffer;
+    }
+
+    /**
+     * @brief Processes a response from `LinkRawWireless::receiveData(...)`,
+     * updating the cursor and the internal state.
+     * @param response The received response from the adapter.
+     * @return The completion percentage (0~100).
+     */
+    u8 processResponse(LinkRawWireless::ReceiveDataResponse response) {
+      if (finished)
+        return 100;
+
+      auto childrenData = linkWirelessOpenSDK->getChildrenData(response);
+      updateACKs(childrenData);
+
+      auto transferredBytes = minClientTransferredBytes();
+      finished = transferredBytes >= fileSize;
+      cursor = findMinCursor();
+      return Link::_min(transferredBytes * 100 / fileSize, 100);
+    }
+
+   private:
+    Transfer<MaxInflightPackets> transfers[LINK_RAW_WIRELESS_MAX_PLAYERS - 1] =
+        {};
+
+    LinkWirelessOpenSDK* linkWirelessOpenSDK;
+    u32 fileSize = 0;
+    u32 connectedClients = 0;
+    bool finished = false;
+    u32 cursor = 0;
+
+    void updateACKs(ChildrenData childrenData) {
+      for (u32 i = 0; i < connectedClients; i++) {
+        for (u32 j = 0; j < childrenData.responses[i].packetsSize; j++) {
+          auto header = childrenData.responses[i].packets[j].header;
+
+          if (header.isACK) {
+            int newACKCursor =
+                transfers[i].pendingTransferList.ack(header.sequence());
+            if (newACKCursor > -1)
+              transfers[i].cursor = newACKCursor;
+          }
+        }
+      }
+    }
+
+    [[nodiscard]]
+    u32 minClientTransferredBytes() {
+      return transfers[findMinClient()].transferred();
+    }
+
+    [[nodiscard]]
+    u32 findMinClient() {
+      u32 minTransferredBytes = 0xFFFFFFFF;
+      u32 minClient = 0;
+
+      for (u32 i = 0; i < connectedClients; i++) {
+        u32 transferred = transfers[i].transferred();
+        if (transferred < minTransferredBytes) {
+          minTransferredBytes = transferred;
+          minClient = i;
+        }
+      }
+
+      return minClient;
+    }
+
+    [[nodiscard]]
+    u32 findMinCursor() {
+      u32 minNextCursor = 0xFFFFFFFF;
+
+      bool canSendInflightPackets = true;
+      for (u32 i = 0; i < connectedClients; i++) {
+        if (transfers[i].pendingTransferList.isFull())
+          canSendInflightPackets = false;
+      }
+
+      for (u32 i = 0; i < connectedClients; i++) {
+        u32 nextCursor = transfers[i].nextCursor(canSendInflightPackets);
+        if (nextCursor < minNextCursor)
+          minNextCursor = nextCursor;
+      }
+
+      return minNextCursor;
+    }
+  };
 };
 
 #endif  // LINK_WIRELESS_OPEN_SDK_H

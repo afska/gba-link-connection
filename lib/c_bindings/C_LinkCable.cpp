@@ -2,7 +2,6 @@
 #include "../LinkCable.hpp"
 
 extern "C" {
-
 C_LinkCableHandle C_LinkCable_createDefault() {
   return new LinkCable();
 }
@@ -69,8 +68,44 @@ u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId) {
   return static_cast<LinkCable*>(handle)->peek(playerId);
 }
 
-void C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
-  static_cast<LinkCable*>(handle)->send(data);
+bool C_LinkCable_canSend(C_LinkCableHandle handle) {
+  return static_cast<LinkCable*>(handle)->canSend();
+}
+
+bool C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
+  return static_cast<LinkCable*>(handle)->send(data);
+}
+
+bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear) {
+  return static_cast<LinkCable*>(handle)->didQueueOverflow(clear);
+}
+
+void C_LinkCable_resetTimeout(C_LinkCableHandle handle) {
+  static_cast<LinkCable*>(handle)->resetTimeout();
+}
+
+void C_LinkCable_resetTimer(C_LinkCableHandle handle) {
+  static_cast<LinkCable*>(handle)->resetTimer();
+}
+
+C_LinkCable_Config C_LinkCable_getConfig(C_LinkCableHandle handle) {
+  C_LinkCable_Config config;
+  auto instance = static_cast<LinkCable*>(handle);
+  config.baudRate =
+      static_cast<C_LinkCable_BaudRate>(instance->config.baudRate);
+  config.timeout = instance->config.timeout;
+  config.interval = instance->config.interval;
+  config.sendTimerId = instance->config.sendTimerId;
+  return config;
+}
+
+void C_LinkCable_setConfig(C_LinkCableHandle handle,
+                           C_LinkCable_Config config) {
+  auto instance = static_cast<LinkCable*>(handle);
+  instance->config.baudRate = static_cast<LinkCable::BaudRate>(config.baudRate);
+  instance->config.timeout = config.timeout;
+  instance->config.interval = config.interval;
+  instance->config.sendTimerId = config.sendTimerId;
 }
 
 void C_LinkCable_onVBlank(C_LinkCableHandle handle) {

@@ -1,30 +1,21 @@
 // (0) Include the header
 #include "../../../lib/LinkCube.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-void log(std::string text);
-void wait(u32 verticalLines);
-bool didPress(unsigned short key, bool& pressed);
-inline void VBLANK() {}
-
-bool a = false, b = false, l = false;
+bool a = true, b = true, l = true;
 
 // (1) Create a LinkCube instance
 LinkCube* linkCube = new LinkCube();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_CUBE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, LINK_CUBE_ISR_SERIAL);
 }
 
 int main() {
@@ -41,7 +32,7 @@ int main() {
   while (true) {
     // Title
     std::string output =
-        "LinkCube_demo (v7.0.3)" + std::string(reset ? " !RESET!" : "") +
+        "LinkCube_demo (v8.0.0)" + std::string(reset ? " !RESET!" : "") +
         "\n\nPress A to send\nPress B to clear\n (L = "
         "+1024)\n\nLast sent: " +
         std::to_string(counter) +
@@ -49,13 +40,13 @@ int main() {
         ")\n\nReceived:\n" + received;
 
     // (4) Send 32-bit values
-    if (didPress(KEY_A, a)) {
+    if (Common::didPress(KEY_A, a)) {
       counter++;
       linkCube->send(counter);
     }
 
     // +1024
-    if (didPress(KEY_L, l)) {
+    if (Common::didPress(KEY_L, l)) {
       counter += 1024;
       linkCube->send(counter);
     }
@@ -66,7 +57,7 @@ int main() {
     }
 
     // Clear
-    if (didPress(KEY_B, b))
+    if (Common::didPress(KEY_B, b))
       received = "";
 
     // Reset warning
@@ -83,38 +74,8 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
-}
-
-bool didPress(u16 key, bool& pressed) {
-  u16 keys = ~REG_KEYS & KEY_ANY;
-  bool isPressedNow = false;
-  if ((keys & key) && !pressed) {
-    pressed = true;
-    isPressedNow = true;
-  }
-  if (pressed && !(keys & key))
-    pressed = false;
-  return isPressedNow;
 }

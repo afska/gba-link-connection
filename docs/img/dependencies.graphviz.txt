@@ -1,0 +1,59 @@
+digraph finite_state_machine {
+    node [shape=circle, fixedsize=true, width=0.75, fontname="Courier New", style=filled, fillcolor="lightgray", fontcolor="black"];
+
+    LinkCable [label="👾"];
+    LinkCableMultiboot [label="💻"]
+    LinkRawCable [label="🔧👾"]
+    LinkWireless [label="📻"]
+    LinkWirelessMultiboot [label="📡"]
+    LinkRawWireless [label="🔧📻"]
+    LinkWirelessOpenSDK [label="🔧🏛"]
+    LinkUniversal [label="🌎"]
+    LinkGPIO [label="🔌"]
+    LinkSPI [label="🔗"]
+    LinkUART [label="⏱"]
+    LinkCube [label="🟪"]
+    LinkCard [label="💳"]
+    LinkMobile [label="📱"]
+    LinkIR [label="📺"]
+    LinkPS2Mouse [label="🖱️"]
+    LinkPS2Keyboard [label="⌨️"]
+    //Common [label="⚙️"]
+
+    edge [fontname="Courier New", fontcolor="black"];
+
+    /*LinkCable -> Common
+    LinkRawCable -> Common
+    LinkWireless -> Common
+    LinkCableMultiboot -> Common
+    LinkWirelessMultiboot -> Common
+    LinkRawWireless -> Common
+    LinkWirelessOpenSDK -> Common
+    LinkUniversal -> Common
+    LinkGPIO -> Common
+    LinkSPI -> Common
+    LinkUART -> Common
+    LinkCube -> Common
+    LinkCard -> Common
+    LinkMobile -> Common
+    LinkIR -> Common
+    LinkPS2Mouse -> Common
+    LinkPS2Keyboard -> Common*/
+
+    LinkCable -> LinkRawCable
+    LinkCableMultiboot -> LinkRawCable
+    LinkCableMultiboot -> LinkSPI
+    LinkWireless -> LinkRawWireless
+    LinkWirelessMultiboot -> LinkRawWireless
+    LinkWirelessMultiboot -> LinkWirelessOpenSDK
+    LinkRawWireless -> LinkGPIO
+    LinkRawWireless -> LinkSPI
+    LinkWirelessOpenSDK -> LinkRawWireless
+    LinkUniversal -> LinkCable
+    LinkUniversal -> LinkWireless
+    LinkCard -> LinkRawCable
+    LinkCard -> LinkSPI
+    LinkMobile -> LinkGPIO
+    LinkMobile -> LinkSPI
+    LinkIR -> LinkGPIO
+}

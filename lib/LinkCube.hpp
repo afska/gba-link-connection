@@ -8,8 +8,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkCube* linkCube = new LinkCube();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_SERIAL, LINK_CUBE_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_SERIAL, LINK_CUBE_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkCube->activate();
 // - 4) Send 32-bit values:
@@ -44,18 +44,16 @@
 #define LINK_CUBE_QUEUE_SIZE 10
 #endif
 
-static volatile char LINK_CUBE_VERSION[] = "LinkCube/v7.0.3";
-
-#define LINK_CUBE_BARRIER asm volatile("" ::: "memory")
+LINK_VERSION_TAG LINK_CUBE_VERSION = "vLinkCube/v8.0.0";
 
 /**
  * @brief A JOYBUS handler for the Link Port.
  */
 class LinkCube {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
   using U32Queue = Link::Queue<u32, LINK_CUBE_QUEUE_SIZE>;
 
   static constexpr int BIT_CMD_RESET = 0;
@@ -76,16 +74,19 @@ class LinkCube {
    * @brief Activates the library.
    */
   void activate() {
-    LINK_CUBE_BARRIER;
+    LINK_READ_TAG(LINK_CUBE_VERSION);
+    static_assert(LINK_CUBE_QUEUE_SIZE >= 1);
+
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
 
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_CUBE_BARRIER;
+    LINK_BARRIER;
 
     start();
   }
@@ -116,6 +117,9 @@ class LinkCube {
    */
   template <typename F>
   bool wait(F cancel) {
+    if (!isEnabled)
+      return false;
+
     resetFlag = false;
 
     while (!resetFlag && !canRead() && !cancel())
@@ -147,12 +151,31 @@ class LinkCube {
    * \warning If the other end asks for data at the same time you call this
    * method, a `0x00000000` will be sent.
    */
-  void send(u32 data) { outgoingQueue.syncPush(data); }
+  void send(u32 data) {
+    if (!isEnabled)
+      return;
+
+    outgoingQueue.syncPush(data);
+  }
 
   /**
    * @brief Returns the number of pending outgoing transfers.
    */
   [[nodiscard]] u32 pendingCount() { return outgoingQueue.size(); }
+
+  /**
+   * @brief Returns whether the internal queue lost messages at some point due
+   * to being full. This can happen if your queue size is too low, if you
+   * receive too much data without calling `read(...)` enough times, or if
+   * excessive `read(...)` calls prevent the ISR from copying data. After this
+   * call, the overflow flag is cleared if `clear` is `true` (default behavior).
+   */
+  bool didQueueOverflow(bool clear = true) {
+    bool overflow = newIncomingQueue.overflow;
+    if (clear)
+      newIncomingQueue.overflow = false;
+    return overflow;
+  }
 
   /**
    * @brief Returns whether a JOYBUS reset was requested or not. After this
@@ -210,11 +233,12 @@ class LinkCube {
       needsClear = false;
     }
 
-    while (!newIncomingQueue.isEmpty())
+    while (!newIncomingQueue.isEmpty() && !incomingQueue.isFull())
       incomingQueue.push(newIncomingQueue.pop());
   }
 
   void resetState() {
+    LINK_BARRIER;
     needsClear = false;
     newIncomingQueue.clear();
     if (incomingQueue.isReading())
@@ -223,6 +247,9 @@ class LinkCube {
       incomingQueue.clear();
     outgoingQueue.syncClear();
     resetFlag = false;
+
+    newIncomingQueue.overflow = false;
+    LINK_BARRIER;
   }
 
   void setPendingData() {
@@ -230,12 +257,12 @@ class LinkCube {
   }
 
   void setData(u32 data) {
-    Link::_REG_JOY_TRANS_H = msB32(data);
-    Link::_REG_JOY_TRANS_L = lsB32(data);
+    Link::_REG_JOY_TRANS_H = Link::msB32(data);
+    Link::_REG_JOY_TRANS_L = Link::lsB32(data);
   }
 
   u32 getData() {
-    return buildU32(Link::_REG_JOY_RECV_H, Link::_REG_JOY_RECV_L);
+    return Link::buildU32(Link::_REG_JOY_RECV_H, Link::_REG_JOY_RECV_L);
   }
 
   void stop() {
@@ -261,9 +288,6 @@ class LinkCube {
   void setInterruptsOn() { setBitHigh(BIT_IRQ); }
   void setInterruptsOff() { setBitLow(BIT_IRQ); }
 
-  u32 buildU32(u16 msB, u16 lsB) { return (msB << 16) | lsB; }
-  u16 msB32(u32 value) { return value >> 16; }
-  u16 lsB32(u32 value) { return value & 0xffff; }
   bool isBitHigh(u8 bit) { return (Link::_REG_JOYCNT >> bit) & 1; }
   void setBitHigh(u8 bit) { Link::_REG_JOYCNT |= 1 << bit; }
   void setBitLow(u8 bit) { Link::_REG_JOYCNT &= ~(1 << bit); }

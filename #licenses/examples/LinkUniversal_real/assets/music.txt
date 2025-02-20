@@ -1,0 +1,11 @@
+Licenses for each *.pcm/*.gsm MUSIC file in the gbfs_files/ directory.
+
+---------
+cyberrid.mod
+---------
+
+by Jester
+
+CC BY-NC-SA 4.0
+
+https://modarchive.org/index.php?request=view_by_moduleid&query=40293

@@ -4,8 +4,8 @@
 #include "main.h"
 #include <libgba-sprite-engine/gba_engine.h>
 #include "../../_lib/interrupt.h"
+#include "../../_lib/libgba-sprite-engine/scene.h"
 #include "scenes/TestScene.h"
-#include "utils/SceneUtils.h"
 
 void setUpInterrupts();
 void printTutorial();
@@ -40,18 +40,74 @@ int main() {
       DEBULOG("! started");
     }
 
+    // log player ID/count and debug flags
     static constexpr int BIT_READY = 3;
     static constexpr int BIT_ERROR = 6;
     static constexpr int BIT_START = 7;
-
-    // log player ID/count and important flags
+#ifndef USE_LINK_UNIVERSAL
     TextStream::instance().setText(
-        "P" + asStr(linkConnection->currentPlayerId()) + "/" +
-            asStr(linkConnection->playerCount()) + "-R" +
-            asStr(isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
-            asStr(isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
-            asStr(isBitHigh(REG_SIOCNT, BIT_START)),
-        0, 14);
+        "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+            std::to_string(linkConnection->playerCount()) + " R" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) +
+            (linkConnection->didQueueOverflow(false) ? "!" : ""),
+        0, -3);
+#else
+    if (linkConnection->isConnected()) {
+      if (linkConnection->getMode() == LinkUniversal::Mode::LINK_CABLE) {
+        auto readyToSyncMessages =
+            linkConnection->getLinkCable()->_state.readyToSyncMessages;
+        auto newMessages = linkConnection->getLinkCable()->_state.newMessages;
+        u32 readyToSyncSize =
+            readyToSyncMessages[0].size() + readyToSyncMessages[1].size() +
+            readyToSyncMessages[2].size() + readyToSyncMessages[3].size();
+        u32 newSize = newMessages[0].size() + newMessages[1].size() +
+                      newMessages[2].size() + newMessages[3].size();
+        TextStream::instance().setText(
+            "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+                std::to_string(linkConnection->playerCount()) + " >" +
+                std::to_string(linkConnection->getLinkCable()
+                                   ->_state.outgoingMessages.size()) +
+                " <" + std::to_string(readyToSyncSize) + " <<" +
+                std::to_string(newSize) + " / R" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) +
+                "-S" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) +
+                "-E" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) +
+                (linkConnection->didQueueOverflow(false) ? "!" : ""),
+            0, -3);
+      } else {
+        TextStream::instance().setText(
+            "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+                std::to_string(linkConnection->playerCount()) + " >" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.newOutgoingMessages.size()) +
+                " >>" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.outgoingMessages.size()) +
+                " <" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.incomingMessages.size()) +
+                " <<" +
+                std::to_string(linkConnection->getLinkWireless()
+                                   ->sessionState.newIncomingMessages.size()) +
+                (linkConnection->didQueueOverflow(false) ? "!" : ""),
+            0, -3);
+      }
+    } else {
+      TextStream::instance().setText(
+          "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
+              std::to_string(linkConnection->playerCount()) + " [" +
+              std::to_string((int)linkConnection->getState()) + "]<" +
+              std::to_string((int)linkConnection->getMode()) + ">(" +
+              std::to_string((int)linkConnection->getWirelessState()) + ") w(" +
+              std::to_string(linkConnection->_getWaitCount()) + ") sw(" +
+              std::to_string(linkConnection->_getSubWaitCount()) + ")",
+          0, -3);
+    }
+#endif
 
     engine->update();
 
@@ -61,43 +117,33 @@ int main() {
   return 0;
 }
 
-inline void ISR_reset() {
-  RegisterRamReset(RESET_REG | RESET_VRAM);
-  SoftReset();
-}
-
 inline void setUpInterrupts() {
   interrupt_init();
 
 #ifndef USE_LINK_UNIVERSAL
   // LinkCable
-  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
 #else
   // LinkUniversal
-  interrupt_set_handler(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_UNIVERSAL_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_UNIVERSAL_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_UNIVERSAL_ISR_TIMER);
 #endif
 
-  // A+B+START+SELECT
+// A+B+START+SELECT = SoftReset
+#if MULTIBOOT_BUILD == 0
   REG_KEYCNT = 0b1100000000001111;
-  interrupt_set_handler(INTR_KEYPAD, ISR_reset);
-  interrupt_enable(INTR_KEYPAD);
+  interrupt_add(INTR_KEYPAD, Common::ISR_reset);
+#endif
 }
 
 void printTutorial() {
 #ifndef USE_LINK_UNIVERSAL
-  DEBULOG("LinkCable_full (v7.0.3)");
+  DEBULOG("LinkCable_full (v8.0.0)");
 #else
-  DEBULOG("LinkUniversal_full (v7.0.3)");
+  DEBULOG("LinkUniversal_full (v8.0.0)");
 #endif
 
   DEBULOG("");
@@ -108,7 +154,10 @@ void printTutorial() {
   DEBULOG("A: send counter++ (cont)");
   DEBULOG("L: send counter++ twice (once)");
   DEBULOG("R: send counter++ twice (cont)");
-  DEBULOG("SELECT: force lag (9k lines)");
+#ifdef USE_LINK_UNIVERSAL
+  DEBULOG("RIGHT: get signal level");
+#endif
+  DEBULOG("SELECT: force lag (5 frames)");
   DEBULOG("DOWN: turn off connection");
   DEBULOG("");
 }

@@ -8,8 +8,8 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkUART* linkUART = new LinkUART();
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_SERIAL, LINK_UART_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_SERIAL, LINK_UART_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkUART->activate();
 // - 4) Send/read data by using:
@@ -37,20 +37,16 @@
 #define LINK_UART_QUEUE_SIZE 256
 #endif
 
-static volatile char LINK_UART_VERSION[] = "LinkUART/v7.0.3";
-
-#define LINK_UART_BARRIER asm volatile("" ::: "memory")
+LINK_VERSION_TAG LINK_UART_VERSION = "vLinkUART/v8.0.0";
 
 /**
  * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
  */
 class LinkUART {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
-  using vu32 = volatile unsigned int;
-  using vs32 = volatile signed int;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
   using U8Queue = Link::Queue<u8, LINK_UART_QUEUE_SIZE>;
 
   static constexpr int BIT_CTS = 2;
@@ -70,23 +66,23 @@ class LinkUART {
   static constexpr int BIT_GENERAL_PURPOSE_HIGH = 15;
 
  public:
-  enum BaudRate {
+  enum class BaudRate {
     BAUD_RATE_0,  // 9600 bps
     BAUD_RATE_1,  // 38400 bps
     BAUD_RATE_2,  // 57600 bps
     BAUD_RATE_3   // 115200 bps
   };
-  enum DataSize { SIZE_7_BITS, SIZE_8_BITS };
-  enum Parity { NO, EVEN, ODD };
+  enum class DataSize { SIZE_7_BITS, SIZE_8_BITS };
+  enum class Parity { NO, EVEN, ODD };
 
   /**
    * @brief Constructs a new LinkUART object.
    */
   explicit LinkUART() {
-    this->config.baudRate = BAUD_RATE_0;
-    this->config.dataSize = SIZE_8_BITS;
-    this->config.parity = NO;
-    this->config.useCTS = false;
+    config.baudRate = BaudRate::BAUD_RATE_0;
+    config.dataSize = DataSize::SIZE_8_BITS;
+    config.parity = Parity::NO;
+    config.useCTS = false;
   }
 
   /**
@@ -102,33 +98,36 @@ class LinkUART {
    * @param parity One of the enum values from `LinkUART::Parity`.
    * @param useCTS Enable RTS/CTS flow.
    */
-  void activate(BaudRate baudRate = BAUD_RATE_0,
-                DataSize dataSize = SIZE_8_BITS,
-                Parity parity = NO,
+  void activate(BaudRate baudRate = BaudRate::BAUD_RATE_0,
+                DataSize dataSize = DataSize::SIZE_8_BITS,
+                Parity parity = Parity::NO,
                 bool useCTS = false) {
-    this->config.baudRate = baudRate;
-    this->config.dataSize = dataSize;
-    this->config.parity = parity;
-    this->config.useCTS = false;
+    LINK_READ_TAG(LINK_UART_VERSION);
+    static_assert(LINK_UART_QUEUE_SIZE >= 1);
 
-    LINK_UART_BARRIER;
+    config.baudRate = baudRate;
+    config.dataSize = dataSize;
+    config.parity = parity;
+    config.useCTS = false;
+
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
 
     reset();
 
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
     isEnabled = true;
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
   }
 
   /**
    * @brief Deactivates the library.
    */
   void deactivate() {
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
     isEnabled = false;
-    LINK_UART_BARRIER;
+    LINK_BARRIER;
 
     resetState();
     stop();
@@ -154,6 +153,9 @@ class LinkUART {
    */
   template <typename F>
   void sendLine(const char* string, F cancel) {
+    if (!isEnabled)
+      return;
+
     for (u32 i = 0; string[i] != '\0'; i++) {
       while (!canSend())
         if (cancel())
@@ -189,6 +191,9 @@ class LinkUART {
    */
   template <typename F>
   bool readLine(char* string, F cancel, u32 limit = LINK_UART_QUEUE_SIZE) {
+    if (!isEnabled)
+      return false;
+
     u32 readBytes = 0;
     char lastChar = '\0';
     bool aborted = false;
@@ -215,6 +220,9 @@ class LinkUART {
    * @param offset The starting offset.
    */
   void send(const u8* buffer, u32 size, u32 offset = 0) {
+    if (!isEnabled)
+      return;
+
     for (u32 i = 0; i < size; i++)
       send(buffer[offset + i]);
   }
@@ -227,6 +235,9 @@ class LinkUART {
    * @param offset The offset from target buffer.
    */
   u32 read(u8* buffer, u32 size, u32 offset = 0) {
+    if (!isEnabled)
+      return 0;
+
     for (u32 i = 0; i < size; i++) {
       if (!canRead())
         return i;
@@ -268,7 +279,12 @@ class LinkUART {
    * @brief Sends a `data` byte.
    * @param data The value to be sent.
    */
-  void send(u8 data) { outgoingQueue.syncPush(data); }
+  void send(u8 data) {
+    if (!isEnabled)
+      return;
+
+    outgoingQueue.syncPush(data);
+  }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.
@@ -310,18 +326,20 @@ class LinkUART {
   }
 
   void resetState() {
+    LINK_BARRIER;
     incomingQueue.clear();
     outgoingQueue.clear();
+    LINK_BARRIER;
   }
 
   void stop() { setGeneralPurposeMode(); }
 
   void start() {
     setUARTMode();
-    if (config.dataSize == SIZE_8_BITS)
+    if (config.dataSize == DataSize::SIZE_8_BITS)
       set8BitData();
-    if (config.parity > NO) {
-      if (config.parity == ODD)
+    if (config.parity > Parity::NO) {
+      if (config.parity == Parity::ODD)
         setOddParity();
       setParityOn();
     }
@@ -345,7 +363,7 @@ class LinkUART {
   void setUARTMode() {
     Link::_REG_RCNT = Link::_REG_RCNT & ~(1 << BIT_GENERAL_PURPOSE_HIGH);
     Link::_REG_SIOCNT = (1 << BIT_UART_1) | (1 << BIT_UART_2);
-    Link::_REG_SIOCNT |= config.baudRate;
+    Link::_REG_SIOCNT |= (int)config.baudRate;
     Link::_REG_SIOMLT_SEND = 0;
   }
 

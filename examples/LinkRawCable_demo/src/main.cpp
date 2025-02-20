@@ -1,27 +1,19 @@
 // (0) Include the header
 #include "../../../lib/LinkRawCable.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
-
-void log(std::string text);
-void wait(u32 verticalLines);
-inline void VBLANK() {}
 
 // (1) Create a LinkRawCable instance
 LinkRawCable* linkRawCable = new LinkRawCable();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, LINK_RAW_CABLE_ISR_SERIAL);
 }
 
 int main() {
@@ -33,7 +25,7 @@ int main() {
   u16 prevKeys = 0;
 
   while (true) {
-    std::string output = "LinkRawCable_demo (v7.0.3)\n\n";
+    std::string output = "LinkRawCable_demo (v8.0.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkRawCable->isActive()) {
@@ -55,7 +47,7 @@ int main() {
       output +=
           "isReady() = " + std::to_string(linkRawCable->isReady()) + "\n\n";
       if (firstTransfer) {
-        log(output + "Waiting...");
+        Common::log(output + "Waiting...");
         firstTransfer = false;
       }
 
@@ -63,20 +55,20 @@ int main() {
         // (4)/(5) Exchange 16-bit data with the connected consoles
         if (prevKeys == 0 && keys != 0 && linkRawCable->isReady()) {
           counter++;
-          log(output + "...");
+          Common::log(output + "...");
           LinkRawCable::Response response =
               linkRawCable->transfer(counter, []() {
                 u16 keys = ~REG_KEYS & KEY_ANY;
                 return (keys & KEY_L) && (keys & KEY_R);
               });
-          log(output + ">> " + std::to_string(counter));
-          wait(228 * 60);
-          log(output + "<< [" + std::to_string(response.data[0]) + "," +
-              std::to_string(response.data[1]) + "," +
-              std::to_string(response.data[2]) + "," +
-              std::to_string(response.data[3]) + "]\n" +
-              "_pID: " + std::to_string(response.playerId));
-          wait(228 * 60);
+          Common::log(output + ">> " + std::to_string(counter));
+          Link::wait(228 * 60);
+          Common::log(output + "<< [" + std::to_string(response.data[0]) + "," +
+                      std::to_string(response.data[1]) + "," +
+                      std::to_string(response.data[2]) + "," +
+                      std::to_string(response.data[3]) + "]\n" +
+                      "_pID: " + std::to_string(response.playerId));
+          Link::wait(228 * 60);
         }
       } else {
         // (6) Exchange data asynchronously
@@ -84,17 +76,17 @@ int main() {
             linkRawCable->getAsyncState() == LinkRawCable::AsyncState::IDLE) {
           counter++;
           linkRawCable->transferAsync(counter);
-          log(output + ">> " + std::to_string(counter));
-          wait(228 * 60);
+          Common::log(output + ">> " + std::to_string(counter));
+          Link::wait(228 * 60);
         }
         if (linkRawCable->getAsyncState() == LinkRawCable::AsyncState::READY) {
           LinkRawCable::Response response = linkRawCable->getAsyncData();
-          log(output + "<< [" + std::to_string(response.data[0]) + "," +
-              std::to_string(response.data[1]) + "," +
-              std::to_string(response.data[2]) + "," +
-              std::to_string(response.data[3]) + "]\n" +
-              "_pID: " + std::to_string(response.playerId));
-          wait(228 * 60);
+          Common::log(output + "<< [" + std::to_string(response.data[0]) + "," +
+                      std::to_string(response.data[1]) + "," +
+                      std::to_string(response.data[2]) + "," +
+                      std::to_string(response.data[3]) + "]\n" +
+                      "_pID: " + std::to_string(response.playerId));
+          Link::wait(228 * 60);
         }
       }
 
@@ -108,27 +100,9 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
     prevKeys = keys;
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
-void wait(u32 verticalLines) {
-  u32 count = 0;
-  u32 vCount = REG_VCOUNT;
-
-  while (count < verticalLines) {
-    if (REG_VCOUNT != vCount) {
-      count++;
-      vCount = REG_VCOUNT;
-    }
-  };
 }

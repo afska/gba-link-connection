@@ -2,7 +2,6 @@
 #include "../LinkPS2Keyboard.hpp"
 
 extern "C" {
-
 C_LinkPS2KeyboardHandle C_LinkPS2Keyboard_create(
     C_LinkPS2Keyboard_EventCallback callback) {
   return new LinkPS2Keyboard(callback);

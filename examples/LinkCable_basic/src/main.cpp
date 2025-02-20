@@ -4,27 +4,20 @@
 // (0) Include the header
 #include "../../../lib/LinkCable.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
-
-void log(std::string text);
 
 // (1) Create a LinkCable instance
 LinkCable* linkCable = new LinkCable();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the required interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
-  interrupt_set_handler(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
-  interrupt_enable(INTR_TIMER3);
+  interrupt_add(INTR_VBLANK, LINK_CABLE_ISR_VBLANK);
+  interrupt_add(INTR_SERIAL, LINK_CABLE_ISR_SERIAL);
+  interrupt_add(INTR_TIMER3, LINK_CABLE_ISR_TIMER);
 
   // (3) Initialize the library
   linkCable->activate();
@@ -45,7 +38,7 @@ int main() {
     u16 keys = ~REG_KEYS & KEY_ANY;
     linkCable->send(keys + 1);  // (avoid using 0)
 
-    std::string output = "LinkCable_basic (v7.0.3)\n\n";
+    std::string output = "LinkCable_basic (v8.0.0)\n\n";
     if (linkCable->isConnected()) {
       u8 playerCount = linkCable->playerCount();
       u8 currentPlayerId = linkCable->currentPlayerId();
@@ -67,14 +60,8 @@ int main() {
     }
 
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }

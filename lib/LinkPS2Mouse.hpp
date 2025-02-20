@@ -3,14 +3,13 @@
 
 // --------------------------------------------------------------------------
 // A PS/2 Mouse Adapter for the GBA.
-// (Based on https://github.com/kristopher/PS2-Mouse-Arduino, MIT license)
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
-//       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse();
+//       LinkPS2Mouse* linkPS2Mouse = new LinkPS2Mouse(2);
 // - 2) Add the required interrupt service routines:
-//       irq_init(NULL);
-//       irq_add(II_TIMER2, NULL);
+//       interrupt_init();
+//       interrupt_add(INTR_TIMER2, []() {});
 // - 3) Initialize the library with:
 //       linkPS2Mouse->activate();
 // - 4) Get a report:
@@ -22,8 +21,8 @@
 //       data[2] // Y movement
 // --------------------------------------------------------------------------
 // considerations:
-// - `activate()` or `report(...)` could freeze the system if not connected!
-// - detecting timeouts using interrupts is the user's responsibility!
+// - `activate()` or `report(...)` could freeze the system if not connected:
+//   detecting timeouts using interrupts is the user's responsibility!
 // --------------------------------------------------------------------------
 //  ____________
 // |   Pinout   |
@@ -41,7 +40,7 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.3";
+LINK_VERSION_TAG LINK_PS2_MOUSE_VERSION = "vLinkPS2Mouse/v8.0.0";
 
 #define LINK_PS2_MOUSE_LEFT_CLICK 0b001
 #define LINK_PS2_MOUSE_RIGHT_CLICK 0b010
@@ -52,9 +51,9 @@ static volatile char LINK_PS2_MOUSE_VERSION[] = "LinkPS2Mouse/v7.0.3";
  */
 class LinkPS2Mouse {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
   using s16 = signed short;
 
   static constexpr int RCNT_GPIO = 0b1000000000000000;
@@ -84,12 +83,14 @@ class LinkPS2Mouse {
    * \warning Detect timeouts using timer interrupts!
    */
   void activate() {
+    LINK_READ_TAG(LINK_PS2_MOUSE_VERSION);
+
     deactivate();
 
     setClockHigh();
     setDataHigh();
     waitMilliseconds(20);
-    write(0xff);            // send reset to the mouse
+    write(0xFF);            // send reset to the mouse
     readByte();             // read ack byte
     waitMilliseconds(20);   // not sure why this needs the delay
     readByte();             // blank
@@ -120,7 +121,14 @@ class LinkPS2Mouse {
    * @param data The array to be filled with data.
    */
   void report(int (&data)[3]) {
-    write(0xeb);                       // send read data
+    if (!isEnabled) {
+      data[0] = 0;
+      data[1] = 0;
+      data[2] = 0;
+      return;
+    }
+
+    write(0xEB);                       // send read data
     readByte();                        // read ack byte
     data[0] = readByte();              // status bit
     data[1] = readMovementX(data[0]);  // X movement packet
@@ -132,7 +140,7 @@ class LinkPS2Mouse {
   volatile bool isEnabled = false;
 
   void enableDataReporting() {
-    write(0xf4);  // send enable data reporting
+    write(0xF4);  // send enable data reporting
     readByte();   // read ack byte
   }
 

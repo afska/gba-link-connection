@@ -10,9 +10,9 @@
 //         // handle event (check example scan codes below)
 //       });
 // - 2) Add the required interrupt service routines: (*)
-//       irq_init(NULL);
-//       irq_add(II_VBLANK, LINK_PS2_KEYBOARD_ISR_VBLANK);
-//       irq_add(II_SERIAL, LINK_PS2_KEYBOARD_ISR_SERIAL);
+//       interrupt_init();
+//       interrupt_add(INTR_VBLANK, LINK_PS2_KEYBOARD_ISR_VBLANK);
+//       interrupt_add(INTR_SERIAL, LINK_PS2_KEYBOARD_ISR_SERIAL);
 // - 3) Initialize the library with:
 //       linkPS2Keyboard->activate();
 // - 4) Handle events in the callback sent to LinkPS2Keyboard's constructor!
@@ -43,16 +43,16 @@
 
 #include "_link_common.hpp"
 
-static volatile char LINK_PS2_KEYBOARD_VERSION[] = "LinkPS2Keyboard/v7.0.3";
+LINK_VERSION_TAG LINK_PS2_KEYBOARD_VERSION = "vLinkPS2Keyboard/v8.0.0";
 
 /**
  * @brief A PS/2 Keyboard Adapter for the GBA.
  */
 class LinkPS2Keyboard {
  private:
-  using u32 = unsigned int;
-  using u16 = unsigned short;
-  using u8 = unsigned char;
+  using u32 = Link::u32;
+  using u16 = Link::u16;
+  using u8 = Link::u8;
 
   static constexpr int RCNT_GPIO_AND_SI_IRQ = 0b1000000100000000;
   static constexpr int RCNT_GPIO = 0b1000000000000000;
@@ -83,6 +83,8 @@ class LinkPS2Keyboard {
    * @brief Activates the library.
    */
   void activate() {
+    LINK_READ_TAG(LINK_PS2_KEYBOARD_VERSION);
+
     deactivate();
 
     Link::_REG_RCNT = RCNT_GPIO_AND_SI_IRQ;
@@ -111,7 +113,12 @@ class LinkPS2Keyboard {
    * @brief This method is called by the VBLANK interrupt handler.
    * \warning This is internal API!
    */
-  void _onVBlank() { frameCounter++; }
+  void _onVBlank() {
+    if (!isEnabled)
+      return;
+
+    frameCounter++;
+  }
 
   /**
    * @brief This method is called by the SERIAL interrupt handler.
@@ -145,7 +152,7 @@ class LinkPS2Keyboard {
       if (val == 1) {             // stop bit should be 1
         // calculate parity (including the stored parity bit from previous IRQ)
         u8 parity = 0;
-        for (u8 i = 0; i < 8; i++)
+        for (u32 i = 0; i < 8; i++)
           parity += (incoming >> i) & 1;
         parity += parityBit;
 
@@ -159,7 +166,7 @@ class LinkPS2Keyboard {
   }
 
  private:
-  bool isEnabled = false;
+  volatile bool isEnabled = false;
   u8 bitcount = 0;
   u8 incoming = 0;
   u8 parityBit = 0;

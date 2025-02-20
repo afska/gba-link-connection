@@ -1,22 +1,26 @@
 // (0) Include the header
 #include "../../../lib/LinkGPIO.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
+#include "../../_lib/interrupt.h"
 
-void log(std::string text);
 std::string mode(std::string name, LinkGPIO::Pin pin);
-std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh);
+std::string value(std::string name, LinkGPIO::Pin pin);
 
 // (1) Create a LinkGPIO instance
 LinkGPIO* linkGPIO = new LinkGPIO();
 
-void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+static vu32 irqCount = 0;
+void SERIAL() {
+  irqCount++;
+}
 
-  irq_init(NULL);
-  irq_add(II_VBLANK, NULL);
+void init() {
+  Common::initTTE();
+
+  interrupt_init();
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, SERIAL);
 
   // (2) Initialize the library
   linkGPIO->reset();
@@ -25,71 +29,83 @@ void init() {
 int main() {
   init();
 
+  bool left = true, up = true, right = true, down = true;
+  bool start = true, select = true;
+
   while (true) {
-    // (3) Use the pins
-    std::string output = "LinkGPIO_demo (v7.0.3)\n\n";
+    std::string output = "LinkGPIO_demo (v8.0.0)\n\n";
 
     // Commands
     u16 keys = ~REG_KEYS & KEY_ANY;
-    bool setSOOutput = keys & KEY_L;
-    bool setSDOutput = keys & KEY_UP;
-    bool setSCOutput = keys & KEY_R;
-    bool setSOInput = keys & KEY_LEFT;
-    bool setSDInput = keys & KEY_DOWN;
-    bool setSCInput = keys & KEY_RIGHT;
-    bool sendSOHigh = keys & KEY_B;
-    bool sendSDHigh = keys & KEY_START;
-    bool sendSCHigh = keys & KEY_A;
 
-    // Modes
+    // (3/4) Set modes
+    if (Common::didPress(KEY_LEFT, left))
+      linkGPIO->setMode(
+          LinkGPIO::Pin::SI,
+          (LinkGPIO::Direction)((int)linkGPIO->getMode(LinkGPIO::Pin::SI) + 1));
+    if (Common::didPress(KEY_UP, up))
+      linkGPIO->setMode(
+          LinkGPIO::Pin::SD,
+          (LinkGPIO::Direction)((int)linkGPIO->getMode(LinkGPIO::Pin::SD) + 1));
+    if (Common::didPress(KEY_DOWN, down))
+      linkGPIO->setMode(
+          LinkGPIO::Pin::SC,
+          (LinkGPIO::Direction)((int)linkGPIO->getMode(LinkGPIO::Pin::SC) + 1));
+    if (Common::didPress(KEY_RIGHT, right))
+      linkGPIO->setMode(
+          LinkGPIO::Pin::SO,
+          (LinkGPIO::Direction)((int)linkGPIO->getMode(LinkGPIO::Pin::SO) + 1));
+
+    // (3) Write pins
+    if (linkGPIO->getMode(LinkGPIO::Pin::SI) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SI, keys & KEY_L);
+    if (linkGPIO->getMode(LinkGPIO::Pin::SO) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SO, keys & KEY_R);
+    if (linkGPIO->getMode(LinkGPIO::Pin::SD) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SD, keys & KEY_B);
+    if (linkGPIO->getMode(LinkGPIO::Pin::SC) == LinkGPIO::Direction::OUTPUT)
+      linkGPIO->writePin(LinkGPIO::Pin::SC, keys & KEY_A);
+
+    // (5) Subscribe to SI falling
+    if (Common::didPress(KEY_START, start))
+      linkGPIO->setSIInterrupts(!linkGPIO->getSIInterrupts());
+    if (Common::didPress(KEY_SELECT, select))
+      irqCount = 0;
+
+    // Print modes
     output += mode("SI", LinkGPIO::Pin::SI);
     output += mode("SO", LinkGPIO::Pin::SO);
     output += mode("SD", LinkGPIO::Pin::SD);
     output += mode("SC", LinkGPIO::Pin::SC);
 
-    // Separator
+    // Print separator
     output += "\n---\n\n";
 
-    // Values
-    output += value("SI", LinkGPIO::Pin::SI, false);
-    output += value("SO", LinkGPIO::Pin::SO, sendSOHigh);
-    output += value("SD", LinkGPIO::Pin::SD, sendSDHigh);
-    output += value("SC", LinkGPIO::Pin::SC, sendSCHigh);
+    // Print values
+    output += value("SI", LinkGPIO::Pin::SI);
+    output += value("SO", LinkGPIO::Pin::SO);
+    output += value("SD", LinkGPIO::Pin::SD);
+    output += value("SC", LinkGPIO::Pin::SC);
 
-    // Set modes
-    if (setSOOutput)
-      linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::OUTPUT);
-    if (setSDOutput)
-      linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::OUTPUT);
-    if (setSCOutput)
-      linkGPIO->setMode(LinkGPIO::Pin::SC, LinkGPIO::Direction::OUTPUT);
-    if (setSOInput)
-      linkGPIO->setMode(LinkGPIO::Pin::SO, LinkGPIO::Direction::INPUT);
-    if (setSDInput)
-      linkGPIO->setMode(LinkGPIO::Pin::SD, LinkGPIO::Direction::INPUT);
-    if (setSCInput)
-      linkGPIO->setMode(LinkGPIO::Pin::SC, LinkGPIO::Direction::INPUT);
+    // Print interrupts
+    if (linkGPIO->getMode(LinkGPIO::Pin::SI) == LinkGPIO::Direction::INPUT)
+      output +=
+          "\nSI IRQ: " + std::to_string(linkGPIO->getSIInterrupts()) +
+          (irqCount > 0
+               ? " !!!" + (irqCount > 1 ? " (x" + std::to_string(irqCount) + ")"
+                                        : "")
+               : "");
 
-    // Set values
-    if (linkGPIO->getMode(LinkGPIO::Pin::SO) == LinkGPIO::Direction::OUTPUT)
-      linkGPIO->writePin(LinkGPIO::Pin::SO, sendSOHigh);
-    if (linkGPIO->getMode(LinkGPIO::Pin::SD) == LinkGPIO::Direction::OUTPUT)
-      linkGPIO->writePin(LinkGPIO::Pin::SD, sendSDHigh);
-    if (linkGPIO->getMode(LinkGPIO::Pin::SC) == LinkGPIO::Direction::OUTPUT)
-      linkGPIO->writePin(LinkGPIO::Pin::SC, sendSCHigh);
+    output +=
+        "\n\n---\nUse the D-PAD to change modes\nUse the buttons to set "
+        "values\nUse STA/SEL to toggle SI IRQ";
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }
 
 std::string mode(std::string name, LinkGPIO::Pin pin) {
@@ -98,10 +114,10 @@ std::string mode(std::string name, LinkGPIO::Pin pin) {
                                                                 : "INPUT\n");
 }
 
-std::string value(std::string name, LinkGPIO::Pin pin, bool isHigh) {
+std::string value(std::string name, LinkGPIO::Pin pin) {
   auto title = name + ": ";
 
-  return linkGPIO->getMode(pin) == LinkGPIO::Direction::INPUT
-             ? "< " + title + std::to_string(linkGPIO->readPin(pin)) + "\n"
-             : "> " + title + std::to_string(isHigh) + "\n";
+  // (4) Read pins
+  return (linkGPIO->getMode(pin) == LinkGPIO::Direction::INPUT ? "< " : "> ") +
+         title + std::to_string(linkGPIO->readPin(pin)) + "\n";
 }

@@ -1,12 +1,8 @@
 // (0) Include the header
 #include "../../../lib/LinkUART.hpp"
 
-#include <tonc.h>
-#include <string>
+#include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
-
-void log(std::string text);
-inline void VBLANK() {}
 
 std::string received = "";
 u32 lines = 0;
@@ -15,15 +11,12 @@ u32 lines = 0;
 LinkUART* linkUART = new LinkUART();
 
 void init() {
-  REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se_default(0, BG_CBB(0) | BG_SBB(31));
+  Common::initTTE();
 
   // (2) Add the interrupt service routines
   interrupt_init();
-  interrupt_set_handler(INTR_VBLANK, VBLANK);
-  interrupt_enable(INTR_VBLANK);
-  interrupt_set_handler(INTR_SERIAL, LINK_UART_ISR_SERIAL);
-  interrupt_enable(INTR_SERIAL);
+  interrupt_add(INTR_VBLANK, []() {});
+  interrupt_add(INTR_SERIAL, LINK_UART_ISR_SERIAL);
 }
 
 int main() {
@@ -32,7 +25,7 @@ int main() {
   bool firstTransfer = false;
 
   while (true) {
-    std::string output = "LinkUART_demo (v7.0.3)\n\n";
+    std::string output = "LinkUART_demo (v8.0.0)\n\n";
     u16 keys = ~REG_KEYS & KEY_ANY;
 
     if (!linkUART->isActive()) {
@@ -49,7 +42,7 @@ int main() {
     } else {
       // Title
       if (firstTransfer) {
-        log(output + "Waiting...");
+        Common::log(output + "Waiting...");
         firstTransfer = false;
       }
 
@@ -83,14 +76,8 @@ int main() {
 
     // Print
     VBlankIntrWait();
-    log(output);
+    Common::log(output);
   }
 
   return 0;
-}
-
-void log(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
 }

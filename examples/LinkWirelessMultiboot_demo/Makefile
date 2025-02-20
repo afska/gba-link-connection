@@ -123,9 +123,8 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc -lugba -lgba-sprite-engine
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib ../../lib ../_lib/libgbfs \
-						 src/scenes \
-						 src/utils
+SRCDIRS		:= src ../_lib ../_lib/libgba-sprite-engine ../../lib ../../lib/iwram_code ../_lib/libgbfs \
+						 src/scenes
 DATADIRS	:=
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine
@@ -166,8 +165,12 @@ LDFLAGS 	:= $(ARCH) -Wl,--print-memory-usage,-Map,$(PROJ).map
 # --- Multiboot ? ---
 ifeq ($(strip $(bMB)), 1)
 	TARGET	:= $(PROJ).mb
+	CFLAGS   += -DMULTIBOOT_BUILD=1
+	CXXFLAGS += -DMULTIBOOT_BUILD=1
 else
 	TARGET	:= $(PROJ)
+	CFLAGS   += -DMULTIBOOT_BUILD=0
+	CXXFLAGS += -DMULTIBOOT_BUILD=0
 endif
 
 # --- Save temporary files ? ---
