@@ -665,11 +665,12 @@ class LinkWireless {
     sessionState.incomingMessages.startReading();
     LINK_BARRIER;
 
-    receivedCount = 0;
     while (!sessionState.incomingMessages.isEmpty()) {
       auto message = sessionState.incomingMessages.pop();
-      messages[receivedCount] = message;
-      receivedCount++;
+      if (message.playerId < LINK_WIRELESS_MAX_PLAYERS) {
+        messages[receivedCount] = message;
+        receivedCount++;
+      }
     }
 
     LINK_BARRIER;
@@ -1540,6 +1541,8 @@ class LinkWireless {
           msgPlayerId = (playerBitMap >> PLAYER_ID_BITS * playerBitMapCount) &
                         PLAYER_ID_MASK;
           playerBitMapCount++;
+          // (messages from remote player IDs 5, 6 and 7 could be received here,
+          // but it's fine because `receive(...)` filters invalid entries)
 
           if (playerBitMapCount >= MAX_PLAYER_BITMAP_ENTRIES &&
               !((playerBitMap >> BIT_HAS_MORE) & 1))
