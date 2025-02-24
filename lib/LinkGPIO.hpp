@@ -30,7 +30,7 @@
 
 #include "_link_common.hpp"
 
-LINK_VERSION_TAG LINK_GPIO_VERSION = "vLinkGPIO/v8.0.0";
+LINK_VERSION_TAG LINK_GPIO_VERSION = "vLinkGPIO/v8.0.1";
 
 /**
  * @brief A General Purpose Input-Output handler for the Link Port.

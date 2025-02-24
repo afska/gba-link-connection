@@ -46,7 +46,7 @@
 
 #include "_link_common.hpp"
 
-LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.0";
+LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.1";
 
 #define LINK_IR_SIGNAL_END 0
 #define LINK_IR_DEFAULT_PRIMARY_TIMER_ID 2
@@ -190,7 +190,7 @@ class LinkIR {
 
   /**
    * Tries to interpret an already received array of `pulses` as a NEC signal.
-   * On success, returns `true` and fills the `address` and `command` 
+   * On success, returns `true` and fills the `address` and `command`
    * parameters.
    * @param pulses The pulses to interpret. Returns `true` on success.
    * @param address The read 8-bit address, specifying the device.

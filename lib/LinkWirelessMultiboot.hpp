@@ -74,7 +74,7 @@
 #endif
 
 LINK_VERSION_TAG LINK_WIRELESS_MULTIBOOT_VERSION =
-    "vLinkWirelessMultiboot/v8.0.0";
+    "vLinkWirelessMultiboot/v8.0.1";
 
 #define LINK_WIRELESS_MULTIBOOT_MIN_ROM_SIZE (0x100 + 0xC0)
 #define LINK_WIRELESS_MULTIBOOT_MAX_ROM_SIZE (256 * 1024)
