@@ -138,7 +138,7 @@ void DebugScene::load() {
 
   log("---");
   log("LinkRawWireless_demo");
-  log("  (v8.0.0)");
+  log("  (v8.0.2)");
   log("");
   log("START: reset wireless adapter");
   log("RIGHT: restore from multiboot");

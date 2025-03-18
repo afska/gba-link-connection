@@ -33,7 +33,7 @@ int main() {
   bool start = true, select = true;
 
   while (true) {
-    std::string output = "LinkGPIO_demo (v8.0.0)\n\n";
+    std::string output = "LinkGPIO_demo (v8.0.2)\n\n";
 
     // Commands
     u16 keys = ~REG_KEYS & KEY_ANY;
