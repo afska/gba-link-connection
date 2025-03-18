@@ -42,7 +42,6 @@ const char* MSG_SCAN_CARD = "Scan a card!";
 const char* MSG_TRANSFERRING = "Transferring...";
 const char* MSG_CARD_SENT = "Card sent!";
 const char* MSG_ERROR = "Error!";
-const char* MSG_PRESS_A_TRY_AGAIN = "Press A to try again";
 const char* MSG_PRESS_B_CANCEL = "Press B to cancel";
 #endif
 
@@ -111,17 +110,13 @@ int main() {
     print(MSG_SCAN_CARD);
 
     // scan card
-    while (true) {
-      if (cancel())
-        goto abort;
-      if (!sendAndExpect(EREADER_READY, GAME_READY, cancel))
-        goto abort;
-      u32 resultCode = ERAPI_ScanDotCode((u32)card);
-      if (resultCode == SCAN_SUCCESS) {
-        break;
-      } else
-        goto error;
-    }
+    if (cancel())
+      goto abort;
+    if (!sendAndExpect(EREADER_READY, GAME_READY, cancel))
+      goto abort;
+    u32 resultCode = ERAPI_ScanDotCode((u32)card);
+    if (resultCode != SCAN_SUCCESS)
+      goto error;
 
     // "Transferring..."
     print(MSG_TRANSFERRING);
@@ -164,11 +159,8 @@ int main() {
     // "Error!"
     ERAPI_ClearRegion(region);
     ERAPI_DrawText(region, 0, 0, MSG_ERROR);
-    ERAPI_DrawText(region, 0, 16, MSG_PRESS_A_TRY_AGAIN);
+    ERAPI_DrawText(region, 0, 16, MSG_WAITING_GAME);
     ERAPI_RenderFrame(1);
-
-    while (!tryAgain())
-      ERAPI_RenderFrame(1);
 
     send(EREADER_CANCEL, cancel);
     send(EREADER_ANIMATING, cancel);

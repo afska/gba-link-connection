@@ -107,6 +107,7 @@ class LinkCard {
     WRONG_DEVICE,
     BAD_CHECKSUM,
     UNEXPECTED_FAILURE,
+    SCAN_ERROR
   };
 
   /**
@@ -276,7 +277,7 @@ class LinkCard {
                                      EREADER_READY, cancel))
       return ReceiveResult::CANCELED;
     if (transferMultiAndExpectOneOf(EREADER_ANIMATING, EREADER_ANIMATING,
-                                    EREADER_READY, cancel) == -1)
+                                    EREADER_READY, cancel) < 0)
       return ReceiveResult::CANCELED;
 
     // wait for card
@@ -285,6 +286,8 @@ class LinkCard {
       if ((received = transferMultiAndExpectOneOf(
                GAME_READY, EREADER_READY, EREADER_SEND_READY, cancel)) == -1)
         return ReceiveResult::CANCELED;
+      if (received == -2)
+        return ReceiveResult::SCAN_ERROR;
       if (received == EREADER_SEND_READY)
         break;
     }
@@ -339,8 +342,10 @@ class LinkCard {
     u16 received;
     do {
       received = transferMulti(value, cancel);
-      if (cancel() || received == EREADER_CANCEL)
+      if (cancel())
         return -1;
+      if (received == EREADER_CANCEL)
+        return -2;
     } while (received != expected1 && received != expected2);
 
     return received;
