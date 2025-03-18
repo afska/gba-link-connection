@@ -13,7 +13,7 @@ PATH = /bin:$(EREADER):$(DEVKITPRO)/bin:$(DEVKITPRO)/devkitARM/bin
 PATH_LIB_GCC = $(DEVKITPRO)/devkitARM/lib/gcc/arm-none-eabi/$(GCC_VER)/thumb
 
 ifeq ($(JAP),1)
-  NAME = ƒ[ƒ_[
+  NAME = ãƒ­ãƒ¼ãƒ€ãƒ¼
   REGION = 2
   CFLAGS_EXTRA = -DLANGUAGE_JAP
 else
@@ -68,14 +68,14 @@ loader: main.loader
 
 # `main.loader` contains the bytes that end up being sent via Link Cable
 # It reads 4 bytes at offset 0x1002C as a little-endian UInt32 (the size),
-# then copies from offset 0x10000 until (0x10000 + (0x002C+4+size)),
+# then copies from offset 0x10000 until (0x10000 + (0x002C+4+32+size)),
 # rounded up to the next multiple of 32.
 main.loader: main.sav
 	@echo "Generating main.loader from main.sav..."
 	@size_hex=$$(dd if=main.sav bs=1 skip=$$((0x1002C)) count=4 2>/dev/null | od -An -tx1 | tr -s ' ') && \
 	set -- $$size_hex && \
 	size=$$(( 0x$$1 + (0x$$2 << 8) + (0x$$3 << 16) + (0x$$4 << 24) )); \
-	header_extra=$$((0x002C + 4)) ; \
+	header_extra=$$((0x002C + 4 + 32)) ; \
 	length=$$(( header_extra + size )); \
 	total=$$(( (length + 31) & ~31 )); \
 	dd if=main.sav bs=1 skip=$$((0x10000)) count=$$total of=main.loader 2>/dev/null
