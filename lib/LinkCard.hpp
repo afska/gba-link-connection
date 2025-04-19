@@ -344,7 +344,7 @@ class LinkCard {
       received = transferMulti(value, cancel);
       if (cancel())
         return -1;
-      if (received == EREADER_CANCEL || received == EREADER_SIO_END)
+      if (received == EREADER_CANCEL)
         return -2;
     } while (received != expected1 && received != expected2);
 
