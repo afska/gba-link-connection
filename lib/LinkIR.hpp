@@ -46,7 +46,7 @@
 
 #include "_link_common.hpp"
 
-LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.2";
+LINK_VERSION_TAG LINK_IR_VERSION = "vLinkIR/v8.0.3";
 
 #define LINK_IR_SIGNAL_END 0
 #define LINK_IR_DEFAULT_PRIMARY_TIMER_ID 2

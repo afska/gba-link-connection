@@ -137,9 +137,9 @@ int main() {
 
   while (true) {
 #ifndef USE_LINK_UNIVERSAL
-    std::string output = "LinkCable_stress (v8.0.2)\n\n";
+    std::string output = "LinkCable_stress (v8.0.3)\n\n";
 #else
-    std::string output = "LinkUniversal_stress (v8.0.2)\n\n";
+    std::string output = "LinkUniversal_stress (v8.0.3)\n\n";
     Link::randomSeed = __qran_seed;
 #endif
 

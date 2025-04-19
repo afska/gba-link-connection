@@ -38,7 +38,7 @@
 
 #include "_link_common.hpp"
 
-LINK_VERSION_TAG LINK_CARD_VERSION = "vLinkCard/v8.0.2";
+LINK_VERSION_TAG LINK_CARD_VERSION = "vLinkCard/v8.0.3";
 
 #define LINK_CARD_SIZE 1998
 

@@ -17,7 +17,7 @@ int main() {
   init();
 
   Common::log(
-      "LinkUniversal_basic (v8.0.2)\n"
+      "LinkUniversal_basic (v8.0.3)\n"
       "Press A to start\n\n"
       "hold LEFT on start:\n -> force cable\n\n"
       "hold RIGHT on start:\n -> force wireless\n\n"
