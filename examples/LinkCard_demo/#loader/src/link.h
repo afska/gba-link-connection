@@ -84,7 +84,14 @@ bool send(u16 data, CancelCallback cancel) {
 bool sendAndExpect(u16 data, u16 expect, CancelCallback cancel) {
   u16 received;
   do {
-    if (!send(data, cancel))
+    bool sent = false;
+    for (u32 attempt = 0; attempt < 3; attempt++) {
+      if (send(data, cancel)) {
+        sent = true;
+        break;
+      }
+    }
+    if (!sent)
       return false;
 
     received = getDataFromPlayer0();

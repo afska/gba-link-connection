@@ -81,7 +81,7 @@ class LinkCard {
   static constexpr int CMD_LINKCARD_RESET = 0;
   static constexpr int MODE_SWITCH_WAIT = 228;
   static constexpr int DEACTIVATION_WAIT = 50;
-  static constexpr int PRE_TRANSFER_WAIT = 2 + 1;
+  static constexpr int PRE_TRANSFER_WAIT = 4;
 
  public:
   enum class ConnectedDevice {

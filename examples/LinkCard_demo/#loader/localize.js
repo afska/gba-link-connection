@@ -16,7 +16,8 @@ const data = {
   "MSG_TRANSFERRING":   "ＴＲＡＮＳＦＥＲＲＩＮＧ",
   "MSG_CARD_SENT":      "ＣＡＲＤ　ＳＥＮＴ",
   "MSG_ERROR":          "ＥＲＲＯＲ",
-  "MSG_PRESS_B_CANCEL":    "ＰＲＥＳＳ　Ｂ　ＴＯ　ＣＡＮＣＥＬ"
+  "MSG_PRESS_B_CANCEL":    "ＰＲＥＳＳ　Ｂ　ＴＯ　ＣＡＮＣＥＬ",
+  "MSG_NUMBERS": "０１２３４５６７８９"
 };
 */
 

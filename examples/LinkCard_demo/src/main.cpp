@@ -51,7 +51,7 @@ int main() {
     u32 initialVCount = REG_VCOUNT;
     auto device = linkCard->getConnectedDevice([&initialVCount]() {
       u32 elapsed = (REG_VCOUNT - initialVCount + 228) % 228;
-      return elapsed > 30;
+      return elapsed > 150;
     });
 
     switch (device) {
