@@ -6,9 +6,19 @@ const data = {
   "MSG_TRANSFERRING": "転送中",
   "MSG_CARD_SENT": "カード送信済み",
   "MSG_ERROR": "エラー",
-  "MSG_PRESS_A_TRY_AGAIN": "エーを押して再試行",
   "MSG_PRESS_B_CANCEL": "ビーを押してキャンセル"
 };
+
+/*
+const data = {
+  "MSG_WAITING_GAME":   "ＷＡＩＴＩＮＧ　ＦＯＲ　ＧＡＭＥ",
+  "MSG_SCAN_CARD":      "ＰＬＥＡＳＥ　ＳＣＡＮ　ＹＯＵＲ　ＣＡＲＤ",
+  "MSG_TRANSFERRING":   "ＴＲＡＮＳＦＥＲＲＩＮＧ",
+  "MSG_CARD_SENT":      "ＣＡＲＤ　ＳＥＮＴ",
+  "MSG_ERROR":          "ＥＲＲＯＲ",
+  "MSG_PRESS_B_CANCEL":    "ＰＲＥＳＳ　Ｂ　ＴＯ　ＣＡＮＣＥＬ"
+};
+*/
 
 for (const key in data) {
   const str = data[key];

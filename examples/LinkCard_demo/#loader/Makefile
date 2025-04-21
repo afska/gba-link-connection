@@ -15,7 +15,10 @@ PATH_LIB_GCC = $(DEVKITPRO)/devkitARM/lib/gcc/arm-none-eabi/$(GCC_VER)/thumb
 ifeq ($(JAP),1)
   NAME = ローダー
   REGION = 2
-  CFLAGS_EXTRA = -DLANGUAGE_JAP
+  CFLAGS_EXTRA = -DREGION_JAP
+  ifeq ($(ENG),1)
+    CFLAGS_EXTRA += -DLANGUAGE_ENG
+  endif
 else
   NAME = DLC Loader
   REGION = 1

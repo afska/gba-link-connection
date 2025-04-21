@@ -15,8 +15,9 @@ This loader scans cards with the **e-Reader** (or in Japan, the **e-Reader+**) a
 ``` bash
 # verify tool paths in the `Makefile`!
 make clean
-make       # USA
-make JAP=1 # JAP
+make       # USA region, English language
+make JAP=1 # JAP region, Japanese language
+make JAP=1 ENG=1 # JAP region, English language
 #    ^ check that NAME = ローダー and `Makefile` is encoded in Shift JIS
 ```
 
