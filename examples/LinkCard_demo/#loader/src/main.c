@@ -240,13 +240,6 @@ int main() {
 
     continue;
 
-  abort:
-    send(EREADER_CANCEL, cancel);
-    send(EREADER_CANCEL, cancel);
-    send(EREADER_ANIMATING, cancel);
-    send(EREADER_SIO_END, cancel);
-    continue;
-
   error:
     // "Error!"
     ERAPI_ClearRegion(region);
