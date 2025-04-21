@@ -9,7 +9,8 @@ extern "C" {
 }
 
 #define USA_LOADER "usa.loader"
-#define JAP_LOADER "jap.loader"
+#define JAP_LOADER_ENGLISH "japeng.loader"
+#define JAP_LOADER_JAPANESE "jap.loader"
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
 
@@ -35,8 +36,8 @@ int main() {
     Common::log("! usa.loader not found (GBFS)");
     while (true)
       ;
-  } else if (gbfs_get_obj(fs, JAP_LOADER, NULL) == NULL) {
-    Common::log("! jap.loader not found (GBFS)");
+  } else if (gbfs_get_obj(fs, JAP_LOADER_ENGLISH, NULL) == NULL) {
+    Common::log("! japeng.loader not found (GBFS)");
     while (true)
       ;
   }
@@ -62,7 +63,7 @@ int main() {
         if (Common::didPress(KEY_A, a)) {
           Common::log("Sending...\n\nPress B to cancel");
           auto fileName = device == LinkCard::ConnectedDevice::E_READER_JAP
-                              ? JAP_LOADER
+                              ? JAP_LOADER_ENGLISH
                               : USA_LOADER;
 
           u32 loaderSize;
