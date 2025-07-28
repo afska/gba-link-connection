@@ -25,11 +25,11 @@ std::string getNumberInput();
 std::string getPasswordInput();
 std::string getDomainInput();
 std::string getTextInput(std::string& field,
-                         unsigned int maxChars,
+                         u32 maxChars,
                          std::string inputName,
                          std::vector<DefaultValue> defaultValues);
 std::string getInput(std::string& field,
-                     unsigned int maxChars,
+                     u32 maxChars,
                      std::string inputName,
                      std::vector<std::vector<std::string>> rows,
                      std::vector<std::vector<std::string>> altRows,

@@ -193,7 +193,7 @@ void connect() {
 
   // (5) Connect to a server
   LinkWireless::Server servers[LINK_WIRELESS_MAX_SERVERS];
-  u32 serverCount;
+  Link::u32 serverCount;
   linkWireless->getServers(servers, serverCount, animate);
   CHECK_ERRORS("Search failed :(")
 
@@ -330,7 +330,7 @@ void messageLoop() {
 
     // (7) Receive data
     LinkWireless::Message messages[LINK_WIRELESS_QUEUE_SIZE];
-    u32 receivedCount;
+    Link::u32 receivedCount;
     linkWireless->receive(messages, receivedCount);
     for (u32 i = 0; i < receivedCount; i++) {
       auto message = messages[i];
