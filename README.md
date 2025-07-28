@@ -59,13 +59,8 @@ make [ clean | build | start | rebuild | restart ]
 Alternatively, you can compile the examples using Docker:
 
 ```bash
-cd examples/LinkCable_basic
-
-docker run -it \
-  --user "$(id -u):$(id -g)" \
-  -v "$(pwd)/../..":/opt/gba \
-  devkitpro/devkitarm:20241104 \
-  bash -c "cd /opt/gba/examples/$(basename $PWD) && make rebuild"
+cd examples
+./compile.sh docker
 ```
 
 ### C bindings
