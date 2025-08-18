@@ -959,6 +959,21 @@ class LinkWireless {
    */
   Config config;
 
+  /**
+   * Returns whether the current multiboot ROM has started wirelessly or not.
+   */
+  static bool isWirelessMultibootRom() {
+    const vu8* ewram = (const vu8*)0x02000000;
+    static const u8 header[12] = {0x52, 0x46, 0x55, 0x2D, 0x4D, 0x42,
+                                  0x4F, 0x4F, 0x54, 0x00, 0x00, 0x00};
+
+    for (unsigned i = 0; i < 12; ++i)
+      if (ewram[4 + i] != header[i])
+        return false;
+
+    return true;
+  }
+
 #ifndef LINK_WIRELESS_DEBUG_MODE
  private:
 #endif
