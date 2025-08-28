@@ -237,13 +237,13 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 [![Image without alt text or caption](img/wireless/0x16.png)](img/wireless/0x16.png)
 
 - Send length: 6, response length: 0
-- The data to be broadcast out to all adapters. Examples of use include the union room, broadcasting game name and username in download play, and the username in direct multiplayer in Pokémon.
+- The data to be broadcast out to all adapters. Examples of use include broadcasting game name and username in download play, the union room, and the username in direct multiplayer in Pokémon.
 
-💻 This is the first command used to start a server. The 6 values contain bytes indicating the game id and whether the server should appear in the Download Play list or not. The remaining data is the ASCII characters of the game and user name when in "Wireless Single Game Pak Multiplay" mode (shown below), but when as part of wireless gameplay (as in the union room) it can be used arbitrarily. Here's a byte by byte explanation:
+💻 This is the first command used to start a server. The 6 values conventionally contain bytes indicating the game id and whether the server should appear in the Download Play list or not. When in download play mode, the remaining data is the ASCII characters of the game and user name. When used for in-game multiplayer (as in the union room) both the game name and user name bytes can have arbitary meaning or encoding. In any case, the content of the broadcast data is not checked or validated by the adapter hardware. Here's a byte by byte explanation of download play mode:
 
 [![Image without alt text or caption](img/wireless/broadcast.png)](img/wireless/broadcast.png)
 
-If you read from right to left, it says `ICE CLIMBER` as the game name and `NINTENDO` as the user name. Note that the byte marked `<sep>` is a checksum, for how it is calculated, see example code in [Pokemon FireRed](https://github.com/pret/pokefirered/blob/4f5fe2a27941770cb1d7c33fcc1fd4c9495838af/src/librfu_rfu.c#L680).
+If you read from right to left, it says `ICE CLIMBER` as the game name and `NINTENDO` as the user name. Note that the byte marked `<sep>` is a checksum used in both download play and direct play modes, but like the rest of the format it is not enforced at the hardware level. For how the checksum is calculated, see this example code from [Pokémon FireRed](https://github.com/pret/pokefirered/blob/4f5fe2a27941770cb1d7c33fcc1fd4c9495838af/src/librfu_rfu.c#L680).
 
 🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection (unless `LINK_UNIVERSAL_GAME_ID_FILTER` is set).
 
