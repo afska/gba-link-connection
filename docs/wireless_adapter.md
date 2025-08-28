@@ -239,11 +239,11 @@ Both Pokemon games and the multiboot ROM that the adapter sends when no cartridg
 - Send length: 6, response length: 0
 - The data to be broadcast out to all adapters. Examples of use include the union room, broadcasting game name and username in download play, and the username in direct multiplayer in Pokémon.
 
-💻 This is the first command used to start a server. The 6 parameters are the ASCII characters of the game and user name, plus some bytes indicating whether the server should appear in the Download Play list or not. Here's a byte by byte explanation:
+💻 This is the first command used to start a server. The 6 values contain bytes indicating the game id and whether the server should appear in the Download Play list or not. The remaining data is the ASCII characters of the game and user name when in "Wireless Single Game Pak Multiplay" mode (shown below), but when as part of wireless gameplay (as in the union room) it can be used arbitrarily. Here's a byte by byte explanation:
 
 [![Image without alt text or caption](img/wireless/broadcast.png)](img/wireless/broadcast.png)
 
-(if you read from right to left, it says `ICE CLIMBER` - `NINTENDO`)
+If you read from right to left, it says `ICE CLIMBER` as the game name and `NINTENDO` as the user name. Note that the byte marked `<sep>` is a checksum, for how it is calculated, see example code in [Pokemon FireRed](https://github.com/pret/pokefirered/blob/4f5fe2a27941770cb1d7c33fcc1fd4c9495838af/src/librfu_rfu.c#L680).
 
 🆔 The **Game ID** is what games use to avoid listing servers from another game. This is done on the software layer (GBA), the adapter does not enforce this in any way, nor does gba-link-connection (unless `LINK_UNIVERSAL_GAME_ID_FILTER` is set).
 
