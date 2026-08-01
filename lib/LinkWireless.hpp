@@ -1024,7 +1024,7 @@ class LinkWireless {
     //   * << ack=3
     //   * >> 4, 5, 6
     //   This wastes bandwidth but reduces latency, since waiting for a
-    //   retransmission until not receiving an ACK takes time, and games usually
+    //   retransmission after not receiving an ACK takes time, and games usually
     //   care more about latency than bandwidth.
     // - The first message can be in the header itself (bits 0~15) when:
     //   * (there *is* something to send) && (it's from a client)
