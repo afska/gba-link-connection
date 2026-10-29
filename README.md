@@ -26,6 +26,34 @@ _(click on the emojis for documentation)_
 
 > 💬 Check out my other GBA projects: [piuGBA](https://github.com/afska/piugba), [beat-beast](https://github.com/afska/beat-beast), [gba-remote-play](https://github.com/afska/gba-remote-play), [gba-flashcartio](https://github.com/afska/gba-flashcartio).
 
+## Games that use gba-link-connection
+
+<table border="0">
+  <tr>
+    <td>
+      <p align="center">
+        <a href="https://afska.itch.io/piugba" target="_blank">piuGBA</a>
+        <br>
+        <img src="https://i.imgur.com/9D3H3DO.gif">
+      </p>
+    </td>
+    <td>
+      <p align="center">
+        <a href="https://akouzoukos.com/apotris" target="_blank">Apotris</a>
+        <br>
+        <img src="https://i.imgur.com/wP0NXCV.gif">
+      </p>
+    </td>
+    <td>
+      <p align="center">
+        <a href="https://retrodotcards.itch.io/pixel-pup" target="_blank">Pixel Pup</a>
+        <br>
+        <img src="https://i.imgur.com/ATNrzCN.png">
+      </p>
+    </td>
+  </tr>
+</table>
+
 ## Usage
 
 - Copy the contents of the [lib/](lib/) folder into a directory that is part of your project's include path. Then, `#include` the library you need, such as [LinkCable.hpp](lib/LinkCable.hpp), in your project. No external dependencies are required.
