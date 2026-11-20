@@ -596,7 +596,7 @@ class LinkWirelessOpenSDK {
    public:
     /**
      * @brief Constructs a new MultiTransfer object.
-     * @param linkWirelessOpenSDK An pointer to a `LinkWirelessOpenSDK`.
+     * @param linkWirelessOpenSDK A pointer to a `LinkWirelessOpenSDK`.
      */
     explicit MultiTransfer(LinkWirelessOpenSDK* linkWirelessOpenSDK) {
       this->linkWirelessOpenSDK = linkWirelessOpenSDK;

@@ -338,7 +338,7 @@ class LinkCableMultiboot {
     // 8. Calculate the handshake_data byte and store it in the parameter
     // structure. This should be calculated as 0x11 + the sum of the three
     // client_data bytes. Send 0x64HH, where HH is the handshake_data.
-    // The clients should respond 0x77GG, where GG is something unimportant.
+    // The clients should respond 0x73GG, where GG is something unimportant.
     multiBootParameters.handshake_data =
         (HANDSHAKE_DATA + multiBootParameters.client_data[0] +
          multiBootParameters.client_data[1] +
@@ -457,7 +457,7 @@ class LinkCableMultiboot {
     static constexpr int CMD_ROM_END = 0x0065;
     static constexpr int ACK_ROM_END = 0x0075;
     static constexpr int CMD_FINAL_CRC = 0x0066;
-    static constexpr int MAX_FINAL_HANDSHAKE_ATTEMPS = FPS * 5;
+    static constexpr int MAX_FINAL_HANDSHAKE_ATTEMPTS = FPS * 5;
     static constexpr int MAX_IRQ_TIMEOUT_FRAMES = FPS * 1;
 
    public:
@@ -661,7 +661,8 @@ class LinkCableMultiboot {
 
     /**
      * @brief LinkCableMultiboot::Async configuration.
-     * \warning `deactivate()` first, change the config, and `activate()` again!
+     * \warning If you change it, the changes won't be applied until the next
+     * `sendRom(...)` call.
      */
     Config config;
 
@@ -733,7 +734,7 @@ class LinkCableMultiboot {
         case State::SENDING_ROM_END_WAITING: {
           state = State::SENDING_ROM_END;
           dynamicData.tryCount++;
-          if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPS)
+          if (dynamicData.tryCount >= MAX_FINAL_HANDSHAKE_ATTEMPTS)
             return (void)stop(Result::FINAL_HANDSHAKE_FAILURE);
 
           transferAsync(CMD_ROM_END);

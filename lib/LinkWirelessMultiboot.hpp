@@ -14,7 +14,7 @@
 //         romLength, // in bytes
 //         "Multiboot", // game name
 //         "Test", // user name
-//         0xFFFF, // game ID
+//         0x7FFF, // game ID
 //         2, // number of players
 //         [](LinkWirelessMultiboot::MultibootProgress progress) {
 //           // check progress.[state,connectedClients,percentage]
@@ -965,7 +965,8 @@ class LinkWirelessMultiboot {
 
     /**
      * @brief LinkWirelessMultiboot::Async configuration.
-     * \warning `deactivate()` first, change the config, and `activate()` again!
+     * \warning If you change it, the changes won't be applied until the next
+     * `sendRom(...)` call.
      */
     Config config;
 

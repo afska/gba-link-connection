@@ -39,7 +39,7 @@
 // - 9) Open connections:
 //       auto type = LinkMobile::ConnectionType::TCP;
 //       LinkMobile::OpenConn openConn;
-//       linkMobile->openConnection(dnsQuery.ipv4, connType, &openConn);
+//       linkMobile->openConnection(dnsQuery.ipv4, 80, type, &openConn);
 //       // (do something until `openConn.completed` is `true`)
 //       // (use `openConn.connectionId` as last argument of `transfer(...)`)
 // - 10) Close connections:
@@ -330,7 +330,7 @@ class LinkMobile {
 
   /**
    * @brief Initiates a P2P connection with a `phoneNumber`. After some time,
-   * the state will be `CALL_ESTABLISHED` (or `ACTIVE_SESSION` if the
+   * the state will be `CALL_ESTABLISHED` (or `SESSION_ACTIVE` if the
    * connection fails or ends).
    * @param phoneNumber The phone number to call. In REON/libmobile this can be
    * a number assigned by the relay server, or a 12-digit IPv4 address (for
@@ -1715,7 +1715,7 @@ class LinkMobile {
         return asyncCommand.fail(CommandResult::INVALID_MAGIC_BYTES);
       advance8(GBA_WAITING);
     } else if (asyncCommand.transferred == 1) {
-      // Magic Bytes (1)
+      // Magic Bytes (2)
       if (newData != COMMAND_MAGIC_VALUE2)
         return asyncCommand.fail(CommandResult::INVALID_MAGIC_BYTES);
       advance8(GBA_WAITING);

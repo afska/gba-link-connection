@@ -15,7 +15,7 @@
 // - 3) Initialize the library with:
 //       linkCable->activate();
 // - 4) Sync:
-//       linkUniversal->sync();
+//       linkCable->sync();
 //       // (put this line at the start of your game loop)
 // - 5) Send/read messages by using:
 //       bool isConnected = linkCable->isConnected();
@@ -203,7 +203,7 @@ class LinkCable {
    * or `false` on disconnection.
    * @param playerId ID of player to wait data from.
    * @param cancel A function that will be continuously invoked. If it returns
-   * `true`, the wait be aborted.
+   * `true`, the wait will be aborted.
    */
   template <typename F>
   bool waitFor(u8 playerId, F cancel) {

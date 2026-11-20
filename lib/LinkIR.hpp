@@ -17,14 +17,16 @@
 // - 4) Send NEC signals:
 //       linkIR->sendNEC(0x04, 0x03);
 // - 5) Receive NEC signals:
-//       u8 address, u8 command;
+//       u8 address, command;
 //       linkIR->receiveNEC(address, command);
 // - 6) Send 38kHz signals:
-//       linkIR->send({9000, 4500, 560, 560, 560, 1690, 0});
-//                     // u16 array, numbers are microseconds
-//                     // even indices: marks (IR on)
-//                     // odd indices: spaces (IR off)
-//                     // 0 = EOS
+//       u16 pulses[] = {9000, 4500, 560, 560, 560, 1690, 0};
+//       // numbers are microseconds
+//       // even indices: marks (IR on)
+//       // odd indices: spaces (IR off)
+//       // 0 = EOS
+//
+//       linkIR->send(pulses);
 // - 7) Receive 38kHz signals:
 //       u16 pulses[2000];
 //       linkIR->receive(pulses, 2000);

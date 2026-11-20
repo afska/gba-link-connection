@@ -313,7 +313,7 @@ class LinkRawWireless {
   /**
    * @brief Calls the Setup (`0x17`) command.
    * @param maxPlayers `(2~5)` Maximum players in hosted rooms. Clients should
-   * set this to `0`.
+   * set this to `5`.
    * @param maxTransmissions Number of transmissions before marking a player as
    * disconnected. `0` means infinite retransmissions.
    * @param waitTimeout Timeout of the *waiting commands*, in frames (16.6ms).

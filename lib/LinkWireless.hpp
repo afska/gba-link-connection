@@ -1043,8 +1043,8 @@ class LinkWireless {
     unsigned int ack1 : 6;        // server: player 1 ACK
                                   // clients: server ACK
     unsigned int hasLastMsg : 1;  // there's a msg in last word's high part
-    unsigned int
-        hasPlayerBitMap : 1;         // server: next halfword is a PlayerBitMap
+    unsigned int hasPlayerBitMap
+        : 1;                         // server: next halfword is a PlayerBitMap
     unsigned int firstPacketId : 6;  // next packets are assumed consecutive
                                      // clients only use 4 bits here!
                                      // `hasFirstMsg` is an imaginary flag
@@ -1642,11 +1642,11 @@ class LinkWireless {
         // we compare `ringMinAck` vs `ack` in circular space
         // (0..MAX_PACKET_IDS_CLIENT-1):
         //   -> how many steps it is from `ringMinAck` down to `ack`?
-        u32 dist = (ringMinAck - ack) & (MAX_PACKET_IDS_CLIENT - 1);
+        u32 distance = (ringMinAck - ack) & (MAX_PACKET_IDS_CLIENT - 1);
 
-        // if dist >= MAX_INFLIGHT_PACKETS_CLIENT => `ack` is "behind"
+        // if distance >= MAX_INFLIGHT_PACKETS_CLIENT => `ack` is "behind"
         // `ringMinAck`, so we replace it!
-        if (dist >= MAX_INFLIGHT_PACKETS_CLIENT)
+        if (distance >= MAX_INFLIGHT_PACKETS_CLIENT)
           ringMinAck = ack;
       }
     }
@@ -1672,7 +1672,8 @@ class LinkWireless {
       // we release the packet if it was confirmed (aka inside the send window)
       // example with maxPacketIds=16, maxInflightPackets=7, ack=4:
       //   => we would be releasing packets 4,3,2,1,15,14,13
-      if (((ack - packetId) & (maxPacketIds - 1)) <= maxInflightPackets) {
+      u32 distance = (ack - packetId) & (maxPacketIds - 1);
+      if (distance <= maxInflightPackets) {
         auto message = sessionState.outgoingMessages.pop();
         sessionState.inflightCount--;
         if (maxPacketIds == MAX_PACKET_IDS_SERVER && message.playerId > 0)

@@ -8,20 +8,24 @@
 // - 1) Include this header in your main.cpp file and add:
 //       LinkCard* linkCard = new LinkCard();
 // - 2) Probe the connected device:
-//       auto device = getConnectedDevice();
+//       auto device = linkCard->getConnectedDevice();
 // - 3) Send the DLC loader program:
 //       if (device == LinkCard::ConnectedDevice::E_READER_USA)
-//         LinkCard::SendResult result = linkCard->sendLoader(loader, []() {
-//           u16 keys = ~REG_KEYS & KEY_ANY;
-//           return keys & KEY_START;
-//         }));
+//         LinkCard::SendResult result = linkCard->sendLoader(
+//           loader,
+//           loaderSize,
+//           []() {
+//             u16 keys = ~REG_KEYS & KEY_ANY;
+//             return keys & KEY_START;
+//           }
+//         );
 // - 4) Receive scanned cards:
 //       if (device == LinkCard::ConnectedDevice::DLC_LOADER) {
 //         u8 card[LINK_CARD_SIZE];
 //         bool received = linkCard->receiveCard(card, []() {
 //           u16 keys = ~REG_KEYS & KEY_ANY;
 //           return keys & KEY_START;
-//         }));
+//         }) == LinkCard::ReceiveResult::SUCCESS;
 //
 //         if (received) {
 //           // use `card` as DLC

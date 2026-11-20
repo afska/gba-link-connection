@@ -2,7 +2,7 @@
 #define LINK_UART_H
 
 // --------------------------------------------------------------------------
-// A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
+// A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7O1).
 // --------------------------------------------------------------------------
 // Usage:
 // - 1) Include this header in your main.cpp file and add:
@@ -40,7 +40,7 @@
 LINK_VERSION_TAG LINK_UART_VERSION = "vLinkUART/v8.0.3";
 
 /**
- * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7E1).
+ * @brief A UART handler for the Link Port (8N1, 7N1, 8E1, 7E1, 8O1, 7O1).
  */
 class LinkUART {
  private:
@@ -92,7 +92,7 @@ class LinkUART {
 
   /**
    * @brief Activates the library using a specific UART mode.
-   * Defaults: 9600bps, 8-bit data, no parity bit, no CTS_
+   * Defaults: 9600bps, 8-bit data, no parity bit, no CTS.
    * @param baudRate One of the enum values from `LinkUART::BaudRate`.
    * @param dataSize One of the enum values from `LinkUART::DataSize`.
    * @param parity One of the enum values from `LinkUART::Parity`.
