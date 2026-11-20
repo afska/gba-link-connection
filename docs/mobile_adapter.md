@@ -146,11 +146,11 @@ It is up to the game software itself to handle secondary protocols (such as HTTP
 
 | Device         | Role     | Magic Bytes | Packet Header | Packet Checksum       | Packet Data   | Acknowledgement Signal                  |
 | -------------- | -------- | ----------- | ------------- | --------------------- | ------------- | --------------------------------------- |
-| Game Boy       | Sender   | 0x96 0x66   | Arbitrary     | Arbitrary             | Arbitrary     | Device ID OR 0x80 + 0x00                |
+| Game Boy       | Sender   | 0x99 0x66   | Arbitrary     | Arbitrary             | Arbitrary     | Device ID OR 0x80 + 0x00                |
 | Mobile Adapter | Receiver | 0xD2 0xD2   | 0xD2 0xD2 ... | 0xD2 0xD2 ... ... ... | 0xD2 0xD2 ... | Device ID OR 0x80 + Command ID XOR 0x80 |
 | ---            | ---      | ---         | ---           | ---                   | ---           | ---                                     |
 | Game Boy       | Receiver | 0x4B 0x4B   | 0x4B 0x4B ... | 0x4B 0x4B ... ... ... | 0x4B 0x4B ... | Device ID OR 0x80 + Command ID XOR 0x80 |
-| Mobile Adapter | Sender   | 0x96 0x66   | Arbitrary     | Arbitrary             | Arbitrary     | Device ID OR 0x80 + 0x00                |
+| Mobile Adapter | Sender   | 0x99 0x66   | Arbitrary     | Arbitrary             | Arbitrary     | Device ID OR 0x80 + 0x00                |
 
 ---
 
@@ -228,7 +228,7 @@ Data Sent: N/A. Empty Packet Data
 
 Data Received: N/A. Empty Packet Data
 
-Instructs the adapter to wait for and pick up an incoming call. This returns inmediately if there is no call to pick up, with an error packet with code 0. The Packet Data is empty, and the length is zero bytes.
+Instructs the adapter to wait for and pick up an incoming call. This returns immediately if there is no call to pick up, with an error packet with code 0. The Packet Data is empty, and the length is zero bytes.
 
 **Command 0x15 - Transfer Data**
 
@@ -294,7 +294,7 @@ Writes data to the adapter's 256-byte configuration memory. The first byte sent 
 
 Data Sent: 1 byte Login ID Length + Login ID + 1 byte Password Length + Password + 4 bytes DNS Address #1 + 4 bytes DNS Address #2
 
-Data Received: 4 bytes assigned IP + 4 bytes assigned DNS Address #1 + 4 bytes assigned DNS Address #2 /p>
+Data Received: 4 bytes assigned IP + 4 bytes assigned DNS Address #1 + 4 bytes assigned DNS Address #2
 
 Logs into the DION dial-up service, after calling it with command 0x12 (Dial Telephone), allowing the adapter to connect to the internet. Both the Login ID and Password are prefixed with bytes declaring their lengths, with a maximum length of 0x20. The IPv4 DNS addresses are 4 bytes each, with a single byte representing one octet. The reply contains the assigned IP address and DNS addresses. If the game sets either of the DNS addresses to 0, the adapter may assign the DNS address on its own, and return that in the reply, otherwise, the reply's DNS addresses are 0.0.0.0.
 

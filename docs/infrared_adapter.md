@@ -11,7 +11,7 @@
 
 ## \[AGB-006\] : General Hardware Information
 
-The AGB-006 is an accessory released in conjunction with Cyber Drive Zoids: Kiju no Senshi Hyuu on July 18, 2003. It serves as an infrared adapter, coming as a bundle with each game. Using IR signals, players can turn their GBAs into remote controls to pilot three toy model Zoids. Although the GBA removed the GBC's IR port, the AGB-006 officially restored that functionality as an add-on. Unfortunately Cyber Drive Zoids was the only game to take adavantage of the AGB-006.
+The AGB-006 is an accessory released in conjunction with Cyber Drive Zoids: Kiju no Senshi Hyuu on July 18, 2003. It serves as an infrared adapter, coming as a bundle with each game. Using IR signals, players can turn their GBAs into remote controls to pilot three toy model Zoids. Although the GBA removed the GBC's IR port, the AGB-006 officially restored that functionality as an add-on. Unfortunately Cyber Drive Zoids was the only game to take advantage of the AGB-006.
 
 - The AGB-006 is a small attachment that fits into the GBA serial port providing IR functionalities
 - Has 2 IR diodes, one for receiving and one for transmitting
@@ -52,7 +52,7 @@ When receiving an IR signal, software should in theory measure the delay until t
 
 ## \[AGB-006\] : Comparison to GBC IR
 
-The biggest difference between the AGB-006 and the GBC's native IR hardware are interrupts. While prototype GBAs originally were designed to have IR ports with their own associated interrupts, the AGB-006 repurposes the existing serial interrupt. Interrupts potentially simplify the task of detecting IR light. Depending on the communication protocol, however, actually servicing an interrupt may be too slow for rapid data transfer. In such cases, a tight loop that merely continuously reads the Interrupt Request Flags may be more effecient. The AGB-006's interrupts excel in convenience over the GBC when detecting the next IR signal, as they eliminate the need to check any OFF status of the IR signal. The only thing a program needs to do is maintain a maximum allowed duration for pulses to see when communications should stop (something GBC software does anyway to check for errors mid-transmission).
+The biggest difference between the AGB-006 and the GBC's native IR hardware are interrupts. While prototype GBAs originally were designed to have IR ports with their own associated interrupts, the AGB-006 repurposes the existing serial interrupt. Interrupts potentially simplify the task of detecting IR light. Depending on the communication protocol, however, actually servicing an interrupt may be too slow for rapid data transfer. In such cases, a tight loop that merely continuously reads the Interrupt Request Flags may be more efficient. The AGB-006's interrupts excel in convenience over the GBC when detecting the next IR signal, as they eliminate the need to check any OFF status of the IR signal. The only thing a program needs to do is maintain a maximum allowed duration for pulses to see when communications should stop (something GBC software does anyway to check for errors mid-transmission).
 
 Physically speaking, the AGB-006 has a far wider range of reception. It is capable of receiving signals at a maximum distance roughly between 1.7 and 1.8 meters. Furthermore, it can receive signals approximately within 150 degrees horizontally, and approximately 165 degrees vertically (IR light is only undetectable from very extreme angles beneath the unit). This stands in contrast to the GBC, which mostly needs line-of-sight to communicate via IR, or even detect IR sources.
 
@@ -60,7 +60,7 @@ Finally, while the GBC IR hardware is receptive to incandescent light sources, t
 
 ## \[AGB-006\] : Zoid Commands
 
-Officially, the AGB-006 is exclusively used to control motorized minature models from the Zoids franchise. This communication is always one-way, with the GBA blasting IR signals repeatedly once a button is pressed. The protocol is fairly simple. A number of IR pulses (total ON and OFF time) are sent with only a few specific lengths. Their exact timing seems to vary and may not be entirely consistent, so relative duration must be used. The ON phase of the pulse accounts for a very miniscule amount time, while the OFF phase accounts for the majority of the delay.
+Officially, the AGB-006 is exclusively used to control motorized miniature models from the Zoids franchise. This communication is always one-way, with the GBA blasting IR signals repeatedly once a button is pressed. The protocol is fairly simple. A number of IR pulses (total ON and OFF time) are sent with only a few specific lengths. Their exact timing seems to vary and may not be entirely consistent, so relative duration must be used. The ON phase of the pulse accounts for a very miniscule amount time, while the OFF phase accounts for the majority of the delay.
 
 ```
 Mini Pulse		Smallest pulse. Very short and very numerous

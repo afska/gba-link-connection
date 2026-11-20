@@ -422,7 +422,7 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
 
 [![Image without alt text or caption](img/wireless/0x30.png)](img/wireless/0x30.png)
 
-- Send length 1, reponse length: 0
+- Send length 1, response length: 0
 - This command disconnects clients. The argument is a bitmask of the client ID to disconnect. Sending `0x1` means "disconnect client number 0", sending `0x2` means "disconnect client number 1", and sending `0xF` would disconnect all the clients. After disconnecting a client, its ID won't appear on `PollConnections` calls and its `clientNumber` will be liberated, so other peers can connect.
 
 ⚡ The clients also are able to disconnect themselves using this command, but they can only send its corresponding bit or `0xF`, other bits are ignored (they cannot disconnect other clients). Also, the host won't know if a client disconnects itself, so this feature is not very useful:
@@ -458,7 +458,7 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
 - Returns some information about the current connection and device state. The returned word contains:
 
 * Bits `0-15`: The device ID (or zero if the device is not connected nor hosting).
-* Bits `16-23`: A 4-bit array with slots. If the console is a client, it'll have a 1 in the position assigned to that slot (e.g. the one with `clientNumber` 3 will have `0100`). The host will always have `0000` here.
+* Bits `16-23`: A 4-bit array with slots. If the console is a client, it'll have a 1 in the position assigned to that slot (e.g. the one with `clientNumber` 2 will have `0100`). The host will always have `0000` here.
 * Bits `24-31`: A number indicating the state of the adapter
   - `0` = idle
   - `1` = serving (host), closed room
@@ -471,7 +471,7 @@ Let's call these `BroadcastReadStart`, `BroadcastReadPoll`, and `BroadcastReadEn
 
 - Send length: 0, Response length: 1+
 
-- It's returns a list of the connected adapters, similar to what `PollConnections` responds, but also:
+- It returns a list of the connected adapters, similar to what `PollConnections` responds, but also:
 
   - `SlotStatus` has an extra word at the start of the response, indicating the `clientNumber` that the next connection will have (or `0xFF` if the room is not accepting new clients).
   - `SlotStatus` can be called after `EndHost`, while `PollConnections` fails.

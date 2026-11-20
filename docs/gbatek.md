@@ -358,7 +358,7 @@ This register is not used in general purpose mode. That is, the separate bits of
   rcnt=0000h    ;/
   passes=0, index=0
  @@lop:
-  passes=passes+1, if passes>32 then ERROR  ;give up (usually only 10 passses)
+  passes=passes+1, if passes>32 then ERROR  ;give up (usually only 10 passes)
   recv.lo=siodata AND FFFFh    ;response from adapter
   recv.hi=siodata/10000h       ;adapter's own "NI" data
   if send.hi<>recv.lo then index=0, goto @@stuck  ;<-- fallback to index=0

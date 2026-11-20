@@ -197,7 +197,7 @@ The saved level offsets seem a bit arbitrary but, in fact, follow
 a pattern:
 
 -   For slots 1 to 19, start at offset 24576, and for each slot,
-    move 2048 bytes forward. (24576, 26624, 28672, 30702, etc.)
+    move 2048 bytes forward. (24576, 26624, 28672, 30720, etc.)
 
 -   For slots 20 to 32, start at offset 90112, and for each slot, 
     move 2048 bytes forward. (90112, 92160, 94208, 96256, etc.)
