@@ -49,8 +49,8 @@ int main() {
         "P" + std::to_string(linkConnection->currentPlayerId()) + "/" +
             std::to_string(linkConnection->playerCount()) + " R" +
             std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) + "-S" +
-            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) + "-E" +
-            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) + "-E" +
+            std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) +
             (linkConnection->didQueueOverflow(false) ? "!" : ""),
         0, -3);
 #else
@@ -73,9 +73,9 @@ int main() {
                 std::to_string(newSize) + " / R" +
                 std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_READY)) +
                 "-S" +
-                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) +
-                "-E" +
                 std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_START)) +
+                "-E" +
+                std::to_string(Common::isBitHigh(REG_SIOCNT, BIT_ERROR)) +
                 (linkConnection->didQueueOverflow(false) ? "!" : ""),
             0, -3);
       } else {

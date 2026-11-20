@@ -7,7 +7,7 @@
 
 void setup() {
   SPI.setDataMode(SPI_MODE1);
-  SPI.setClockDivider(128);  // (16Mhz / 128 = 128Khz)
+  SPI.setClockDivider(128);  // (16Mhz / 128 = 125Khz)
   SPI.begin();
   Serial.begin(9600);
 }

@@ -118,7 +118,6 @@ start:
       interrupt_disable(INTR_VBLANK);
       interrupt_disable(INTR_SERIAL);
       interrupt_disable(INTR_TIMER3);
-      interrupt_disable(INTR_TIMER0);
       delete linkWireless;
       linkWireless = nullptr;
       goto start;
@@ -180,7 +179,7 @@ void serve() {
 }
 
 void connect() {
-  u32 dotsCount, timer = 0;
+  u32 dotsCount = 0, timer = 0;
   std::function<void()> animate = [&dotsCount, &timer]() {
     if (timer++ % 10 == 0)
       dotsCount = 1 + (dotsCount) % 3;

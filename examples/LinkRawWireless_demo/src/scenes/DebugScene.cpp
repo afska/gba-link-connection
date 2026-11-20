@@ -473,6 +473,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
 
   switch (command) {
     case 0x10:
+      goto simple;
     case 0x11:
       return logOperation("sending " + name, []() {
         LinkRawWireless::SignalLevelResponse response;
@@ -554,8 +555,8 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       });
     }
     case 0x17: {
-      int maxPlayers = -1;
-      while ((maxPlayers = selectOption(
+      int maxPlayersOpt = -1;
+      while ((maxPlayersOpt = selectOption(
                   "Max players?",
                   std::vector<std::string>{"5", "4", "3", "2"})) == -1)
         ;
@@ -566,13 +567,15 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       while ((waitTimeout = selectU8("Wait timeout?")) == -1)
         ;
 
+      int maxPlayers = 5 - maxPlayersOpt;
+
       return logOperation(
           "sending " + name, [maxPlayers, maxTransmissions, waitTimeout]() {
             log("maxPlayers = " + std::to_string(maxPlayers));
             log("maxTransmissions = " + std::to_string(maxTransmissions));
             log("waitTimeout = " + std::to_string(waitTimeout));
 
-            return linkRawWireless->setup(5 - maxPlayers, maxTransmissions,
+            return linkRawWireless->setup(maxPlayers, maxTransmissions,
                                           waitTimeout);
           });
     }
@@ -670,7 +673,7 @@ void DebugScene::processCommand(u32 selectedCommandIndex) {
       });
     }
     case 0x1F: {
-      u16 serverId = selectServerId();
+      int serverId = selectServerId();
       if (serverId == -1)
         return;
 

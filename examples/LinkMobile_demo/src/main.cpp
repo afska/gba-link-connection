@@ -289,8 +289,10 @@ void cleanup() {
 
 void readConfiguration() {
   LinkMobile::ConfigurationData data;
-  if (!linkMobile->readConfiguration(data))
+  if (!linkMobile->readConfiguration(data)) {
     log("Read failed :(");
+    return;
+  }
 
   log("Magic:\n  " + toStr(data.magic, 2) + ", $" +
       toHex(data.registrationState) + "\nPrimary DNS:\n  " +

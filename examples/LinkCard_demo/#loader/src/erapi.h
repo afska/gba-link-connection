@@ -69,7 +69,7 @@ struct _ERAPI_BACKGROUND {
 #define ERAPI_Rand() ERAPI_FUNC_X1(0x107)
 #define ERAPI_SetSoundVolume(a, b) ERAPI_FUNC_X3(0x108, a, b)
 #define ERAPI_0109(a, b, c) ERAPI_FUNC_X4(0x109, a, b, c)
-#define ERAPI_010A(a, b) ERAPI_FUNC_X2(0x10A, a, b)
+#define ERAPI_010A(a, b) ERAPI_FUNC_X3(0x10A, a, b)
 #define ERAPI_Set0400XXXX(a, b) ERAPI_FUNC_X3(0x10B, a, b)
 #define ERAPI_Get0400XXXX(a) ERAPI_FUNC_X2(0x10C, a)
 #define ERAPI_RandMax(a) ERAPI_FUNC_X2(0x112, a)
