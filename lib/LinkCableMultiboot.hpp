@@ -638,17 +638,24 @@ class LinkCableMultiboot {
      * \warning This is internal API!
      */
     void _onSerial() {
-      if (state == State::STOPPED || interrupt)
+      if (state == State::STOPPED)
         return;
 
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+      if (interrupt)
+        return;
+
       interrupt = true;
 #endif
+
       Response response = getAsyncResponse();
+
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       Link::_REG_IME = 1;
 #endif
+
       processResponse(response);
+
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       interrupt = false;
 #endif
@@ -699,6 +706,7 @@ class LinkCableMultiboot {
     MultibootDynamicData dynamicData;
     volatile State state = State::STOPPED;
     volatile Result result = Result::NONE;
+
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
     volatile bool interrupt = false;
 #endif
@@ -1048,6 +1056,7 @@ class LinkCableMultiboot {
 #ifndef LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       Link::_REG_IME = 0;
 #endif
+
       if (fixedData.transferMode == TransferMode::MULTI_PLAY)
         linkRawCable.transferAsync(data);
       else

@@ -921,19 +921,26 @@ class LinkWirelessMultiboot {
      * \warning This is internal API!
      */
     void _onSerial() {
-      if (state == State::STOPPED || interrupt)
+      if (state == State::STOPPED)
         return;
 
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+      if (interrupt)
+        return;
+
       interrupt = true;
 #endif
+
       if (linkRawWireless._onSerial() > 0) {
         auto response = linkRawWireless._getAsyncCommandResultRef();
+
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
         Link::_REG_IME = 1;
 #endif
+
         processResponse(response);
       }
+
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       interrupt = false;
 #endif
@@ -944,8 +951,13 @@ class LinkWirelessMultiboot {
      * \warning This is internal API!
      */
     void _onTimer() {
-      if (state != State::SENDING_ROM_PART || interrupt)
+      if (state != State::SENDING_ROM_PART)
         return;
+
+#ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
+      if (interrupt)
+        return;
+#endif
 
       state = State::ENSURING_CLIENTS_ALIVE;
       checkClientsAlive();
@@ -1018,6 +1030,7 @@ class LinkWirelessMultiboot {
     LinkWirelessOpenSDK::MultiTransfer<MAX_INFLIGHT_PACKETS> multiTransfer;
     volatile State state = State::STOPPED;
     volatile Result result = Result::NONE;
+
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
     volatile bool interrupt = false;
 #endif
@@ -1429,6 +1442,7 @@ class LinkWirelessMultiboot {
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
       Link::_REG_IME = 0;
 #endif
+
       linkRawWireless.sendCommandAsync(type, params, length, invertsClock);
     }
 

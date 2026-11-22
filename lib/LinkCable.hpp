@@ -434,6 +434,7 @@ class LinkCable {
 #ifndef LINK_CABLE_DEBUG_MODE
  private:
 #endif
+
   struct ExternalState {
     U16Queue syncedIncomingMessages[LINK_CABLE_MAX_PLAYERS];
     vu8 playerCount = 1;

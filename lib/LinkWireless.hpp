@@ -845,6 +845,7 @@ class LinkWireless {
                ? 0
                : sessionState.outgoingMessages.peek().packetId;
   }
+
 #ifdef LINK_RAW_WIRELESS_ENABLE_LOGGING
   /**
    * @brief Sets a logger function.
