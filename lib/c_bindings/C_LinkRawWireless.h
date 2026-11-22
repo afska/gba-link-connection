@@ -207,7 +207,7 @@ void C_LinkRawWireless_onSerial(C_LinkRawWirelessHandle handle);
 
 extern C_LinkRawWirelessHandle cLinkRawWireless;
 
-inline void C_LINK_LINK_RAW_WIRELESS_ISR_SERIAL() {
+inline void C_LINK_RAW_WIRELESS_ISR_SERIAL() {
   C_LinkRawWireless_onSerial(cLinkRawWireless);
 }
 
