@@ -20,7 +20,7 @@ typedef void* C_LinkWirelessMultiboot_AsyncHandle;
 typedef enum {
   C_LINK_WIRELESS_MULTIBOOT_STATE_STOPPED,
   C_LINK_WIRELESS_MULTIBOOT_STATE_INITIALIZING,
-  C_LINK_WIRELESS_MULTIBOOT_STATE_WAITING,
+  C_LINK_WIRELESS_MULTIBOOT_STATE_LISTENING,
   C_LINK_WIRELESS_MULTIBOOT_STATE_PREPARING,
   C_LINK_WIRELESS_MULTIBOOT_STATE_SENDING,
   C_LINK_WIRELESS_MULTIBOOT_STATE_CONFIRMING
@@ -127,9 +127,10 @@ C_LinkWirelessMultiboot_AsyncHandle C_LinkWirelessMultiboot_Async_create(
 void C_LinkWirelessMultiboot_Async_destroy(
     C_LinkWirelessMultiboot_AsyncHandle handle);
 
-bool C_LinkWirelessMultiboot_Async_sendRom(C_LinkWirelessMultibootHandle handle,
-                                           const u8* rom,
-                                           u32 romSize);
+bool C_LinkWirelessMultiboot_Async_sendRom(
+    C_LinkWirelessMultiboot_AsyncHandle handle,
+    const u8* rom,
+    u32 romSize);
 
 bool C_LinkWirelessMultiboot_Async_reset(
     C_LinkWirelessMultiboot_AsyncHandle handle);
