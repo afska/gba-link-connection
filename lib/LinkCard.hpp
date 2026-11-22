@@ -277,8 +277,8 @@ class LinkCard {
     // card request
     if (!transferMultiAndExpect(GAME_REQUEST, HANDSHAKE_RECV_3, cancel))
       return ReceiveResult::CANCELED;
-    if (!transferMultiAndExpectOneOf(EREADER_ANIMATING, GAME_ANIMATING,
-                                     EREADER_READY, cancel))
+    if (transferMultiAndExpectOneOf(EREADER_ANIMATING, GAME_ANIMATING,
+                                    EREADER_READY, cancel) < 0)
       return ReceiveResult::CANCELED;
     if (transferMultiAndExpectOneOf(EREADER_ANIMATING, EREADER_ANIMATING,
                                     EREADER_READY, cancel) < 0)
