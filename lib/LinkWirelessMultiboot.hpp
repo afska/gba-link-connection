@@ -1028,8 +1028,8 @@ class LinkWirelessMultiboot {
       if (dynamicData.irqTimeout >= MAX_IRQ_TIMEOUT_FRAMES) {
 #ifndef LINK_WIRELESS_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
         if (!interrupt)
-          stop(Result::IRQ_TIMEOUT);
 #endif
+          stop(Result::IRQ_TIMEOUT);
         return;
       }
 
