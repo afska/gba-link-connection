@@ -199,7 +199,7 @@ bool C_LinkRawWireless_sendDataAndWait(
   remoteCommand->success = cppRemoteCommand.success;
   remoteCommand->commandId = cppRemoteCommand.commandId;
   remoteCommand->dataSize = cppRemoteCommand.dataSize;
-  for (u32 j = 0; j < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; j++)
+  for (u32 j = 0; j < cppRemoteCommand.dataSize; j++)
     remoteCommand->data[j] = cppRemoteCommand.data[j];
   return success;
 }
@@ -227,7 +227,7 @@ bool C_LinkRawWireless_wait(C_LinkRawWirelessHandle handle,
   remoteCommand->success = cppRemoteCommand.success;
   remoteCommand->commandId = cppRemoteCommand.commandId;
   remoteCommand->dataSize = cppRemoteCommand.dataSize;
-  for (u32 j = 0; j < LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH; j++)
+  for (u32 j = 0; j < cppRemoteCommand.dataSize; j++)
     remoteCommand->data[j] = cppRemoteCommand.data[j];
   return success;
 }
