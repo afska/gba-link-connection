@@ -11,7 +11,7 @@ typedef void* C_LinkSPIHandle;
 
 #define C_LINK_SPI_NO_DATA_32 0xFFFFFFFF
 #define C_LINK_SPI_NO_DATA_8 0xFF
-#define C_LINK_SPI_NO_DATA LINK_SPI_NO_DATA_32
+#define C_LINK_SPI_NO_DATA C_LINK_SPI_NO_DATA_32
 
 typedef enum {
   C_LINK_SPI_MODE_SLAVE,
