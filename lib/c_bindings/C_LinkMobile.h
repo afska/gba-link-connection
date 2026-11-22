@@ -96,7 +96,7 @@ typedef struct {
   volatile bool completed;
   bool success;
 
-  u32 connectionId;
+  u8 connectionId;
 } C_LinkMobile_OpenConn;
 
 typedef struct {
