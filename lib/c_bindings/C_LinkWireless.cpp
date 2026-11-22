@@ -125,12 +125,12 @@ bool C_LinkWireless_send(C_LinkWirelessHandle handle, u16 data) {
 bool C_LinkWireless_receive(C_LinkWirelessHandle handle,
                             C_LinkWireless_Message messages[],
                             u32* receivedCount) {
-  LinkWireless::Message cppMessages[C_LINK_WIRELESS_MAX_PLAYERS];
+  LinkWireless::Message cppMessages[LINK_WIRELESS_QUEUE_SIZE];
   u32 count;
   bool result = static_cast<LinkWireless*>(handle)->receive(cppMessages, count);
   *receivedCount = count;
 
-  for (u32 i = 0; i < C_LINK_WIRELESS_MAX_PLAYERS; i++) {
+  for (u32 i = 0; i < count; i++) {
     messages[i].packetId = cppMessages[i].packetId;
     messages[i].data = cppMessages[i].data;
     messages[i].playerId = cppMessages[i].playerId;
