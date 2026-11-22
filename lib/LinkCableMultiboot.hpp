@@ -856,6 +856,7 @@ class LinkCableMultiboot {
             return (void)startMultibootSend();
 
           state = State::WAITING_BEFORE_MAIN_TRANSFER;
+          dynamicData.wait = 0;
           dynamicData.waitFrames = WAIT_BEFORE_MAIN_TRANSFER_FRAMES;
           break;
         }
