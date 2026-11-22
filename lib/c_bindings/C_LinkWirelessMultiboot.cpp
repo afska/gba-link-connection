@@ -64,9 +64,10 @@ void C_LinkWirelessMultiboot_Async_destroy(
   delete static_cast<LinkWirelessMultiboot::Async*>(handle);
 }
 
-bool C_LinkWirelessMultiboot_Async_sendRom(C_LinkWirelessMultibootHandle handle,
-                                           const u8* rom,
-                                           u32 romSize) {
+bool C_LinkWirelessMultiboot_Async_sendRom(
+    C_LinkWirelessMultiboot_AsyncHandle handle,
+    const u8* rom,
+    u32 romSize) {
   return static_cast<LinkWirelessMultiboot::Async*>(handle)->sendRom(rom,
                                                                      romSize);
 }
