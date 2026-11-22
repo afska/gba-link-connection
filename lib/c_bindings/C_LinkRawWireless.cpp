@@ -351,7 +351,7 @@ C_LinkRawWireless_CommandResult fromCppResult(
 LinkRawWireless::CommandResult toCppResult(
     const C_LinkRawWireless_CommandResult* result) {
   LinkRawWireless::CommandResult cppResult;
-  cppResult.success = cppResult.success;
+  cppResult.success = result->success;
   cppResult.commandId = result->commandId;
   for (u32 i = 0; i < result->dataSize; i++)
     cppResult.data[i] = result->data[i];
