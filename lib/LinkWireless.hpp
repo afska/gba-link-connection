@@ -1641,13 +1641,14 @@ class LinkWireless {
         ringMinAck = ack;
       } else {
         // we compare `ringMinAck` vs `ack` in circular space
-        // (0..MAX_PACKET_IDS_CLIENT-1):
+        // (0..MAX_PACKET_IDS_SERVER-1):
         //   -> how many steps it is from `ringMinAck` down to `ack`?
-        u32 distance = (ringMinAck - ack) & (MAX_PACKET_IDS_CLIENT - 1);
+        u32 distance = (ringMinAck - ack) & (MAX_PACKET_IDS_SERVER - 1);
 
-        // if distance >= MAX_INFLIGHT_PACKETS_CLIENT => `ack` is "behind"
-        // `ringMinAck`, so we replace it!
-        if (distance >= MAX_INFLIGHT_PACKETS_CLIENT)
+        // two ACKs can never be more than (MAX_IDS / 2 - 1) packets apart
+        // if distance <= MAX_INFLIGHT_PACKETS_SERVER =>
+        //   `ack` is before `ringMinAck`, so we replace it!
+        if (distance <= MAX_INFLIGHT_PACKETS_SERVER)
           ringMinAck = ack;
       }
     }
@@ -1672,9 +1673,9 @@ class LinkWireless {
 
       // we release the packet if it was confirmed (aka inside the send window)
       // example with maxPacketIds=16, maxInflightPackets=7, ack=4:
-      //   => we would be releasing packets 4,3,2,1,15,14,13
+      //   => we would be releasing packets 4,3,2,1,0,15,14
       u32 distance = (ack - packetId) & (maxPacketIds - 1);
-      if (distance <= maxInflightPackets) {
+      if (distance < maxInflightPackets) {
         auto message = sessionState.outgoingMessages.pop();
         sessionState.inflightCount--;
         if (maxPacketIds == MAX_PACKET_IDS_SERVER && message.playerId > 0)
