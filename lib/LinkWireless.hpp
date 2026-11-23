@@ -1044,8 +1044,9 @@ class LinkWireless {
     unsigned int ack1 : 6;        // server: player 1 ACK
                                   // clients: server ACK
     unsigned int hasLastMsg : 1;  // there's a msg in last word's high part
-    unsigned int hasPlayerBitMap
-        : 1;                         // server: next halfword is a PlayerBitMap
+    unsigned int hasPlayerBitMap : 1;
+    //                               server: next halfword is a PlayerBitMap
+    //                               clients: need first packet (ACKs not valid)
     unsigned int firstPacketId : 6;  // next packets are assumed consecutive
                                      // clients only use 4 bits here!
                                      // `hasFirstMsg` is an imaginary flag
@@ -1364,8 +1365,12 @@ class LinkWireless {
     // fully used all words
     transferHeader.hasLastMsg = msgCount > 0 && !highPart;
 
-    // the transfer contains player bitmaps if there are forwarded messages
-    transferHeader.hasPlayerBitMap = sessionState.forwardedCount > 0;
+    // server: the transfer contains player bitmaps if there are forwarded msgs
+    // clients: report whether we still need to receive our first packet
+    //   (our ACKs are not valid yet!)
+    transferHeader.hasPlayerBitMap =
+        isServer ? sessionState.forwardedCount > 0
+                 : !sessionState.didReceiveFirstPacketFromServer;
 
     // `ack1` is used by both server and clients
     transferHeader.ack1 = isServer ? sessionState.lastPacketIdFromClients[1]
@@ -1446,7 +1451,8 @@ class LinkWireless {
       // ACKs found in the header
       if (config.retransmission) {
         if (isServer) {
-          sessionState.lastAckFromClients[i] = header.ack1;
+          if (!header.hasPlayerBitMap)
+            sessionState.lastAckFromClients[i] = header.ack1;
         } else {
           u32 currentPlayerId = linkRawWireless.sessionState.currentPlayerId;
           sessionState.lastAckFromServer = currentPlayerId == 1   ? header.ack1
