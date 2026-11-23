@@ -373,8 +373,8 @@ class LinkMobile {
     if (Link::strlen(loginId) > 0)
       copyString(request.loginId, loginId, LINK_MOBILE_MAX_LOGIN_ID_LENGTH);
     else if (adapterConfiguration.isValid())
-      copyString(request.loginId, adapterConfiguration.fields._ispNumber1,
-                 LINK_MOBILE_MAX_LOGIN_ID_LENGTH);
+      copyString(request.loginId, adapterConfiguration.fields.loginId,
+                 sizeof(adapterConfiguration.fields.loginId));
     else
       return false;
 
@@ -1507,14 +1507,12 @@ class LinkMobile {
     nextCommandDataSize++;
   }
 
-  void copyString(char* target, const char* source, u32 length) {
-    u32 len = Link::strlen(source);
-
-    for (u32 i = 0; i < length + 1; i++)
-      if (i < len)
-        target[i] = source[i];
-      else
-        target[i] = '\0';
+  void copyString(char* target, const char* source, u32 maxLength) {
+    u32 i = 0;
+    for (; i < maxLength && source[i] != '\0'; i++)
+      target[i] = source[i];
+    for (; i <= maxLength; i++)
+      target[i] = '\0';
   }
 
   void setState(State newState) {
