@@ -5,11 +5,11 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkPS2KeyboardHandle;
 
-typedef void (*C_LinkPS2Keyboard_EventCallback)(u8 event);
+typedef void (*C_LinkPS2Keyboard_EventCallback)(_u8 event);
 
 C_LinkPS2KeyboardHandle C_LinkPS2Keyboard_create(
     C_LinkPS2Keyboard_EventCallback callback);

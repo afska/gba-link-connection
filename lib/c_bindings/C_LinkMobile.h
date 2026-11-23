@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkMobileHandle;
 
@@ -78,9 +78,9 @@ typedef enum {
 typedef struct {
   C_LinkMobile_ErrorType type;
   C_LinkMobile_State state;
-  u8 cmdId;
+  _u8 cmdId;
   C_LinkMobile_CommandResult cmdResult;
-  u8 cmdErrorCode;
+  _u8 cmdErrorCode;
   bool cmdIsSending;
   int reqType;
 } C_LinkMobile_Error;
@@ -89,14 +89,14 @@ typedef struct {
   volatile bool completed;
   bool success;
 
-  u8 ipv4[4];
+  _u8 ipv4[4];
 } C_LinkMobile_DNSQuery;
 
 typedef struct {
   volatile bool completed;
   bool success;
 
-  u8 connectionId;
+  _u8 connectionId;
 } C_LinkMobile_OpenConn;
 
 typedef struct {
@@ -108,28 +108,28 @@ typedef struct {
   volatile bool completed;
   bool success;
 
-  u8 data[C_LINK_MOBILE_MAX_USER_TRANSFER_LENGTH];
-  u8 size;
+  _u8 data[C_LINK_MOBILE_MAX_USER_TRANSFER_LENGTH];
+  _u8 size;
 } C_LinkMobile_DataTransfer;
 
 typedef struct {
   char magic[2];
-  u8 registrationState;
-  u8 _unused1_;
-  u8 primaryDNS[4];
-  u8 secondaryDNS[4];
+  _u8 registrationState;
+  _u8 _unused1_;
+  _u8 primaryDNS[4];
+  _u8 secondaryDNS[4];
   char loginId[10];
-  u8 _unused2_[22];
+  _u8 _unused2_[22];
   char email[24];
-  u8 _unused3_[6];
+  _u8 _unused3_[6];
   char smtpServer[20];
   char popServer[19];
-  u8 _unused4_[5];
-  u8 configurationSlot1[24];
-  u8 configurationSlot2[24];
-  u8 configurationSlot3[24];
-  u8 checksumHigh;
-  u8 checksumLow;
+  _u8 _unused4_[5];
+  _u8 configurationSlot1[24];
+  _u8 configurationSlot2[24];
+  _u8 configurationSlot3[24];
+  _u8 checksumHigh;
+  _u8 checksumLow;
 
   char _ispNumber1[16 + 1];
 } C_LinkMobile_ConfigurationData;
@@ -140,7 +140,7 @@ typedef enum {
 } C_LinkMobile_DataSize;
 
 C_LinkMobileHandle C_LinkMobile_createDefault();
-C_LinkMobileHandle C_LinkMobile_create(u32 timeout, u8 timerId);
+C_LinkMobileHandle C_LinkMobile_create(_u32 timeout, _u8 timerId);
 void C_LinkMobile_destroy(C_LinkMobileHandle handle);
 
 bool C_LinkMobile_isActive(C_LinkMobileHandle handle);
@@ -157,18 +157,18 @@ bool C_LinkMobile_dnsQuery(C_LinkMobileHandle handle,
                            const char* domainName,
                            C_LinkMobile_DNSQuery* result);
 bool C_LinkMobile_openConnection(C_LinkMobileHandle handle,
-                                 const u8* ip,
-                                 u16 port,
+                                 const _u8* ip,
+                                 _u16 port,
                                  C_LinkMobile_ConnectionType connectionType,
                                  C_LinkMobile_OpenConn* result);
 bool C_LinkMobile_closeConnection(C_LinkMobileHandle handle,
-                                  u8 connectionId,
+                                  _u8 connectionId,
                                   C_LinkMobile_ConnectionType connectionType,
                                   C_LinkMobile_CloseConn* result);
 bool C_LinkMobile_transfer(C_LinkMobileHandle handle,
                            C_LinkMobile_DataTransfer dataToSend,
                            C_LinkMobile_DataTransfer* result,
-                           u8 connectionId);
+                           _u8 connectionId);
 
 bool C_LinkMobile_waitFor(C_LinkMobileHandle handle, void* asyncRequest);
 bool C_LinkMobile_hangUp(C_LinkMobileHandle handle);

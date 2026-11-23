@@ -5,9 +5,9 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
 #include "C_LinkCable.h"
 #include "C_LinkWireless.h"
+#include "_c_link_common.h"
 
 typedef void* C_LinkUniversalHandle;
 
@@ -35,19 +35,19 @@ typedef enum {
 } C_LinkUniversal_Protocol;
 
 typedef struct {
-  u32 baudRate;
-  u32 timeout;
-  u16 interval;
-  u8 sendTimerId;
+  _u32 baudRate;
+  _u32 timeout;
+  _u16 interval;
+  _u8 sendTimerId;
 } C_LinkUniversal_CableOptions;
 
 typedef struct {
   bool forwarding;
   bool retransmission;
-  u32 maxPlayers;
-  u32 timeout;
-  u16 interval;
-  u8 sendTimerId;
+  _u32 maxPlayers;
+  _u32 timeout;
+  _u16 interval;
+  _u8 sendTimerId;
 } C_LinkUniversal_WirelessOptions;
 
 C_LinkUniversalHandle C_LinkUniversal_createDefault();
@@ -64,21 +64,21 @@ bool C_LinkUniversal_deactivate(C_LinkUniversalHandle handle);
 bool C_LinkUniversal_deactivateButKeepWirelessOn(C_LinkUniversalHandle handle);
 
 bool C_LinkUniversal_isConnected(C_LinkUniversalHandle handle);
-u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle);
-u8 C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle);
+_u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle);
+_u8 C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle);
 
 void C_LinkUniversal_sync(C_LinkUniversalHandle handle);
-bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, u8 playerId);
+bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, _u8 playerId);
 bool C_LinkUniversal_waitForWithCancel(C_LinkUniversalHandle handle,
-                                       u8 playerId,
+                                       _u8 playerId,
                                        bool (*cancel)());
 
-bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, u8 playerId);
-u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, u8 playerId);
-u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, u8 playerId);
+bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, _u8 playerId);
+_u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, _u8 playerId);
+_u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, _u8 playerId);
 
 bool C_LinkUniversal_canSend(C_LinkUniversalHandle handle);
-bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data);
+bool C_LinkUniversal_send(C_LinkUniversalHandle handle, _u16 data);
 
 bool C_LinkUniversal_didQueueOverflow(C_LinkUniversalHandle handle, bool clear);
 
@@ -101,8 +101,8 @@ C_LinkCableHandle C_LinkUniversal_getLinkCable(C_LinkUniversalHandle handle);
 C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
     C_LinkUniversalHandle handle);
 
-u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle);
-u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);
+_u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle);
+_u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle);
 
 void C_LinkUniversal_onVBlank(C_LinkUniversalHandle handle);
 void C_LinkUniversal_onSerial(C_LinkUniversalHandle handle);

@@ -7,9 +7,9 @@ C_LinkCableHandle C_LinkCable_createDefault() {
 }
 
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,
-                                     u32 timeout,
-                                     u16 interval,
-                                     u8 sendTimerId) {
+                                     _u32 timeout,
+                                     _u16 interval,
+                                     _u8 sendTimerId) {
   return new LinkCable(static_cast<LinkCable::BaudRate>(baudRate), timeout,
                        interval, sendTimerId);
 }
@@ -34,11 +34,11 @@ bool C_LinkCable_isConnected(C_LinkCableHandle handle) {
   return static_cast<LinkCable*>(handle)->isConnected();
 }
 
-u8 C_LinkCable_playerCount(C_LinkCableHandle handle) {
+_u8 C_LinkCable_playerCount(C_LinkCableHandle handle) {
   return static_cast<LinkCable*>(handle)->playerCount();
 }
 
-u8 C_LinkCable_currentPlayerId(C_LinkCableHandle handle) {
+_u8 C_LinkCable_currentPlayerId(C_LinkCableHandle handle) {
   return static_cast<LinkCable*>(handle)->currentPlayerId();
 }
 
@@ -46,25 +46,25 @@ void C_LinkCable_sync(C_LinkCableHandle handle) {
   static_cast<LinkCable*>(handle)->sync();
 }
 
-bool C_LinkCable_waitFor(C_LinkCableHandle handle, u8 playerId) {
+bool C_LinkCable_waitFor(C_LinkCableHandle handle, _u8 playerId) {
   return static_cast<LinkCable*>(handle)->waitFor(playerId);
 }
 
 bool C_LinkCable_waitForWithCancel(C_LinkCableHandle handle,
-                                   u8 playerId,
+                                   _u8 playerId,
                                    bool (*cancel)()) {
   return static_cast<LinkCable*>(handle)->waitFor(playerId, cancel);
 }
 
-bool C_LinkCable_canRead(C_LinkCableHandle handle, u8 playerId) {
+bool C_LinkCable_canRead(C_LinkCableHandle handle, _u8 playerId) {
   return static_cast<LinkCable*>(handle)->canRead(playerId);
 }
 
-u16 C_LinkCable_read(C_LinkCableHandle handle, u8 playerId) {
+_u16 C_LinkCable_read(C_LinkCableHandle handle, _u8 playerId) {
   return static_cast<LinkCable*>(handle)->read(playerId);
 }
 
-u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId) {
+_u16 C_LinkCable_peek(C_LinkCableHandle handle, _u8 playerId) {
   return static_cast<LinkCable*>(handle)->peek(playerId);
 }
 
@@ -72,7 +72,7 @@ bool C_LinkCable_canSend(C_LinkCableHandle handle) {
   return static_cast<LinkCable*>(handle)->canSend();
 }
 
-bool C_LinkCable_send(C_LinkCableHandle handle, u16 data) {
+bool C_LinkCable_send(C_LinkCableHandle handle, _u16 data) {
   return static_cast<LinkCable*>(handle)->send(data);
 }
 

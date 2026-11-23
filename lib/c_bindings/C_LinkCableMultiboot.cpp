@@ -12,8 +12,8 @@ void C_LinkCableMultiboot_destroy(C_LinkCableMultibootHandle handle) {
 
 C_LinkCableMultiboot_Result C_LinkCableMultiboot_sendRom(
     C_LinkCableMultibootHandle handle,
-    const u8* rom,
-    u32 romSize,
+    const _u8* rom,
+    _u32 romSize,
     bool (*cancel)(void),
     C_LinkCableMultiboot_TransferMode mode) {
   return static_cast<C_LinkCableMultiboot_Result>(
@@ -39,8 +39,8 @@ void C_LinkCableMultiboot_Async_destroy(
 }
 
 bool C_LinkCableMultiboot_Async_sendRom(C_LinkCableMultiboot_AsyncHandle handle,
-                                        const u8* rom,
-                                        u32 romSize) {
+                                        const _u8* rom,
+                                        _u32 romSize) {
   return static_cast<LinkCableMultiboot::Async*>(handle)->sendRom(rom, romSize);
 }
 
@@ -74,12 +74,12 @@ C_LinkCableMultiboot_Async_Result C_LinkCableMultiboot_Async_getDetailedResult(
           clear));
 }
 
-u8 C_LinkCableMultiboot_Async_playerCount(
+_u8 C_LinkCableMultiboot_Async_playerCount(
     C_LinkCableMultiboot_AsyncHandle handle) {
   return static_cast<LinkCableMultiboot::Async*>(handle)->playerCount();
 }
 
-u8 C_LinkCableMultiboot_Async_getPercentage(
+_u8 C_LinkCableMultiboot_Async_getPercentage(
     C_LinkCableMultiboot_AsyncHandle handle) {
   return static_cast<LinkCableMultiboot::Async*>(handle)->getPercentage();
 }

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkWirelessMultibootHandle;
 typedef void* C_LinkWirelessMultiboot_AsyncHandle;
@@ -39,8 +39,8 @@ typedef enum {
 
 typedef struct {
   C_LinkWirelessMultiboot_State state;
-  u8 connectedClients;
-  u8 percentage;
+  _u8 connectedClients;
+  _u8 percentage;
   volatile bool* ready;
 } C_LinkWirelessMultiboot_Progress;
 
@@ -50,12 +50,12 @@ typedef bool (*C_LinkWirelessMultiboot_ListenerCallback)(
 typedef struct {
   const char* gameName;
   const char* userName;
-  u16 gameId;
-  u8 players;
+  _u16 gameId;
+  _u8 players;
   bool waitForReadySignal;
   bool keepConnectionAlive;
-  u16 interval;
-  u8 timerId;
+  _u16 interval;
+  _u8 timerId;
 } C_LinkWirelessMultiboot_Async_Config;
 
 typedef enum {
@@ -102,12 +102,12 @@ void C_LinkWirelessMultiboot_destroy(C_LinkWirelessMultibootHandle handle);
 
 C_LinkWirelessMultiboot_Result C_LinkWirelessMultiboot_sendRom(
     C_LinkWirelessMultibootHandle handle,
-    const u8* rom,
-    u32 romSize,
+    const _u8* rom,
+    _u32 romSize,
     const char* gameName,
     const char* userName,
-    u16 gameId,
-    u8 players,
+    _u16 gameId,
+    _u8 players,
     C_LinkWirelessMultiboot_ListenerCallback listener,
     bool keepConnectionAlive);
 
@@ -118,19 +118,19 @@ C_LinkWirelessMultiboot_Async_createDefault();
 C_LinkWirelessMultiboot_AsyncHandle C_LinkWirelessMultiboot_Async_create(
     const char* gameName,
     const char* userName,
-    u16 gameId,
-    u8 players,
+    _u16 gameId,
+    _u8 players,
     bool waitForReadySignal,
     bool keepConnectionAlive,
-    u16 interval,
-    u8 timerId);
+    _u16 interval,
+    _u8 timerId);
 void C_LinkWirelessMultiboot_Async_destroy(
     C_LinkWirelessMultiboot_AsyncHandle handle);
 
 bool C_LinkWirelessMultiboot_Async_sendRom(
     C_LinkWirelessMultiboot_AsyncHandle handle,
-    const u8* rom,
-    u32 romSize);
+    const _u8* rom,
+    _u32 romSize);
 
 bool C_LinkWirelessMultiboot_Async_reset(
     C_LinkWirelessMultiboot_AsyncHandle handle);
@@ -148,9 +148,9 @@ C_LinkWirelessMultiboot_Async_getDetailedResult(
     C_LinkWirelessMultiboot_AsyncHandle handle,
     bool clear);
 
-u8 C_LinkWirelessMultiboot_Async_playerCount(
+_u8 C_LinkWirelessMultiboot_Async_playerCount(
     C_LinkWirelessMultiboot_AsyncHandle handle);
-u8 C_LinkWirelessMultiboot_Async_getPercentage(
+_u8 C_LinkWirelessMultiboot_Async_getPercentage(
     C_LinkWirelessMultiboot_AsyncHandle handle);
 
 bool C_LinkWirelessMultiboot_Async_isReady(

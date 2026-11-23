@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkIRHandle;
 
@@ -13,33 +13,33 @@ typedef void* C_LinkIRHandle;
 #define C_LINK_IR_DEFAULT_SECONDARY_TIMER_ID 3
 
 typedef struct {
-  u8 primaryTimerId;
-  u8 secondaryTimerId;
+  _u8 primaryTimerId;
+  _u8 secondaryTimerId;
 } C_LinkIR_Config;
 
 C_LinkIRHandle C_LinkIR_createDefault();
-C_LinkIRHandle C_LinkIR_create(u8 primaryTimerId, u8 secondaryTimerId);
+C_LinkIRHandle C_LinkIR_create(_u8 primaryTimerId, _u8 secondaryTimerId);
 void C_LinkIR_destroy(C_LinkIRHandle handle);
 
 bool C_LinkIR_activate(C_LinkIRHandle handle);
 void C_LinkIR_deactivate(C_LinkIRHandle handle);
 
-void C_LinkIR_sendNEC(C_LinkIRHandle handle, u8 address, u8 command);
+void C_LinkIR_sendNEC(C_LinkIRHandle handle, _u8 address, _u8 command);
 bool C_LinkIR_receiveNEC(C_LinkIRHandle handle,
-                         u8* address,
-                         u8* command,
-                         u32 startTimeout);
+                         _u8* address,
+                         _u8* command,
+                         _u32 startTimeout);
 bool C_LinkIR_parseNEC(C_LinkIRHandle handle,
-                       u16 pulses[],
-                       u8* address,
-                       u8* command);
+                       _u16 pulses[],
+                       _u8* address,
+                       _u8* command);
 
-void C_LinkIR_send(C_LinkIRHandle handle, u16 pulses[]);
+void C_LinkIR_send(C_LinkIRHandle handle, _u16 pulses[]);
 bool C_LinkIR_receive(C_LinkIRHandle handle,
-                      u16 pulses[],
-                      u32 maxEntries,
-                      u32 startTimeout,
-                      u32 signalTimeout);
+                      _u16 pulses[],
+                      _u32 maxEntries,
+                      _u32 startTimeout,
+                      _u32 signalTimeout);
 
 void C_LinkIR_setLight(C_LinkIRHandle handle, bool on);
 bool C_LinkIR_isEmittingLight(C_LinkIRHandle handle);

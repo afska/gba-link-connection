@@ -97,7 +97,6 @@ cd examples
 - For documentation, use this `README.md` file or comments inside the main C++ files.
 - Some libraries may not be available in C.
 - Some methods/overloads may not be available in the C implementations.
-- Unlike the main libraries, C bindings depend on _libtonc_.
 
 ```cpp
 // Instantiating

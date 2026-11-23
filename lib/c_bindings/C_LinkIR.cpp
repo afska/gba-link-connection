@@ -6,7 +6,7 @@ C_LinkIRHandle C_LinkIR_createDefault() {
   return new LinkIR();
 }
 
-C_LinkIRHandle C_LinkIR_create(u8 primaryTimerId, u8 secondaryTimerId) {
+C_LinkIRHandle C_LinkIR_create(_u8 primaryTimerId, _u8 secondaryTimerId) {
   return new LinkIR(primaryTimerId, secondaryTimerId);
 }
 
@@ -22,15 +22,15 @@ void C_LinkIR_deactivate(C_LinkIRHandle handle) {
   static_cast<LinkIR*>(handle)->deactivate();
 }
 
-void C_LinkIR_sendNEC(C_LinkIRHandle handle, u8 address, u8 command) {
+void C_LinkIR_sendNEC(C_LinkIRHandle handle, _u8 address, _u8 command) {
   static_cast<LinkIR*>(handle)->sendNEC(address, command);
 }
 
 bool C_LinkIR_receiveNEC(C_LinkIRHandle handle,
-                         u8* address,
-                         u8* command,
-                         u32 startTimeout) {
-  u8 addr = 0, cmd = 0;
+                         _u8* address,
+                         _u8* command,
+                         _u32 startTimeout) {
+  _u8 addr = 0, cmd = 0;
   bool result =
       static_cast<LinkIR*>(handle)->receiveNEC(addr, cmd, startTimeout);
   *address = addr;
@@ -39,25 +39,25 @@ bool C_LinkIR_receiveNEC(C_LinkIRHandle handle,
 }
 
 bool C_LinkIR_parseNEC(C_LinkIRHandle handle,
-                       u16 pulses[],
-                       u8* address,
-                       u8* command) {
-  u8 addr = 0, cmd = 0;
+                       _u16 pulses[],
+                       _u8* address,
+                       _u8* command) {
+  _u8 addr = 0, cmd = 0;
   bool result = static_cast<LinkIR*>(handle)->parseNEC(pulses, addr, cmd);
   *address = addr;
   *command = cmd;
   return result;
 }
 
-void C_LinkIR_send(C_LinkIRHandle handle, u16 pulses[]) {
+void C_LinkIR_send(C_LinkIRHandle handle, _u16 pulses[]) {
   static_cast<LinkIR*>(handle)->send(pulses);
 }
 
 bool C_LinkIR_receive(C_LinkIRHandle handle,
-                      u16 pulses[],
-                      u32 maxEntries,
-                      u32 startTimeout,
-                      u32 signalTimeout) {
+                      _u16 pulses[],
+                      _u32 maxEntries,
+                      _u32 startTimeout,
+                      _u32 signalTimeout) {
   return static_cast<LinkIR*>(handle)->receive(pulses, maxEntries, startTimeout,
                                                signalTimeout);
 }

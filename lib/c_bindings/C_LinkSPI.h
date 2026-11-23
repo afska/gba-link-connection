@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkSPIHandle;
 
@@ -36,18 +36,18 @@ void C_LinkSPI_activate(C_LinkSPIHandle handle,
                         C_LinkSPI_DataSize dataSize);
 void C_LinkSPI_deactivate(C_LinkSPIHandle handle);
 
-u32 C_LinkSPI_transfer(C_LinkSPIHandle handle, u32 data);
-u32 C_LinkSPI_transferWithCancel(C_LinkSPIHandle handle,
-                                 u32 data,
+_u32 C_LinkSPI_transfer(C_LinkSPIHandle handle, _u32 data);
+_u32 C_LinkSPI_transferWithCancel(C_LinkSPIHandle handle,
+                                 _u32 data,
                                  bool (*cancel)());
 
-void C_LinkSPI_transferAsync(C_LinkSPIHandle handle, u32 data);
+void C_LinkSPI_transferAsync(C_LinkSPIHandle handle, _u32 data);
 void C_LinkSPI_transferAsyncWithCancel(C_LinkSPIHandle handle,
-                                       u32 data,
+                                       _u32 data,
                                        bool (*cancel)());
 
 C_LinkSPI_AsyncState C_LinkSPI_getAsyncState(C_LinkSPIHandle handle);
-u32 C_LinkSPI_getAsyncData(C_LinkSPIHandle handle);
+_u32 C_LinkSPI_getAsyncData(C_LinkSPIHandle handle);
 
 C_LinkSPI_Mode C_LinkSPI_getMode(C_LinkSPIHandle handle);
 C_LinkSPI_DataSize C_LinkSPI_getDataSize(C_LinkSPIHandle handle);

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkCardHandle;
 
@@ -44,11 +44,11 @@ C_LinkCard_ConnectedDevice C_LinkCard_getConnectedDevice(
     C_LinkCardHandle handle,
     bool (*cancel)());
 C_LinkCard_SendResult C_LinkCard_sendLoader(C_LinkCardHandle handle,
-                                            const u8* loader,
-                                            u32 loaderSize,
+                                            const _u8* loader,
+                                            _u32 loaderSize,
                                             bool (*cancel)());
 C_LinkCard_ReceiveResult C_LinkCard_receiveCard(C_LinkCardHandle handle,
-                                                u8* card,
+                                                _u8* card,
                                                 bool (*cancel)());
 
 #ifdef __cplusplus

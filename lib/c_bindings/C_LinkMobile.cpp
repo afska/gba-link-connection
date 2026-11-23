@@ -6,7 +6,7 @@ C_LinkMobileHandle C_LinkMobile_createDefault() {
   return new LinkMobile();
 }
 
-C_LinkMobileHandle C_LinkMobile_create(u32 timeout, u8 timerId) {
+C_LinkMobileHandle C_LinkMobile_create(_u32 timeout, _u8 timerId) {
   return new LinkMobile(timeout, timerId);
 }
 
@@ -48,8 +48,8 @@ bool C_LinkMobile_dnsQuery(C_LinkMobileHandle handle,
 }
 
 bool C_LinkMobile_openConnection(C_LinkMobileHandle handle,
-                                 const u8* ip,
-                                 u16 port,
+                                 const _u8* ip,
+                                 _u16 port,
                                  C_LinkMobile_ConnectionType connectionType,
                                  C_LinkMobile_OpenConn* result) {
   return static_cast<LinkMobile*>(handle)->openConnection(
@@ -58,7 +58,7 @@ bool C_LinkMobile_openConnection(C_LinkMobileHandle handle,
 }
 
 bool C_LinkMobile_closeConnection(C_LinkMobileHandle handle,
-                                  u8 connectionId,
+                                  _u8 connectionId,
                                   C_LinkMobile_ConnectionType connectionType,
                                   C_LinkMobile_CloseConn* result) {
   return static_cast<LinkMobile*>(handle)->closeConnection(
@@ -69,7 +69,7 @@ bool C_LinkMobile_closeConnection(C_LinkMobileHandle handle,
 bool C_LinkMobile_transfer(C_LinkMobileHandle handle,
                            C_LinkMobile_DataTransfer dataToSend,
                            C_LinkMobile_DataTransfer* result,
-                           u8 connectionId) {
+                           _u8 connectionId) {
   return static_cast<LinkMobile*>(handle)->transfer(
       *reinterpret_cast<LinkMobile::DataTransfer*>(&dataToSend),
       reinterpret_cast<LinkMobile::DataTransfer*>(result), connectionId);

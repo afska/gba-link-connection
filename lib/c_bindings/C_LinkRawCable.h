@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkRawCableHandle;
 
@@ -26,7 +26,7 @@ typedef enum {
 } C_LinkRawCable_AsyncState;
 
 typedef struct {
-  u16 data[C_LINK_RAW_CABLE_MAX_PLAYERS];
+  _u16 data[C_LINK_RAW_CABLE_MAX_PLAYERS];
   int playerId;
 } C_LinkRawCable_Response;
 
@@ -39,12 +39,12 @@ void C_LinkRawCable_activate(C_LinkRawCableHandle handle,
 void C_LinkRawCable_deactivate(C_LinkRawCableHandle handle);
 
 C_LinkRawCable_Response C_LinkRawCable_transfer(C_LinkRawCableHandle handle,
-                                                u16 data);
+                                                _u16 data);
 C_LinkRawCable_Response C_LinkRawCable_transferWithCancel(
     C_LinkRawCableHandle handle,
-    u16 data,
+    _u16 data,
     bool (*cancel)());
-void C_LinkRawCable_transferAsync(C_LinkRawCableHandle handle, u16 data);
+void C_LinkRawCable_transferAsync(C_LinkRawCableHandle handle, _u16 data);
 
 C_LinkRawCable_AsyncState C_LinkRawCable_getAsyncState(
     C_LinkRawCableHandle handle);

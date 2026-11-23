@@ -12,12 +12,12 @@ void C_LinkWirelessMultiboot_destroy(C_LinkWirelessMultibootHandle handle) {
 
 C_LinkWirelessMultiboot_Result C_LinkWirelessMultiboot_sendRom(
     C_LinkWirelessMultibootHandle handle,
-    const u8* rom,
-    u32 romSize,
+    const _u8* rom,
+    _u32 romSize,
     const char* gameName,
     const char* userName,
-    u16 gameId,
-    u8 players,
+    _u16 gameId,
+    _u8 players,
     C_LinkWirelessMultiboot_ListenerCallback listener,
     bool keepConnectionAlive) {
   auto result = static_cast<LinkWirelessMultiboot*>(handle)->sendRom(
@@ -48,12 +48,12 @@ C_LinkWirelessMultiboot_Async_createDefault() {
 C_LinkWirelessMultiboot_AsyncHandle C_LinkWirelessMultiboot_Async_create(
     const char* gameName,
     const char* userName,
-    u16 gameId,
-    u8 players,
+    _u16 gameId,
+    _u8 players,
     bool waitForReadySignal,
     bool keepConnectionAlive,
-    u16 interval,
-    u8 timerId) {
+    _u16 interval,
+    _u8 timerId) {
   return new LinkWirelessMultiboot::Async(
       gameName, userName, gameId, players, waitForReadySignal,
       keepConnectionAlive, interval, timerId);
@@ -66,8 +66,8 @@ void C_LinkWirelessMultiboot_Async_destroy(
 
 bool C_LinkWirelessMultiboot_Async_sendRom(
     C_LinkWirelessMultiboot_AsyncHandle handle,
-    const u8* rom,
-    u32 romSize) {
+    const _u8* rom,
+    _u32 romSize) {
   return static_cast<LinkWirelessMultiboot::Async*>(handle)->sendRom(rom,
                                                                      romSize);
 }
@@ -105,12 +105,12 @@ C_LinkWirelessMultiboot_Async_getDetailedResult(
           clear));
 }
 
-u8 C_LinkWirelessMultiboot_Async_playerCount(
+_u8 C_LinkWirelessMultiboot_Async_playerCount(
     C_LinkWirelessMultiboot_AsyncHandle handle) {
   return static_cast<LinkWirelessMultiboot::Async*>(handle)->playerCount();
 }
 
-u8 C_LinkWirelessMultiboot_Async_getPercentage(
+_u8 C_LinkWirelessMultiboot_Async_getPercentage(
     C_LinkWirelessMultiboot_AsyncHandle handle) {
   return static_cast<LinkWirelessMultiboot::Async*>(handle)->getPercentage();
 }

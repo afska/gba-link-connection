@@ -34,19 +34,19 @@ bool C_LinkCube_canRead(C_LinkCubeHandle handle) {
   return static_cast<LinkCube*>(handle)->canRead();
 }
 
-u32 C_LinkCube_read(C_LinkCubeHandle handle) {
+_u32 C_LinkCube_read(C_LinkCubeHandle handle) {
   return static_cast<LinkCube*>(handle)->read();
 }
 
-u32 C_LinkCube_peek(C_LinkCubeHandle handle) {
+_u32 C_LinkCube_peek(C_LinkCubeHandle handle) {
   return static_cast<LinkCube*>(handle)->peek();
 }
 
-void C_LinkCube_send(C_LinkCubeHandle handle, u32 data) {
+void C_LinkCube_send(C_LinkCubeHandle handle, _u32 data) {
   static_cast<LinkCube*>(handle)->send(data);
 }
 
-u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle) {
+_u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle) {
   return static_cast<LinkCube*>(handle)->pendingCount();
 }
 

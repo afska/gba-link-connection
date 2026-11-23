@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkCubeHandle;
 
@@ -20,11 +20,11 @@ bool C_LinkCube_wait(C_LinkCubeHandle handle);
 bool C_LinkCube_waitWithCancel(C_LinkCubeHandle handle, bool (*cancel)());
 
 bool C_LinkCube_canRead(C_LinkCubeHandle handle);
-u32 C_LinkCube_read(C_LinkCubeHandle handle);
-u32 C_LinkCube_peek(C_LinkCubeHandle handle);
+_u32 C_LinkCube_read(C_LinkCubeHandle handle);
+_u32 C_LinkCube_peek(C_LinkCubeHandle handle);
 
-void C_LinkCube_send(C_LinkCubeHandle handle, u32 data);
-u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle);
+void C_LinkCube_send(C_LinkCubeHandle handle, _u32 data);
+_u32 C_LinkCube_pendingCount(C_LinkCubeHandle handle);
 
 bool C_LinkCube_didQueueOverflow(C_LinkCubeHandle handle, bool clear);
 bool C_LinkCube_didReset(C_LinkCubeHandle handle, bool clear);

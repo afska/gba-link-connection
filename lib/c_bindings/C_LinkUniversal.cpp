@@ -47,11 +47,11 @@ bool C_LinkUniversal_isConnected(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->isConnected();
 }
 
-u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle) {
+_u8 C_LinkUniversal_playerCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->playerCount();
 }
 
-u8 C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle) {
+_u8 C_LinkUniversal_currentPlayerId(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->currentPlayerId();
 }
 
@@ -59,25 +59,25 @@ void C_LinkUniversal_sync(C_LinkUniversalHandle handle) {
   static_cast<LinkUniversal*>(handle)->sync();
 }
 
-bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, u8 playerId) {
+bool C_LinkUniversal_waitFor(C_LinkUniversalHandle handle, _u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->waitFor(playerId);
 }
 
 bool C_LinkUniversal_waitForWithCancel(C_LinkUniversalHandle handle,
-                                       u8 playerId,
+                                       _u8 playerId,
                                        bool (*cancel)()) {
   return static_cast<LinkUniversal*>(handle)->waitFor(playerId, cancel);
 }
 
-bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, u8 playerId) {
+bool C_LinkUniversal_canRead(C_LinkUniversalHandle handle, _u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->canRead(playerId);
 }
 
-u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, u8 playerId) {
+_u16 C_LinkUniversal_read(C_LinkUniversalHandle handle, _u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->read(playerId);
 }
 
-u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, u8 playerId) {
+_u16 C_LinkUniversal_peek(C_LinkUniversalHandle handle, _u8 playerId) {
   return static_cast<LinkUniversal*>(handle)->peek(playerId);
 }
 
@@ -85,7 +85,7 @@ bool C_LinkUniversal_canSend(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->canSend();
 }
 
-bool C_LinkUniversal_send(C_LinkUniversalHandle handle, u16 data) {
+bool C_LinkUniversal_send(C_LinkUniversalHandle handle, _u16 data) {
   return static_cast<LinkUniversal*>(handle)->send(data);
 }
 
@@ -143,11 +143,11 @@ C_LinkWirelessHandle C_LinkUniversal_getLinkWireless(
   return static_cast<LinkUniversal*>(handle)->getLinkWireless();
 }
 
-u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {
+_u32 C_LinkUniversal_getWaitCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->_getWaitCount();
 }
 
-u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle) {
+_u32 C_LinkUniversal_getSubWaitCount(C_LinkUniversalHandle handle) {
   return static_cast<LinkUniversal*>(handle)->_getSubWaitCount();
 }
 

@@ -18,8 +18,8 @@ C_LinkCard_ConnectedDevice C_LinkCard_getConnectedDevice(
 }
 
 C_LinkCard_SendResult C_LinkCard_sendLoader(C_LinkCardHandle handle,
-                                            const u8* loader,
-                                            u32 loaderSize,
+                                            const _u8* loader,
+                                            _u32 loaderSize,
                                             bool (*cancel)()) {
   auto result =
       static_cast<LinkCard*>(handle)->sendLoader(loader, loaderSize, cancel);
@@ -27,7 +27,7 @@ C_LinkCard_SendResult C_LinkCard_sendLoader(C_LinkCardHandle handle,
 }
 
 C_LinkCard_ReceiveResult C_LinkCard_receiveCard(C_LinkCardHandle handle,
-                                                u8* card,
+                                                _u8* card,
                                                 bool (*cancel)()) {
   auto result = static_cast<LinkCard*>(handle)->receiveCard(card, cancel);
   return static_cast<C_LinkCard_ReceiveResult>(result);

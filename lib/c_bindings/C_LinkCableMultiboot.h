@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkCableMultibootHandle;
 typedef void* C_LinkCableMultiboot_AsyncHandle;
@@ -68,8 +68,8 @@ void C_LinkCableMultiboot_destroy(C_LinkCableMultibootHandle handle);
 
 C_LinkCableMultiboot_Result C_LinkCableMultiboot_sendRom(
     C_LinkCableMultibootHandle handle,
-    const u8* rom,
-    u32 romSize,
+    const _u8* rom,
+    _u32 romSize,
     bool (*cancel)(void),
     C_LinkCableMultiboot_TransferMode mode);
 
@@ -81,8 +81,8 @@ void C_LinkCableMultiboot_Async_destroy(
     C_LinkCableMultiboot_AsyncHandle handle);
 
 bool C_LinkCableMultiboot_Async_sendRom(C_LinkCableMultiboot_AsyncHandle handle,
-                                        const u8* rom,
-                                        u32 romSize);
+                                        const _u8* rom,
+                                        _u32 romSize);
 
 bool C_LinkCableMultiboot_Async_reset(C_LinkCableMultiboot_AsyncHandle handle);
 
@@ -97,9 +97,9 @@ C_LinkCableMultiboot_Async_Result C_LinkCableMultiboot_Async_getDetailedResult(
     C_LinkCableMultiboot_AsyncHandle handle,
     bool clear);
 
-u8 C_LinkCableMultiboot_Async_playerCount(
+_u8 C_LinkCableMultiboot_Async_playerCount(
     C_LinkCableMultiboot_AsyncHandle handle);
-u8 C_LinkCableMultiboot_Async_getPercentage(
+_u8 C_LinkCableMultiboot_Async_getPercentage(
     C_LinkCableMultiboot_AsyncHandle handle);
 
 bool C_LinkCableMultiboot_Async_isReady(

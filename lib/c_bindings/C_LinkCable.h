@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkCableHandle;
 
@@ -25,16 +25,16 @@ typedef enum {
 
 typedef struct {
   C_LinkCable_BaudRate baudRate;
-  u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
-  u16 interval;  // can be changed in realtime, but call `resetTimer()`
-  u8 sendTimerId;
+  _u32 timeout;   // can be changed in realtime, but call `resetTimeout()`
+  _u16 interval;  // can be changed in realtime, but call `resetTimer()`
+  _u8 sendTimerId;
 } C_LinkCable_Config;
 
 C_LinkCableHandle C_LinkCable_createDefault();
 C_LinkCableHandle C_LinkCable_create(C_LinkCable_BaudRate baudRate,
-                                     u32 timeout,
-                                     u16 interval,
-                                     u8 sendTimerId);
+                                     _u32 timeout,
+                                     _u16 interval,
+                                     _u8 sendTimerId);
 void C_LinkCable_destroy(C_LinkCableHandle handle);
 
 bool C_LinkCable_isActive(C_LinkCableHandle handle);
@@ -42,21 +42,21 @@ void C_LinkCable_activate(C_LinkCableHandle handle);
 void C_LinkCable_deactivate(C_LinkCableHandle handle);
 
 bool C_LinkCable_isConnected(C_LinkCableHandle handle);
-u8 C_LinkCable_playerCount(C_LinkCableHandle handle);
-u8 C_LinkCable_currentPlayerId(C_LinkCableHandle handle);
+_u8 C_LinkCable_playerCount(C_LinkCableHandle handle);
+_u8 C_LinkCable_currentPlayerId(C_LinkCableHandle handle);
 
 void C_LinkCable_sync(C_LinkCableHandle handle);
-bool C_LinkCable_waitFor(C_LinkCableHandle handle, u8 playerId);
+bool C_LinkCable_waitFor(C_LinkCableHandle handle, _u8 playerId);
 bool C_LinkCable_waitForWithCancel(C_LinkCableHandle handle,
-                                   u8 playerId,
+                                   _u8 playerId,
                                    bool (*cancel)());
 
-bool C_LinkCable_canRead(C_LinkCableHandle handle, u8 playerId);
-u16 C_LinkCable_read(C_LinkCableHandle handle, u8 playerId);
-u16 C_LinkCable_peek(C_LinkCableHandle handle, u8 playerId);
+bool C_LinkCable_canRead(C_LinkCableHandle handle, _u8 playerId);
+_u16 C_LinkCable_read(C_LinkCableHandle handle, _u8 playerId);
+_u16 C_LinkCable_peek(C_LinkCableHandle handle, _u8 playerId);
 
 bool C_LinkCable_canSend(C_LinkCableHandle handle);
-bool C_LinkCable_send(C_LinkCableHandle handle, u16 data);
+bool C_LinkCable_send(C_LinkCableHandle handle, _u16 data);
 
 bool C_LinkCable_didQueueOverflow(C_LinkCableHandle handle, bool clear);
 

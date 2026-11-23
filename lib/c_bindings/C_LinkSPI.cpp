@@ -26,22 +26,22 @@ void C_LinkSPI_deactivate(C_LinkSPIHandle handle) {
   static_cast<LinkSPI*>(handle)->deactivate();
 }
 
-u32 C_LinkSPI_transfer(C_LinkSPIHandle handle, u32 data) {
+_u32 C_LinkSPI_transfer(C_LinkSPIHandle handle, _u32 data) {
   return static_cast<LinkSPI*>(handle)->transfer(data);
 }
 
-u32 C_LinkSPI_transferWithCancel(C_LinkSPIHandle handle,
-                                 u32 data,
+_u32 C_LinkSPI_transferWithCancel(C_LinkSPIHandle handle,
+                                 _u32 data,
                                  bool (*cancel)()) {
   return static_cast<LinkSPI*>(handle)->transfer(data, cancel);
 }
 
-void C_LinkSPI_transferAsync(C_LinkSPIHandle handle, u32 data) {
+void C_LinkSPI_transferAsync(C_LinkSPIHandle handle, _u32 data) {
   static_cast<LinkSPI*>(handle)->transferAsync(data);
 }
 
 void C_LinkSPI_transferAsyncWithCancel(C_LinkSPIHandle handle,
-                                       u32 data,
+                                       _u32 data,
                                        bool (*cancel)()) {
   static_cast<LinkSPI*>(handle)->transferAsync(data, cancel);
 }
@@ -51,7 +51,7 @@ C_LinkSPI_AsyncState C_LinkSPI_getAsyncState(C_LinkSPIHandle handle) {
       static_cast<LinkSPI*>(handle)->getAsyncState());
 }
 
-u32 C_LinkSPI_getAsyncData(C_LinkSPIHandle handle) {
+_u32 C_LinkSPI_getAsyncData(C_LinkSPIHandle handle) {
   return static_cast<LinkSPI*>(handle)->getAsyncData();
 }
 

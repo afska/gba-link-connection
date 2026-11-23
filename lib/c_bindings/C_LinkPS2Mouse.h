@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <tonc_core.h>
+#include "_c_link_common.h"
 
 typedef void* C_LinkPS2MouseHandle;
 
@@ -13,7 +13,7 @@ typedef void* C_LinkPS2MouseHandle;
 #define C_LINK_PS2_MOUSE_RIGHT_CLICK 0b010
 #define C_LINK_PS2_MOUSE_MIDDLE_CLICK 0b100
 
-C_LinkPS2MouseHandle C_LinkPS2Mouse_create(u8 waitTimerId);
+C_LinkPS2MouseHandle C_LinkPS2Mouse_create(_u8 waitTimerId);
 void C_LinkPS2Mouse_destroy(C_LinkPS2MouseHandle handle);
 
 bool C_LinkPS2Mouse_isActive(C_LinkPS2MouseHandle handle);

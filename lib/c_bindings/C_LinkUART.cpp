@@ -39,25 +39,25 @@ void C_LinkUART_sendLineWithCancel(C_LinkUARTHandle handle,
   static_cast<LinkUART*>(handle)->sendLine(string, cancel);
 }
 
-bool C_LinkUART_readLine(C_LinkUARTHandle handle, char* string, u32 limit) {
+bool C_LinkUART_readLine(C_LinkUARTHandle handle, char* string, _u32 limit) {
   return static_cast<LinkUART*>(handle)->readLine(string, limit);
 }
 
 bool C_LinkUART_readLineWithCancel(C_LinkUARTHandle handle,
                                    char* string,
                                    bool (*cancel)(),
-                                   u32 limit) {
+                                   _u32 limit) {
   return static_cast<LinkUART*>(handle)->readLine(string, cancel, limit);
 }
 
 void C_LinkUART_send(C_LinkUARTHandle handle,
-                     const u8* buffer,
-                     u32 size,
-                     u32 offset) {
+                     const _u8* buffer,
+                     _u32 size,
+                     _u32 offset) {
   static_cast<LinkUART*>(handle)->send(buffer, size, offset);
 }
 
-u32 C_LinkUART_read(C_LinkUARTHandle handle, u8* buffer, u32 size, u32 offset) {
+_u32 C_LinkUART_read(C_LinkUARTHandle handle, _u8* buffer, _u32 size, _u32 offset) {
   return static_cast<LinkUART*>(handle)->read(buffer, size, offset);
 }
 
@@ -69,19 +69,19 @@ bool C_LinkUART_canSend(C_LinkUARTHandle handle) {
   return static_cast<LinkUART*>(handle)->canSend();
 }
 
-u32 C_LinkUART_availableForRead(C_LinkUARTHandle handle) {
+_u32 C_LinkUART_availableForRead(C_LinkUARTHandle handle) {
   return static_cast<LinkUART*>(handle)->availableForRead();
 }
 
-u32 C_LinkUART_availableForSend(C_LinkUARTHandle handle) {
+_u32 C_LinkUART_availableForSend(C_LinkUARTHandle handle) {
   return static_cast<LinkUART*>(handle)->availableForSend();
 }
 
-u8 C_LinkUART_readByte(C_LinkUARTHandle handle) {
+_u8 C_LinkUART_readByte(C_LinkUARTHandle handle) {
   return static_cast<LinkUART*>(handle)->read();
 }
 
-void C_LinkUART_sendByte(C_LinkUARTHandle handle, u8 data) {
+void C_LinkUART_sendByte(C_LinkUARTHandle handle, _u8 data) {
   static_cast<LinkUART*>(handle)->send(data);
 }
 
