@@ -1372,7 +1372,7 @@ class LinkMobile {
   }
 
   void cmdHangUpTelephone() {
-    sendCommandAsync(buildCommand(COMMAND_HANG_UP_TELEPHONE, true));
+    sendCommandAsync(buildCommand(COMMAND_HANG_UP_TELEPHONE));
   }
 
   void cmdWaitForTelephoneCall() {
