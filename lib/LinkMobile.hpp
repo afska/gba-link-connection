@@ -1430,7 +1430,7 @@ class LinkMobile {
   }
 
   void cmdCloseTCPConnection(u8 connectionId) {
-    addData(connectionId);
+    addData(connectionId, true);
     sendCommandAsync(buildCommand(COMMAND_CLOSE_TCP_CONNECTION, true));
   }
 
@@ -1443,7 +1443,7 @@ class LinkMobile {
   }
 
   void cmdCloseUDPConnection(u8 connectionId) {
-    addData(connectionId);
+    addData(connectionId, true);
     sendCommandAsync(buildCommand(COMMAND_CLOSE_UDP_CONNECTION, true));
   }
 
