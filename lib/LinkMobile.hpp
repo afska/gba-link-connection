@@ -921,12 +921,12 @@ class LinkMobile {
     if (userRequests.isEmpty())
       return;
 
-    auto request = userRequests.peek();
-    request.timeout++;
-    if (shouldAbortOnRequestTimeout() && request.timeout >= config.timeout)
+    auto request = userRequests.peekRef();
+    request->timeout++;
+    if (shouldAbortOnRequestTimeout() && request->timeout >= config.timeout)
       return abort(Error::Type::TIMEOUT);
 
-    switch (request.type) {
+    switch (request->type) {
       case UserRequest::Type::CALL: {
         if (state != State::SESSION_ACTIVE && state != State::CALL_REQUESTED) {
           popRequest();
@@ -937,7 +937,7 @@ class LinkMobile {
 
         if (!asyncCommand.isActive) {
           setState(State::CALLING);
-          cmdDialTelephone(request.phoneNumber);
+          cmdDialTelephone(request->phoneNumber);
           popRequest();
         }
         break;
@@ -965,9 +965,9 @@ class LinkMobile {
           return;
         }
 
-        if (!asyncCommand.isActive && !request.commandSent) {
-          cmdDNSQuery(request.send.data, request.send.size);
-          request.commandSent = true;
+        if (!asyncCommand.isActive && !request->commandSent) {
+          cmdDNSQuery(request->send.data, request->send.size);
+          request->commandSent = true;
         }
         break;
       }
@@ -977,12 +977,12 @@ class LinkMobile {
           return;
         }
 
-        if (!asyncCommand.isActive && !request.commandSent) {
-          if (request.connectionType == ConnectionType::TCP)
-            cmdOpenTCPConnection(request.ip, request.port);
+        if (!asyncCommand.isActive && !request->commandSent) {
+          if (request->connectionType == ConnectionType::TCP)
+            cmdOpenTCPConnection(request->ip, request->port);
           else
-            cmdOpenUDPConnection(request.ip, request.port);
-          request.commandSent = true;
+            cmdOpenUDPConnection(request->ip, request->port);
+          request->commandSent = true;
         }
         break;
       }
@@ -992,12 +992,12 @@ class LinkMobile {
           return;
         }
 
-        if (!asyncCommand.isActive && !request.commandSent) {
-          if (request.connectionType == ConnectionType::TCP)
-            cmdCloseTCPConnection(request.connectionId);
+        if (!asyncCommand.isActive && !request->commandSent) {
+          if (request->connectionType == ConnectionType::TCP)
+            cmdCloseTCPConnection(request->connectionId);
           else
-            cmdCloseUDPConnection(request.connectionId);
-          request.commandSent = true;
+            cmdCloseUDPConnection(request->connectionId);
+          request->commandSent = true;
         }
         break;
       }
@@ -1007,10 +1007,10 @@ class LinkMobile {
           return;
         }
 
-        if (!asyncCommand.isActive && !request.commandSent) {
-          cmdTransferData(request.connectionId, request.send.data,
-                          request.send.size);
-          request.commandSent = true;
+        if (!asyncCommand.isActive && !request->commandSent) {
+          cmdTransferData(request->connectionId, request->send.data,
+                          request->send.size);
+          request->commandSent = true;
         }
         break;
       }
