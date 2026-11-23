@@ -114,10 +114,16 @@ start:
 
         // START = Call the ISP
         if (Common::didPress(KEY_START, start)) {
-          std::string password = getPasswordInput();
+          bool useTestCredentials = linkMobile->isConfigurationValid() == 0;
+          std::string password =
+              useTestCredentials ? "testpass" : getPasswordInput();
           if (password != "") {
             // (7) Connect to the internet
-            linkMobile->callISP(password.c_str());
+            if (!linkMobile->callISP(password.c_str(),
+                                     useTestCredentials ? "testuser" : "")) {
+              log("ISP call failed!");
+              waitForA();
+            }
           }
         }
         break;
@@ -323,6 +329,8 @@ void printMenu() {
     output += "\nL = Read configuration";
     output += "\nR = Call someone";
     output += "\nSTART = Call the ISP";
+    if (linkMobile->isConfigurationValid() == 0)
+      output += " (test)";
     output += "\n\n (A = ok)\n (SELECT = stop)";
   } else {
     if (linkMobile->isConnectedP2P()) {
