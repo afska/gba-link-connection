@@ -317,6 +317,8 @@ class LinkWireless {
    * avoid a reconnection. Returns whether the restoration was successful.
    * On success, the state should be either `SERVING` or `CONNECTED`.
    * \warning This should be used as a replacement for `activate()`.
+   * \warning This only works if no packets had been sent or all devices restore
+   * the connection at the same time.
    */
   bool restoreExistingConnection() {
     LINK_BARRIER;
