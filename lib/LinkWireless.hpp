@@ -1640,9 +1640,9 @@ class LinkWireless {
     for (u32 i = 1; i < linkRawWireless.sessionState.playerCount; i++) {
       u32 ack = sessionState.lastAckFromClients[i];
 
-      // ignore clients that didn't confirm anything yet
+      // if a client didn't confirm anything yet, abort, it's not safe to remove
       if (ack == NO_ACK_RECEIVED_YET)
-        continue;
+        return;
 
       if (ringMinAck == 0xFFFFFFFF) {
         // on first time, we set `ringMinAck`
