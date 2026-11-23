@@ -1552,6 +1552,13 @@ class LinkWireless {
       (playerId, data, currentPacketId, playerBitMap, playerBitMapCount),
       {
         // (irq only)
+
+        // ignore server packets until the server knows we've joined
+        if (playerId == 0 && !sessionState.didReceiveFirstPacketFromServer &&
+            linkRawWireless.sessionState.playerCount <=
+                linkRawWireless.sessionState.currentPlayerId)
+          return;
+
         // store the packet ID and increment (msgs are consecutive inside
         // transfers)
         u32 packetId = currentPacketId;
