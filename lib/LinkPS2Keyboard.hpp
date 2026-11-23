@@ -43,7 +43,7 @@
 
 #include "_link_common.hpp"
 
-LINK_VERSION_TAG LINK_PS2_KEYBOARD_VERSION = "vLinkPS2Keyboard/v8.0.3";
+LINK_VERSION_TAG LINK_PS2_KEYBOARD_VERSION = "vLinkPS2Keyboard/v8.0.4";
 
 /**
  * @brief A PS/2 Keyboard Adapter for the GBA.

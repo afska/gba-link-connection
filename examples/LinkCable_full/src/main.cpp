@@ -141,9 +141,9 @@ inline void setUpInterrupts() {
 
 void printTutorial() {
 #ifndef USE_LINK_UNIVERSAL
-  DEBULOG("LinkCable_full (v8.0.3)");
+  DEBULOG("LinkCable_full (v8.0.4)");
 #else
-  DEBULOG("LinkUniversal_full (v8.0.3)");
+  DEBULOG("LinkUniversal_full (v8.0.4)");
 #endif
 
   DEBULOG("");

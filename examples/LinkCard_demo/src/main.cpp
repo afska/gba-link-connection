@@ -45,7 +45,7 @@ int main() {
   bool a = true;
 
   while (true) {
-    std::string output = "LinkCard_demo (v8.0.3)\n\n";
+    std::string output = "LinkCard_demo (v8.0.4)\n\n";
     output += "Device: ";
 
     // (2) Probe the connected device
