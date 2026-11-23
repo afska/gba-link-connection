@@ -108,7 +108,7 @@ class LinkUART {
     config.baudRate = baudRate;
     config.dataSize = dataSize;
     config.parity = parity;
-    config.useCTS = false;
+    config.useCTS = useCTS;
 
     LINK_BARRIER;
     isEnabled = false;
