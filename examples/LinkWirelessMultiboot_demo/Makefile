@@ -192,23 +192,6 @@ else
 	ASFLAGS		+= -DNDEBUG
 endif
 
-# --- Custom vars ? ---
-
-GAMETITLE=test-multi-link
-GAMEMAKER=AGB
-GAMECODE=AZCE # Megaman Zero (SRAM - 64kb)
-ENV ?= development
-
-ifeq ($(ENV), debug)
-	CXXFLAGS += -DENV_DEBUG=true -DENV_DEVELOPMENT=true
-else ifeq ($(ENV), development)
-	CXXFLAGS += -DENV_DEVELOPMENT=true
-else
-
-endif
-
-# CXXFLAGS += -DCUSTOM_VAR_DEFINE
-
 # === BUILD PROC ======================================================
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
