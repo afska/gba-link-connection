@@ -34,7 +34,7 @@ int main() {
   bool a = true, b = true, left = true, right = true;
 
   while (true) {
-    std::string output = "LinkIR_demo (v8.0.4)\n\n";
+    std::string output = "LinkIR_demo (v8.0.5)\n\n";
 
     output += std::string("IR adapter: ") +
               (isConnected ? "DETECTED" : "not detected");

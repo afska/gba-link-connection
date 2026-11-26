@@ -46,7 +46,7 @@
 
 #include "_link_common.hpp"
 
-LINK_VERSION_TAG LINK_SPI_VERSION = "vLinkSPI/v8.0.4";
+LINK_VERSION_TAG LINK_SPI_VERSION = "vLinkSPI/v8.0.5";
 
 #define LINK_SPI_NO_DATA_32 0xFFFFFFFF
 #define LINK_SPI_NO_DATA_8 0xFF

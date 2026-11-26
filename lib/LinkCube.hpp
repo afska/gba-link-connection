@@ -44,7 +44,7 @@
 #define LINK_CUBE_QUEUE_SIZE 10
 #endif
 
-LINK_VERSION_TAG LINK_CUBE_VERSION = "vLinkCube/v8.0.4";
+LINK_VERSION_TAG LINK_CUBE_VERSION = "vLinkCube/v8.0.5";
 
 /**
  * @brief A JOYBUS handler for the Link Port.

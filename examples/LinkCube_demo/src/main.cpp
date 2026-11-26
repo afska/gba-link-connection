@@ -32,7 +32,7 @@ int main() {
   while (true) {
     // Title
     std::string output =
-        "LinkCube_demo (v8.0.4)" + std::string(reset ? " !RESET!" : "") +
+        "LinkCube_demo (v8.0.5)" + std::string(reset ? " !RESET!" : "") +
         "\n\nPress A to send\nPress B to clear\n (L = "
         "+1024)\n\nLast sent: " +
         std::to_string(counter) +

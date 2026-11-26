@@ -41,22 +41,22 @@ void strRole(char* out, u32 value) {
 }
 
 void strU(char* out, u32 value) {
-  std::sprintf(out, "%lu", value);
+  std::sprintf(out, "%lu", (unsigned long)value);
 }
 
 void strHex02(char* out, u32 value) {
-  std::sprintf(out, "0x%02lx", value);
+  std::sprintf(out, "0x%02lx", (unsigned long)value);
 }
 
 void strBytecnt(char* out, u32 value) {
-  std::sprintf(out, "%lu bytes", value);
+  std::sprintf(out, "%lu bytes", (unsigned long)value);
 }
 
 void strFramecnt(char* out, u32 value) {
   if (value == 0)
     std::strcpy(out, "none");
   else
-    std::sprintf(out, "%lu frames", value);
+    std::sprintf(out, "%lu frames", (unsigned long)value);
 }
 
 void strSendInterval(char* out, u32 value) {
@@ -65,14 +65,14 @@ void strSendInterval(char* out, u32 value) {
   else if (value == ON_NEW_DATA)
     std::strcpy(out, "on new data");
   else
-    std::sprintf(out, "every %lu fr", value);
+    std::sprintf(out, "every %lu fr", (unsigned long)value);
 }
 
 void strReceiveInterval(char* out, u32 value) {
   if (value == NONSTOP)
     std::strcpy(out, "nonstop");
   else
-    std::sprintf(out, "every %lu fr", value);
+    std::sprintf(out, "every %lu fr", (unsigned long)value);
 }
 
 void strCommand(char* out, u32 value) {
@@ -353,8 +353,9 @@ bool readDeviceId() {
 }
 
 void printStats(const char* from, const PeerStats* stats) {
-  print("%-7s%5lu%4lu%4lu%4lu%4lu\n", from, stats->newPackets, stats->repeats,
-        stats->skipped, stats->damaged, stats->lastSize);
+  print("%-7s%5lu%4lu%4lu%4lu%4lu\n", from, (unsigned long)stats->newPackets,
+        (unsigned long)stats->repeats, (unsigned long)stats->skipped,
+        (unsigned long)stats->damaged, (unsigned long)stats->lastSize);
 }
 
 void printSession() {
@@ -368,15 +369,17 @@ void printSession() {
           session.hostId);
 
   strSendInterval(text, SETTING(SEND_INTERVAL));
-  print("send %lu bytes, %s\n", packetSize(), text);
-  print("sent %lu, failed %lu\n", session.sent, session.sendFailures);
+  print("send %lu bytes, %s\n", (unsigned long)packetSize(), text);
+  print("sent %lu, failed %lu\n", (unsigned long)session.sent,
+        (unsigned long)session.sendFailures);
   if (SETTING(SEND_COMMAND) == SEND_AND_WAIT) {
-    print("wait: data %lu disc %lu tmo %lu\n", session.dataEvents,
-          session.disconnectEvents, session.timeoutEvents);
-    print("  last wait %lu us\n", session.lastWaitMicros);
+    print("wait: data %lu disc %lu tmo %lu\n", (unsigned long)session.dataEvents,
+          (unsigned long)session.disconnectEvents,
+          (unsigned long)session.timeoutEvents);
+    print("  last wait %lu us\n", (unsigned long)session.lastWaitMicros);
   }
   strReceiveInterval(text, SETTING(RECEIVE_INTERVAL));
-  print("receive %s (%lu)\n\n", text, session.receives);
+  print("receive %s (%lu)\n\n", text, (unsigned long)session.receives);
 
   print("from     new rep skp bad len\n");
   if (isHost()) {
@@ -389,17 +392,19 @@ void printSession() {
       char from[8];
       if (id)
         std::sprintf(from, "%c%lu %04x",
-                     slot == session.selectedSlot ? '>' : ' ', slot, id);
+                     slot == session.selectedSlot ? '>' : ' ',
+                     (unsigned long)slot, id);
       else
         std::sprintf(from, "%c%lu ----",
-                     slot == session.selectedSlot ? '>' : ' ', slot);
+                     slot == session.selectedSlot ? '>' : ' ',
+                     (unsigned long)slot);
       printStats(from, &session.fromClient[slot]);
     }
   } else {
     printStats("host", &session.fromHost);
   }
 
-  print("\nframe %lu  %s\n\n", session.frame, session.status);
+  print("\nframe %lu  %s\n\n", (unsigned long)session.frame, session.status);
   if (isHost())
     print("L/R slot  A kick  START close\n");
   print("SELECT = stop");
@@ -449,7 +454,7 @@ int main() {
       current->selected = (current->selected + 1) % current->count;
 
     clearScreen();
-    print("LinkRawWireless_lab (v8.0.4)\n\n");
+    print("LinkRawWireless_lab (v8.0.5)\n\n");
     for (u32 i = 0; i < SETTING_COUNT; i++) {
       char value[32];
       settings[i].describe(value, SETTING(i));

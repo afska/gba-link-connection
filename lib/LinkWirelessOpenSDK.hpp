@@ -16,7 +16,7 @@
 
 #include "LinkRawWireless.hpp"
 
-LINK_VERSION_TAG LINK_WIRELESS_OPEN_SDK_VERSION = "vLinkWirelessOpenSDK/v8.0.4";
+LINK_VERSION_TAG LINK_WIRELESS_OPEN_SDK_VERSION = "vLinkWirelessOpenSDK/v8.0.5";
 
 /**
  * @brief An open-source implementation of the "official" Wireless Adapter

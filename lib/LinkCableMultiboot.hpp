@@ -66,7 +66,7 @@
 // #define LINK_CABLE_MULTIBOOT_ASYNC_DISABLE_NESTED_IRQ
 #endif
 
-LINK_VERSION_TAG LINK_CABLE_MULTIBOOT_VERSION = "vLinkCableMultiboot/v8.0.4";
+LINK_VERSION_TAG LINK_CABLE_MULTIBOOT_VERSION = "vLinkCableMultiboot/v8.0.5";
 
 #define LINK_CABLE_MULTIBOOT_TRY(CALL)                  \
   partialResult = CALL;                                 \

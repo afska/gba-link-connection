@@ -48,7 +48,7 @@ int main() {
 
 start:
   // Options
-  Common::log("LinkWireless_demo (v8.0.4)\n" + buildSettings +
+  Common::log("LinkWireless_demo (v8.0.5)\n" + buildSettings +
               "\n"
               "Press A to start\n\n"
               "hold LEFT on start:\n -> disable forwarding\n\n"
