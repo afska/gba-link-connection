@@ -556,7 +556,21 @@ int main() {
       // Who is (still) connected?
       if (session.frame % CHECK_EVERY_FRAMES == 0) {
         if (isHost()) {
-          success = linkRawWireless->pollConnections(session.clients);
+          if (session.isServerClosed) {
+            // if the server is closed, we can't use `pollConnections(...)`, so
+            // we use `getSlotStatus(...)` instead
+            LinkRawWireless::SlotStatusResponse status;
+            success = linkRawWireless->getSlotStatus(status);
+            if (success) {
+              session.clients.connectedClientsSize =
+                  status.connectedClientsSize;
+              for (u32 i = 0; i < status.connectedClientsSize; i++)
+                session.clients.connectedClients[i] =
+                    status.connectedClients[i];
+            }
+          } else {
+            success = linkRawWireless->pollConnections(session.clients);
+          }
         } else {
           LinkRawWireless::SystemStatusResponse status;
           success = linkRawWireless->getSystemStatus(status) &&
