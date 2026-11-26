@@ -105,6 +105,12 @@ compile() {
   cp LinkRawWireless_demo$suffix.gba ../$folder/
   cd ..
 
+  # LinkRawWireless_lab
+  cd LinkRawWireless_lab/
+  cmd_make rebuild $args
+  cp LinkRawWireless_lab$suffix.gba ../$folder/
+  cd ..
+
   # LinkSPI_demo
   cd LinkSPI_demo/
   cmd_make rebuild $args
