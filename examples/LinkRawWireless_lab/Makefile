@@ -120,14 +120,13 @@ endef
 export PROJ	?= $(notdir $(CURDIR))
 TITLE		:= $(PROJ)
 
-LIBS		:= -ltonc -lugba -lgba-sprite-engine
+LIBS		:= -ltonc -lugba
 
 BUILD		:= build
-SRCDIRS		:= src ../_lib ../_lib/libgba-sprite-engine ../../lib ../../lib/iwram_code \
-						 src/scenes
+SRCDIRS		:= src ../_lib ../../lib ../../lib/iwram_code
 DATADIRS	:=
 INCDIRS		:= src
-LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba $(PWD)/../_lib/libgba-sprite-engine
+LIBDIRS		:= $(TONCLIB) $(PWD)/../_lib/libugba
 
 # --- switches ---
 

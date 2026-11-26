@@ -13,64 +13,70 @@
 // Using this structure we can infer which data was sent and how, what
 // happens with duplicated or missing packets, etc.
 
-// (0) Include the header
 #include "../../../lib/LinkRawWireless.hpp"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
 #include "../../_lib/common.h"
 #include "../../_lib/interrupt.h"
 
-#define GAME_NAME           "LinkRawLab"
-#define CHECK_EVERY_FRAMES  30  // how often we ask who is (still) connected
-#define LEN(ARRAY)          (sizeof(ARRAY) / sizeof(ARRAY[0]))
+#define GAME_NAME "LinkRawLab"
+#define CHECK_EVERY_FRAMES 30  // how often we ask who is (still) connected
+#define LEN(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
 LinkRawWireless* linkRawWireless = nullptr;
 volatile u32 vblankCount = 0;
 
 // menu options go here
 
-#define NEVER          0
-#define ON_NEW_DATA    0xFFFF  // send right after new data arrives
-#define NONSTOP        0       // receive in a busy loop
-#define SEND           0x24
-#define SEND_AND_WAIT  0x25
+#define NEVER 0
+#define ON_NEW_DATA 0xFFFF  // send right after new data arrives
+#define NONSTOP 0           // receive in a busy loop
+#define SEND 0x24
+#define SEND_AND_WAIT 0x25
 
-static void strRole(char* out, u32 value) {
-  strcpy(out, value == 0 ? "host" : "client");
+void strRole(char* out, u32 value) {
+  std::strcpy(out, value == 0 ? "host" : "client");
 }
-static void strU(char* out, u32 value) {
-  sprintf(out, "%u", value);
+
+void strU(char* out, u32 value) {
+  std::sprintf(out, "%lu", value);
 }
-static void strHex02(char* out, u32 value) {
-  sprintf(out, "0x%02x", value);
+
+void strHex02(char* out, u32 value) {
+  std::sprintf(out, "0x%02lx", value);
 }
-static void strBytecnt(char* out, u32 value) {
-  sprintf(out, "%u bytes", value);
+
+void strBytecnt(char* out, u32 value) {
+  std::sprintf(out, "%lu bytes", value);
 }
-static void strFramecnt(char* out, u32 value) {
+
+void strFramecnt(char* out, u32 value) {
   if (value == 0)
-    strcpy(out, "none");
+    std::strcpy(out, "none");
   else
-    sprintf(out, "%u frames", value);
+    std::sprintf(out, "%lu frames", value);
 }
-static void strSendInterval(char* out, u32 value) {
+
+void strSendInterval(char* out, u32 value) {
   if (value == NEVER)
-    strcpy(out, "never");
+    std::strcpy(out, "never");
   else if (value == ON_NEW_DATA)
-    strcpy(out, "on new data");
+    std::strcpy(out, "on new data");
   else
-    sprintf(out, "every %u fr", value);
+    std::sprintf(out, "every %lu fr", value);
 }
-static void strReceiveInterval(char* out, u32 value) {
+
+void strReceiveInterval(char* out, u32 value) {
   if (value == NONSTOP)
-    strcpy(out, "nonstop");
+    std::strcpy(out, "nonstop");
   else
-    sprintf(out, "every %u fr", value);
+    std::sprintf(out, "every %lu fr", value);
 }
-static void strCommand(char* out, u32 value) {
-  strcpy(out, value == SEND ? "0x24 send" : "0x25 send+wait");
+
+void strCommand(char* out, u32 value) {
+  std::strcpy(out, value == SEND ? "0x24 send" : "0x25 send+wait");
 }
 
 // default value goes in the first position of the array
@@ -89,8 +95,8 @@ static const u32 MAGIC_BYTE3[] = {0x00, 0x01, 0x02, 0x03,
 static const u32 HOST_SIZES[] = {87, 0,  1,  4,  8,  16, 20, 21,
                                  24, 40, 52, 55, 56, 60, 72, 84};
 static const u32 CLIENT_SIZES[] = {16, 0, 1, 2, 4, 8, 12, 14};
-static const u32 SEND_INTERVALS[] = {1, 2, 3, 4, 6, 8, 16, 60, NEVER,
-                                     ON_NEW_DATA};
+static const u32 SEND_INTERVALS[] = {1, 2,  3,  4,     6,
+                                     8, 16, 60, NEVER, ON_NEW_DATA};
 static const u32 SEND_COMMANDS[] = {SEND, SEND_AND_WAIT};
 static const u32 RECEIVE_INTERVALS[] = {1, 2, 4, 8, 16, NONSTOP};
 
@@ -103,32 +109,41 @@ struct Setting {
 };
 
 enum {
-  ROLE, MAX_CLIENT_COUNT, MAX_TX, WAIT_TIMEOUT,
-  MAGIC_2, MAGIC_3, HOST_SIZE, CLIENT_SIZE, SEND_INTERVAL,
-  SEND_COMMAND, RECEIVE_INTERVAL, SETTING_COUNT
+  ROLE,
+  MAX_CLIENT_COUNT,
+  MAX_TX,
+  WAIT_TIMEOUT,
+  MAGIC_2,
+  MAGIC_3,
+  HOST_SIZE,
+  CLIENT_SIZE,
+  SEND_INTERVAL,
+  SEND_COMMAND,
+  RECEIVE_INTERVAL,
+  SETTING_COUNT
 };
 
 // (same order as the enum above)
 static Setting settings[SETTING_COUNT] = {
-    {"Role",          ROLES,              LEN(ROLES),              strRole},
-    {"Max clients",   MAX_CLIENTS,        LEN(MAX_CLIENTS),        strU},
-    {"Max tx",        MAX_TRANSMISSIONS,  LEN(MAX_TRANSMISSIONS),  strU},
-    {"Wait timeout",  WAIT_TIMEOUTS,      LEN(WAIT_TIMEOUTS),      strFramecnt},
-    {"Magic byte 2",  MAGIC_BYTE2,        LEN(MAGIC_BYTE2),        strHex02},
-    {"Magic byte 3",  MAGIC_BYTE3,        LEN(MAGIC_BYTE3),        strHex02},
-    {"Host packet",   HOST_SIZES,         LEN(HOST_SIZES),         strBytecnt},
-    {"Client packet", CLIENT_SIZES,       LEN(CLIENT_SIZES),       strBytecnt},
-    {"Send",          SEND_INTERVALS,     LEN(SEND_INTERVALS),     strSendInterval},
-    {"Send with",     SEND_COMMANDS,      LEN(SEND_COMMANDS),      strCommand},
-    {"Receive",       RECEIVE_INTERVALS,  LEN(RECEIVE_INTERVALS),  strReceiveInterval},
+    {"Role", ROLES, LEN(ROLES), strRole},
+    {"Max clients", MAX_CLIENTS, LEN(MAX_CLIENTS), strU},
+    {"Max tx", MAX_TRANSMISSIONS, LEN(MAX_TRANSMISSIONS), strU},
+    {"Wait timeout", WAIT_TIMEOUTS, LEN(WAIT_TIMEOUTS), strFramecnt},
+    {"Magic byte 2", MAGIC_BYTE2, LEN(MAGIC_BYTE2), strHex02},
+    {"Magic byte 3", MAGIC_BYTE3, LEN(MAGIC_BYTE3), strHex02},
+    {"Host packet", HOST_SIZES, LEN(HOST_SIZES), strBytecnt},
+    {"Client packet", CLIENT_SIZES, LEN(CLIENT_SIZES), strBytecnt},
+    {"Send", SEND_INTERVALS, LEN(SEND_INTERVALS), strSendInterval},
+    {"Send with", SEND_COMMANDS, LEN(SEND_COMMANDS), strCommand},
+    {"Receive", RECEIVE_INTERVALS, LEN(RECEIVE_INTERVALS), strReceiveInterval},
 };
 
 // The current value of a setting
 #define SETTING(INDEX) (settings[INDEX].values[settings[INDEX].selected])
 
-#define isHost()  (SETTING(ROLE) == 0)
+#define isHost() (SETTING(ROLE) == 0)
 
-static u32 packetSize() {
+u32 packetSize() {
   return isHost() ? SETTING(HOST_SIZE) : SETTING(CLIENT_SIZE);
 }
 
@@ -136,34 +151,34 @@ static char screen[1024];
 static u32 screenLength = 0;
 
 // Starts a new screen
-static void clearScreen() {
+void clearScreen() {
   screen[0] = '\0';
   screenLength = 0;
 }
 
 // Adds text to the screen, printf style
-static void print(const char* format, ...) {
-  va_list args;
+void print(const char* format, ...) {
+  std::va_list args;
   va_start(args, format);
-  screenLength += vsnprintf(screen + screenLength,
-                            sizeof(screen) - screenLength, format, args);
+  screenLength += std::vsnprintf(screen + screenLength,
+                                 sizeof(screen) - screenLength, format, args);
   va_end(args);
 }
 
-static void showScreen() {
+void showScreen() {
   Common::log(screen);
 }
 
 // Keys that went down since the last call
-static u16 previousKeys = 0;
-static u16 pressedKeys() {
+u16 previousKeys = 0;
+u16 pressedKeys() {
   u16 keys = ~REG_KEYS & KEY_ANY;
   u16 pressed = keys & ~previousKeys;
   previousKeys = keys;
   return pressed;
 }
 
-static void showError(const char* message) {
+void showError(const char* message) {
   print("\n\n%s [state %d]\n\n(DOWN = ok)", message,
         (int)linkRawWireless->getState());
   showScreen();
@@ -212,7 +227,7 @@ struct {
   PeerStats fromHost;
 } session;
 
-static void fillPacket(u32* data, u32 size, u32 sequence) {
+void fillPacket(Link::u32* data, u32 size, u32 sequence) {
   u8* bytes = (u8*)data;
   for (u32 j = 0; j < size; j++)
     bytes[j] = (u8)(sequence * 7 + j);
@@ -221,7 +236,7 @@ static void fillPacket(u32* data, u32 size, u32 sequence) {
 }
 
 // Checks one received packet. Returns true if it was new.
-static bool checkPacket(const u8* bytes, u32 size, PeerStats* stats) {
+bool checkPacket(const u8* bytes, u32 size, PeerStats* stats) {
   stats->lastSize = size;
   if (size < 4) {
     stats->tooShort++;
@@ -251,8 +266,8 @@ static bool checkPacket(const u8* bytes, u32 size, PeerStats* stats) {
   return isNew;
 }
 
-static void sendPacket() {
-  u32 data[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
+void sendPacket() {
+  Link::u32 data[LINK_RAW_WIRELESS_MAX_COMMAND_TRANSFER_LENGTH];
   u32 size = packetSize();
   u32 words = (size + 3) / 4;
   fillPacket(data, size, session.sequence);
@@ -286,7 +301,7 @@ static void sendPacket() {
   }
 }
 
-static void receivePackets() {
+void receivePackets() {
   LinkRawWireless::ReceiveDataResponse response;
   if (!linkRawWireless->receiveData(response) || response.dataSize == 0)
     return;
@@ -317,7 +332,7 @@ static void receivePackets() {
     sendPacket();
 }
 
-static bool setUpAdapter() {
+bool setUpAdapter() {
   u32 maxPlayers = 1 + SETTING(MAX_CLIENT_COUNT);
   u32 magic = (SETTING(MAGIC_3) << 24) | (SETTING(MAGIC_2) << 16);
 
@@ -326,7 +341,7 @@ static bool setUpAdapter() {
                                 SETTING(WAIT_TIMEOUT), magic);
 }
 
-static bool readDeviceId() {
+bool readDeviceId() {
   LinkRawWireless::SystemStatusResponse status;
   if (!linkRawWireless->getSystemStatus(status))
     return false;
@@ -337,12 +352,12 @@ static bool readDeviceId() {
   return true;
 }
 
-static void printStats(const char* from, const PeerStats* stats) {
-  print("%-7s%5u%4u%4u%4u%4u\n", from, stats->newPackets, stats->repeats,
+void printStats(const char* from, const PeerStats* stats) {
+  print("%-7s%5lu%4lu%4lu%4lu%4lu\n", from, stats->newPackets, stats->repeats,
         stats->skipped, stats->damaged, stats->lastSize);
 }
 
-static void printSession() {
+void printSession() {
   char text[32];
   clearScreen();
 
@@ -353,15 +368,15 @@ static void printSession() {
           session.hostId);
 
   strSendInterval(text, SETTING(SEND_INTERVAL));
-  print("send %u bytes, %s\n", packetSize(), text);
-  print("sent %u, failed %u\n", session.sent, session.sendFailures);
+  print("send %lu bytes, %s\n", packetSize(), text);
+  print("sent %lu, failed %lu\n", session.sent, session.sendFailures);
   if (SETTING(SEND_COMMAND) == SEND_AND_WAIT) {
-    print("wait: data %u disc %u tmo %u\n", session.dataEvents,
+    print("wait: data %lu disc %lu tmo %lu\n", session.dataEvents,
           session.disconnectEvents, session.timeoutEvents);
-    print("  last wait %u us\n", session.lastWaitMicros);
+    print("  last wait %lu us\n", session.lastWaitMicros);
   }
   strReceiveInterval(text, SETTING(RECEIVE_INTERVAL));
-  print("receive %s (%u)\n\n", text, session.receives);
+  print("receive %s (%lu)\n\n", text, session.receives);
 
   print("from     new rep skp bad len\n");
   if (isHost()) {
@@ -373,24 +388,24 @@ static void printSession() {
       }
       char from[8];
       if (id)
-        sprintf(from, "%c%u %04x", slot == session.selectedSlot ? '>' : ' ',
-                slot, id);
+        std::sprintf(from, "%c%lu %04x",
+                     slot == session.selectedSlot ? '>' : ' ', slot, id);
       else
-        sprintf(from, "%c%u ----", slot == session.selectedSlot ? '>' : ' ',
-                slot);
+        std::sprintf(from, "%c%lu ----",
+                     slot == session.selectedSlot ? '>' : ' ', slot);
       printStats(from, &session.fromClient[slot]);
     }
   } else {
     printStats("host", &session.fromHost);
   }
 
-  print("\nframe %u  %s\n\n", session.frame, session.status);
+  print("\nframe %lu  %s\n\n", session.frame, session.status);
   if (isHost())
     print("L/R slot  A kick  START close\n");
   print("SELECT = stop");
 }
 
-static void waitForNextFrame() {
+void waitForNextFrame() {
   if (SETTING(RECEIVE_INTERVAL) == NONSTOP) {
     // Keep asking the adapter for data until the frame is over
     u32 frame = vblankCount;
@@ -412,6 +427,7 @@ int main() {
   Common::initTTE();
 
   linkRawWireless = new LinkRawWireless();
+
   interrupt_init();
   interrupt_add(INTR_VBLANK, [] { vblankCount++; });
   interrupt_add(INTR_SERIAL, LINK_RAW_WIRELESS_ISR_SERIAL);
@@ -427,13 +443,13 @@ int main() {
     if (pressed & KEY_DOWN)
       opt = (opt + 1) % SETTING_COUNT;
     if (pressed & KEY_LEFT)
-      current->selected = (current->selected + current->count - 1) %
-                          current->count;
+      current->selected =
+          (current->selected + current->count - 1) % current->count;
     if (pressed & KEY_RIGHT)
       current->selected = (current->selected + 1) % current->count;
 
     clearScreen();
-    print("LinkRawWireless_lab\n\n");
+    print("LinkRawWireless_lab (v8.0.4)\n\n");
     for (u32 i = 0; i < SETTING_COUNT; i++) {
       char value[32];
       settings[i].describe(value, SETTING(i));
@@ -484,7 +500,8 @@ int main() {
           goto endSession;
 
         clearScreen();
-        print("Searching%.*s\n\n(SELECT = cancel)", (int)(1 + (frame / 10) % 3), "...");
+        print("Searching%.*s\n\n(SELECT = cancel)", (int)(1 + (frame / 10) % 3),
+              "...");
         showScreen();
         VBlankIntrWait();
 
@@ -495,7 +512,7 @@ int main() {
         success = linkRawWireless->broadcastReadPoll(found);
         CHECK_ERRORS("Search failed :(")
         for (u32 i = 0; i < found.serversSize; i++) {
-          if (strcmp(found.servers[i].gameName, GAME_NAME) == 0) {
+          if (std::strcmp(found.servers[i].gameName, GAME_NAME) == 0) {
             session.hostId = found.servers[i].id;
             break;
           }
@@ -551,15 +568,16 @@ int main() {
         goto endSession;
 
       if (isHost()) {
-        // L/R allows to pick a client slot, A disconnects it, START closes server
+        // L/R allows to pick a client slot, A disconnects it, START closes
+        // server
         u32 slot = session.selectedSlot;
         if (keys & KEY_L)
           session.selectedSlot = (slot + 3) % 4;
         if (keys & KEY_R)
           session.selectedSlot = (slot + 1) % 4;
         if (keys & KEY_A) {
-          bool kicked = linkRawWireless->disconnectClient(
-              slot == 0, slot == 1, slot == 2, slot == 3);
+          bool kicked = linkRawWireless->disconnectClient(slot == 0, slot == 1,
+                                                          slot == 2, slot == 3);
           session.status = kicked ? "kicked!" : "can't kick";
         }
         if ((keys & KEY_START) && !session.isServerClosed) {
@@ -582,5 +600,3 @@ int main() {
 
   return 0;
 }
-
-
